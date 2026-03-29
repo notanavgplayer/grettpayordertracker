@@ -1,0 +1,246 @@
+// nav.js — shared sidebar, injected into every page
+// Usage: <script type="module" src="nav.js"></script>
+// Add data-page="pageid" to <body> to highlight the active nav item
+
+import { auth } from "./firebase.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const NAV_ITEMS = [
+  {
+    id: 'payorders',
+    label: 'Pay Orders',
+    href: 'dashboard.html',
+    icon: `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>`
+  },
+  {
+    id: 'notes',
+    label: 'Notes',
+    href: 'notes.html',
+    icon: `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 4h12v9l-4 4H4V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M12 13v4l4-4h-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M7 8h6M7 11h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>`
+  },
+  {
+    id: 'todo',
+    label: 'To-Do',
+    href: 'todo.html',
+    icon: `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 5h9M8 10h9M8 15h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M3 5.5l1.5 1.5L7 4M3 10.5l1.5 1.5L7 9M3 15.5l1.5 1.5L7 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`
+  },
+];
+
+function buildSidebar(userEmail) {
+  const currentPage = document.body.dataset.page || '';
+
+  const items = NAV_ITEMS.map(item => `
+    <a href="${item.href}" class="nav-item ${item.id === currentPage ? 'active' : ''}" data-id="${item.id}">
+      <span class="nav-item-icon">${item.icon}</span>
+      <span class="nav-item-label">${item.label}</span>
+    </a>
+  `).join('');
+
+  return `
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L3 8v2h2v10h4v-5h6v5h4V10h2V8L12 2z" fill="#e8940a"/></svg>
+      </div>
+      <div class="sidebar-brand-text">
+        <strong>Grett Engineering</strong>
+        <span>Solutions</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section-label">WORKSPACE</div>
+    <nav class="sidebar-nav">
+      ${items}
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">${userEmail ? userEmail[0].toUpperCase() : 'G'}</div>
+        <div class="sidebar-user-info">
+          <span class="sidebar-user-email">${userEmail || ''}</span>
+          <span class="sidebar-user-role">Administrator</span>
+        </div>
+      </div>
+      <button class="sidebar-logout" id="sidebarLogout" title="Sign Out">
+        <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
+          <path d="M7 3H4a1 1 0 00-1 1v12a1 1 0 001 1h3M13 14l4-4-4-4M17 10H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+  </aside>
+
+  <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+    <svg viewBox="0 0 20 20" fill="none" width="18" height="18">
+      <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  </button>
+
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  `;
+}
+
+function injectStyles() {
+  if (document.getElementById('nav-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'nav-styles';
+  style.textContent = `
+    body { display: flex; min-height: 100vh; }
+
+    .sidebar {
+      width: 220px; flex-shrink: 0;
+      background: #0f2a4a;
+      display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0; bottom: 0;
+      z-index: 100;
+      transition: transform 0.25s ease;
+    }
+
+    .sidebar-brand {
+      display: flex; align-items: center; gap: 10px;
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .sidebar-logo {
+      width: 36px; height: 36px; flex-shrink: 0;
+      background: rgba(255,255,255,0.08);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .sidebar-logo svg { width: 20px; height: 20px; }
+    .sidebar-brand-text strong {
+      display: block; font-size: 13px; font-weight: 600;
+      color: #fff; line-height: 1.2;
+    }
+    .sidebar-brand-text span {
+      font-size: 11px; color: rgba(255,255,255,0.45);
+    }
+
+    .sidebar-section-label {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.1em; color: rgba(255,255,255,0.3);
+      padding: 20px 16px 8px;
+    }
+
+    .sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; flex: 1; }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      color: rgba(255,255,255,0.55);
+      text-decoration: none;
+      font-size: 13px; font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
+    .nav-item.active { background: rgba(255,255,255,0.12); color: #fff; }
+    .nav-item.active .nav-item-icon { color: #e8940a; }
+    .nav-item-icon { width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .nav-item-icon svg { width: 18px; height: 18px; }
+
+    .sidebar-footer {
+      padding: 12px 8px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .sidebar-user { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+    .sidebar-avatar {
+      width: 30px; height: 30px; flex-shrink: 0;
+      background: #e8940a; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #0f2a4a;
+    }
+    .sidebar-user-info { min-width: 0; }
+    .sidebar-user-email {
+      display: block; font-size: 11px; color: rgba(255,255,255,0.7);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 120px;
+    }
+    .sidebar-user-role { font-size: 10px; color: rgba(255,255,255,0.35); }
+    .sidebar-logout {
+      width: 30px; height: 30px; flex-shrink: 0;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.5); transition: all 0.15s;
+    }
+    .sidebar-logout:hover { background: rgba(232,78,60,0.2); border-color: rgba(232,78,60,0.4); color: #ff6b6b; }
+
+    .page-content {
+      margin-left: 220px;
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column;
+    }
+
+    /* Mobile toggle */
+    .sidebar-toggle {
+      display: none;
+      position: fixed; top: 12px; left: 12px;
+      z-index: 200;
+      width: 38px; height: 38px;
+      background: #0f2a4a; border: none;
+      border-radius: 8px; cursor: pointer;
+      color: #fff; align-items: center; justify-content: center;
+    }
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 99;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-overlay.open { display: block; }
+      .sidebar-toggle { display: flex; }
+      .page-content { margin-left: 0; padding-top: 56px; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+window.toggleSidebar = toggleSidebar;
+window.closeSidebar  = closeSidebar;
+
+// Auth guard + inject
+onAuthStateChanged(auth, user => {
+  if (!user) { window.location.href = 'index.html'; return; }
+
+  injectStyles();
+
+  const container = document.createElement('div');
+  container.innerHTML = buildSidebar(user.email);
+
+  const body = document.body;
+  const firstChild = body.firstChild;
+  while (container.firstChild) {
+    body.insertBefore(container.firstChild, firstChild);
+  }
+
+  // Wrap existing content in .page-content if not already
+  const pageContent = document.getElementById('page-content');
+  if (pageContent) pageContent.classList.add('page-content');
+
+  document.getElementById('sidebarLogout').addEventListener('click', () => {
+    signOut(auth).then(() => window.location.href = 'index.html');
+  });
+});

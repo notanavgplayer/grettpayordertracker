@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pay Order Tracker — Grett Engineering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="payorders">
+
+<div id="page-content">
+<!-- SUMMARY CARDS -->
+<div class="main-wrap">
+  <div class="cards-grid" id="cardsGrid">
+    <div class="stat-card navy" id="card-total-amt">
+      <div class="stat-label">Total Amount (PKR)</div>
+      <div class="stat-val" id="s-total-amt">—</div>
+    </div>
+    <div class="stat-card" id="card-total">
+      <div class="stat-label">Total Entries</div>
+      <div class="stat-val" id="s-total">—</div>
+    </div>
+    <div class="stat-card amber" id="card-risk">
+      <div class="stat-label">At Risk (Submitted)</div>
+      <div class="stat-val" id="s-risk">—</div>
+    </div>
+    <div class="stat-card green" id="card-returned">
+      <div class="stat-label">Returned (Safe)</div>
+      <div class="stat-val" id="s-returned">—</div>
+    </div>
+    <div class="stat-card red" id="card-encashed">
+      <div class="stat-label">Encashed / Lost</div>
+      <div class="stat-val" id="s-encashed">—</div>
+    </div>
+    <div class="stat-card blue" id="card-pending">
+      <div class="stat-label">Pending Result</div>
+      <div class="stat-val" id="s-pending">—</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs-bar">
+    <button class="tab-btn active" onclick="switchTab('po', this)">Pay Orders</button>
+    <button class="tab-btn" onclick="switchTab('log', this)">Activity Log</button>
+  </div>
+
+  <!-- PAY ORDERS TAB -->
+  <div class="tab-content" id="tab-po">
+    <div class="toolbar">
+      <div class="filter-group">
+        <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+        <button class="filter-btn" onclick="setFilter('Pending', this)">Pending</button>
+        <button class="filter-btn" onclick="setFilter('Submitted', this)">Submitted</button>
+        <button class="filter-btn" onclick="setFilter('Returned', this)">Returned</button>
+        <button class="filter-btn" onclick="setFilter('Encashed', this)">Encashed</button>
+        <button class="filter-btn" onclick="setFilter('Forfeited', this)">Forfeited</button>
+      </div>
+      <div class="toolbar-right">
+<button class="btn-select-mode" id="selectModeBtn" onclick="toggleSelectMode()">Select</button>
+        <input class="search-box" type="text" id="searchBox" placeholder="Search tender, agency, PO…" oninput="renderPOTable()">
+        <button class="btn-primary" onclick="openPOModal()">+ Add Pay Order</button>
+      </div>
+    </div>
+    <div class="table-wrap" id="poTableWrap">
+      <table id="poTable">
+        <thead>
+          <tr>
+            
+            <th>PO Number</th>
+            <th>Bank</th>
+            <th>NIT / Ref</th>
+            <th style="min-width:300px">Tender / Project</th>
+            <th>Agency</th>
+            <th class="num">Amount (PKR)</th>
+            <th>Issued</th>
+            <th>Status</th>
+            <th>Bid Result</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="poTbody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="poEmpty" style="display:none">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="8" y="6" width="24" height="28" rx="3" stroke="#c8d3e0" stroke-width="2"/><path d="M14 14h12M14 20h12M14 26h8" stroke="#c8d3e0" stroke-width="2" stroke-linecap="round"/></svg>
+      <p>No pay orders found.</p>
+      <span>Add your first entry or adjust the filters.</span>
+    </div>
+  </div>
+
+  <!-- ACTIVITY LOG TAB -->
+  <div class="tab-content" id="tab-log" style="display:none">
+    <div class="toolbar">
+      <div class="toolbar-right" style="margin-left:auto">
+        <button class="btn-primary" onclick="openLogModal()">+ Add Log Entry</button>
+      </div>
+    </div>
+    <div class="table-wrap" id="logTableWrap">
+      <table id="logTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>PO Number</th>
+            <th>Tender / Agency</th>
+            <th>Action Taken</th>
+            <th>Next Step</th>
+            <th>By</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="logTbody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="logEmpty" style="display:none">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="8" y="6" width="24" height="28" rx="3" stroke="#c8d3e0" stroke-width="2"/><path d="M14 14h12M14 20h12M14 26h8" stroke="#c8d3e0" stroke-width="2" stroke-linecap="round"/></svg>
+      <p>No activity logged yet.</p>
+      <span>Record calls, visits, and follow-ups here.</span>
+    </div>
+  </div>
+</div>
+
+<!-- PAY ORDER MODAL -->
+<div class="modal-overlay" id="poModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="poModalTitle">New Pay Order</span>
+      <button class="modal-close" onclick="closePOModal()">&#x2715;</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>PO Number</label>
+        <input type="number" id="f_po" placeholder="e.g. 18550818">
+      </div>
+      <div class="form-group">
+        <label>Bank</label>
+        <input type="text" id="f_bank" placeholder="e.g. HBL, UBL">
+      </div>
+      <div class="form-group">
+        <label>NIT / Reference No.</label>
+        <input type="text" id="f_nit" placeholder="e.g. NIT-KMC-2024-041">
+      </div>
+      <div class="form-group">
+        <label>Amount (PKR)</label>
+        <input type="number" id="f_amount" placeholder="0">
+      </div>
+      <div class="form-group full">
+        <label>Tender / Project Name</label>
+        <input type="text" id="f_tender" placeholder="Full tender name">
+      </div>
+      <div class="form-group full">
+        <label>Procuring Agency</label>
+        <input type="text" id="f_agency" placeholder="e.g. KMC, NHA, PWD, SSGC">
+      </div>
+      <div class="form-group">
+        <label>Date Issued</label>
+        <input type="date" id="f_issued">
+      </div>
+      <div class="form-group">
+        <label>Date Submitted</label>
+        <input type="date" id="f_submitted">
+      </div>
+      <div class="form-group">
+        <label>PO Expiry Date</label>
+        <input type="date" id="f_expiry">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="f_status">
+          <option value="Pending">Pending</option>
+          <option value="Submitted">Submitted</option>
+          <option value="Returned">Returned</option>
+          <option value="Encashed">Encashed</option>
+          <option value="Forfeited">Forfeited</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Bid Result</label>
+        <select id="f_result">
+          <option value="N/A">N/A</option>
+          <option value="Awaiting">Awaiting</option>
+          <option value="Won">Won</option>
+          <option value="Lost">Lost</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Notes</label>
+        <textarea id="f_notes" placeholder="Optional remarks…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closePOModal()">Cancel</button>
+      <button class="btn-save" id="poSaveBtn" onclick="savePO()">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG MODAL -->
+<div class="modal-overlay" id="logModalOverlay">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <span id="logModalTitle">New Log Entry</span>
+      <button class="modal-close" onclick="closeLogModal()">&#x2715;</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="lf_date">
+      </div>
+      <div class="form-group">
+        <label>PO Number</label>
+        <input type="text" id="lf_po" placeholder="e.g. PO-2024-001">
+      </div>
+      <div class="form-group full">
+        <label>Tender / Agency</label>
+        <input type="text" id="lf_ref" placeholder="e.g. LED Lights Tender — KMC">
+      </div>
+      <div class="form-group full">
+        <label>Action Taken</label>
+        <textarea id="lf_action" placeholder="What did you do? Called, visited, emailed…"></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Next Step</label>
+        <textarea id="lf_next" placeholder="What needs to happen next?"></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Followed Up By</label>
+        <input type="text" id="lf_by" placeholder="Your name">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeLogModal()">Cancel</button>
+      <button class="btn-save" id="logSaveBtn" onclick="saveLog()">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE -->
+<div class="modal-overlay" id="confirmOverlay">
+  <div class="modal confirm-modal">
+    <div class="confirm-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#c0392b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h3>Delete this entry?</h3>
+    <p>This action cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-danger" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK DELETE CONFIRM -->
+<div class="modal-overlay" id="bulkConfirmOverlay">
+  <div class="modal confirm-modal">
+    <div class="confirm-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#c0392b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h3 id="bulkConfirmTitle">Delete selected entries?</h3>
+    <p>This action cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closeBulkConfirm()">Cancel</button>
+      <button class="btn-danger" onclick="confirmBulkDelete()">Delete All</button>
+    </div>
+  </div>
+</div>
+
+<!-- FLOATING SELECTION BAR -->
+<div class="selection-bar" id="selectionBar">
+  <div class="selection-bar-inner">
+    <span class="selection-info"><span id="selCount">0</span> selected</span>
+    <div class="selection-actions">
+      <button class="sel-btn-cancel" onclick="exitSelectMode()">Cancel</button>
+      <button class="sel-btn-delete" onclick="openBulkConfirm()">
+        <svg width="14" height="14" viewBox="0 0 12 12" fill="none"><path d="M1 3h10M4 3V2h4v1M2.5 3l.8 8h5.4l.8-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Delete Selected
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+</div>
+<script type="module" src="app.js"></script>
+<script type="module" src="nav.js"></script>
+</body>
+</html>
