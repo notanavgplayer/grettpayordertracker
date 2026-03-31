@@ -15,28 +15,30 @@
     <div id="page-content">
       <!-- SUMMARY CARDS -->
       <div class="main-wrap">
+        <div id="expiryAlert" style="display:none"></div>
+
         <div class="cards-grid" id="cardsGrid">
           <div class="stat-card navy" id="card-total-amt">
             <div class="stat-label">Total Amount (PKR)</div>
             <div class="stat-val" id="s-total-amt">—</div>
           </div>
-          <div class="stat-card" id="card-total">
+          <div class="stat-card" id="card-total" onclick="cardFilter('all')" style="cursor:pointer" title="Show all">
             <div class="stat-label">Total Entries</div>
             <div class="stat-val" id="s-total">—</div>
           </div>
-          <div class="stat-card amber" id="card-risk">
+          <div class="stat-card amber" id="card-risk" onclick="cardFilter('Submitted')" style="cursor:pointer" title="Filter by Submitted">
             <div class="stat-label">At Risk (Submitted)</div>
             <div class="stat-val" id="s-risk">—</div>
           </div>
-          <div class="stat-card green" id="card-returned">
+          <div class="stat-card green" id="card-returned" onclick="cardFilter('Returned')" style="cursor:pointer" title="Filter by Returned">
             <div class="stat-label">Returned (Safe)</div>
             <div class="stat-val" id="s-returned">—</div>
           </div>
-          <div class="stat-card red" id="card-encashed">
+          <div class="stat-card red" id="card-encashed" onclick="cardFilter('Encashed')" style="cursor:pointer" title="Filter by Encashed">
             <div class="stat-label">Encashed / Lost</div>
             <div class="stat-val" id="s-encashed">—</div>
           </div>
-          <div class="stat-card blue" id="card-pending">
+          <div class="stat-card blue" id="card-pending" onclick="cardFilter('pending-result')" style="cursor:pointer" title="Filter pending results">
             <div class="stat-label">Pending Result</div>
             <div class="stat-val" id="s-pending">—</div>
           </div>
@@ -119,24 +121,12 @@
           </div>
           <div class="empty-state" id="poEmpty" style="display: none">
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-              <rect
-                x="8"
-                y="6"
-                width="24"
-                height="28"
-                rx="3"
-                stroke="#c8d3e0"
-                stroke-width="2"
-              />
-              <path
-                d="M14 14h12M14 20h12M14 26h8"
-                stroke="#c8d3e0"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
+              <rect x="8" y="6" width="24" height="28" rx="3" stroke="#c8d3e0" stroke-width="2"/>
+              <path d="M14 14h12M14 20h12M14 26h8" stroke="#c8d3e0" stroke-width="2" stroke-linecap="round"/>
             </svg>
-            <p>No pay orders found.</p>
-            <span>Add your first entry or adjust the filters.</span>
+            <p id="poEmptyMsg">No pay orders found.</p>
+            <span id="poEmptyHint">Add your first entry or adjust the filters.</span>
+            <button class="btn-primary" id="poEmptyBtn" onclick="openPOModal()" style="margin-top:1rem;display:none">+ Add Pay Order</button>
           </div>
         </div>
 

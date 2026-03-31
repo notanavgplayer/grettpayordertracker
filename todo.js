@@ -83,7 +83,7 @@ function taskHtml(t) {
     <div class="task-body">
       <div class="task-text">${esc(t.text)}</div>
       <div class="task-meta">
-        <span class="priority-badge ${pClass[t.priority] || 'p-medium'}">${pMap[t.priority] || 'Medium'}</span>
+        <span class="priority-badge ${pClass[t.priority] || 'p-medium'}" onclick="cyclePriority('${t.id}')" title="Click to change priority">${pMap[t.priority] || 'Medium'}</span>
         <span class="task-date">${date}</span>
       </div>
     </div>
@@ -114,6 +114,23 @@ window.addTask = async function() {
   } catch(e) {
     console.error('Add task error:', e);
     toast('Error adding task. Check your connection.');
+  }
+};
+
+// ── Cycle priority ────────────────────────────────────────────────────────────
+window.cyclePriority = async function(id) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  const order = ['low', 'medium', 'high'];
+  const next  = order[(order.indexOf(t.priority) + 1) % order.length];
+  t.priority = next;
+  renderTasks();
+  try {
+    await updateDoc(doc(db, "todos", id), { priority: next });
+  } catch(e) {
+    t.priority = order[(order.indexOf(next) + 2) % order.length]; // revert
+    renderTasks();
+    console.error('Priority update error:', e);
   }
 };
 

@@ -64,6 +64,21 @@
   }
   .note-item:hover { background: var(--bg); }
   .note-item.active { background: #eef4fb; border-color: #c5daf5; }
+  .note-item { position: relative; }
+  .note-item-del {
+    position: absolute; top: 8px; right: 8px;
+    width: 22px; height: 22px;
+    border: none; border-radius: 5px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.1s, background 0.1s, color 0.1s;
+    padding: 0;
+  }
+  .note-item-del svg { width: 12px; height: 12px; }
+  .note-item:hover .note-item-del { opacity: 1; }
+  .note-item-del:hover { background: var(--red-bg); color: var(--red-fg); }
   .note-item-title {
     font-size: 13px; font-weight: 500;
     color: var(--navy); white-space: nowrap;
@@ -106,6 +121,43 @@
   .btn-icon-sm:hover { border-color: var(--navy3); color: var(--navy); }
   .btn-icon-sm.del:hover { border-color: var(--red-fg); color: var(--red-fg); background: var(--red-bg); }
   .btn-icon-sm svg { width: 13px; height: 13px; }
+
+  /* ── FORMAT TOOLBAR ── */
+  .format-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 1.25rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    background: var(--bg);
+  }
+  .fmt-btn {
+    height: 28px;
+    min-width: 28px;
+    padding: 0 7px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    cursor: pointer;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.1s;
+    white-space: nowrap;
+  }
+  .fmt-btn:hover { background: var(--surface); border-color: var(--border); color: var(--navy); }
+  .fmt-btn.active { background: #e8f0fb; border-color: #b5cff5; color: var(--navy3); }
+  .fmt-btn svg { width: 13px; height: 13px; }
+  .fmt-sep {
+    width: 1px; height: 18px;
+    background: var(--border);
+    margin: 0 4px;
+    flex-shrink: 0;
+  }
+
   .note-title-input {
     width: 100%;
     padding: 1rem 1.25rem 0.5rem;
@@ -114,19 +166,75 @@
     color: var(--navy); border: none; outline: none;
     background: transparent;
     flex-shrink: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    min-width: 0;
   }
-  .note-title-input::placeholder { color: #c8d3e0; }
-  .note-body-input {
+  .note-title-input:empty::before {
+    content: attr(data-placeholder);
+    color: #c8d3e0;
+    pointer-events: none;
+  }
+
+  /* ── RICH TEXT BODY ── */
+  .note-body-editor {
     flex: 1;
     padding: 0.25rem 1.25rem 1.25rem;
     font-family: 'IBM Plex Sans', sans-serif;
     font-size: 14px; line-height: 1.75;
     color: var(--text); border: none; outline: none;
     background: transparent;
-    resize: none;
     overflow-y: auto;
+    overflow-x: hidden;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-width: 0;
   }
-  .note-body-input::placeholder { color: #c8d3e0; }
+  .note-body-editor:empty::before {
+    content: attr(data-placeholder);
+    color: #c8d3e0;
+    pointer-events: none;
+  }
+  /* Formatting inside editor */
+  .note-body-editor h1 {
+    font-size: 22px; font-weight: 600; color: var(--navy);
+    margin: 0.6em 0 0.2em; line-height: 1.3;
+    word-wrap: break-word; overflow-wrap: break-word; white-space: normal;
+  }
+  .note-body-editor h2 {
+    font-size: 17px; font-weight: 600; color: var(--navy);
+    margin: 0.5em 0 0.2em; line-height: 1.3;
+    word-wrap: break-word; overflow-wrap: break-word; white-space: normal;
+  }
+  .note-body-editor ul {
+    padding-left: 1.4em;
+    list-style-type: disc;
+    margin: 0.25em 0;
+  }
+  .note-body-editor ol {
+    padding-left: 1.4em;
+    list-style-type: decimal;
+    margin: 0.25em 0;
+  }
+  .note-body-editor li { margin: 0.15em 0; }
+  .note-body-editor blockquote {
+    border-left: 3px solid var(--navy3);
+    padding: 0.2em 0.8em;
+    margin: 0.4em 0;
+    color: var(--muted);
+    font-style: italic;
+    background: var(--bg);
+    border-radius: 0 4px 4px 0;
+  }
+  .note-body-editor hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0.75em 0;
+  }
+  .note-body-editor a { color: var(--navy3); text-decoration: underline; }
+  .note-body-editor p { margin: 0.15em 0; }
+  .note-body-editor b, .note-body-editor strong { font-weight: 600; }
 
   .editor-placeholder {
     flex: 1; display: flex;
@@ -137,6 +245,39 @@
   .editor-placeholder svg { opacity: 0.3; }
   .editor-placeholder p { font-size: 14px; }
   .editor-placeholder span { font-size: 12px; }
+
+  /* ── PRIORITY ── */
+  .priority-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 1.25rem 0;
+    flex-shrink: 0;
+  }
+  .priority-label { font-size: 11px; color: var(--muted); font-weight: 500; margin-right: 2px; }
+  .priority-btn {
+    height: 24px; padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: transparent;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 11px; font-weight: 500;
+    cursor: pointer; color: var(--muted);
+    transition: all 0.15s;
+  }
+  .priority-btn:hover { border-color: currentColor; }
+  .priority-btn[data-p="low"]    { --pc: #185fa5; --pbg: #e6f1fb; }
+  .priority-btn[data-p="medium"] { --pc: #7a4500; --pbg: #fdf3dc; }
+  .priority-btn[data-p="high"]   { --pc: #c0392b; --pbg: #fceaea; }
+  .priority-btn[data-p="none"]   { --pc: var(--muted); --pbg: var(--bg); }
+  .priority-btn.active { background: var(--pbg); border-color: var(--pc); color: var(--pc); }
+
+  /* Priority dot in sidebar */
+  .note-item-top { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+  .priority-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  }
+  .priority-dot.low    { background: #185fa5; }
+  .priority-dot.medium { background: #e8940a; }
+  .priority-dot.high   { background: #c0392b; }
 
   .save-indicator {
     font-size: 11px; color: var(--muted);
@@ -176,6 +317,7 @@
         <span>Select a note or create a new one</span>
       </div>
       <div id="editorContent" style="display:none; flex-direction:column; flex:1; overflow:hidden; display:none">
+        <!-- Top bar -->
         <div class="editor-toolbar">
           <div class="editor-meta">
             <span class="editor-date" id="editorDate">—</span>
@@ -186,8 +328,60 @@
             </button>
           </div>
         </div>
-        <input class="note-title-input" id="noteTitle" type="text" placeholder="Note title…">
-        <textarea class="note-body-input" id="noteBody" placeholder="Start writing…"></textarea>
+
+        <!-- Format toolbar -->
+        <div class="format-toolbar" id="formatToolbar">
+          <!-- Headings -->
+          <button class="fmt-btn" id="fmt-h1" onmousedown="fmtBlock(event,'H1')" title="Heading 1">H1</button>
+          <button class="fmt-btn" id="fmt-h2" onmousedown="fmtBlock(event,'H2')" title="Heading 2">H2</button>
+          <span class="fmt-sep"></span>
+          <!-- Inline -->
+          <button class="fmt-btn" id="fmt-bold" onmousedown="fmtCmd(event,'bold')" title="Bold (Ctrl+B)">
+            <svg viewBox="0 0 12 12" fill="none"><text x="1" y="10" font-family="IBM Plex Sans,sans-serif" font-size="11" font-weight="700" fill="currentColor">B</text></svg>
+          </button>
+          <button class="fmt-btn" id="fmt-italic" onmousedown="fmtCmd(event,'italic')" title="Italic (Ctrl+I)">
+            <svg viewBox="0 0 12 12" fill="none"><text x="2" y="10" font-family="IBM Plex Sans,sans-serif" font-size="11" font-style="italic" fill="currentColor">I</text></svg>
+          </button>
+          <button class="fmt-btn" id="fmt-underline" onmousedown="fmtCmd(event,'underline')" title="Underline (Ctrl+U)">
+            <svg viewBox="0 0 12 12" fill="none"><text x="2" y="9" font-family="IBM Plex Sans,sans-serif" font-size="10" text-decoration="underline" fill="currentColor">U</text><line x1="1" y1="11.5" x2="11" y2="11.5" stroke="currentColor" stroke-width="1.2"/></svg>
+          </button>
+          <button class="fmt-btn" id="fmt-strike" onmousedown="fmtCmd(event,'strikeThrough')" title="Strikethrough">
+            <svg viewBox="0 0 12 12" fill="none"><text x="1" y="10" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="currentColor">S</text><line x1="0" y1="6" x2="12" y2="6" stroke="currentColor" stroke-width="1.2"/></svg>
+          </button>
+          <span class="fmt-sep"></span>
+          <!-- Lists -->
+          <button class="fmt-btn" id="fmt-ul" onmousedown="fmtCmd(event,'insertUnorderedList')" title="Bullet list">
+            <svg viewBox="0 0 14 12" fill="none"><circle cx="1.5" cy="3" r="1.2" fill="currentColor"/><line x1="4" y1="3" x2="13" y2="3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="1.5" cy="7" r="1.2" fill="currentColor"/><line x1="4" y1="7" x2="13" y2="7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="1.5" cy="11" r="1.2" fill="currentColor"/><line x1="4" y1="11" x2="13" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          </button>
+          <button class="fmt-btn" id="fmt-ol" onmousedown="fmtCmd(event,'insertOrderedList')" title="Numbered list">
+            <svg viewBox="0 0 14 12" fill="none"><text x="0" y="4" font-family="IBM Plex Mono,monospace" font-size="4.5" fill="currentColor">1.</text><line x1="4" y1="3" x2="13" y2="3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><text x="0" y="8" font-family="IBM Plex Mono,monospace" font-size="4.5" fill="currentColor">2.</text><line x1="4" y1="7" x2="13" y2="7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><text x="0" y="12" font-family="IBM Plex Mono,monospace" font-size="4.5" fill="currentColor">3.</text><line x1="4" y1="11" x2="13" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          </button>
+          <span class="fmt-sep"></span>
+          <!-- Block -->
+          <button class="fmt-btn" id="fmt-quote" onmousedown="fmtBlock(event,'BLOCKQUOTE')" title="Blockquote">
+            <svg viewBox="0 0 14 12" fill="none"><rect x="0" y="0" width="2.5" height="12" rx="1" fill="currentColor" opacity="0.5"/><line x1="5" y1="3" x2="13" y2="3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.7"/><line x1="5" y1="6.5" x2="11" y2="6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.7"/><line x1="5" y1="10" x2="13" y2="10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.7"/></svg>
+          </button>
+          <button class="fmt-btn" onmousedown="fmtHR(event)" title="Divider">
+            <svg viewBox="0 0 14 4" fill="none"><line x1="0" y1="2" x2="14" y2="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2 1.5"/></svg>
+          </button>
+          <span class="fmt-sep"></span>
+          <!-- Clear -->
+          <button class="fmt-btn" onmousedown="fmtClear(event)" title="Clear formatting">
+            <svg viewBox="0 0 14 12" fill="none"><path d="M2 2h10M5 2v8M7 10h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="11" y1="7" x2="13" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="13" y1="7" x2="11" y2="11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+
+        <!-- Priority selector -->
+        <div class="priority-row">
+          <span class="priority-label">Priority:</span>
+          <button class="priority-btn active" data-p="none"   onclick="setPriority('none')">None</button>
+          <button class="priority-btn"        data-p="low"    onclick="setPriority('low')">Low</button>
+          <button class="priority-btn"        data-p="medium" onclick="setPriority('medium')">Medium</button>
+          <button class="priority-btn"        data-p="high"   onclick="setPriority('high')">High</button>
+        </div>
+
+        <div class="note-title-input" id="noteTitle" contenteditable="true" data-placeholder="Note title…"></div>
+        <div class="note-body-editor" id="noteBody" contenteditable="true" data-placeholder="Start writing…"></div>
         <div class="save-indicator" id="saveIndicator">Auto-saved</div>
       </div>
     </div>

@@ -76,12 +76,64 @@ function renderCards() {
   document.getElementById("s-returned").textContent = fmtPKR(returned);
   document.getElementById("s-encashed").textContent = fmtPKR(encashed);
   document.getElementById("s-pending").textContent = pending;
+
+  // ── Expiry alert ──
+  const closedStatuses = ["Returned", "Encashed", "Forfeited"];
+  const expiring = payOrders.filter((p) => {
+    if (closedStatuses.includes(p.status)) return false;
+    const d = daysTo(p.expiry);
+    return d !== null && d >= 0 && d <= 7;
+  });
+  const expired = payOrders.filter((p) => {
+    if (closedStatuses.includes(p.status)) return false;
+    const d = daysTo(p.expiry);
+    return d !== null && d < 0;
+  });
+  const alertEl = document.getElementById("expiryAlert");
+  if (alertEl) {
+    if (expiring.length || expired.length) {
+      const parts = [];
+      if (expired.length) parts.push(`<strong>${expired.length}</strong> expired`);
+      if (expiring.length) parts.push(`<strong>${expiring.length}</strong> expiring within 7 days`);
+      alertEl.innerHTML = `<div class="expiry-alert-inner">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L1 14.5h14L8 1.5z" stroke="#7a4500" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v4" stroke="#7a4500" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="12" r="0.8" fill="#7a4500"/></svg>
+        <span>${parts.join(" · ")} — review expiry dates</span>
+        <button class="expiry-btn" onclick="cardFilter('expiring')">Show</button>
+      </div>`;
+      alertEl.style.display = "block";
+    } else {
+      alertEl.style.display = "none";
+      alertEl.innerHTML = "";
+    }
+  }
 }
+
+// ── Card filter ───────────────────────────────────────────────────────────────
+window.cardFilter = function (status) {
+  currentFilter = status;
+  document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
+  // Switch to PO tab
+  const tabs = document.querySelectorAll(".tab-btn");
+  if (tabs[0] && !tabs[0].classList.contains("active")) switchTab("po", tabs[0]);
+  renderPOTable();
+  document.getElementById("tab-po")?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
 
 window.renderPOTable = function () {
   const q = (document.getElementById("searchBox").value || "").toLowerCase();
+  const closedStatuses = ["Returned", "Encashed", "Forfeited"];
   const rows = payOrders.filter((p) => {
-    const matchF = currentFilter === "all" || p.status === currentFilter;
+    let matchF;
+    if (currentFilter === "all") {
+      matchF = true;
+    } else if (currentFilter === "expiring") {
+      if (closedStatuses.includes(p.status)) { matchF = false; }
+      else { const d = daysTo(p.expiry); matchF = d !== null && d <= 7; }
+    } else if (currentFilter === "pending-result") {
+      matchF = p.status === "Submitted" && p.bidResult === "Awaiting";
+    } else {
+      matchF = p.status === currentFilter;
+    }
     const matchS =
       !q ||
       [p.po, p.tender, p.agency, p.nit, p.bank].some((v) =>
@@ -97,6 +149,12 @@ window.renderPOTable = function () {
   if (!rows.length) {
     wrap.style.display = "none";
     empty.style.display = "block";
+    const isFirstTime = payOrders.length === 0;
+    document.getElementById("poEmptyMsg").textContent = isFirstTime
+      ? "No pay orders yet." : "No pay orders found.";
+    document.getElementById("poEmptyHint").textContent = isFirstTime
+      ? "Track your first pay order to get started." : "Try adjusting the filters or search.";
+    document.getElementById("poEmptyBtn").style.display = isFirstTime ? "inline-flex" : "none";
     return;
   }
   wrap.style.display = "block";
