@@ -244,6 +244,31 @@ function updateToolbarState() {
   toggle('fmt-quote', block === 'BLOCKQUOTE');
 }
 
+// ── Paste handler — strips inline font sizes from pasted content ──────────────
+document.getElementById('noteBody').addEventListener('paste', e => {
+  e.preventDefault();
+  const html = e.clipboardData.getData('text/html');
+  if (html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    tmp.querySelectorAll('[style]').forEach(el => {
+      el.style.fontSize   = '';
+      el.style.fontFamily = '';
+      el.style.color      = '';
+      el.style.background = '';
+      el.style.backgroundColor = '';
+      if (!el.getAttribute('style').trim()) el.removeAttribute('style');
+    });
+    // Remove Google Sheets wrapper tags but keep text structure
+    tmp.querySelectorAll('google-sheets-html-origin, meta, style').forEach(el => el.remove());
+    document.execCommand('insertHTML', false, tmp.innerHTML);
+  } else {
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  }
+  scheduleSave();
+});
+
 document.getElementById('noteBody').addEventListener('keyup', updateToolbarState);
 document.getElementById('noteBody').addEventListener('mouseup', updateToolbarState);
 document.addEventListener('selectionchange', () => {
