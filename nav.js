@@ -3,48 +3,53 @@
 // Add data-page="pageid" to <body> to highlight the active nav item
 
 import { auth } from "./firebase.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  onAuthStateChanged,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const NAV_ITEMS = [
   {
-    id: 'payorders',
-    label: 'Pay Orders',
-    href: 'dashboard.html',
+    id: "payorders",
+    label: "Pay Orders",
+    href: "dashboard.html",
     icon: `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
       <path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>`
+    </svg>`,
   },
   {
-    id: 'notes',
-    label: 'Notes',
-    href: 'notes.html',
+    id: "notes",
+    label: "Notes",
+    href: "notes.html",
     icon: `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M4 4h12v9l-4 4H4V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
       <path d="M12 13v4l4-4h-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
       <path d="M7 8h6M7 11h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>`
+    </svg>`,
   },
   {
-    id: 'todo',
-    label: 'To-Do',
-    href: 'todo.html',
+    id: "todo",
+    label: "To-Do",
+    href: "todo.html",
     icon: `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M8 5h9M8 10h9M8 15h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       <path d="M3 5.5l1.5 1.5L7 4M3 10.5l1.5 1.5L7 9M3 15.5l1.5 1.5L7 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`
+    </svg>`,
   },
 ];
 
 function buildSidebar(userEmail) {
-  const currentPage = document.body.dataset.page || '';
+  const currentPage = document.body.dataset.page || "";
 
-  const items = NAV_ITEMS.map(item => `
-    <a href="${item.href}" class="nav-item ${item.id === currentPage ? 'active' : ''}" data-id="${item.id}">
+  const items = NAV_ITEMS.map(
+    (item) => `
+    <a href="${item.href}" class="nav-item ${item.id === currentPage ? "active" : ""}" data-id="${item.id}">
       <span class="nav-item-icon">${item.icon}</span>
       <span class="nav-item-label">${item.label}</span>
     </a>
-  `).join('');
+  `,
+  ).join("");
 
   return `
   <aside class="sidebar" id="sidebar">
@@ -65,9 +70,9 @@ function buildSidebar(userEmail) {
 
     <div class="sidebar-footer">
       <div class="sidebar-user">
-        <div class="sidebar-avatar">${userEmail ? userEmail[0].toUpperCase() : 'G'}</div>
+        <div class="sidebar-avatar">${userEmail ? userEmail[0].toUpperCase() : "G"}</div>
         <div class="sidebar-user-info">
-          <span class="sidebar-user-email">${userEmail || ''}</span>
+          <span class="sidebar-user-email">${userEmail || ""}</span>
           <span class="sidebar-user-role">Administrator</span>
         </div>
       </div>
@@ -90,9 +95,9 @@ function buildSidebar(userEmail) {
 }
 
 function injectStyles() {
-  if (document.getElementById('nav-styles')) return;
-  const style = document.createElement('style');
-  style.id = 'nav-styles';
+  if (document.getElementById("nav-styles")) return;
+  const style = document.createElement("style");
+  style.id = "nav-styles";
   style.textContent = `
     body { display: flex; min-height: 100vh; }
 
@@ -211,23 +216,26 @@ function injectStyles() {
 }
 
 function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('sidebarOverlay').classList.toggle('open');
+  document.getElementById("sidebar").classList.toggle("open");
+  document.getElementById("sidebarOverlay").classList.toggle("open");
 }
 function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("sidebarOverlay").classList.remove("open");
 }
 window.toggleSidebar = toggleSidebar;
-window.closeSidebar  = closeSidebar;
+window.closeSidebar = closeSidebar;
 
 // Auth guard + inject
-onAuthStateChanged(auth, user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    window.location.href = "index.html";
+    return;
+  }
 
   injectStyles();
 
-  const container = document.createElement('div');
+  const container = document.createElement("div");
   container.innerHTML = buildSidebar(user.email);
 
   const body = document.body;
@@ -237,10 +245,10 @@ onAuthStateChanged(auth, user => {
   }
 
   // Wrap existing content in .page-content if not already
-  const pageContent = document.getElementById('page-content');
-  if (pageContent) pageContent.classList.add('page-content');
+  const pageContent = document.getElementById("page-content");
+  if (pageContent) pageContent.classList.add("page-content");
 
-  document.getElementById('sidebarLogout').addEventListener('click', () => {
-    signOut(auth).then(() => window.location.href = 'index.html');
+  document.getElementById("sidebarLogout").addEventListener("click", () => {
+    signOut(auth).then(() => (window.location.href = "index.html"));
   });
 });

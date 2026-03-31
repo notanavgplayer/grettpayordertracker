@@ -10,7 +10,7 @@ const firebaseConfig = {
   storageBucket: "pay-order-tracker.firebasestorage.app",
   messagingSenderId: "211308789572",
   appId: "1:211308789572:web:84a9a2a403a1913b736111",
-  measurementId: "G-VYDHSB550F"
+  measurementId: "G-VYDHSB550F",
 };
 
 export default firebaseConfig;
