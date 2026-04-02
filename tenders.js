@@ -87,6 +87,12 @@ window.renderTenderList = function() {
 };
 
 window.selectTender = function(id) {
+  // On mobile the preview panel is hidden — go straight to detail page
+  if (window.innerWidth <= 640) {
+    window.location.href = `tender-detail.html?id=${id}`;
+    return;
+  }
+
   activeId = id;
   const t  = tenders.find(x => x.id === id);
   if (!t) return;
