@@ -7,6 +7,7 @@ let aFilter    = 'all';
 let showCount  = 40;
 
 const ICONS = {
+  fee:     `<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 7v1.5M10 11.5V13M8 9a2 2 0 114 0c0 1-1 1.5-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
   tender:  `<svg viewBox="0 0 20 20" fill="none"><path d="M4 3h8l4 4v10H4V3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 3v4h4" stroke="currentColor" stroke-width="1.5"/></svg>`,
   po:      `<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
   note:    `<svg viewBox="0 0 20 20" fill="none"><path d="M4 4h12v9l-4 4H4V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
@@ -66,6 +67,15 @@ async function loadAll() {
 
   contacts.forEach(c => {
     if (c.createdAt?.seconds) allEvents.push({ type:'contact', ts: c.createdAt.seconds, text: `Added contact <strong>${esc(c.name||'—')}</strong>`, sub: `${c.role||'—'} · ${c.organization||'—'}`, href: 'contacts.html' });
+  });
+
+  tenderFees.forEach(f => {
+    if (f.createdAt?.seconds) allEvents.push({
+      type: 'fee', ts: f.createdAt.seconds,
+      text: `Recorded tender fee for <strong>${esc(f.tender||'—')}</strong>`,
+      sub:  `${f.agency||'—'} · Rs ${Number(f.amount||0).toLocaleString('en-PK')}`,
+      href: 'fees.html'
+    });
   });
 
   allEvents.sort((a,b) => b.ts - a.ts);

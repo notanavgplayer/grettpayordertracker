@@ -2,7 +2,7 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-let tenders = [], payOrders = [], expenses = [];
+let tenders = [], payOrders = [], expenses = [], tenderFees = [];
 let currentYear = new Date().getFullYear();
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -22,14 +22,16 @@ onAuthStateChanged(auth, async user => {
 });
 
 async function loadAll() {
-  const [tRes, pRes, eRes] = await Promise.allSettled([
+  const [tRes, pRes, eRes, fRes] = await Promise.allSettled([
     getDocs(collection(db, "tenders")),
     getDocs(collection(db, "payOrders")),
     getDocs(collection(db, "expenses")),
+    getDocs(collection(db, "tenderFees")),
   ]);
-  tenders   = tRes.status === 'fulfilled' ? tRes.value.docs.map(d => ({id:d.id,...d.data()})) : [];
-  payOrders = pRes.status === 'fulfilled' ? pRes.value.docs.map(d => ({id:d.id,...d.data()})) : [];
-  expenses  = eRes.status === 'fulfilled' ? eRes.value.docs.map(d => ({id:d.id,...d.data()})) : [];
+  tenders    = tRes.status === 'fulfilled' ? tRes.value.docs.map(d => ({id:d.id,...d.data()})) : [];
+  payOrders  = pRes.status === 'fulfilled' ? pRes.value.docs.map(d => ({id:d.id,...d.data()})) : [];
+  expenses   = eRes.status === 'fulfilled' ? eRes.value.docs.map(d => ({id:d.id,...d.data()})) : [];
+  tenderFees = fRes.status === 'fulfilled' ? fRes.value.docs.map(d => ({id:d.id,...d.data()})) : [];
 }
 
 function renderAll() {
@@ -37,8 +39,9 @@ function renderAll() {
   const yt = tenders.filter(t => inYear(t.submissionDate || t.createdAt, currentYear));
   const ye = expenses.filter(e => inYear(e.date, currentYear));
   const yp = payOrders.filter(p => inYear(p.issued, currentYear));
+  const yf = tenderFees.filter(f => inYear(f.date, currentYear));
 
-  renderTopStats(yt, ye);
+  renderTopStats(yt, ye, yf);
   renderTenderChart(yt);
   renderPOReport(yp);
   renderExpReport(ye);
@@ -47,12 +50,13 @@ function renderAll() {
 }
 
 // ── TOP STATS ─────────────────────────────────────────────────────────────────
-function renderTopStats(yt, ye) {
+function renderTopStats(yt, ye, yf) {
   const won  = yt.filter(t => t.status === 'Awarded').length;
   const lost = yt.filter(t => t.status === 'Lost').length;
   const rate = yt.length ? Math.round((won / yt.length) * 100) : 0;
-  const bidVal  = yt.reduce((a,b) => a+(+b.value||0), 0);
-  const expTotal= ye.reduce((a,b) => a+(+b.amount||0), 0);
+  const bidVal   = yt.reduce((a,b) => a+(+b.value||0), 0);
+  const expTotal = ye.reduce((a,b) => a+(+b.amount||0), 0);
+  const feeTotal = yf.reduce((a,b) => a+(+b.amount||0), 0);
 
   document.getElementById('rsTotalTenders').textContent = yt.length;
   document.getElementById('rsTenderSub').textContent    = `${currentYear}`;
@@ -61,6 +65,8 @@ function renderTopStats(yt, ye) {
   document.getElementById('rsLost').textContent         = lost;
   document.getElementById('rsBidValue').textContent     = fmtPKR(bidVal);
   document.getElementById('rsExpenses').textContent     = fmtPKR(expTotal);
+  const feeEl = document.getElementById('rsFees');
+  if (feeEl) feeEl.textContent = fmtPKR(feeTotal);
 }
 
 // ── TENDER MONTHLY CHART ──────────────────────────────────────────────────────

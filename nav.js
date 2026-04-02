@@ -200,6 +200,12 @@ function buildSidebar(userEmail) {
 
 function injectStyles() {
   if (document.getElementById('nav-styles')) return;
+  // Inject responsive CSS
+  if (!document.querySelector('link[href*="responsive.css"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet'; link.href = 'responsive.css';
+    document.head.appendChild(link);
+  }
   const style = document.createElement('style');
   style.id = 'nav-styles';
   style.textContent = `
@@ -350,7 +356,7 @@ onAuthStateChanged(auth, async user => {
     } else {
       // First user ever → auto-assign as admin and create doc
       // Subsequent users who don't have a doc → viewer by default
-      const usersSnap = await getDoc(doc(db, "users", '__meta__'));
+      const usersSnap = await getDoc(doc(db, "users", "_appMeta"));
       const isFirstUser = !usersSnap.exists();
       const role = isFirstUser ? 'admin' : 'viewer';
       try {
@@ -360,7 +366,7 @@ onAuthStateChanged(auth, async user => {
           createdAt: new Date().toISOString()
         });
         if (isFirstUser) {
-          await setDoc(doc(db, "users", '__meta__'), { initialized: true });
+          await setDoc(doc(db, "users", "_appMeta"), { initialized: true });
         }
         window.__userRole = role;
       } catch(e) {
@@ -422,4 +428,11 @@ onAuthStateChanged(auth, async user => {
   document.getElementById('sidebarLogout').addEventListener('click', () => {
     signOut(auth).then(() => window.location.href = 'index.html');
   });
+
+  // Inject bottom nav on mobile
+  if (window.innerWidth <= 640) {
+    import('./bottom-nav.js').then(m => {
+      m.injectBottomNav(document.body.dataset.page || '');
+    });
+  }
 });

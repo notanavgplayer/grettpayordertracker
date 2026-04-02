@@ -2,24 +2,47 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: get user role from users collection
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-    }
-    function isAdmin() {
-      return request.auth != null && getUserRole() == 'admin';
-    }
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Users collection: only admins can write, authenticated can read own
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // All data collections: anyone auth'd can read, only admins can write
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && userDocExists() && getUserDoc().data.role == 'admin';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Anyone authenticated can read any user doc (needed for role checks)
+      allow read: if isAuthenticated();
+
+      // A user can CREATE their own doc (first login setup)
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+
+      // A user can UPDATE their own doc BUT cannot change their own role
+      // Only admins can update other users' docs (to change roles)
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
+        || isAdmin()
+      );
+
+      // Only admins can delete user docs
+      allow delete: if isAdmin();
+    }
+
+    // App meta doc (used to track first user)
+    match /users/_appMeta {
+      allow read, write: if isAuthenticated();
+    }
+
+    // All data collections: authenticated can read, only admins can write
     match /payOrders/{d}          { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /activityLog/{d}        { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /notes/{d}              { allow read: if isAuthenticated(); allow write: if isAdmin(); }
@@ -31,6 +54,6 @@ service cloud.firestore {
     match /tenderFees/{d}         { allow read: if isAuthenticated(); allow write: if isAdmin(); }
 
     // Deny everything else
-    match /{document=**}          { allow read, write: if false; }
+    match /{document=**} { allow read, write: if false; }
   }
 }

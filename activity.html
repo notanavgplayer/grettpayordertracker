@@ -78,6 +78,7 @@
   .ei-todo     { background: var(--green-bg);  color: var(--green-fg); }
   .ei-expense  { background: var(--red-bg);    color: var(--red-fg); }
   .ei-contact  { background: #f0f4ff;          color: #4361ee; }
+  .ei-fee      { background: var(--amber-bg);  color: var(--amber-fg); }
 
   .event-body { flex: 1; min-width: 0; }
   .event-text { font-size: 13px; color: var(--text); line-height: 1.4; margin-bottom: 3px; }
@@ -129,6 +130,9 @@
       </button>
       <button class="af-btn" onclick="setAFilter('expense',this)">
         <span class="af-dot" style="background:#c0392b"></span>Expenses
+      </button>
+      <button class="af-btn" onclick="setAFilter('fee',this)">
+        <span class="af-dot" style="background:#e8940a"></span>Tender Fees
       </button>
     </div>
   </div>

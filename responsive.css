@@ -1,0 +1,259 @@
+/*
+ * responsive.css — Grett Engineering Solutions
+ * Handles mobile (< 640px), tablet (640–1024px), desktop (> 1024px)
+ * Mobile: bottom nav bar, stacked layouts, horizontal table scroll
+ * Tablet: hamburger slide-in sidebar, adapted grids
+ */
+
+/* ─────────────────────────────────────────────────────────────
+   ALL TABLES — horizontal scroll on any screen smaller than desktop
+───────────────────────────────────────────────────────────── */
+.table-wrap,
+.fees-table-wrap,
+.exp-table-panel > div,
+.bills-table {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   TABLET  (640px – 1024px)
+───────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  /* Sidebar stays but narrower */
+  .sidebar { width: 200px; }
+  .page-content { margin-left: 200px; }
+
+  /* Grids collapse */
+  .home-cards        { grid-template-columns: repeat(3, 1fr); }
+  .exp-cards         { grid-template-columns: repeat(2, 1fr); }
+  .fees-cards        { grid-template-columns: repeat(2, 1fr); }
+  .top-stats         { grid-template-columns: repeat(3, 1fr); }
+  .info-cards        { grid-template-columns: repeat(2, 1fr); }
+  .exp-main-grid     { grid-template-columns: 1fr; }
+  .reports-grid      { grid-template-columns: 1fr; }
+  .contact-info-grid { grid-template-columns: 1fr; }
+
+  /* Two panel layouts stack */
+  .tenders-layout  { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .contacts-layout { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .notes-layout    { grid-template-columns: 1fr; height: auto; overflow: visible; }
+
+  .tenders-preview-panel { display: none; }
+  .contacts-detail-panel { display: none; }
+
+  /* Detail page */
+  .detail-header { flex-direction: column; gap: 10px; }
+  .detail-header-right { align-items: flex-start; width: 100%; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MOBILE  (< 640px)
+───────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+
+  /* ── HIDE SIDEBAR, SHOW BOTTOM NAV ── */
+  .sidebar          { display: none !important; }
+  .sidebar-toggle   { display: none !important; }
+  .sidebar-overlay  { display: none !important; }
+  .page-content     { margin-left: 0 !important; padding-top: 0; padding-bottom: 72px; }
+
+  /* ── BOTTOM NAV BAR ── */
+  .bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: #0f2a4a;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    z-index: 200;
+    align-items: stretch;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .bottom-nav::-webkit-scrollbar { display: none; }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 64px;
+    flex: 1;
+    color: rgba(255,255,255,0.45);
+    text-decoration: none;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 6px 4px;
+    transition: color 0.15s;
+    border: none; background: none; cursor: pointer;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .bottom-nav-item svg { width: 20px; height: 20px; }
+  .bottom-nav-item.active { color: #e8940a; }
+  .bottom-nav-item:hover  { color: rgba(255,255,255,0.8); }
+
+  /* More menu overlay */
+  .bottom-nav-more-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,20,35,0.6);
+    z-index: 199;
+  }
+  .bottom-nav-more-overlay.open { display: block; }
+  .bottom-nav-more-panel {
+    position: fixed;
+    bottom: 60px; left: 0; right: 0;
+    background: #0f2a4a;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    padding: 12px 8px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    z-index: 200;
+  }
+  .bottom-nav-more-item {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 4px; padding: 10px 4px;
+    color: rgba(255,255,255,0.7);
+    text-decoration: none;
+    font-size: 10px; font-weight: 500;
+    border-radius: 8px;
+    transition: background 0.15s;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .bottom-nav-more-item svg { width: 18px; height: 18px; }
+  .bottom-nav-more-item:hover { background: rgba(255,255,255,0.1); }
+  .bottom-nav-more-item.active { color: #e8940a; }
+
+  /* ── PAGE WRAPS ── */
+  .home-wrap,
+  .exp-wrap,
+  .fees-wrap,
+  .reports-wrap,
+  .activity-wrap,
+  .backup-wrap,
+  .templates-wrap,
+  .todo-wrap,
+  .cal-wrap,
+  .detail-wrap {
+    padding: 1rem 0.75rem 1.5rem;
+  }
+
+  /* ── HOME ── */
+  .home-cards  { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .home-grid   { grid-template-columns: 1fr; }
+  .home-greeting h1 { font-size: 17px; }
+  .home-search-bar { padding: 8px 12px; }
+  .home-search-input { font-size: 13px; }
+  .home-search-kbd { display: none; }
+
+  /* ── SUMMARY CARDS ── */
+  .exp-cards  { grid-template-columns: repeat(2, 1fr); }
+  .fees-cards { grid-template-columns: repeat(2, 1fr); }
+  .top-stats  { grid-template-columns: repeat(2, 1fr); }
+  .info-cards { grid-template-columns: 1fr 1fr; }
+
+  /* ── TOOLBAR ── */
+  .toolbar      { flex-direction: column; align-items: stretch; gap: 8px; }
+  .filter-group { flex-wrap: wrap; }
+  .toolbar-right { flex-direction: column; gap: 6px; }
+  .search-box   { width: 100% !important; }
+  .btn-primary  { width: 100%; justify-content: center; }
+  .btn-select-mode { width: 100%; }
+
+  /* ── TENDERS LIST ── */
+  .tenders-layout  { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .tenders-preview-panel { display: none; }
+  .tenders-list-panel { height: auto; max-height: 100vh; }
+
+  /* ── CONTACTS ── */
+  .contacts-layout { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .contacts-detail-panel { display: none; }
+
+  /* ── NOTES ── */
+  .notes-layout { grid-template-columns: 1fr; height: auto; }
+  .notes-editor-panel { min-height: 60vh; }
+
+  /* ── TENDER DETAIL ── */
+  .detail-header { flex-direction: column; }
+  .detail-header-right { align-items: flex-start; width: 100%; }
+  .detail-value { font-size: 18px; }
+  .detail-tabs { gap: 0; }
+  .detail-tab  { padding: 8px 10px; font-size: 11px; }
+  .info-cards  { grid-template-columns: 1fr 1fr; }
+  .contact-grid { grid-template-columns: 1fr; }
+  .contact-grid .contact-field[style*="grid-column"] { grid-column: 1; }
+
+  /* ── REPORTS ── */
+  .reports-grid { grid-template-columns: 1fr; }
+  .bar-chart    { height: 80px; }
+  .reports-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* ── CALENDAR ── */
+  .cal-header    { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .cal-cell      { min-height: 50px; padding: 3px; }
+  .cal-event     { font-size: 8px; padding: 1px 3px; }
+  .cal-day-header { font-size: 9px; padding: 6px 2px; }
+
+  /* ── EXPENSES ── */
+  .exp-main-grid { grid-template-columns: 1fr; }
+  .exp-page-header { flex-direction: column; align-items: flex-start; }
+  .exp-page-actions { flex-wrap: wrap; }
+
+  /* ── MODALS ── */
+  .modal         { padding: 1.25rem 1rem; border-radius: 12px 12px 0 0; }
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .form-grid     { grid-template-columns: 1fr; }
+  .form-group.full { grid-column: 1; }
+  .mini-modal    { max-width: 100% !important; }
+  .confirm-modal { max-width: 100% !important; border-radius: 12px 12px 0 0; }
+
+  /* ── SELECTION BAR ── */
+  .selection-bar-inner { flex-wrap: wrap; gap: 10px; border-radius: 12px; margin: 0 10px; }
+  .selection-bar.show  { bottom: 72px; }
+
+  /* ── TOAST ── */
+  .toast { bottom: 72px; left: 1rem; right: 1rem; text-align: center; }
+
+  /* ── FLOATING PILL ── */
+  .selection-bar { left: 0; right: 0; transform: none; }
+
+  /* ── SETTINGS ── */
+  .settings-wrap { padding: 1rem 0.75rem 4rem; }
+
+  /* ── BACKUP ── */
+  .export-card { flex-direction: column; align-items: flex-start; }
+  .btn-export  { width: 100%; justify-content: center; }
+
+  /* ── FEES HEADER ── */
+  .fees-header { flex-direction: column; align-items: flex-start; }
+  .fees-header > div:last-child { display: flex; gap: 8px; width: 100%; }
+  .fees-header > div:last-child button { flex: 1; justify-content: center; }
+
+  /* ── CONTACTS DETAIL (when shown inline on mobile) ── */
+  .contact-card-header { flex-direction: column; }
+  .contact-card-actions { margin-left: 0; }
+  .contact-info-grid { grid-template-columns: 1fr; }
+
+  /* ── ACTIVITY ── */
+  .activity-page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .activity-filters { flex-wrap: wrap; }
+
+  /* ── TIMELINE ── */
+  .timeline { padding-left: 24px; }
+  .timeline-day-label { left: -24px; padding-left: 24px; }
+  .timeline-day-label::before { left: 5px; }
+  .timeline::before { left: 8px; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   BOTTOM NAV — hidden by default on tablet/desktop
+───────────────────────────────────────────────────────────── */
+.bottom-nav              { display: none; }
+.bottom-nav-more-overlay { display: none; }
+.bottom-nav-more-panel   { display: none; }
