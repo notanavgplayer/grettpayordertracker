@@ -1,7 +1,7 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  collection, getDocs, updateDoc, doc
+  collection, getDocs, updateDoc, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── Module-level data shared between dashboard and search ─────────────────────
@@ -16,14 +16,28 @@ let _searchTimer = null;
 // ── Auth ──────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = 'index.html'; return; }
-  setGreeting(user.email);
+  await setGreeting(user);
   await loadAll();
 });
 
-function setGreeting(email) {
-  const h    = new Date().getHours();
-  const name = email ? email.split('@')[0] : '';
+async function setGreeting(user) {
+  const h = new Date().getHours();
   const part = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+
+  // Try to get display name from Firestore
+  let name = '';
+  try {
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    if (userDoc.exists() && userDoc.data().displayName) {
+      name = userDoc.data().displayName;
+    }
+  } catch(e) { /* ignore */ }
+
+  // Fallback to email prefix
+  if (!name) {
+    name = user.email ? user.email.split('@')[0] : '';
+  }
+
   document.getElementById('greeting').textContent = `${part}, ${name} 👋`;
   document.getElementById('greetingSub').textContent =
     `Here's what's happening today — ` +

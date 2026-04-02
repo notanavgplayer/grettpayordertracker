@@ -1,15 +1,36 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /payOrders/{d}          { allow read, write: if request.auth != null; }
-    match /activityLog/{d}        { allow read, write: if request.auth != null; }
-    match /notes/{d}              { allow read, write: if request.auth != null; }
-    match /todos/{d}              { allow read, write: if request.auth != null; }
-    match /tenders/{d}            { allow read, write: if request.auth != null; }
-    match /expenses/{d}           { allow read, write: if request.auth != null; }
-    match /contacts/{d}           { allow read, write: if request.auth != null; }
-    match /checklistTemplates/{d} { allow read, write: if request.auth != null; }
-    match /tenderFees/{d}         { allow read, write: if request.auth != null; }
+
+    // Helper: get user role from users collection
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() {
+      return request.auth != null && getUserRole() == 'admin';
+    }
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Users collection: only admins can write, authenticated can read own
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // All data collections: anyone auth'd can read, only admins can write
+    match /payOrders/{d}          { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /activityLog/{d}        { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /notes/{d}              { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /todos/{d}              { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /tenders/{d}            { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /expenses/{d}           { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /contacts/{d}           { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /checklistTemplates/{d} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /tenderFees/{d}         { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+
+    // Deny everything else
     match /{document=**}          { allow read, write: if false; }
   }
 }

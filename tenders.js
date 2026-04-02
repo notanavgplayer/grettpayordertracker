@@ -147,10 +147,43 @@ window.saveTender = async function() {
   const name = document.getElementById('tf_name').value.trim();
   if (!name) { toast('Please enter a tender name.'); return; }
 
+  const nit = document.getElementById('tf_nit').value.trim();
+
+  // Duplicate NIT/Ref detection
+  if (nit) {
+    const dup = tenders.find(t => t.nit && t.nit.toLowerCase() === nit.toLowerCase());
+    if (dup) {
+      const proceed = confirm(
+        `⚠️ A tender with NIT / Ref "${nit}" already exists:\n\n` +
+        `"${dup.name || 'Untitled'}" — ${dup.agency || 'No agency'} (${dup.status || '—'})\n\n` +
+        `Do you still want to create this tender?`
+      );
+      if (!proceed) return;
+    }
+  }
+
+  // Duplicate name + agency detection
+  const agency = document.getElementById('tf_agency').value.trim();
+  if (name && agency) {
+    const dupName = tenders.find(t =>
+      t.name && t.agency &&
+      t.name.toLowerCase() === name.toLowerCase() &&
+      t.agency.toLowerCase() === agency.toLowerCase()
+    );
+    if (dupName) {
+      const proceed = confirm(
+        `⚠️ A tender with the same name and agency already exists:\n\n` +
+        `"${dupName.name}" — ${dupName.agency} (${dupName.status || '—'})\n\n` +
+        `Do you still want to create this tender?`
+      );
+      if (!proceed) return;
+    }
+  }
+
   const data = {
     name,
-    nit:            document.getElementById('tf_nit').value.trim(),
-    agency:         document.getElementById('tf_agency').value.trim(),
+    nit,
+    agency,
     value:          document.getElementById('tf_value').value,
     status:         document.getElementById('tf_status').value,
     submissionDate: document.getElementById('tf_subdate').value,

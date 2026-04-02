@@ -2,8 +2,12 @@
 // Usage: <script type="module" src="nav.js"></script>
 // Add data-page="pageid" to <body> to highlight the active nav item
 
-import { auth } from "./firebase.js";
+import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// Global role — other scripts can read window.__userRole
+window.__userRole = 'viewer'; // default to viewer until loaded
 
 const NAV_ITEMS = [
   {
@@ -335,8 +339,50 @@ document.addEventListener('keydown', e => {
 });
 
 // Auth guard + inject
-onAuthStateChanged(auth, user => {
+onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = 'index.html'; return; }
+
+  // Fetch user role from Firestore
+  try {
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    if (userDoc.exists()) {
+      window.__userRole = userDoc.data().role || 'viewer';
+    } else {
+      // First user ever → auto-assign as admin and create doc
+      // Subsequent users who don't have a doc → viewer by default
+      const usersSnap = await getDoc(doc(db, "users", '__meta__'));
+      const isFirstUser = !usersSnap.exists();
+      const role = isFirstUser ? 'admin' : 'viewer';
+      try {
+        await setDoc(doc(db, "users", user.uid), {
+          email: user.email,
+          role: role,
+          createdAt: new Date().toISOString()
+        });
+        if (isFirstUser) {
+          await setDoc(doc(db, "users", '__meta__'), { initialized: true });
+        }
+        window.__userRole = role;
+      } catch(e) {
+        // If write fails (viewer can't write users), stay as viewer
+        console.warn('Could not create user doc:', e);
+        window.__userRole = 'viewer';
+      }
+    }
+  } catch(e) {
+    console.warn('Role fetch failed, defaulting to admin for backwards compat:', e);
+    // If users collection doesn't exist yet, default to admin (backwards compat)
+    window.__userRole = 'admin';
+  }
+
+  // Store display name globally
+  window.__displayName = '';
+  try {
+    const userDocSnap = await getDoc(doc(db, "users", user.uid));
+    if (userDocSnap.exists() && userDocSnap.data().displayName) {
+      window.__displayName = userDocSnap.data().displayName;
+    }
+  } catch(e) { /* ignore */ }
 
   injectStyles();
 
@@ -352,6 +398,26 @@ onAuthStateChanged(auth, user => {
   // Wrap existing content in .page-content if not already
   const pageContent = document.getElementById('page-content');
   if (pageContent) pageContent.classList.add('page-content');
+
+  // Update sidebar with display name if available
+  if (window.__displayName) {
+    const emailEl = document.querySelector('.sidebar-user-email');
+    if (emailEl) emailEl.textContent = window.__displayName;
+    const avatarEl = document.querySelector('.sidebar-avatar');
+    if (avatarEl) avatarEl.textContent = window.__displayName[0].toUpperCase();
+  }
+
+  // Update sidebar role label
+  const roleEl = document.querySelector('.sidebar-user-role');
+  if (roleEl) roleEl.textContent = window.__userRole === 'admin' ? 'Administrator' : 'Viewer';
+
+  // Hide write-action elements for viewers
+  if (window.__userRole !== 'admin') {
+    document.body.classList.add('role-viewer');
+  }
+
+  // Dispatch event so page scripts know the role is ready
+  window.dispatchEvent(new CustomEvent('roleReady', { detail: { role: window.__userRole } }));
 
   document.getElementById('sidebarLogout').addEventListener('click', () => {
     signOut(auth).then(() => window.location.href = 'index.html');

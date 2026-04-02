@@ -1,8 +1,8 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, getDocs, doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-onAuthStateChanged(auth, user => {
+onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = 'index.html'; return; }
 
   document.getElementById('settingsEmail').textContent = user.email || '—';
@@ -12,6 +12,27 @@ onAuthStateChanged(auth, user => {
   document.getElementById('settingsLastLogin').textContent = user.metadata.lastSignInTime
     ? new Date(user.metadata.lastSignInTime).toLocaleDateString('en-PK', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
     : '—';
+
+  // Load display name from users doc
+  try {
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    if (userDoc.exists() && userDoc.data().displayName) {
+      document.getElementById('displayName').value = userDoc.data().displayName;
+    }
+  } catch(e) { console.warn('Could not load display name:', e); }
+
+  // Show user management for admins
+  window.addEventListener('roleReady', () => {
+    if (window.__userRole === 'admin') {
+      document.getElementById('userMgmtSection').style.display = 'block';
+      loadUsers();
+    }
+  });
+  // In case roleReady already fired
+  if (window.__userRole === 'admin') {
+    document.getElementById('userMgmtSection').style.display = 'block';
+    loadUsers();
+  }
 });
 
 // ── Change Password ──────────────────────────────────────────────────────────
@@ -48,6 +69,44 @@ window.changePassword = async function() {
     }
   } finally {
     btn.disabled = false; btn.textContent = 'Update Password';
+  }
+};
+
+// ── Save Display Name ────────────────────────────────────────────────────────
+window.saveDisplayName = async function() {
+  const name  = document.getElementById('displayName').value.trim();
+  const msgEl = document.getElementById('nameMsg');
+  const btn   = document.getElementById('saveNameBtn');
+
+  msgEl.className = 'settings-msg';
+  msgEl.style.display = 'none';
+
+  if (!name) {
+    showMsg(msgEl, 'error', 'Please enter a name.');
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const uid = auth.currentUser.uid;
+    await updateDoc(doc(db, "users", uid), { displayName: name });
+    showMsg(msgEl, 'success', `Display name set to "${name}". It will show on the Home page next time.`);
+  } catch(e) {
+    console.error('Display name error:', e);
+    // If doc doesn't exist yet, create it
+    try {
+      await setDoc(doc(db, "users", auth.currentUser.uid), {
+        email: auth.currentUser.email,
+        displayName: name,
+        role: window.__userRole || 'admin',
+        createdAt: new Date().toISOString()
+      }, { merge: true });
+      showMsg(msgEl, 'success', `Display name set to "${name}".`);
+    } catch(e2) {
+      showMsg(msgEl, 'error', 'Failed to save name. ' + (e2.message || ''));
+    }
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
   }
 };
 
@@ -96,6 +155,68 @@ window.exportAllData = async function() {
 function showMsg(el, type, text) {
   el.textContent = text;
   el.className = `settings-msg ${type}`;
+}
+
+// ── User Management ──────────────────────────────────────────────────────────
+let allUsers = [];
+
+async function loadUsers() {
+  const el = document.getElementById('userList');
+  try {
+    const snap = await getDocs(collection(db, "users"));
+    allUsers = snap.docs
+      .filter(d => d.id !== '__meta__')
+      .map(d => ({ id: d.id, ...d.data() }));
+
+    if (!allUsers.length) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--muted)">No users found. The current user will be auto-registered on next login.</div>';
+      return;
+    }
+
+    const currentUid = auth.currentUser?.uid;
+    el.innerHTML = allUsers.map(u => {
+      const isSelf = u.id === currentUid;
+      const initial = (u.email || '?')[0].toUpperCase();
+      return `<div class="user-row">
+        <div class="user-avatar">${initial}</div>
+        <div class="user-info">
+          <div class="user-email">${esc(u.email || 'Unknown')}${isSelf ? ' <span style="font-size:10px;color:var(--muted)">(you)</span>' : ''}</div>
+          <div class="user-meta">Added ${u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-PK', { day:'2-digit', month:'short', year:'numeric' }) : '—'}</div>
+        </div>
+        ${isSelf
+          ? `<span class="user-role-badge admin">Admin</span>`
+          : `<select class="user-role-select" onchange="changeUserRole('${u.id}', this.value)">
+              <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+              <option value="viewer" ${u.role!=='admin'?'selected':''}>Viewer</option>
+            </select>`
+        }
+      </div>`;
+    }).join('');
+  } catch(e) {
+    console.error('Failed to load users:', e);
+    el.innerHTML = '<div style="font-size:12px;color:var(--red-fg)">Failed to load users.</div>';
+  }
+}
+
+window.changeUserRole = async function(uid, newRole) {
+  const msgEl = document.getElementById('userMgmtMsg');
+  msgEl.className = 'settings-msg';
+  msgEl.style.display = 'none';
+
+  try {
+    await updateDoc(doc(db, "users", uid), { role: newRole });
+    const user = allUsers.find(u => u.id === uid);
+    if (user) user.role = newRole;
+    showMsg(msgEl, 'success', `Role updated to ${newRole} for ${user?.email || uid}.`);
+  } catch(e) {
+    console.error('Role update error:', e);
+    showMsg(msgEl, 'error', 'Failed to update role. ' + (e.message || ''));
+    loadUsers(); // re-render to revert select
+  }
+};
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 let toastTimer;

@@ -14,6 +14,7 @@ onAuthStateChanged(auth, user => {
 // ── State ─────────────────────────────────────────────────────────────────────
 let payOrders  = [];
 let activityLog = [];
+let tendersList = [];
 let currentFilter = 'all';
 let editPOId   = null;
 let editLogId  = null;
@@ -22,7 +23,7 @@ let deleteTarget = null; // { type: 'po'|'log', id }
 // ── Load all data ─────────────────────────────────────────────────────────────
 async function loadAll() {
   try {
-    await Promise.all([loadPO(), loadLog()]);
+    await Promise.all([loadPO(), loadLog(), loadTenders()]);
     renderAll();
   } catch(e) {
     console.error('Failed to load dashboard data:', e);
@@ -51,6 +52,16 @@ async function loadLog() {
     console.error('Failed to load activity log:', e);
     activityLog = [];
     throw e;
+  }
+}
+
+async function loadTenders() {
+  try {
+    const snap = await getDocs(collection(db, "tenders"));
+    tendersList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error('Failed to load tenders:', e);
+    tendersList = [];
   }
 }
 
@@ -126,6 +137,64 @@ function renderAnalytics() {
       <span class="monthly-bar-label">${m.label}</span>
     </div>`;
   }).join('')}</div>`;
+
+  // Win rate donut
+  renderWinRate();
+}
+
+function renderWinRate() {
+  const el = document.getElementById('winRateChart');
+  const won  = tendersList.filter(t => t.status === 'Awarded').length;
+  const lost = tendersList.filter(t => t.status === 'Lost').length;
+  const active = tendersList.filter(t => ['Bidding','Submitted'].includes(t.status)).length;
+  const total = tendersList.length;
+  const decided = won + lost;
+  const rate = decided > 0 ? Math.round((won / decided) * 100) : 0;
+
+  if (!total) {
+    el.innerHTML = '<div style="text-align:center;font-size:12px;color:var(--muted);padding:1rem">No tenders yet</div>';
+    return;
+  }
+
+  // SVG donut chart
+  const size = 90, stroke = 10, radius = (size - stroke) / 2;
+  const circ = 2 * Math.PI * radius;
+  const wonArc  = decided > 0 ? (won / decided) * circ : 0;
+  const lostArc = decided > 0 ? (lost / decided) * circ : 0;
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="position:relative;width:${size}px;height:${size}px;flex-shrink:0">
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform:rotate(-90deg)">
+          <circle cx="${size/2}" cy="${size/2}" r="${radius}" fill="none" stroke="var(--bg)" stroke-width="${stroke}"/>
+          ${decided > 0 ? `<circle cx="${size/2}" cy="${size/2}" r="${radius}" fill="none" stroke="var(--green-fg)" stroke-width="${stroke}"
+            stroke-dasharray="${wonArc} ${circ}" stroke-linecap="round"/>
+          <circle cx="${size/2}" cy="${size/2}" r="${radius}" fill="none" stroke="var(--red-fg)" stroke-width="${stroke}"
+            stroke-dasharray="${lostArc} ${circ}" stroke-dashoffset="${-wonArc}" stroke-linecap="round"/>` : ''}
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column">
+          <span style="font-size:20px;font-weight:700;color:var(--navy);font-family:'IBM Plex Mono',monospace;line-height:1">${rate}%</span>
+          <span style="font-size:9px;color:var(--muted);font-weight:600">WIN RATE</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--green-fg)"></div>
+          <span style="color:var(--text);font-weight:500">Won: ${won}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--red-fg)"></div>
+          <span style="color:var(--text);font-weight:500">Lost: ${lost}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--blue-fg)"></div>
+          <span style="color:var(--text);font-weight:500">Active: ${active}</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">
+          Total: ${total} tenders
+        </div>
+      </div>
+    </div>`;
 }
 
 window.renderPOTable = function() {

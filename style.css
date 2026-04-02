@@ -421,6 +421,7 @@ tbody tr.row-selected:hover { background: #cce4f7 !important; }
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
   margin-bottom: 1.5rem;
 }
+.analytics-row.three { grid-template-columns: 1fr 1fr 1fr; }
 .analytics-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 1rem 1.25rem;
@@ -456,6 +457,28 @@ tbody tr.row-selected:hover { background: #cce4f7 !important; }
   white-space: nowrap;
 }
 
-@media (max-width: 768px) {
-  .analytics-row { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .analytics-row, .analytics-row.three { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .analytics-row, .analytics-row.three { grid-template-columns: 1fr; }
+}
+
+/* ── ROLE: VIEWER (hide write actions) ── */
+.role-viewer .btn-primary[onclick*="openPOModal"],
+.role-viewer .btn-primary[onclick*="openLogModal"],
+.role-viewer .btn-new-tender,
+.role-viewer .btn-add-task,
+.role-viewer .add-task-bar,
+.role-viewer .btn-select-mode,
+.role-viewer .btn-tender-select,
+.role-viewer .btn-icon.del,
+.role-viewer .btn-icon[title="Edit"],
+.role-viewer .btn-icon[title="Mark as Returned"],
+.role-viewer .clear-done-btn,
+.role-viewer .task-del-btn,
+.role-viewer .task-check-btn,
+.role-viewer .selection-bar,
+.role-viewer .tender-bulk-bar {
+  display: none !important;
 }
