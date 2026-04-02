@@ -54,14 +54,47 @@ function renderAll() {
   renderContact();
   renderNotes();
   renderTExpenses();
+  renderStatusHistory();
 }
 
 // ── STATUS ────────────────────────────────────────────────────────────────────
 window.updateStatus = async function() {
-  tender.status = document.getElementById('dStatus').value;
-  await persist({ status: tender.status });
+  const newStatus = document.getElementById('dStatus').value;
+  const oldStatus = tender.status;
+  if (newStatus === oldStatus) return;
+  tender.status = newStatus;
+
+  // Append to status history
+  if (!tender.statusHistory) tender.statusHistory = [];
+  tender.statusHistory.push({
+    from: oldStatus || '—',
+    to:   newStatus,
+    date: new Date().toISOString().split('T')[0],
+    ts:   Date.now()
+  });
+
+  await persist({ status: tender.status, statusHistory: tender.statusHistory });
+  renderStatusHistory();
   toast('Status updated.');
 };
+
+function renderStatusHistory() {
+  const el = document.getElementById('statusHistoryList');
+  if (!el) return;
+  const history = (tender.statusHistory || []).slice().reverse();
+  if (!history.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--muted)">No status changes recorded yet.</div>';
+    return;
+  }
+  const statusClass = { Bidding:'s-bidding', Submitted:'s-submitted', Awarded:'s-awarded', Lost:'s-lost', Cancelled:'s-cancelled' };
+  el.innerHTML = history.map(h => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap">${fmtDate(h.date)}</span>
+      <span class="badge ${statusClass[h.from]||''}" style="font-size:10px">${h.from}</span>
+      <span style="color:var(--muted);font-size:11px">→</span>
+      <span class="badge ${statusClass[h.to]||''}" style="font-size:10px">${h.to}</span>
+    </div>`).join('');
+}
 
 // ── EDITABLE HEADER FIELDS ───────────────────────────────────────────────────
 window.saveHeaderField = async function(field, inputId) {
@@ -614,6 +647,7 @@ window.saveTExp = async function() {
   };
   tender.expenses.push(entry);
   renderTExpenses();
+  renderStatusHistory();
   closeTExpModal();
   await persist({ expenses: tender.expenses });
   toast('Expense added.');
@@ -622,6 +656,7 @@ window.saveTExp = async function() {
 window.removeTExp = async function(id) {
   tender.expenses = (tender.expenses||[]).filter(e => e.id !== id);
   renderTExpenses();
+  renderStatusHistory();
   await persist({ expenses: tender.expenses });
   toast('Expense removed.');
 };

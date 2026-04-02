@@ -179,6 +179,7 @@
   <!-- ADD TASK -->
   <div class="add-task-bar">
     <input class="add-task-input" id="taskInput" type="text" placeholder="Add a new task… then press Enter">
+    <input type="date" id="taskDueDate" style="border:none;outline:none;font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:var(--muted);background:transparent;cursor:pointer;" title="Due date (optional)">
     <select class="add-priority" id="taskPriority">
       <option value="medium">Medium</option>
       <option value="high">High</option>
@@ -193,6 +194,7 @@
     <button class="todo-filter-btn" onclick="setTodoFilter('open', this)">Open</button>
     <button class="todo-filter-btn" onclick="setTodoFilter('high', this)">High Priority</button>
     <button class="todo-filter-btn" onclick="setTodoFilter('done', this)">Completed</button>
+    <button class="todo-filter-btn" onclick="setTodoFilter('overdue', this)">Overdue</button>
     <button class="clear-done-btn" onclick="clearDone()" style="margin-left:auto">Clear completed</button>
   </div>
 

@@ -10,8 +10,6 @@ let _payOrders = [];
 let _todos     = [];
 let _notes     = [];
 let _expenses  = [];
-let _contacts  = [];
-let _fees      = [];
 let _loaded    = false;
 let _searchTimer = null;
 
@@ -49,24 +47,20 @@ async function setGreeting(user) {
 // ── Load ALL data once ────────────────────────────────────────────────────────
 async function loadAll() {
   // Use allSettled so one failed collection never blocks the rest
-  const [tRes, pRes, tdRes, nRes, eRes, cRes, fRes] = await Promise.allSettled([
+  const [tRes, pRes, tdRes, nRes, eRes] = await Promise.allSettled([
     getDocs(collection(db, "tenders")),
     getDocs(collection(db, "payOrders")),
     getDocs(collection(db, "todos")),
     getDocs(collection(db, "notes")),
     getDocs(collection(db, "expenses")),
-    getDocs(collection(db, "contacts")),
-    getDocs(collection(db, "tenderFees")),
   ]);
   const parse = res => res.status === 'fulfilled' ? res.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
-  _tenders    = parse(tRes);
-  _payOrders  = parse(pRes);
-  _todos      = parse(tdRes);
-  _notes      = parse(nRes);
-  _expenses   = parse(eRes);
-  _contacts   = parse(cRes);
-  _fees       = parse(fRes);
-  _loaded     = true;
+  _tenders   = parse(tRes);
+  _payOrders = parse(pRes);
+  _todos     = parse(tdRes);
+  _notes     = parse(nRes);
+  _expenses  = parse(eRes);
+  _loaded    = true;
   // Log any failures to help debug
   [tRes,pRes,tdRes,nRes,eRes].forEach((r,i) => {
     if (r.status === 'rejected') console.warn(`Collection ${['tenders','payOrders','todos','notes','expenses'][i]} failed:`, r.reason);
@@ -182,11 +176,22 @@ function renderPOExpiry() {
     .filter(p => p.daysLeft >= 0 && p.daysLeft <= 30)
     .sort((a,b) => a.daysLeft - b.daysLeft)
     .slice(0, 6);
+
+  // Also check for already-expired POs
+  const expired = _payOrders
+    .filter(p => p.status === 'Submitted' && p.expiry)
+    .map(p => ({ ...p, daysLeft: Math.round((new Date(p.expiry + 'T00:00:00') - today) / 86400000) }))
+    .filter(p => p.daysLeft < 0)
+    .sort((a,b) => b.daysLeft - a.daysLeft)
+    .slice(0, 3);
+
   const el = document.getElementById('poExpiryList');
-  if (!expiring.length) { el.innerHTML = '<div class="panel-empty">No pay orders expiring soon.</div>'; return; }
-  el.innerHTML = expiring.map(p => {
-    const cls   = p.daysLeft <= 7 ? 'urgent' : 'soon';
-    const label = p.daysLeft === 0 ? 'Today!' : p.daysLeft === 1 ? '1 day' : `${p.daysLeft}d left`;
+  const allItems = [...expired, ...expiring];
+  if (!allItems.length) { el.innerHTML = '<div class="panel-empty">No pay orders expiring soon.</div>'; return; }
+  el.innerHTML = allItems.map(p => {
+    const isExpired = p.daysLeft < 0;
+    const cls   = isExpired ? 'urgent' : p.daysLeft <= 7 ? 'urgent' : 'soon';
+    const label = isExpired ? `${Math.abs(p.daysLeft)}d overdue!` : p.daysLeft === 0 ? 'Today!' : p.daysLeft === 1 ? '1 day' : `${p.daysLeft}d left`;
     return `<div class="po-item">
       <span class="po-num">${esc(p.po||'—')}</span>
       <span class="po-bank">${esc(p.bank||'—')} · Rs ${Number(p.amount||0).toLocaleString('en-PK')}</span>
@@ -279,8 +284,6 @@ function runSearch(q) {
     note:    `<svg viewBox="0 0 20 20" fill="none"><path d="M4 4h12v9l-4 4H4V4z" stroke="currentColor" stroke-width="1.5"/></svg>`,
     todo:    `<svg viewBox="0 0 20 20" fill="none"><path d="M5 10l3 3 7-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
     expense: `<svg viewBox="0 0 20 20" fill="none"><rect x="2" y="5" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 9h16" stroke="currentColor" stroke-width="1.5"/><circle cx="6" cy="13" r="1" fill="currentColor"/></svg>`,
-    contact: `<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 18c0-3.9 3.1-7 7-7s7 3.1 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
-    fee:     `<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 7v1.5M10 11.5V13M8 9a2 2 0 114 0c0 1-1 1.5-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
   };
   const iconBg = {
     tender:  'background:var(--blue-bg);color:var(--blue-fg)',
@@ -288,10 +291,8 @@ function runSearch(q) {
     note:    'background:var(--purple-bg);color:var(--purple-fg)',
     todo:    'background:var(--green-bg);color:var(--green-fg)',
     expense: 'background:var(--red-bg);color:var(--red-fg)',
-    contact: 'background:#f0f4ff;color:#4361ee',
-    fee:     'background:var(--amber-bg);color:var(--amber-fg)',
   };
-  const typeLabel = { tender:'Tender', po:'Pay Order', note:'Note', todo:'To-Do', expense:'Expense', contact:'Contact', fee:'Tender Fee' };
+  const typeLabel = { tender:'Tender', po:'Pay Order', note:'Note', todo:'To-Do', expense:'Expense' };
 
   _tenders.forEach(t => {
     if (hit(ql, t.name, t.nit, t.agency, t.notes)) results.push({ type:'tender', title:t.name||'Untitled', sub:`${t.agency||'—'} · ${t.nit||'—'}`, href:`tender-detail.html?id=${t.id}` });
@@ -307,12 +308,6 @@ function runSearch(q) {
   });
   _expenses.forEach(e => {
     if (hit(ql, e.description, e.category, e.note)) results.push({ type:'expense', title:e.description||'—', sub:`${e.category||'—'} · Rs ${Number(e.amount||0).toLocaleString('en-PK')}`, href:'expenses.html' });
-  });
-  _contacts.forEach(c => {
-    if (hit(ql, c.name, c.organization, c.role, c.phone, c.email)) results.push({ type:'contact', title:c.name||'—', sub:`${c.role||'—'} · ${c.organization||'—'}`, href:'contacts.html' });
-  });
-  _fees.forEach(f => {
-    if (hit(ql, f.tender, f.agency, f.nit, f.receipt)) results.push({ type:'fee', title:f.tender||'—', sub:`${f.agency||'—'} · Rs ${Number(f.amount||0).toLocaleString('en-PK')}`, href:'fees.html' });
   });
 
   const show = results.slice(0, 8);
@@ -340,11 +335,11 @@ document.addEventListener('click', e => {
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function hit(q, ...fields) { return fields.some(f => (f||'').toLowerCase().includes(q)); }
-
 function stripHtml(s) {
   return String(s||'').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
+
+function hit(q, ...fields) { return fields.some(f => (f||'').toLowerCase().includes(q)); }
 
 function highlight(text, q) {
   if (!q || !text) return esc(text||'');

@@ -353,6 +353,7 @@
     <button class="detail-tab" onclick="switchDetailTab('contact',this)">Contact</button>
     <button class="detail-tab" onclick="switchDetailTab('notes',this)">Notes</button>
     <button class="detail-tab" onclick="switchDetailTab('texpenses',this)">Expenses</button>
+    <button class="detail-tab" onclick="switchDetailTab('history',this)">Status History</button>
   </div>
 
   <!-- CHECKLIST TAB -->
@@ -443,6 +444,16 @@
       </div>
       <textarea class="notes-textarea" id="tenderNotes" placeholder="Write anything about this tender — observations, strategy, key people, important dates, concerns…"></textarea>
       <div class="notes-save-status" id="notesSaveStatus">Auto-saved</div>
+    </div>
+  </div>
+
+  <!-- STATUS HISTORY TAB -->
+  <div class="tab-panel" id="tab-history">
+    <div class="section-card">
+      <div class="section-card-header">
+        <span class="section-card-title">Status History</span>
+      </div>
+      <div id="statusHistoryList"></div>
     </div>
   </div>
 

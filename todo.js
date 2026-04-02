@@ -52,6 +52,10 @@ function renderTasks() {
   if (todoFilter === 'open')  filtered = tasks.filter(t => !t.done);
   if (todoFilter === 'done')  filtered = tasks.filter(t => t.done);
   if (todoFilter === 'high')  filtered = tasks.filter(t => t.priority === 'high' && !t.done);
+  if (todoFilter === 'overdue') {
+    const todayStr = new Date().toISOString().split('T')[0];
+    filtered = tasks.filter(t => !t.done && t.dueDate && t.dueDate < todayStr);
+  }
 
   const el = document.getElementById('taskList');
   if (!filtered.length) {
@@ -87,8 +91,11 @@ function taskHtml(t) {
   const date   = t.createdAt?.seconds
     ? new Date(t.createdAt.seconds * 1000).toLocaleDateString('en-PK', { day:'2-digit', month:'short', year:'numeric' })
     : '—';
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isOverdue = !t.done && t.dueDate && t.dueDate < todayStr;
+  const dueDateHtml = t.dueDate ? `<span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:8px;background:${isOverdue ? 'var(--red-bg)' : 'var(--blue-bg)'};color:${isOverdue ? 'var(--red-fg)' : 'var(--blue-fg)'}">Due: ${new Date(t.dueDate+'T00:00:00').toLocaleDateString('en-PK',{day:'2-digit',month:'short'})}</span>` : '';
   return `
-  <div class="task-item ${t.done ? 'done' : ''}" id="task-${t.id}">
+  <div class="task-item ${t.done ? 'done' : ''} ${isOverdue ? 'overdue' : ''}" id="task-${t.id}">
     <button class="task-check-btn" onclick="toggleDone('${t.id}')" title="${t.done ? 'Mark open' : 'Mark done'}">
       <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
         <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -98,6 +105,7 @@ function taskHtml(t) {
       <div class="task-text">${esc(t.text)}</div>
       <div class="task-meta">
         <span class="priority-badge ${pClass[t.priority] || 'p-medium'}" onclick="cyclePriority('${t.id}')" title="Click to change priority">${pMap[t.priority] || 'Medium'}</span>
+        ${dueDateHtml}
         <span class="task-date">${date}</span>
       </div>
     </div>
@@ -120,10 +128,12 @@ window.addTask = async function() {
   input.focus();
 
   try {
+    const dueDate = document.getElementById('taskDueDate')?.value || '';
     const ref = await addDoc(collection(db, "todos"), {
-      text, priority, done: false, createdAt: serverTimestamp()
+      text, priority, dueDate, done: false, createdAt: serverTimestamp()
     });
-    tasks.unshift({ id: ref.id, text, priority, done: false, createdAt: null });
+    tasks.unshift({ id: ref.id, text, priority, dueDate, done: false, createdAt: null });
+    if (document.getElementById('taskDueDate')) document.getElementById('taskDueDate').value = '';
     renderTasks();
   } catch(e) {
     console.error('Add task error:', e);

@@ -89,22 +89,21 @@ window.saveDisplayName = async function() {
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
     const uid = auth.currentUser.uid;
-    await updateDoc(doc(db, "users", uid), { displayName: name });
-    showMsg(msgEl, 'success', `Display name set to "${name}". It will show on the Home page next time.`);
+    // Use setDoc with merge:true — works whether doc exists or not
+    // Only updates displayName, never touches role (safe per Firestore rules)
+    await setDoc(doc(db, "users", uid), {
+      displayName: name,
+      email: auth.currentUser.email,
+    }, { merge: true });
+    showMsg(msgEl, 'success', `Display name updated to "${name}".`);
+    // Update sidebar immediately
+    const emailEl = document.querySelector('.sidebar-user-email');
+    const avatarEl = document.querySelector('.sidebar-avatar');
+    if (emailEl) emailEl.textContent = name;
+    if (avatarEl) avatarEl.textContent = name[0].toUpperCase();
   } catch(e) {
     console.error('Display name error:', e);
-    // If doc doesn't exist yet, create it
-    try {
-      await setDoc(doc(db, "users", auth.currentUser.uid), {
-        email: auth.currentUser.email,
-        displayName: name,
-        role: window.__userRole || 'admin',
-        createdAt: new Date().toISOString()
-      }, { merge: true });
-      showMsg(msgEl, 'success', `Display name set to "${name}".`);
-    } catch(e2) {
-      showMsg(msgEl, 'error', 'Failed to save name. ' + (e2.message || ''));
-    }
+    showMsg(msgEl, 'error', 'Failed to save. ' + (e.message || ''));
   } finally {
     btn.disabled = false; btn.textContent = 'Save';
   }
