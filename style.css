@@ -1,13 +1,5 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-@view-transition { navigation: auto; }
-
-::view-transition-old(root) { animation: vt-fade-out 0.12s ease-out; }
-::view-transition-new(root) { animation: vt-fade-in  0.15s ease-out; }
-
-@keyframes vt-fade-out { to   { opacity: 0; transform: translateY(4px); } }
-@keyframes vt-fade-in  { from { opacity: 0; transform: translateY(4px); } }
-
 :root {
   --navy:       #0f2a4a;
   --navy2:      #1a3f6f;
@@ -406,29 +398,7 @@ tbody tr.row-selected:hover { background: #cce4f7 !important; }
 .stat-card.navy .stat-label { color: rgba(255,255,255,0.6); }
 .stat-card.navy .stat-val { color: #fff; }
 
-/* ── EXPIRY ALERT ── */
-#expiryAlert {
-  background: #fdf3dc;
-  border: 1px solid #f0c96a;
-  border-radius: var(--radius);
-  margin-bottom: 1rem;
-  overflow: hidden;
-}
-.expiry-alert-inner {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px;
-  font-size: 13px; color: var(--amber-fg);
-}
-.expiry-alert-inner span { flex: 1; }
-.expiry-btn {
-  padding: 4px 14px;
-  border: 1px solid #e0a830;
-  border-radius: 20px;
-  background: #fff;
-  color: var(--amber-fg);
-  font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 12px; font-weight: 600;
-  cursor: pointer; white-space: nowrap;
-  transition: background 0.15s;
-}
-.expiry-btn:hover { background: #fff7e6; }
+/* ── PRIORITY BADGES ── */
+.p-high   { background: var(--red-bg);   color: var(--red-fg);   }
+.p-medium { background: var(--amber-bg); color: var(--amber-fg); }
+.p-low    { background: var(--green-bg); color: var(--green-fg); }

@@ -53,6 +53,7 @@ function renderAll() {
   renderVisits();
   renderContact();
   renderNotes();
+  renderTExpenses();
 }
 
 // ── STATUS ────────────────────────────────────────────────────────────────────
@@ -114,7 +115,8 @@ window.switchDetailTab = function(tab, btn) {
   document.querySelectorAll('.detail-tab').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById(`tab-${tab}`).classList.add('active');
+  const panel = document.getElementById(`tab-${tab}`);
+  if (panel) panel.classList.add('active');
 };
 
 // ── CHECKLIST ─────────────────────────────────────────────────────────────────
@@ -521,3 +523,113 @@ ${t.notes ? `<h3>Notes</h3><div class="notes">${t.notes}</div>` : ''}
   win.focus();
   setTimeout(() => { win.print(); }, 500);
 };
+
+// ── TENDER EXPENSES ───────────────────────────────────────────────────────────
+const CAT_COLORS_TD = {
+  'Fuel / Transport':'#e8940a','Printing & Documentation':'#185fa5',
+  'Courier / Postage':'#5d3fa5','Site Visit Costs':'#0e6b4a',
+  'Tender Fees':'#7a4500','Office Supplies':'#6b7a90',
+  'Labour / Daily Wages':'#c0392b','Equipment & Tools':'#1a56b0',
+  'Food & Entertainment':'#9d174d','Miscellaneous':'#6b7a90',
+};
+
+function renderTExpenses() {
+  const expenses = tender.expenses || [];
+  const el       = document.getElementById('texpContent');
+  if (!el) return;
+
+  if (!expenses.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0;text-align:center">No expenses logged for this tender yet.</div>';
+    return;
+  }
+
+  const total = expenses.reduce((a,b) => a+(+b.amount||0), 0);
+  el.innerHTML = `
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="background:var(--navy)">
+          <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.8)">Description</th>
+          <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.8)">Category</th>
+          <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.8)">Date</th>
+          <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.8)">Amount (PKR)</th>
+          <th style="padding:8px 12px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${expenses.map(e => {
+          const col = CAT_COLORS_TD[e.category] || '#6b7a90';
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:9px 12px;font-weight:500;color:var(--navy)">${esc(e.description||'—')}</td>
+            <td style="padding:9px 12px">
+              <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:${col}20;color:${col}">${esc(e.category||'—')}</span>
+            </td>
+            <td style="padding:9px 12px;font-size:12px;color:var(--muted)">${fmtDate(e.date)}</td>
+            <td style="padding:9px 12px;text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600">Rs ${Number(e.amount||0).toLocaleString('en-PK')}</td>
+            <td style="padding:9px 12px">
+              <button class="btn-icon del" style="width:26px;height:26px" onclick="removeTExp('${e.id}')">
+                <svg viewBox="0 0 12 12" fill="none" width="11" height="11"><path d="M1 3h10M4 3V2h4v1M2.5 3l.8 8h5.4l.8-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </td>
+          </tr>`;
+        }).join('')}
+        <tr style="border-top:2px solid var(--border)">
+          <td colspan="3" style="padding:9px 12px;font-weight:600;color:var(--navy)">Total</td>
+          <td style="padding:9px 12px;text-align:right;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--navy)">Rs ${total.toLocaleString('en-PK')}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
+window.openTExpModal = function() {
+  document.getElementById('tx_desc').value   = '';
+  document.getElementById('tx_amount').value = '';
+  document.getElementById('tx_note').value   = '';
+  document.getElementById('tx_cat').value    = 'Fuel / Transport';
+  document.getElementById('tx_date').value   = new Date().toISOString().split('T')[0];
+  document.getElementById('texpModal').classList.add('open');
+  setTimeout(() => document.getElementById('tx_desc').focus(), 100);
+};
+
+window.closeTExpModal = function() {
+  document.getElementById('texpModal').classList.remove('open');
+};
+
+window.saveTExp = async function() {
+  const desc   = document.getElementById('tx_desc').value.trim();
+  const amount = document.getElementById('tx_amount').value;
+  if (!desc)   { toast('Enter a description.'); return; }
+  if (!amount) { toast('Enter an amount.'); return; }
+
+  if (!tender.expenses) tender.expenses = [];
+  const entry = {
+    id:          uid(),
+    description: desc,
+    category:    document.getElementById('tx_cat').value,
+    amount,
+    date:        document.getElementById('tx_date').value,
+    note:        document.getElementById('tx_note').value.trim(),
+  };
+  tender.expenses.push(entry);
+  renderTExpenses();
+  closeTExpModal();
+  await persist({ expenses: tender.expenses });
+  toast('Expense added.');
+};
+
+window.removeTExp = async function(id) {
+  tender.expenses = (tender.expenses||[]).filter(e => e.id !== id);
+  renderTExpenses();
+  await persist({ expenses: tender.expenses });
+  toast('Expense removed.');
+};
+
+// Safe overlay close
+const _texpOverlay = document.getElementById('texpModal');
+if (_texpOverlay) {
+  _texpOverlay.addEventListener('click', e => {
+    if (e.target.id === 'texpModal') closeTExpModal();
+  });
+}

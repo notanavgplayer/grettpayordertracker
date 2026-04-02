@@ -352,6 +352,7 @@
     <button class="detail-tab" onclick="switchDetailTab('visits',this)">Site Visits</button>
     <button class="detail-tab" onclick="switchDetailTab('contact',this)">Contact</button>
     <button class="detail-tab" onclick="switchDetailTab('notes',this)">Notes</button>
+    <button class="detail-tab" onclick="switchDetailTab('texpenses',this)">Expenses</button>
   </div>
 
   <!-- CHECKLIST TAB -->
@@ -445,6 +446,48 @@
     </div>
   </div>
 
+  <!-- EXPENSES TAB -->
+  <div class="tab-panel" id="tab-texpenses">
+    <div class="section-card">
+      <div class="section-card-header">
+        <span class="section-card-title">Tender Expenses</span>
+        <button class="btn-sm primary" onclick="openTExpModal()">+ Add Expense</button>
+      </div>
+      <div id="texpContent"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TENDER EXPENSE MODAL -->
+<div class="modal-overlay" id="texpModal">
+  <div class="modal mini-modal">
+    <div class="modal-header"><span>Add Expense</span><button class="modal-close" onclick="closeTExpModal()">&#x2715;</button></div>
+    <div class="form-grid">
+      <div class="form-group full"><label>Description</label><input type="text" id="tx_desc" placeholder="e.g. Fuel for site visit"></div>
+      <div class="form-group"><label>Category</label>
+        <select id="tx_cat">
+          <option>Fuel / Transport</option>
+          <option>Printing & Documentation</option>
+          <option>Courier / Postage</option>
+          <option>Site Visit Costs</option>
+          <option>Tender Fees</option>
+          <option>Office Supplies</option>
+          <option>Labour / Daily Wages</option>
+          <option>Equipment & Tools</option>
+          <option>Food & Entertainment</option>
+          <option>Miscellaneous</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Amount (PKR)</label><input type="number" id="tx_amount" placeholder="0"></div>
+      <div class="form-group"><label>Date</label><input type="date" id="tx_date"></div>
+      <div class="form-group full"><label>Note (optional)</label><input type="text" id="tx_note" placeholder="Any extra details…"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeTExpModal()">Cancel</button>
+      <button class="btn-save" onclick="saveTExp()">Add Expense</button>
+    </div>
+  </div>
 </div>
 
 <!-- BILL MODAL -->
