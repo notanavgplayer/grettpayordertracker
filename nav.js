@@ -200,139 +200,17 @@ function buildSidebar(userEmail) {
 
 function injectStyles() {
   if (document.getElementById('nav-styles')) return;
-  // Inject responsive CSS
+  // All layout CSS is in layout.css — loaded statically in <head>
+  // Only inject responsive.css if not already present
   if (!document.querySelector('link[href*="responsive.css"]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = 'responsive.css';
     document.head.appendChild(link);
   }
-
-  const isMobile = window.innerWidth <= 640;
-  const isTablet = window.innerWidth <= 1024 && window.innerWidth > 640;
-  const sidebarWidth = isTablet ? '200px' : '220px';
-  const contentMargin = isMobile ? '0' : (isTablet ? '200px' : '220px');
-
-  const style = document.createElement('style');
-  style.id = 'nav-styles';
-  style.textContent = `
-    body { display: flex; min-height: 100vh; }
-
-    .sidebar {
-      width: ${isMobile ? '0' : sidebarWidth}; flex-shrink: 0;
-      background: #0f2a4a;
-      display: ${isMobile ? 'none' : 'flex'}; flex-direction: column;
-      position: fixed; top: 0; left: 0; bottom: 0;
-      z-index: 100;
-      transition: transform 0.25s ease;
-    }
-
-    .sidebar-brand {
-      display: flex; align-items: center; gap: 10px;
-      padding: 20px 16px 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-    }
-    .sidebar-logo {
-      width: 36px; height: 36px; flex-shrink: 0;
-      background: rgba(255,255,255,0.08);
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-    .sidebar-logo svg { width: 20px; height: 20px; }
-    .sidebar-brand-text strong {
-      display: block; font-size: 13px; font-weight: 600;
-      color: #fff; line-height: 1.2;
-    }
-    .sidebar-brand-text span {
-      font-size: 11px; color: rgba(255,255,255,0.45);
-    }
-
-    .sidebar-section-label {
-      font-size: 10px; font-weight: 700;
-      letter-spacing: 0.1em; color: rgba(255,255,255,0.3);
-      padding: 20px 16px 8px;
-    }
-
-    .sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; flex: 1; }
-
-    .nav-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 9px 12px;
-      border-radius: 8px;
-      color: rgba(255,255,255,0.55);
-      text-decoration: none;
-      font-size: 13px; font-weight: 500;
-      transition: background 0.15s, color 0.15s;
-    }
-    .nav-item:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
-    .nav-item.active { background: rgba(255,255,255,0.12); color: #fff; }
-    .nav-item.active .nav-item-icon { color: #e8940a; }
-    .nav-item-icon { width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-    .nav-item-icon svg { width: 18px; height: 18px; }
-
-    .sidebar-footer {
-      padding: 12px 8px;
-      border-top: 1px solid rgba(255,255,255,0.08);
-      display: flex; align-items: center; gap: 8px;
-    }
-    .sidebar-user { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-    .sidebar-avatar {
-      width: 30px; height: 30px; flex-shrink: 0;
-      background: #e8940a; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 700; color: #0f2a4a;
-    }
-    .sidebar-user-info { min-width: 0; }
-    .sidebar-user-email {
-      display: block; font-size: 11px; color: rgba(255,255,255,0.7);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      max-width: 120px;
-    }
-    .sidebar-user-role { font-size: 10px; color: rgba(255,255,255,0.35); }
-    .sidebar-logout {
-      width: 30px; height: 30px; flex-shrink: 0;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      color: rgba(255,255,255,0.5); transition: all 0.15s;
-    }
-    .sidebar-logout:hover { background: rgba(232,78,60,0.2); border-color: rgba(232,78,60,0.4); color: #ff6b6b; }
-
-    .page-content {
-      margin-left: ${contentMargin};
-      flex: 1; min-width: 0;
-      display: flex; flex-direction: column;
-      ${isMobile ? 'padding-bottom: 72px;' : ''}
-    }
-
-    /* Mobile toggle */
-    .sidebar-toggle {
-      display: none;
-      position: fixed; top: 12px; left: 12px;
-      z-index: 200;
-      width: 38px; height: 38px;
-      background: #0f2a4a; border: none;
-      border-radius: 8px; cursor: pointer;
-      color: #fff; align-items: center; justify-content: center;
-    }
-    .sidebar-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.5); z-index: 99;
-    }
-
-    @media (max-width: 1024px) {
-      .sidebar { width: 200px; }
-      .page-content { margin-left: 200px; }
-    }
-
-    @media (max-width: 640px) {
-      .sidebar { display: none !important; }
-      .sidebar-toggle { display: none !important; }
-      .page-content { margin-left: 0 !important; padding-bottom: 72px !important; padding-top: 0 !important; }
-    }
-  `;
-  document.head.appendChild(style);
+  // Marker so we don't run twice
+  const marker = document.createElement('meta');
+  marker.id = 'nav-styles';
+  document.head.appendChild(marker);
 }
 
 function toggleSidebar() {
