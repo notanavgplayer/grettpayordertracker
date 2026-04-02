@@ -37,12 +37,18 @@ onAuthStateChanged(auth, user => {
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 async function loadAll() {
-  const [eSnap, tSnap] = await Promise.all([
-    getDocs(query(collection(db, "expenses"), orderBy("date", "desc"))),
-    getDocs(collection(db, "tenders")),
-  ]);
-  expenses = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  tenders  = tSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  try {
+    const [eSnap, tSnap] = await Promise.all([
+      getDocs(query(collection(db, "expenses"), orderBy("date", "desc"))),
+      getDocs(collection(db, "tenders")),
+    ]);
+    expenses = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    tenders  = tSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  } catch(e) {
+    console.error('Failed to load expenses data:', e);
+    expenses = [];
+    tenders  = tenders.length ? tenders : [];
+  }
   populateTenderDropdown();
   updateMonthLabel();
   renderAll();

@@ -26,6 +26,7 @@ function setGreeting(email) {
   const part = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
   document.getElementById('greeting').textContent = `${part}, ${name} 👋`;
   document.getElementById('greetingSub').textContent =
+    `Here's what's happening today — ` +
     new Date().toLocaleDateString('en-PK', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 }
 

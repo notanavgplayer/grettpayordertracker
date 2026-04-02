@@ -17,14 +17,23 @@ const DEFAULT_ITEMS = [
 
 onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = 'index.html'; return; }
-  await loadTemplates();
-  // Seed a default template if none exist
-  if (!templates.length) await seedDefault();
+  try {
+    await loadTemplates();
+    if (!templates.length) await seedDefault();
+  } catch(e) {
+    console.error('Failed to load templates:', e);
+  }
 });
 
 async function loadTemplates() {
-  const snap = await getDocs(collection(db, "checklistTemplates"));
-  templates  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    const snap = await getDocs(collection(db, "checklistTemplates"));
+    templates  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error('Failed to load checklist templates:', e);
+    templates = [];
+    throw e;
+  }
   templates.sort((a,b) => {
     if (a.isDefault) return -1;
     if (b.isDefault) return 1;

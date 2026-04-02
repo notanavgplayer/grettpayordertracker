@@ -25,9 +25,14 @@ onAuthStateChanged(auth, user => {
 });
 
 async function loadContacts() {
-  const q    = query(collection(db, "contacts"), orderBy("name", "asc"));
-  const snap = await getDocs(q);
-  contacts   = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    const q    = query(collection(db, "contacts"), orderBy("name", "asc"));
+    const snap = await getDocs(q);
+    contacts   = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error('Failed to load contacts:', e);
+    contacts = [];
+  }
   renderContactList();
 }
 

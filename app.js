@@ -21,20 +21,37 @@ let deleteTarget = null; // { type: 'po'|'log', id }
 
 // ── Load all data ─────────────────────────────────────────────────────────────
 async function loadAll() {
-  await Promise.all([loadPO(), loadLog()]);
-  renderAll();
+  try {
+    await Promise.all([loadPO(), loadLog()]);
+    renderAll();
+  } catch(e) {
+    console.error('Failed to load dashboard data:', e);
+    toast('Error loading data. Please refresh the page.');
+  }
 }
 
 async function loadPO() {
-  const q   = query(collection(db, "payOrders"), orderBy("createdAt", "desc"));
-  const snap = await getDocs(q);
-  payOrders  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    const q   = query(collection(db, "payOrders"), orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    payOrders  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error('Failed to load pay orders:', e);
+    payOrders = [];
+    throw e;
+  }
 }
 
 async function loadLog() {
-  const q    = query(collection(db, "activityLog"), orderBy("date", "desc"));
-  const snap  = await getDocs(q);
-  activityLog = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    const q    = query(collection(db, "activityLog"), orderBy("date", "desc"));
+    const snap  = await getDocs(q);
+    activityLog = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error('Failed to load activity log:', e);
+    activityLog = [];
+    throw e;
+  }
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────

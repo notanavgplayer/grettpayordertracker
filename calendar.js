@@ -9,17 +9,23 @@ let payOrders    = [];
 
 onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = 'index.html'; return; }
-  await loadData();
+  try {
+    await loadData();
+  } catch(e) {
+    console.error('Failed to load calendar data:', e);
+  }
   renderCalendar();
 });
 
 async function loadData() {
-  const [tSnap, pSnap] = await Promise.all([
+  const [tRes, pRes] = await Promise.allSettled([
     getDocs(collection(db, "tenders")),
     getDocs(collection(db, "payOrders")),
   ]);
-  tenders   = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  payOrders = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  tenders   = tRes.status === 'fulfilled' ? tRes.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+  payOrders = pRes.status === 'fulfilled' ? pRes.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+  if (tRes.status === 'rejected') console.warn('Tenders load failed:', tRes.reason);
+  if (pRes.status === 'rejected') console.warn('PayOrders load failed:', pRes.reason);
 }
 
 // ── Build event map ───────────────────────────────────────────────────────────

@@ -16,9 +16,14 @@ onAuthStateChanged(auth, user => {
 });
 
 async function loadFees() {
-  const q    = query(collection(db, "tenderFees"), orderBy("date", "desc"));
-  const snap = await getDocs(q);
-  fees       = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    const q    = query(collection(db, "tenderFees"), orderBy("date", "desc"));
+    const snap = await getDocs(q);
+    fees       = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error('Failed to load fees:', e);
+    fees = [];
+  }
   renderAll();
 }
 

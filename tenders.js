@@ -12,19 +12,34 @@ let currentFilter = 'all';
 
 onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = 'index.html'; return; }
-  await Promise.all([loadTenders(), loadTemplates()]);
+  try {
+    await Promise.all([loadTenders(), loadTemplates()]);
+  } catch(e) {
+    console.error('Failed to load tenders data:', e);
+    toast('Error loading data. Please refresh the page.');
+  }
 });
 
 async function loadTenders() {
-  const q    = query(collection(db, "tenders"), orderBy("createdAt", "desc"));
-  const snap = await getDocs(q);
-  tenders    = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    const q    = query(collection(db, "tenders"), orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    tenders    = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error('Failed to load tenders:', e);
+    tenders = [];
+  }
   renderTenderList();
 }
 
 async function loadTemplates() {
-  const snap = await getDocs(collection(db, "checklistTemplates"));
-  tmplList   = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    const snap = await getDocs(collection(db, "checklistTemplates"));
+    tmplList   = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error('Failed to load templates:', e);
+    tmplList = [];
+  }
   populateTemplateDropdown();
 }
 

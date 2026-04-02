@@ -16,10 +16,24 @@ onAuthStateChanged(auth, user => {
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 async function loadTasks() {
-  const q    = query(collection(db, "todos"), orderBy("createdAt", "desc"));
-  const snap = await getDocs(q);
-  tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  renderTasks();
+  try {
+    const q    = query(collection(db, "todos"), orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTasks();
+  } catch(e) {
+    console.error('Failed to load tasks:', e);
+    document.getElementById('todoSubtitle').textContent = 'Failed to load tasks. Please refresh.';
+    document.getElementById('taskList').innerHTML = `
+      <div class="todo-empty">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <circle cx="24" cy="24" r="16" stroke="#c8d3e0" stroke-width="2"/>
+          <path d="M18 18l12 12M30 18L18 30" stroke="#c8d3e0" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <p>Could not load tasks</p>
+        <span>Check your connection and refresh the page.</span>
+      </div>`;
+  }
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────

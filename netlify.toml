@@ -1,8 +1,74 @@
 [[redirects]]
-  from = "/dashboard.html"
+  from = "/home"
+  to   = "/home.html"
+  status = 200
+
+[[redirects]]
+  from = "/dashboard"
   to   = "/dashboard.html"
   status = 200
 
+[[redirects]]
+  from = "/tenders"
+  to   = "/tenders.html"
+  status = 200
+
+[[redirects]]
+  from = "/todo"
+  to   = "/todo.html"
+  status = 200
+
+[[redirects]]
+  from = "/calendar"
+  to   = "/calendar.html"
+  status = 200
+
+[[redirects]]
+  from = "/notes"
+  to   = "/notes.html"
+  status = 200
+
+[[redirects]]
+  from = "/expenses"
+  to   = "/expenses.html"
+  status = 200
+
+[[redirects]]
+  from = "/contacts"
+  to   = "/contacts.html"
+  status = 200
+
+[[redirects]]
+  from = "/templates"
+  to   = "/templates.html"
+  status = 200
+
+[[redirects]]
+  from = "/activity"
+  to   = "/activity.html"
+  status = 200
+
+[[redirects]]
+  from = "/fees"
+  to   = "/fees.html"
+  status = 200
+
+[[redirects]]
+  from = "/reports"
+  to   = "/reports.html"
+  status = 200
+
+[[redirects]]
+  from = "/backup"
+  to   = "/backup.html"
+  status = 200
+
+[[redirects]]
+  from = "/login"
+  to   = "/index.html"
+  status = 200
+
+# Catch-all: send unknown routes to login
 [[redirects]]
   from = "/*"
   to   = "/index.html"

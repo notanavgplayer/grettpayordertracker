@@ -18,9 +18,14 @@ onAuthStateChanged(auth, user => {
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 async function loadNotes() {
-  const q    = query(collection(db, "notes"), orderBy("updatedAt", "desc"));
-  const snap = await getDocs(q);
-  notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    const q    = query(collection(db, "notes"), orderBy("updatedAt", "desc"));
+    const snap = await getDocs(q);
+    notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error('Failed to load notes:', e);
+    notes = [];
+  }
   renderList();
 }
 
