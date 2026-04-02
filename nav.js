@@ -314,12 +314,15 @@ function injectStyles() {
       background: rgba(0,0,0,0.5); z-index: 99;
     }
 
-    @media (max-width: 768px) {
-      .sidebar { transform: translateX(-100%); }
-      .sidebar.open { transform: translateX(0); }
-      .sidebar-overlay.open { display: block; }
-      .sidebar-toggle { display: flex; }
-      .page-content { margin-left: 0; padding-top: 56px; }
+    @media (max-width: 1024px) {
+      .sidebar { width: 200px; }
+      .page-content { margin-left: 200px; }
+    }
+
+    @media (max-width: 640px) {
+      .sidebar { display: none; }
+      .sidebar-toggle { display: none; }
+      .page-content { margin-left: 0 !important; padding-top: 0 !important; padding-bottom: 72px; }
     }
   `;
   document.head.appendChild(style);
