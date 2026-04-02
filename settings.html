@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — Grett Engineering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .settings-wrap { max-width: 640px; margin: 0 auto; padding: 1.75rem 1.5rem 4rem; }
+  .settings-header { margin-bottom: 1.75rem; }
+  .settings-header h1 { font-size: 20px; font-weight: 600; color: var(--navy); }
+  .settings-header p  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .settings-section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  .settings-section-header {
+    padding: 12px 16px; background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  }
+  .settings-section-body { padding: 1.25rem 1rem; }
+
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0; gap: 16px;
+  }
+  .settings-row + .settings-row { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+  .settings-row-label { font-size: 13px; color: var(--text); font-weight: 500; }
+  .settings-row-val   { font-size: 13px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+
+  .settings-form-group { margin-bottom: 12px; }
+  .settings-form-group label { display: block; margin-bottom: 5px; }
+  .settings-form-group input {
+    width: 100%; padding: 9px 11px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 13px;
+    color: var(--text); background: #fafbfc; outline: none;
+  }
+  .settings-form-group input:focus { border-color: var(--navy3); background: #fff; }
+
+  .settings-btn {
+    padding: 8px 20px; border: none; border-radius: var(--radius);
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .settings-btn.primary { background: var(--navy); color: #fff; }
+  .settings-btn.primary:hover { background: var(--navy2); }
+  .settings-btn.secondary {
+    background: var(--surface); color: var(--navy);
+    border: 1px solid var(--border);
+  }
+  .settings-btn.secondary:hover { background: var(--bg); }
+  .settings-btn.danger { background: var(--red-bg); color: var(--red-fg); border: 1px solid #f5c4c4; }
+  .settings-btn.danger:hover { background: #f9d5d5; }
+  .settings-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .settings-msg {
+    font-size: 12px; margin-top: 8px; padding: 6px 10px; border-radius: 6px;
+    display: none;
+  }
+  .settings-msg.success { display: block; background: var(--green-bg); color: var(--green-fg); }
+  .settings-msg.error   { display: block; background: var(--red-bg); color: var(--red-fg); }
+
+  .settings-export-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .settings-info-text { font-size: 12px; color: var(--muted); line-height: 1.5; }
+</style>
+</head>
+<body data-page="settings">
+<div id="page-content">
+<div class="settings-wrap">
+
+  <div class="settings-header">
+    <h1>Settings</h1>
+    <p>Manage your account and data</p>
+  </div>
+
+  <!-- ACCOUNT INFO -->
+  <div class="settings-section">
+    <div class="settings-section-header">Account</div>
+    <div class="settings-section-body">
+      <div class="settings-row">
+        <span class="settings-row-label">Email</span>
+        <span class="settings-row-val" id="settingsEmail">—</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Account Created</span>
+        <span class="settings-row-val" id="settingsCreated">—</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Last Sign In</span>
+        <span class="settings-row-val" id="settingsLastLogin">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHANGE PASSWORD -->
+  <div class="settings-section">
+    <div class="settings-section-header">Change Password</div>
+    <div class="settings-section-body">
+      <div class="settings-form-group">
+        <label>New Password</label>
+        <input type="password" id="newPassword" placeholder="Minimum 6 characters" autocomplete="new-password">
+      </div>
+      <div class="settings-form-group">
+        <label>Confirm New Password</label>
+        <input type="password" id="confirmPassword" placeholder="Repeat new password" autocomplete="new-password">
+      </div>
+      <button class="settings-btn primary" id="changePwBtn" onclick="changePassword()">Update Password</button>
+      <div class="settings-msg" id="pwMsg"></div>
+    </div>
+  </div>
+
+  <!-- DATA EXPORT -->
+  <div class="settings-section">
+    <div class="settings-section-header">Data Management</div>
+    <div class="settings-section-body">
+      <p class="settings-info-text" style="margin-bottom:12px">Export all your data as a JSON backup file. This includes tenders, pay orders, todos, notes, expenses, contacts, and templates.</p>
+      <div class="settings-export-btns">
+        <button class="settings-btn secondary" onclick="exportAllData()">
+          Export All Data (JSON)
+        </button>
+        <a href="backup.html" class="settings-btn secondary" style="text-decoration:none;display:inline-flex;align-items:center">
+          Go to Backup Page
+        </a>
+      </div>
+      <div class="settings-msg" id="exportMsg"></div>
+    </div>
+  </div>
+
+  <!-- QUICK LINKS -->
+  <div class="settings-section">
+    <div class="settings-section-header">Quick Links</div>
+    <div class="settings-section-body">
+      <div class="settings-row">
+        <span class="settings-row-label">Manage Checklist Templates</span>
+        <a href="templates.html" class="settings-btn secondary" style="font-size:12px;padding:5px 14px">Open</a>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">View Reports</span>
+        <a href="reports.html" class="settings-btn secondary" style="font-size:12px;padding:5px 14px">Open</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script type="module" src="settings.js"></script>
+<script type="module" src="nav.js"></script>
+</body>
+</html>

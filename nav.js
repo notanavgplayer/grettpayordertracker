@@ -130,6 +130,15 @@ const NAV_ITEMS = [
       <path d="M3 15v1a1 1 0 001 1h12a1 1 0 001-1v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>`
   },
+  {
+    id: 'settings',
+    label: 'Settings',
+    href: 'settings.html',
+    icon: `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M10 2v2M10 16v2M3.5 5.5l1.4 1.4M15.1 15.1l1.4 1.4M2 10h2M16 10h2M3.5 14.5l1.4-1.4M15.1 4.9l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>`
+  },
 ];
 
 function buildSidebar(userEmail) {

@@ -1,14 +1,16 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  collection, addDoc, getDocs, doc,
-  query, orderBy, serverTimestamp
+  collection, addDoc, getDocs, doc, updateDoc, deleteDoc,
+  query, orderBy, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let tenders       = [];
 let tmplList      = [];
 let activeId      = null;
 let currentFilter = 'all';
+let selectMode    = false;
+let selectedTenderIds = new Set();
 
 onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = 'index.html'; return; }
@@ -65,8 +67,12 @@ window.renderTenderList = function() {
     return;
   }
 
-  el.innerHTML = filtered.map(t => `
-    <div class="tender-item ${t.id === activeId ? 'active' : ''}" onclick="selectTender('${t.id}')">
+  el.innerHTML = filtered.map(t => {
+    const selClass = selectMode ? 'selectable' : '';
+    const selActive = selectedTenderIds.has(t.id) ? 'selected' : '';
+    const activeClass = t.id === activeId ? 'active' : '';
+    return `
+    <div class="tender-item ${activeClass} ${selClass} ${selActive}" onclick="${selectMode ? `toggleTenderSel('${t.id}')` : `selectTender('${t.id}')`}">
       <div class="tender-item-top">
         <div class="tender-item-name">${esc(t.name || 'Untitled Tender')}</div>
         <span class="badge ${statusClass(t.status)}" style="flex-shrink:0;font-size:10px">${t.status || '—'}</span>
@@ -76,7 +82,8 @@ window.renderTenderList = function() {
         <span class="tender-item-value">${t.value ? 'Rs ' + Number(t.value).toLocaleString('en-PK') : '—'}</span>
         <span class="tender-item-date">${fmtDate(t.submissionDate)}</span>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 };
 
 window.selectTender = function(id) {
@@ -215,3 +222,68 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
 }
+
+// ── Select Mode & Bulk Actions ───────────────────────────────────────────────
+window.toggleTenderSelect = function() {
+  selectMode = !selectMode;
+  selectedTenderIds.clear();
+  document.getElementById('tenderSelectBtn').classList.toggle('active', selectMode);
+  document.getElementById('tenderBulkBar').classList.toggle('show', false);
+  document.getElementById('tBulkCount').textContent = '0';
+  document.getElementById('tBulkStatus').value = '';
+  renderTenderList();
+};
+
+window.toggleTenderSel = function(id) {
+  if (selectedTenderIds.has(id)) {
+    selectedTenderIds.delete(id);
+  } else {
+    selectedTenderIds.add(id);
+  }
+  document.getElementById('tBulkCount').textContent = selectedTenderIds.size;
+  document.getElementById('tenderBulkBar').classList.toggle('show', selectedTenderIds.size > 0);
+  renderTenderList();
+};
+
+window.applyBulkStatus = async function() {
+  const newStatus = document.getElementById('tBulkStatus').value;
+  if (!newStatus) { toast('Select a status first.'); return; }
+  if (!selectedTenderIds.size) return;
+
+  const ids = [...selectedTenderIds];
+  try {
+    const batch = writeBatch(db);
+    ids.forEach(id => {
+      batch.update(doc(db, "tenders", id), { status: newStatus, updatedAt: serverTimestamp() });
+    });
+    await batch.commit();
+    ids.forEach(id => {
+      const t = tenders.find(x => x.id === id);
+      if (t) t.status = newStatus;
+    });
+    toast(`${ids.length} tender${ids.length>1?'s':''} updated to ${newStatus}.`);
+    toggleTenderSelect();
+  } catch(e) {
+    console.error('Bulk status error:', e);
+    toast('Error updating tenders.');
+  }
+};
+
+window.bulkDeleteTenders = async function() {
+  if (!selectedTenderIds.size) return;
+  const count = selectedTenderIds.size;
+  if (!confirm(`Delete ${count} tender${count>1?'s':''}? This cannot be undone.`)) return;
+
+  const ids = [...selectedTenderIds];
+  try {
+    const batch = writeBatch(db);
+    ids.forEach(id => batch.delete(doc(db, "tenders", id)));
+    await batch.commit();
+    tenders = tenders.filter(t => !ids.includes(t.id));
+    toast(`${count} tender${count>1?'s':''} deleted.`);
+    toggleTenderSelect();
+  } catch(e) {
+    console.error('Bulk delete error:', e);
+    toast('Error deleting tenders.');
+  }
+};

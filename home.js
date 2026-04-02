@@ -52,6 +52,7 @@ async function loadAll() {
     if (r.status === 'rejected') console.warn(`Collection ${['tenders','payOrders','todos','notes','expenses'][i]} failed:`, r.reason);
   });
   renderCards();
+  renderAlerts();
   renderDeadlines();
   renderPOExpiry();
   renderTodos();
@@ -76,6 +77,55 @@ function renderCards() {
   document.getElementById('hPOExpiring').textContent    = expiring;
   document.getElementById('hOpenTasks').textContent     = openTasks;
   document.getElementById('hAwarded').textContent       = awarded;
+}
+
+// ── ALERTS ────────────────────────────────────────────────────────────────────
+function renderAlerts() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const alerts = [];
+
+  // POs expiring within 3 days
+  _payOrders.filter(p => p.status === 'Submitted' && p.expiry).forEach(p => {
+    const d = new Date(p.expiry + 'T00:00:00');
+    const daysLeft = Math.round((d - today) / 86400000);
+    if (daysLeft <= 0) {
+      alerts.push({ level:'urgent', text:`Pay order <strong>${esc(p.po||'—')}</strong> (${esc(p.bank||'—')}) has <strong>expired today</strong>!` });
+    } else if (daysLeft <= 3) {
+      alerts.push({ level:'urgent', text:`Pay order <strong>${esc(p.po||'—')}</strong> (${esc(p.bank||'—')}) expires in <strong>${daysLeft} day${daysLeft>1?'s':''}</strong>` });
+    } else if (daysLeft <= 7) {
+      alerts.push({ level:'warning', text:`Pay order <strong>${esc(p.po||'—')}</strong> expires in <strong>${daysLeft} days</strong>` });
+    }
+  });
+
+  // Tender submissions within 2 days
+  _tenders.filter(t => t.submissionDate && ['Bidding','Submitted'].includes(t.status)).forEach(t => {
+    const d = new Date(t.submissionDate + 'T00:00:00');
+    const daysLeft = Math.round((d - today) / 86400000);
+    if (daysLeft === 0) {
+      alerts.push({ level:'urgent', text:`Tender <strong>${esc(t.name||'Untitled')}</strong> submission is <strong>due today</strong>!` });
+    } else if (daysLeft === 1) {
+      alerts.push({ level:'urgent', text:`Tender <strong>${esc(t.name||'Untitled')}</strong> submission is <strong>due tomorrow</strong>` });
+    } else if (daysLeft === 2) {
+      alerts.push({ level:'warning', text:`Tender <strong>${esc(t.name||'Untitled')}</strong> submission in <strong>2 days</strong>` });
+    }
+  });
+
+  const el = document.getElementById('alertBanner');
+  if (!alerts.length) { el.style.display = 'none'; return; }
+
+  const icons = {
+    urgent: `<svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M10 2L1 18h18L10 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M10 8v4M10 14.5v.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+    warning: `<svg width="18" height="18" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v5M10 13.5v.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  };
+
+  el.style.display = 'flex';
+  el.innerHTML = alerts.slice(0, 5).map((a, i) => `
+    <div class="alert-item ${a.level}">
+      ${icons[a.level]}
+      <span class="alert-item-text">${a.text}</span>
+      <button class="alert-dismiss" onclick="this.parentElement.remove()" title="Dismiss">×</button>
+    </div>
+  `).join('');
 }
 
 // ── DEADLINES ─────────────────────────────────────────────────────────────────

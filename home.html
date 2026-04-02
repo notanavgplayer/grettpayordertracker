@@ -244,6 +244,36 @@
   @media (max-width: 560px) {
     .home-cards { grid-template-columns: repeat(2, 1fr); }
   }
+
+  /* ── ALERT BANNER ── */
+  .alert-banner {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-bottom: 1.25rem;
+  }
+  .alert-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px;
+    border-radius: var(--radius-lg);
+    font-size: 13px; font-weight: 500;
+    animation: alertSlide 0.3s ease-out;
+  }
+  .alert-item.urgent {
+    background: var(--red-bg); border: 1px solid #f5c4c4; color: var(--red-fg);
+  }
+  .alert-item.warning {
+    background: var(--amber-bg); border: 1px solid #f0dca8; color: var(--amber-fg);
+  }
+  .alert-item svg { flex-shrink: 0; }
+  .alert-item-text { flex: 1; }
+  .alert-item-text strong { font-weight: 700; }
+  .alert-dismiss {
+    background: none; border: none; cursor: pointer;
+    color: inherit; opacity: 0.5; font-size: 16px; line-height: 1;
+    padding: 2px 4px; border-radius: 4px;
+    transition: opacity 0.15s;
+  }
+  .alert-dismiss:hover { opacity: 1; }
+  @keyframes alertSlide { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
 </style>
 </head>
 <body data-page="home">
@@ -254,6 +284,9 @@
     <h1 id="greeting">Welcome back</h1>
     <p id="greetingSub">Loading your dashboard…</p>
   </div>
+
+  <!-- ALERT BANNER -->
+  <div id="alertBanner" class="alert-banner" style="display:none"></div>
 
   <!-- SEARCH BAR -->
   <div class="home-search-bar" onclick="document.getElementById('homeSearchInput').focus()">

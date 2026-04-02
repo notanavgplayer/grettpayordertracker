@@ -194,6 +194,73 @@
     .tenders-layout { grid-template-columns: 1fr; }
     .tenders-preview-panel { display: none; }
   }
+
+  /* SELECT MODE */
+  .btn-tender-select {
+    width: 30px; height: 30px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); transition: all 0.15s;
+  }
+  .btn-tender-select:hover { border-color: var(--navy3); color: var(--navy); }
+  .btn-tender-select.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+  .tender-item.selectable { cursor: pointer; }
+  .tender-item.selectable::before {
+    content: ''; display: block; position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border);
+    background: var(--surface); transition: all 0.15s;
+  }
+  .tender-item.selectable { position: relative; padding-left: 36px !important; }
+  .tender-item.selected { background: var(--blue-bg) !important; border-color: var(--blue-fg); }
+  .tender-item.selected::before { background: var(--navy); border-color: var(--navy); }
+
+  /* BULK BAR */
+  .tender-bulk-bar {
+    position: fixed; bottom: -80px; left: 50%; transform: translateX(-50%);
+    z-index: 300; transition: bottom 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none;
+  }
+  .tender-bulk-bar.show { bottom: 1.5rem; pointer-events: all; }
+  .tender-bulk-inner {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--navy); border-radius: 40px;
+    padding: 8px 12px 8px 20px;
+    box-shadow: 0 8px 32px rgba(15,42,74,0.35);
+    white-space: nowrap;
+  }
+  .tender-bulk-count { color: rgba(255,255,255,0.85); font-size: 13px; font-weight: 500; }
+  .tender-bulk-count span { font-weight: 700; color: #fff; }
+  .tender-bulk-status {
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 12px;
+    padding: 5px 8px; border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.1); color: #fff;
+    cursor: pointer; outline: none;
+  }
+  .tender-bulk-status option { color: var(--navy); background: #fff; }
+  .tender-bulk-apply {
+    padding: 5px 14px; border: none; border-radius: 20px;
+    background: var(--amber); color: var(--navy);
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .tender-bulk-apply:hover { opacity: 0.85; }
+  .tender-bulk-del {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 14px; border: none; border-radius: 20px;
+    background: var(--red-fg); color: #fff;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .tender-bulk-del:hover { opacity: 0.85; }
+  .tender-bulk-cancel {
+    padding: 5px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 20px;
+    background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8);
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 500;
+    cursor: pointer;
+  }
+  .tender-bulk-cancel:hover { background: rgba(255,255,255,0.2); }
 </style>
 </head>
 <body data-page="tenders">
@@ -204,10 +271,15 @@
     <div class="tenders-list-panel">
       <div class="tenders-list-header">
         <span class="tenders-list-title">Tenders</span>
-        <button class="btn-new-tender" onclick="openAddModal()">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          New Tender
-        </button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn-tender-select" id="tenderSelectBtn" onclick="toggleTenderSelect()" title="Select multiple">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7.5l3 3 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-new-tender" onclick="openAddModal()">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            New Tender
+          </button>
+        </div>
       </div>
 
       <div class="tenders-filters">
@@ -320,6 +392,27 @@
       <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
       <button class="btn-save" id="addTenderBtn" onclick="saveTender()">Create Tender</button>
     </div>
+  </div>
+</div>
+
+<!-- BULK ACTION BAR -->
+<div class="tender-bulk-bar" id="tenderBulkBar">
+  <div class="tender-bulk-inner">
+    <span class="tender-bulk-count"><span id="tBulkCount">0</span> selected</span>
+    <select class="tender-bulk-status" id="tBulkStatus">
+      <option value="">Change status…</option>
+      <option value="Bidding">Bidding</option>
+      <option value="Submitted">Submitted</option>
+      <option value="Awarded">Awarded</option>
+      <option value="Lost">Lost</option>
+      <option value="Cancelled">Cancelled</option>
+    </select>
+    <button class="tender-bulk-apply" onclick="applyBulkStatus()">Apply</button>
+    <button class="tender-bulk-del" onclick="bulkDeleteTenders()">
+      <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M1 3h10M4 3V2h4v1M2.5 3l.8 8h5.4l.8-8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Delete
+    </button>
+    <button class="tender-bulk-cancel" onclick="toggleTenderSelect()">Cancel</button>
   </div>
 </div>
 

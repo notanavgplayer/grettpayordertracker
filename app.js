@@ -57,6 +57,7 @@ async function loadLog() {
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderAll() {
   renderCards();
+  renderAnalytics();
   renderPOTable();
   renderLogTable();
 }
@@ -75,6 +76,56 @@ function renderCards() {
   document.getElementById('s-returned').textContent  = fmtPKR(returned);
   document.getElementById('s-encashed').textContent  = fmtPKR(encashed);
   document.getElementById('s-pending').textContent   = pending;
+}
+
+// ── Analytics Charts ─────────────────────────────────────────────────────────
+function renderAnalytics() {
+  const el = document.getElementById('analyticsRow');
+  if (!payOrders.length) { el.style.display = 'none'; return; }
+  el.style.display = 'grid';
+
+  // Status distribution
+  const statuses = ['Pending','Submitted','Returned','Encashed','Forfeited'];
+  const colors   = { Pending:'#e8940a', Submitted:'#185fa5', Returned:'#0e6b4a', Encashed:'#c0392b', Forfeited:'#5d3fa5' };
+  const counts   = {};
+  statuses.forEach(s => counts[s] = payOrders.filter(p => p.status === s).length);
+  const maxCount = Math.max(...Object.values(counts), 1);
+
+  document.getElementById('statusChart').innerHTML = statuses.map(s => {
+    const pct = (counts[s] / maxCount) * 100;
+    return `<div class="status-bar-row">
+      <span class="status-bar-label">${s}</span>
+      <div class="status-bar-track"><div class="status-bar-fill" style="width:${pct}%;background:${colors[s]}"></div></div>
+      <span class="status-bar-val">${counts[s]}</span>
+    </div>`;
+  }).join('');
+
+  // Monthly amounts (last 6 months)
+  const months = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ key: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`, label: d.toLocaleDateString('en-PK',{month:'short'}) });
+  }
+  const monthAmts = {};
+  months.forEach(m => monthAmts[m.key] = 0);
+  payOrders.forEach(p => {
+    if (!p.issued) return;
+    const key = p.issued.slice(0, 7);
+    if (monthAmts[key] !== undefined) monthAmts[key] += (+p.amount || 0);
+  });
+  const maxAmt = Math.max(...Object.values(monthAmts), 1);
+
+  document.getElementById('monthlyChart').innerHTML = `<div class="monthly-bars">${months.map(m => {
+    const amt = monthAmts[m.key];
+    const pct = Math.max((amt / maxAmt) * 100, 3);
+    const display = amt >= 1000000 ? (amt/1000000).toFixed(1)+'M' : amt >= 1000 ? Math.round(amt/1000)+'K' : amt;
+    return `<div class="monthly-bar-col">
+      <span class="monthly-bar-val">${amt ? display : ''}</span>
+      <div class="monthly-bar" style="height:${pct}%"></div>
+      <span class="monthly-bar-label">${m.label}</span>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 window.renderPOTable = function() {
@@ -529,4 +580,29 @@ window.exportPOPDF = function() {
   win.document.close();
   win.focus();
   setTimeout(() => { win.print(); }, 500);
+};
+
+// ── EXPORT PAY ORDERS CSV ────────────────────────────────────────────────────
+window.exportPOCSV = function() {
+  if (!payOrders.length) { toast('No pay orders to export.'); return; }
+
+  const headers = ['PO Number','Bank','NIT / Ref','Tender / Project','Agency','Amount (PKR)','Date Issued','Date Submitted','Expiry Date','Status','Bid Result','Notes'];
+  const rows = payOrders.map(p => [
+    p.po || '', p.bank || '', p.nit || '', p.tender || '', p.agency || '',
+    p.amount || '', p.issued || '', p.submitted || '', p.expiry || '',
+    p.status || '', p.bidResult || '', (p.notes || '').replace(/[\r\n]+/g, ' ')
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `pay-orders-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV downloaded.');
 };
