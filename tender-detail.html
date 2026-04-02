@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tender Detail — Grett Engineering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .detail-wrap { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+
+  /* ── TOP HEADER ── */
+  .detail-header {
+    background: var(--navy); border-radius: var(--radius-lg);
+    padding: 1.5rem; margin-bottom: 1.5rem;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .detail-header-left { flex: 1; min-width: 0; }
+  .detail-back {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: rgba(255,255,255,0.5);
+    text-decoration: none; margin-bottom: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    transition: color 0.15s;
+  }
+  .detail-back:hover { color: rgba(255,255,255,0.85); }
+  .detail-title {
+    font-size: 20px; font-weight: 600; color: #fff;
+    line-height: 1.3; margin-bottom: 6px;
+  }
+  .detail-agency { font-size: 12px; color: rgba(255,255,255,0.5); }
+  .detail-header-right {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  }
+  .detail-value {
+    font-size: 22px; font-weight: 600; color: var(--amber);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .detail-value-label { font-size: 10px; color: rgba(255,255,255,0.4); text-align: right; }
+
+  .status-select {
+    background: rgba(255,255,255,0.1); color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--radius); padding: 6px 10px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px; font-weight: 600; cursor: pointer; outline: none;
+  }
+  .status-select option { background: var(--navy); }
+
+  /* ── INFO CARDS ROW ── */
+  .info-cards {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin-bottom: 1.5rem;
+  }
+  .info-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 12px 14px;
+  }
+  .info-card-label { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+  .info-card-val { font-size: 13px; font-weight: 500; color: var(--navy); font-family: 'IBM Plex Mono', monospace; }
+
+  /* ── TABS ── */
+  .detail-tabs {
+    display: flex; gap: 2px; border-bottom: 2px solid var(--border);
+    margin-bottom: 1.25rem; overflow-x: auto; flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .detail-tabs::-webkit-scrollbar { display: none; }
+  .detail-tab {
+    padding: 8px 16px; border: none; background: none;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px; font-weight: 500; color: var(--muted);
+    cursor: pointer; white-space: nowrap;
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: all 0.15s;
+  }
+  .detail-tab.active { color: var(--navy); border-bottom-color: var(--navy); }
+  .detail-tab:hover { color: var(--text); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── SECTION CARD ── */
+  .section-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem;
+  }
+  .section-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  .section-card-title { font-size: 14px; font-weight: 600; color: var(--navy); }
+  .btn-sm {
+    padding: 6px 14px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px; font-weight: 500; color: var(--muted);
+    cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .btn-sm:hover { border-color: var(--navy3); color: var(--navy); }
+  .btn-sm.primary { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .btn-sm.primary:hover { background: var(--navy2); }
+
+  /* ── CHECKLIST ── */
+  .checklist-items { display: flex; flex-direction: column; gap: 6px; }
+  .checklist-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    transition: background 0.1s;
+  }
+  .checklist-item:hover { background: var(--bg); }
+  .check-circle {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid var(--border); flex-shrink: 0;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .check-circle:hover { border-color: var(--navy3); }
+  .check-circle.done { background: var(--green-fg); border-color: var(--green-fg); }
+  .check-circle.done::after { content:'✓'; color:#fff; font-size:10px; font-weight:700; }
+  .checklist-label { flex: 1; font-size: 13px; color: var(--text); }
+  .checklist-label.done { text-decoration: line-through; color: var(--muted); }
+  .checklist-del { background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px; opacity: 0; transition: opacity 0.15s; }
+  .checklist-item:hover .checklist-del { opacity: 1; }
+  .checklist-del:hover { color: var(--red-fg); }
+  .add-checklist-row { display: flex; gap: 8px; margin-top: 10px; }
+  .add-checklist-input {
+    flex: 1; padding: 7px 10px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px; color: var(--text); background: var(--bg); outline: none;
+  }
+  .add-checklist-input:focus { border-color: var(--navy3); background: #fff; }
+  .checklist-progress {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;
+  }
+  .progress-bar-bg { flex: 1; height: 6px; background: var(--border); border-radius: 10px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--green-fg); border-radius: 10px; transition: width 0.3s; }
+  .progress-label { font-size: 11px; font-family: 'IBM Plex Mono', monospace; color: var(--muted); }
+
+  /* ── BILLS TABLE ── */
+  .bills-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .bills-table th {
+    text-align: left; padding: 8px 10px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+  }
+  .bills-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .bills-table tr:last-child td { border-bottom: none; }
+  .bills-table tr:hover td { background: var(--bg); }
+  .bills-empty { text-align: center; padding: 2rem; color: var(--muted); font-size: 13px; }
+
+  /* ── MILESTONES ── */
+  .milestone-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 6px;
+  }
+  .milestone-item:hover { background: var(--bg); }
+  .milestone-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid var(--border); flex-shrink: 0;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    margin-top: 1px; transition: all 0.15s;
+  }
+  .milestone-dot:hover { border-color: var(--navy3); }
+  .milestone-dot.done { background: var(--amber); border-color: var(--amber); }
+  .milestone-dot.done::after { content:'✓'; color: var(--navy); font-size:10px; font-weight:700; }
+  .milestone-body { flex: 1; }
+  .milestone-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .milestone-title.done { text-decoration: line-through; color: var(--muted); }
+  .milestone-date { font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; margin-top: 2px; }
+  .milestone-del { background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px; opacity: 0; transition: opacity 0.15s; }
+  .milestone-item:hover .milestone-del { opacity: 1; }
+  .milestone-del:hover { color: var(--red-fg); }
+
+  /* ── SITE VISITS ── */
+  .visit-item {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 8px; overflow: hidden;
+  }
+  .visit-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .visit-date { font-size: 12px; font-weight: 600; color: var(--navy); font-family: 'IBM Plex Mono', monospace; }
+  .visit-body { padding: 10px 14px; font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+  .visit-del { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; transition: color 0.15s; }
+  .visit-del:hover { color: var(--red-fg); }
+
+  /* ── CONTACT CARD ── */
+  .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .contact-field label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 5px; }
+  .contact-field input {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px; color: var(--text); background: var(--bg); outline: none;
+  }
+  .contact-field input:focus { border-color: var(--navy3); background: #fff; }
+
+  /* ── NOTES / FREE WRITE ── */
+  .notes-textarea {
+    width: 100%; min-height: 280px;
+    padding: 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.75; color: var(--text);
+    background: var(--bg); outline: none; resize: vertical;
+    transition: border-color 0.15s;
+  }
+  .notes-textarea:focus { border-color: var(--navy3); background: #fff; }
+  .notes-save-status { font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; margin-top: 6px; }
+  .notes-save-status.saving { color: var(--amber-fg); }
+  .notes-save-status.saved  { color: var(--green-fg); }
+
+  /* ── MINI MODAL ── */
+  .mini-modal { max-width: 420px; }
+  .mini-modal .form-grid { grid-template-columns: 1fr; }
+
+  @media (max-width: 768px) {
+    .info-cards { grid-template-columns: 1fr 1fr; }
+    .contact-grid { grid-template-columns: 1fr; }
+    .detail-header { flex-direction: column; }
+    .detail-header-right { align-items: flex-start; }
+  }
+  @media (max-width: 480px) {
+    .info-cards { grid-template-columns: 1fr; }
+  }
+
+  /* ── EDITABLE HEADER FIELDS ── */
+  .detail-title-input {
+    width: 100%; background: transparent; border: none;
+    outline: none; color: #fff; font-size: 20px; font-weight: 600;
+    font-family: 'IBM Plex Sans', sans-serif; line-height: 1.3;
+    margin-bottom: 4px; padding: 2px 4px; border-radius: 4px;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .detail-title-input::placeholder { color: rgba(255,255,255,0.3); }
+  .detail-title-input:hover { border-bottom-color: rgba(255,255,255,0.3); }
+  .detail-title-input:focus { border-bottom-color: var(--amber); background: rgba(255,255,255,0.05); }
+
+  .detail-agency-input {
+    width: 100%; background: transparent; border: none;
+    outline: none; color: rgba(255,255,255,0.55); font-size: 12px;
+    font-family: 'IBM Plex Sans', sans-serif; padding: 2px 4px;
+    border-radius: 4px; border-bottom: 1px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .detail-agency-input::placeholder { color: rgba(255,255,255,0.2); }
+  .detail-agency-input:hover { border-bottom-color: rgba(255,255,255,0.2); }
+  .detail-agency-input:focus { border-bottom-color: var(--amber); background: rgba(255,255,255,0.05); }
+
+  .detail-value-input {
+    background: transparent; border: none; outline: none;
+    color: var(--amber); font-size: 22px; font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace; width: 100%;
+    padding: 2px 4px; border-radius: 4px;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .detail-value-input::placeholder { color: rgba(232,148,10,0.3); }
+  .detail-value-input:hover { border-bottom-color: rgba(232,148,10,0.4); }
+  .detail-value-input:focus { border-bottom-color: #fff; background: rgba(255,255,255,0.05); }
+  .detail-value-input::-webkit-outer-spin-button,
+  .detail-value-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  /* ── EDITABLE INFO CARDS ── */
+  .editable-card { cursor: text; }
+  .editable-card:hover { border-color: var(--navy3); box-shadow: 0 0 0 3px rgba(45,95,158,0.08); }
+  .info-card-input {
+    width: 100%; border: none; outline: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; font-weight: 500; color: var(--navy);
+    background: transparent; padding: 0; cursor: text;
+  }
+  .info-card-input::placeholder { color: #c8d3e0; font-weight: 400; }
+  .info-card-input[type="date"] { font-family: 'IBM Plex Sans', monospace; font-size: 12px; }
+</style>
+</head>
+<body data-page="tenders">
+<div id="page-content">
+<div class="detail-wrap" id="detailWrap" style="display:none">
+
+  <!-- HEADER -->
+  <div class="detail-header">
+    <div class="detail-header-left">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <a class="detail-back" href="tenders.html" style="margin-bottom:0">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8 2L4 6l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back to Tenders
+        </a>
+        <div style="display:flex;gap:6px">
+          <button onclick="duplicateTender()" style="display:flex;align-items:center;gap:5px;padding:5px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:rgba(255,255,255,0.8);font-family:IBM Plex Sans,sans-serif;font-size:11px;font-weight:500;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1 8V2a1 1 0 011-1h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Duplicate
+          </button>
+          <button onclick="exportTenderPDF()" style="display:flex;align-items:center;gap:5px;padding:5px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:rgba(255,255,255,0.8);font-family:IBM Plex Sans,sans-serif;font-size:11px;font-weight:500;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5l3 3 3-3M1 9v1a1 1 0 001 1h8a1 1 0 001-1V9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Export PDF
+          </button>
+        </div>
+      </div>
+      <input class="detail-title-input" id="dTitle" type="text" placeholder="Tender name…" onblur="saveHeaderField('name','dTitle')">
+      <input class="detail-agency-input" id="dAgency" type="text" placeholder="Procuring agency…" onblur="saveHeaderField('agency','dAgency')">
+    </div>
+    <div class="detail-header-right">
+      <div>
+        <div class="detail-value-label">Tender Value (PKR)</div>
+        <input class="detail-value-input" id="dValue" type="number" placeholder="0" onblur="saveHeaderField('value','dValue')">
+      </div>
+      <select class="status-select" id="dStatus" onchange="updateStatus()">
+        <option value="Bidding">Bidding</option>
+        <option value="Submitted">Submitted</option>
+        <option value="Awarded">Awarded</option>
+        <option value="Lost">Lost</option>
+        <option value="Cancelled">Cancelled</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- INFO CARDS -->
+  <div class="info-cards">
+    <div class="info-card editable-card">
+      <div class="info-card-label">NIT / Ref</div>
+      <input class="info-card-input" id="dNit" type="text" placeholder="e.g. NIT-KMC-2024-041" onblur="saveInfoField('nit','dNit')">
+    </div>
+    <div class="info-card editable-card">
+      <div class="info-card-label">Submission Date</div>
+      <input class="info-card-input" id="dSubDate" type="date" onchange="saveInfoField('submissionDate','dSubDate')">
+    </div>
+    <div class="info-card editable-card">
+      <div class="info-card-label">Opening Date</div>
+      <input class="info-card-input" id="dOpenDate" type="date" onchange="saveInfoField('openingDate','dOpenDate')">
+    </div>
+    <div class="info-card editable-card">
+      <div class="info-card-label">Linked Pay Order</div>
+      <input class="info-card-input" id="dPO" type="text" placeholder="e.g. 18550818" onblur="saveInfoField('linkedPO','dPO')">
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="detail-tabs">
+    <button class="detail-tab active" onclick="switchDetailTab('checklist',this)">Checklist</button>
+    <button class="detail-tab" onclick="switchDetailTab('bills',this)">Bills & Invoices</button>
+    <button class="detail-tab" onclick="switchDetailTab('rabills',this)">RA Bills</button>
+    <button class="detail-tab" onclick="switchDetailTab('milestones',this)">Milestones</button>
+    <button class="detail-tab" onclick="switchDetailTab('visits',this)">Site Visits</button>
+    <button class="detail-tab" onclick="switchDetailTab('contact',this)">Contact</button>
+    <button class="detail-tab" onclick="switchDetailTab('notes',this)">Notes</button>
+  </div>
+
+  <!-- CHECKLIST TAB -->
+  <div class="tab-panel active" id="tab-checklist">
+    <div class="section-card">
+      <div class="section-card-header">
+        <span class="section-card-title">Document Checklist</span>
+      </div>
+      <div class="checklist-progress">
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="checkProgress" style="width:0%"></div></div>
+        <span class="progress-label" id="checkProgressLabel">0 / 0</span>
+      </div>
+      <div class="checklist-items" id="checklistItems"></div>
+      <div class="add-checklist-row">
+        <input class="add-checklist-input" id="newCheckItem" type="text" placeholder="Add item… e.g. Affidavit">
+        <button class="btn-sm primary" onclick="addChecklistItem()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BILLS TAB -->
+  <div class="tab-panel" id="tab-bills">
+    <div class="section-card">
+      <div class="section-card-header">
+        <span class="section-card-title">Bills & Invoices</span>
+        <button class="btn-sm primary" onclick="openBillModal()">+ Add Bill</button>
+      </div>
+      <div id="billsContent"></div>
+    </div>
+  </div>
+
+  <!-- RA BILLS TAB -->
+  <div class="tab-panel" id="tab-rabills">
+    <div class="section-card">
+      <div class="section-card-header">
+        <span class="section-card-title">Running Account Bills</span>
+        <button class="btn-sm primary" onclick="openRAModal()">+ Add RA Bill</button>
+      </div>
+      <div id="raBillsContent"></div>
+    </div>
+  </div>
+
+  <!-- MILESTONES TAB -->
+  <div class="tab-panel" id="tab-milestones">
+    <div class="section-card">
+      <div class="section-card-header">
+        <span class="section-card-title">Work Milestones</span>
+        <button class="btn-sm primary" onclick="openMilestoneModal()">+ Add Milestone</button>
+      </div>
+      <div id="milestonesContent"></div>
+    </div>
+  </div>
+
+  <!-- SITE VISITS TAB -->
+  <div class="tab-panel" id="tab-visits">
+    <div class="section-card">
+      <div class="section-card-header">
+        <span class="section-card-title">Site Visit Notes</span>
+        <button class="btn-sm primary" onclick="openVisitModal()">+ Add Visit</button>
+      </div>
+      <div id="visitsContent"></div>
+    </div>
+  </div>
+
+  <!-- CONTACT TAB -->
+  <div class="tab-panel" id="tab-contact">
+    <div class="section-card">
+      <div class="section-card-header">
+        <span class="section-card-title">Agency Contact Person</span>
+        <button class="btn-sm primary" onclick="saveContact()">Save</button>
+      </div>
+      <div class="contact-grid">
+        <div class="contact-field"><label>Name</label><input type="text" id="c_name" placeholder="Contact name"></div>
+        <div class="contact-field"><label>Designation</label><input type="text" id="c_designation" placeholder="e.g. Procurement Officer"></div>
+        <div class="contact-field"><label>Phone</label><input type="text" id="c_phone" placeholder="+92 300 0000000"></div>
+        <div class="contact-field"><label>Email</label><input type="email" id="c_email" placeholder="contact@agency.gov.pk"></div>
+        <div class="contact-field" style="grid-column:1/-1"><label>Office Address</label><input type="text" id="c_address" placeholder="Office address"></div>
+        <div class="contact-field" style="grid-column:1/-1"><label>Notes</label><input type="text" id="c_notes" placeholder="Any additional contact info"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTES TAB -->
+  <div class="tab-panel" id="tab-notes">
+    <div class="section-card">
+      <div class="section-card-header">
+        <span class="section-card-title">Free Notes</span>
+      </div>
+      <textarea class="notes-textarea" id="tenderNotes" placeholder="Write anything about this tender — observations, strategy, key people, important dates, concerns…"></textarea>
+      <div class="notes-save-status" id="notesSaveStatus">Auto-saved</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BILL MODAL -->
+<div class="modal-overlay" id="billModal">
+  <div class="modal mini-modal">
+    <div class="modal-header"><span>Add Bill / Invoice</span><button class="modal-close" onclick="closeBillModal()">&#x2715;</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Description</label><input type="text" id="b_desc" placeholder="e.g. Survey charges"></div>
+      <div class="form-group"><label>Amount (PKR)</label><input type="number" id="b_amount" placeholder="0"></div>
+      <div class="form-group"><label>Date</label><input type="date" id="b_date"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="b_status"><option value="Pending">Pending</option><option value="Paid">Paid</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeBillModal()">Cancel</button>
+      <button class="btn-save" onclick="saveBill()">Add Bill</button>
+    </div>
+  </div>
+</div>
+
+<!-- RA BILL MODAL -->
+<div class="modal-overlay" id="raModal">
+  <div class="modal mini-modal">
+    <div class="modal-header"><span>Add RA Bill</span><button class="modal-close" onclick="closeRAModal()">&#x2715;</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Bill No.</label><input type="text" id="ra_no" placeholder="e.g. RA-1"></div>
+      <div class="form-group"><label>Amount (PKR)</label><input type="number" id="ra_amount" placeholder="0"></div>
+      <div class="form-group"><label>Submitted Date</label><input type="date" id="ra_submitted"></div>
+      <div class="form-group"><label>Paid Date</label><input type="date" id="ra_paid"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="ra_status"><option value="Submitted">Submitted</option><option value="Under Review">Under Review</option><option value="Paid">Paid</option><option value="Rejected">Rejected</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeRAModal()">Cancel</button>
+      <button class="btn-save" onclick="saveRABill()">Add RA Bill</button>
+    </div>
+  </div>
+</div>
+
+<!-- MILESTONE MODAL -->
+<div class="modal-overlay" id="milestoneModal">
+  <div class="modal mini-modal">
+    <div class="modal-header"><span>Add Milestone</span><button class="modal-close" onclick="closeMilestoneModal()">&#x2715;</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Milestone Title</label><input type="text" id="m_title" placeholder="e.g. Foundation Complete"></div>
+      <div class="form-group"><label>Target Date</label><input type="date" id="m_date"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeMilestoneModal()">Cancel</button>
+      <button class="btn-save" onclick="saveMilestone()">Add Milestone</button>
+    </div>
+  </div>
+</div>
+
+<!-- SITE VISIT MODAL -->
+<div class="modal-overlay" id="visitModal">
+  <div class="modal mini-modal">
+    <div class="modal-header"><span>Add Site Visit</span><button class="modal-close" onclick="closeVisitModal()">&#x2715;</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Visit Date</label><input type="date" id="v_date"></div>
+      <div class="form-group full"><label>Notes / Observations</label><textarea id="v_notes" style="min-height:100px" placeholder="What did you observe, measure or discuss on site?"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeVisitModal()">Cancel</button>
+      <button class="btn-save" onclick="saveVisit()">Add Visit</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script type="module" src="tender-detail.js"></script>
+<script type="module" src="nav.js"></script>
+</body>
+</html>

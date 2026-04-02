@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expenses — Grett Engineering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .exp-wrap { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+
+  /* ── PAGE HEADER ── */
+  .exp-page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;
+  }
+  .exp-page-title { font-size: 20px; font-weight: 600; color: var(--navy); }
+  .exp-page-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* ── MONTH NAVIGATOR ── */
+  .month-nav {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 5px 8px;
+  }
+  .month-nav-btn {
+    width: 26px; height: 26px; border-radius: 6px;
+    border: none; background: transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); transition: all 0.15s;
+  }
+  .month-nav-btn:hover { background: var(--bg); color: var(--navy); }
+  .month-nav-label {
+    font-size: 13px; font-weight: 600; color: var(--navy);
+    min-width: 120px; text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ── SUMMARY CARDS ── */
+  .exp-cards {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin-bottom: 1.5rem;
+  }
+  .exp-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1rem 1.1rem;
+    border-top: 3px solid var(--border);
+  }
+  .exp-card.total  { border-top-color: var(--navy); }
+  .exp-card.month  { border-top-color: var(--amber); }
+  .exp-card.avg    { border-top-color: var(--blue-fg); }
+  .exp-card.top    { border-top-color: var(--red-fg); }
+  .exp-card-label  { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .exp-card-val    { font-size: 19px; font-weight: 600; color: var(--navy); font-family: 'IBM Plex Mono', monospace; }
+  .exp-card.month .exp-card-val { color: var(--amber-fg); }
+  .exp-card.avg   .exp-card-val { color: var(--blue-fg); }
+  .exp-card.top   .exp-card-val { color: var(--red-fg); }
+  .exp-card-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* ── MAIN GRID ── */
+  .exp-main-grid {
+    display: grid; grid-template-columns: 1fr 340px;
+    gap: 1rem; align-items: start;
+  }
+
+  /* ── EXPENSE TABLE ── */
+  .exp-table-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+  }
+  .exp-table-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .exp-table-title { font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+  .exp-filters { display: flex; gap: 5px; }
+  .exp-filter-btn {
+    padding: 4px 10px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--surface);
+    font-size: 11px; font-weight: 500; color: var(--muted);
+    cursor: pointer; font-family: 'IBM Plex Sans', sans-serif;
+    transition: all 0.15s;
+  }
+  .exp-filter-btn.active, .exp-filter-btn:hover {
+    background: var(--navy); color: #fff; border-color: var(--navy);
+  }
+
+  .exp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .exp-table th {
+    padding: 9px 14px; text-align: left;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: rgba(255,255,255,0.8);
+    background: var(--navy); white-space: nowrap;
+  }
+  .exp-table th.num { text-align: right; }
+  .exp-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .exp-table tr:last-child td { border-bottom: none; }
+  .exp-table tr:hover td { background: #f7fafc; }
+  .exp-desc { font-weight: 500; color: var(--navy); }
+  .exp-date { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .exp-amount { font-family: 'IBM Plex Mono', monospace; font-weight: 600; text-align: right; white-space: nowrap; }
+  .exp-note  { font-size: 12px; color: var(--muted); max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .exp-empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+  .exp-empty svg { margin-bottom: 10px; opacity: 0.3; }
+  .exp-empty p { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  /* ── CATEGORY COLORS ── */
+  .cat-fuel        { background: #fdf3dc; color: #7a4500; }
+  .cat-printing    { background: var(--blue-bg); color: var(--blue-fg); }
+  .cat-courier     { background: #f0eef8; color: #5d3fa5; }
+  .cat-site        { background: var(--green-bg); color: var(--green-fg); }
+  .cat-tender      { background: var(--amber-bg); color: var(--amber-fg); }
+  .cat-office      { background: #f4f6f9; color: #6b7a90; }
+  .cat-labour      { background: var(--red-bg); color: var(--red-fg); }
+  .cat-equipment   { background: #e8f0fe; color: #1a56b0; }
+  .cat-food        { background: #fce8f3; color: #9d174d; }
+  .cat-misc        { background: #f4f6f9; color: #6b7a90; }
+
+  /* ── RIGHT PANEL ── */
+  .exp-right { display: flex; flex-direction: column; gap: 1rem; }
+
+  .exp-breakdown-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+  }
+  .exp-breakdown-header {
+    padding: 12px 16px; background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted);
+  }
+  .exp-breakdown-body { padding: 12px; }
+  .breakdown-tabs {
+    display: flex; gap: 4px; margin-bottom: 12px;
+  }
+  .breakdown-tab {
+    flex: 1; padding: 5px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 11px; font-weight: 500; color: var(--muted);
+    cursor: pointer; text-align: center; transition: all 0.15s;
+  }
+  .breakdown-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+  /* category bar items */
+  .cat-bar-item { margin-bottom: 10px; }
+  .cat-bar-top {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 4px;
+  }
+  .cat-bar-name { font-size: 12px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .cat-bar-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .cat-bar-val  { font-size: 11px; font-weight: 600; color: var(--navy); font-family: 'IBM Plex Mono', monospace; }
+  .cat-bar-bg   { height: 5px; background: var(--border); border-radius: 10px; overflow: hidden; }
+  .cat-bar-fill { height: 100%; border-radius: 10px; transition: width 0.4s; }
+
+  /* monthly bars */
+  .monthly-chart { display: flex; align-items: flex-end; gap: 6px; height: 100px; padding: 0 4px; }
+  .monthly-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .monthly-bar-fill {
+    width: 100%; border-radius: 4px 4px 0 0;
+    background: var(--navy); min-height: 2px;
+    transition: height 0.4s; cursor: pointer;
+    position: relative;
+  }
+  .monthly-bar-fill:hover { background: var(--navy2); }
+  .monthly-bar-label { font-size: 9px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+  .monthly-bar-current .monthly-bar-fill { background: var(--amber); }
+
+  @media (max-width: 900px) {
+    .exp-main-grid { grid-template-columns: 1fr; }
+    .exp-cards { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body data-page="expenses">
+<div id="page-content">
+<div class="exp-wrap">
+
+  <!-- PAGE HEADER -->
+  <div class="exp-page-header">
+    <div>
+      <div class="exp-page-title">Expenses</div>
+    </div>
+    <div class="exp-page-actions">
+      <div class="month-nav">
+        <button class="month-nav-btn" onclick="changeMonth(-1)">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8 2L4 6l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="month-nav-label" id="monthLabel">—</span>
+        <button class="month-nav-btn" onclick="changeMonth(1)">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <button class="btn-primary" style="display:flex;align-items:center;gap:6px" onclick="exportExpPDF()">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5l3 3 3-3M1 9v1a1 1 0 001 1h8a1 1 0 001-1V9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export PDF
+      </button>
+      <button class="btn-primary" onclick="openAddModal()">+ Add Expense</button>
+    </div>
+  </div>
+
+  <!-- SUMMARY CARDS -->
+  <div class="exp-cards">
+    <div class="exp-card total">
+      <div class="exp-card-label">This Month</div>
+      <div class="exp-card-val" id="cMonth">—</div>
+      <div class="exp-card-sub" id="cMonthCount">0 entries</div>
+    </div>
+    <div class="exp-card month">
+      <div class="exp-card-label">Top Category</div>
+      <div class="exp-card-val" id="cTopCat">—</div>
+      <div class="exp-card-sub" id="cTopCatAmt">—</div>
+    </div>
+    <div class="exp-card avg">
+      <div class="exp-card-label">Monthly Average</div>
+      <div class="exp-card-val" id="cAvg">—</div>
+      <div class="exp-card-sub">last 6 months</div>
+    </div>
+    <div class="exp-card top">
+      <div class="exp-card-label">Total All Time</div>
+      <div class="exp-card-val" id="cTotal">—</div>
+      <div class="exp-card-sub" id="cTotalCount">0 entries</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="exp-main-grid">
+
+    <!-- TABLE -->
+    <div class="exp-table-panel">
+      <div class="exp-table-header">
+        <span class="exp-table-title" id="tableTitle">This Month's Expenses</span>
+        <div class="exp-filters">
+          <button class="exp-filter-btn active" onclick="setExpFilter('month', this)">This Month</button>
+          <button class="exp-filter-btn" onclick="setExpFilter('all', this)">All Time</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="exp-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Category</th>
+              <th>Date</th>
+              <th class="num">Amount (PKR)</th>
+              <th>Tender</th>
+              <th>Note</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="expTbody"></tbody>
+        </table>
+      </div>
+      <div class="exp-empty" id="expEmpty" style="display:none">
+        <svg width="44" height="44" viewBox="0 0 44 44" fill="none"><rect x="8" y="6" width="28" height="32" rx="3" stroke="#c8d3e0" stroke-width="2"/><path d="M14 16h16M14 22h16M14 28h10" stroke="#c8d3e0" stroke-width="2" stroke-linecap="round"/></svg>
+        <p>No expenses yet</p>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="exp-right">
+
+      <!-- BREAKDOWN -->
+      <div class="exp-breakdown-panel">
+        <div class="exp-breakdown-header">Breakdown</div>
+        <div class="exp-breakdown-body">
+          <div class="breakdown-tabs">
+            <button class="breakdown-tab active" onclick="setBreakdown('category', this)">By Category</button>
+            <button class="breakdown-tab" onclick="setBreakdown('monthly', this)">Monthly</button>
+            <button class="breakdown-tab" onclick="setBreakdown('tender', this)">By Tender</button>
+          </div>
+          <div id="breakdownContent"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ADD EXPENSE MODAL -->
+<div class="modal-overlay" id="addExpModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <span id="expModalTitle">Add Expense</span>
+      <button class="modal-close" onclick="closeAddModal()">&#x2715;</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Description</label>
+        <input type="text" id="ef_desc" placeholder="e.g. Fuel for site visit — KMC Office">
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="ef_cat">
+          <option value="Fuel / Transport">Fuel / Transport</option>
+          <option value="Printing & Documentation">Printing & Documentation</option>
+          <option value="Courier / Postage">Courier / Postage</option>
+          <option value="Site Visit Costs">Site Visit Costs</option>
+          <option value="Tender Fees">Tender Fees</option>
+          <option value="Office Supplies">Office Supplies</option>
+          <option value="Labour / Daily Wages">Labour / Daily Wages</option>
+          <option value="Equipment & Tools">Equipment & Tools</option>
+          <option value="Food & Entertainment">Food & Entertainment</option>
+          <option value="Miscellaneous">Miscellaneous</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount (PKR)</label>
+        <input type="number" id="ef_amount" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="ef_date">
+      </div>
+      <div class="form-group full">
+        <label>Linked Tender (optional)</label>
+        <select id="ef_tender">
+          <option value="">— None —</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Note (optional)</label>
+        <input type="text" id="ef_note" placeholder="Any extra details…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="btn-save" id="expSaveBtn" onclick="saveExpense()">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE -->
+<div class="modal-overlay" id="expConfirmOverlay">
+  <div class="modal confirm-modal">
+    <div class="confirm-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#c0392b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h3>Delete this expense?</h3>
+    <p>This cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closeExpConfirm()">Cancel</button>
+      <button class="btn-danger" onclick="confirmExpDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script type="module" src="expenses.js"></script>
+<script type="module" src="nav.js"></script>
+</body>
+</html>

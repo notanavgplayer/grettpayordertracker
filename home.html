@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home — Grett Engineering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .home-wrap { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+
+  .home-greeting { margin-bottom: 1.5rem; }
+  .home-greeting h1 { font-size: 22px; font-weight: 600; color: var(--navy); }
+  .home-greeting p  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+  /* ── SUMMARY CARDS ── */
+  .home-cards {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px; margin-bottom: 1.75rem;
+  }
+  .home-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1rem 1.1rem;
+    border-top: 3px solid var(--border);
+    cursor: pointer; transition: box-shadow 0.15s;
+    text-decoration: none; display: block;
+  }
+  .home-card:hover { box-shadow: 0 4px 16px rgba(15,42,74,0.10); }
+  .home-card.navy   { border-top-color: var(--navy); }
+  .home-card.amber  { border-top-color: var(--amber); }
+  .home-card.green  { border-top-color: #1d9e75; }
+  .home-card.red    { border-top-color: var(--red-fg); }
+  .home-card.blue   { border-top-color: var(--blue-fg); }
+  .home-card-label  { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .home-card-val    { font-size: 20px; font-weight: 600; color: var(--navy); font-family: 'IBM Plex Mono', monospace; }
+  .home-card.amber .home-card-val { color: var(--amber-fg); }
+  .home-card.green  .home-card-val { color: var(--green-fg); }
+  .home-card.red    .home-card-val { color: var(--red-fg); }
+  .home-card.blue   .home-card-val { color: var(--blue-fg); }
+
+  /* ── TWO COL LAYOUT ── */
+  .home-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .home-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+
+  /* ── SECTION PANELS ── */
+  .home-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+  }
+  .home-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .home-panel-title {
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .home-panel-link {
+    font-size: 11px; color: var(--navy3);
+    text-decoration: none; font-weight: 500;
+  }
+  .home-panel-link:hover { text-decoration: underline; }
+  .home-panel-body { padding: 0; }
+
+  /* ── DEADLINE ITEMS ── */
+  .deadline-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    transition: background 0.1s;
+  }
+  .deadline-item:last-child { border-bottom: none; }
+  .deadline-item:hover { background: var(--bg); }
+  .deadline-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .deadline-dot.urgent { background: var(--red-fg); }
+  .deadline-dot.soon   { background: var(--amber); }
+  .deadline-dot.ok     { background: #1d9e75; }
+  .deadline-info { flex: 1; min-width: 0; }
+  .deadline-name {
+    font-size: 13px; font-weight: 500; color: var(--navy);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .deadline-agency { font-size: 11px; color: var(--muted); }
+  .deadline-days {
+    font-size: 11px; font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .deadline-days.urgent { color: var(--red-fg); }
+  .deadline-days.soon   { color: var(--amber-fg); }
+  .deadline-days.ok     { color: var(--green-fg); }
+
+  /* ── PO EXPIRY ITEMS ── */
+  .po-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .po-item:last-child { border-bottom: none; }
+  .po-item:hover { background: var(--bg); }
+  .po-num { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; color: var(--navy2); min-width: 90px; }
+  .po-bank { font-size: 12px; color: var(--muted); flex: 1; }
+  .po-days { font-size: 11px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+  .po-days.urgent { color: var(--red-fg); }
+  .po-days.soon   { color: var(--amber-fg); }
+
+  /* ── TODO ITEMS ── */
+  .todo-home-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s; cursor: pointer;
+  }
+  .todo-home-item:last-child { border-bottom: none; }
+  .todo-home-item:hover { background: var(--bg); }
+  .todo-home-check {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; cursor: pointer;
+  }
+  .todo-home-check:hover { border-color: var(--navy3); }
+  .todo-home-check.done { background: var(--green-fg); border-color: var(--green-fg); }
+  .todo-home-check.done::after { content:'✓'; color:#fff; font-size:8px; font-weight:700; }
+  .todo-home-text { flex: 1; font-size: 13px; color: var(--text); }
+  .todo-home-text.done { text-decoration: line-through; color: var(--muted); }
+
+  /* ── ACTIVITY FEED ── */
+  .activity-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-icon {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .activity-icon svg { width: 13px; height: 13px; }
+  .activity-icon.tender  { background: var(--blue-bg);   color: var(--blue-fg); }
+  .activity-icon.po      { background: var(--amber-bg);  color: var(--amber-fg); }
+  .activity-icon.todo    { background: var(--green-bg);  color: var(--green-fg); }
+  .activity-icon.note    { background: var(--purple-bg); color: var(--purple-fg); }
+  .activity-body { flex: 1; }
+  .activity-text { font-size: 13px; color: var(--text); line-height: 1.4; }
+  .activity-text strong { font-weight: 600; }
+  .activity-time { font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; margin-top: 2px; }
+
+  .panel-empty {
+    padding: 1.5rem; text-align: center;
+    font-size: 13px; color: var(--muted);
+  }
+
+  /* ── HOME SEARCH ── */
+  .home-search-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px; padding: 10px 16px;
+    margin-bottom: 1.5rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    box-shadow: 0 1px 6px rgba(15,42,74,0.06);
+    cursor: text;
+  }
+  .home-search-bar:focus-within {
+    border-color: var(--navy);
+    box-shadow: 0 2px 12px rgba(15,42,74,0.10);
+  }
+  .home-search-bar svg { color: var(--muted); flex-shrink: 0; }
+  .home-search-input {
+    flex: 1; border: none; outline: none;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; color: var(--text);
+    background: transparent;
+  }
+  .home-search-input::placeholder { color: #c8d3e0; }
+  .home-search-kbd {
+    font-size: 10px; font-weight: 600;
+    color: var(--muted); font-family: 'IBM Plex Mono', monospace;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 2px 6px;
+    flex-shrink: 0;
+  }
+
+  /* ── INLINE SEARCH RESULTS ── */
+  .home-search-results {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden; margin-bottom: 1.5rem;
+    display: none;
+  }
+  .home-search-results.show { display: block; }
+  .hsr-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; color: var(--muted);
+  }
+  .hsr-clear {
+    font-size: 11px; color: var(--navy3);
+    background: none; border: none; cursor: pointer;
+    font-family: 'IBM Plex Sans', sans-serif; font-weight: 500;
+  }
+  .hsr-clear:hover { text-decoration: underline; }
+  .hsr-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px; border-bottom: 1px solid var(--border);
+    text-decoration: none; transition: background 0.1s; cursor: pointer;
+  }
+  .hsr-item:last-child { border-bottom: none; }
+  .hsr-item:hover { background: var(--bg); }
+  .hsr-icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .hsr-icon svg { width: 13px; height: 13px; }
+  .hsr-body { flex: 1; min-width: 0; }
+  .hsr-title { font-size: 13px; font-weight: 500; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hsr-title mark { background: #fff3cd; color: var(--navy); border-radius: 2px; padding: 0 1px; }
+  .hsr-sub { font-size: 11px; color: var(--muted); }
+  .hsr-type { font-size: 10px; font-weight: 600; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+
+  @media (max-width: 900px) {
+    .home-cards { grid-template-columns: repeat(3, 1fr); }
+    .home-grid  { grid-template-columns: 1fr; }
+    .home-grid.three { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .home-cards { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body data-page="home">
+<div id="page-content">
+<div class="home-wrap">
+
+  <div class="home-greeting">
+    <h1 id="greeting">Good morning</h1>
+    <p id="greetingSub">Here's what's happening today.</p>
+  </div>
+
+  <!-- SEARCH BAR -->
+  <div class="home-search-bar" onclick="document.getElementById('homeSearchInput').focus()">
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M14 14l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <input class="home-search-input" id="homeSearchInput" type="text"
+      placeholder="Search tenders, pay orders, notes, expenses…"
+      oninput="homeSearch()" autocomplete="off">
+    <span class="home-search-kbd">Ctrl K</span>
+  </div>
+  <div class="home-search-results" id="homeSearchResults">
+    <div class="hsr-header">
+      <span id="hsrCount">0 results</span>
+      <button class="hsr-clear" onclick="clearHomeSearch()">Clear</button>
+    </div>
+    <div id="hsrList"></div>
+  </div>
+
+  <!-- SUMMARY CARDS -->
+  <div class="home-cards">
+    <a class="home-card navy" href="tenders.html">
+      <div class="home-card-label">Active Tenders</div>
+      <div class="home-card-val" id="hActiveTenders">—</div>
+    </a>
+    <a class="home-card amber" href="dashboard.html">
+      <div class="home-card-label">Pay Orders at Risk</div>
+      <div class="home-card-val" id="hPOAtRisk">—</div>
+    </a>
+    <a class="home-card red" href="dashboard.html">
+      <div class="home-card-label">POs Expiring ≤7d</div>
+      <div class="home-card-val" id="hPOExpiring">—</div>
+    </a>
+    <a class="home-card blue" href="todo.html">
+      <div class="home-card-label">Open Tasks</div>
+      <div class="home-card-val" id="hOpenTasks">—</div>
+    </a>
+    <a class="home-card green" href="tenders.html">
+      <div class="home-card-label">Awarded Tenders</div>
+      <div class="home-card-val" id="hAwarded">—</div>
+    </a>
+  </div>
+
+  <!-- ROW 1: Deadlines + PO Expiry -->
+  <div class="home-grid" style="margin-bottom:1rem">
+    <div class="home-panel">
+      <div class="home-panel-header">
+        <span class="home-panel-title">Upcoming Submission Deadlines</span>
+        <a class="home-panel-link" href="calendar.html">View calendar →</a>
+      </div>
+      <div class="home-panel-body" id="deadlinesList"></div>
+    </div>
+    <div class="home-panel">
+      <div class="home-panel-header">
+        <span class="home-panel-title">Pay Orders Expiring Soon</span>
+        <a class="home-panel-link" href="dashboard.html">View all →</a>
+      </div>
+      <div class="home-panel-body" id="poExpiryList"></div>
+    </div>
+  </div>
+
+  <!-- ROW 2: To-Do + Activity -->
+  <div class="home-grid">
+    <div class="home-panel">
+      <div class="home-panel-header">
+        <span class="home-panel-title">Open To-Do Items</span>
+        <a class="home-panel-link" href="todo.html">View all →</a>
+      </div>
+      <div class="home-panel-body" id="todoList"></div>
+    </div>
+    <div class="home-panel">
+      <div class="home-panel-header">
+        <span class="home-panel-title">Recent Activity</span>
+      </div>
+      <div class="home-panel-body" id="activityList"></div>
+    </div>
+  </div>
+
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<script type="module" src="home.js"></script>
+<script type="module" src="nav.js"></script>
+</body>
+</html>

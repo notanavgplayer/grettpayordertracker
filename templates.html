@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checklist Templates — Grett Engineering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .templates-wrap { max-width: 860px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+
+  .templates-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .templates-header h1 { font-size: 20px; font-weight: 600; color: var(--navy); }
+  .templates-header p  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+  /* ── TEMPLATES GRID ── */
+  .templates-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1rem;
+  }
+
+  .template-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+    transition: box-shadow 0.15s;
+  }
+  .template-card:hover { box-shadow: 0 4px 16px rgba(15,42,74,0.08); }
+  .template-card.default-card { border-top: 3px solid var(--navy); }
+
+  .template-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+  }
+  .template-card-name {
+    font-size: 14px; font-weight: 600; color: var(--navy);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .default-badge {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; background: var(--navy); color: #fff;
+    padding: 2px 7px; border-radius: 10px;
+  }
+  .template-card-actions { display: flex; gap: 6px; }
+
+  .template-items-list { padding: 10px 16px; min-height: 80px; }
+  .template-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px; color: var(--text);
+  }
+  .template-item:last-child { border-bottom: none; }
+  .template-item-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--navy3); flex-shrink: 0; }
+  .template-item-del {
+    margin-left: auto; background: none; border: none;
+    cursor: pointer; color: var(--muted); opacity: 0;
+    transition: opacity 0.15s; padding: 2px;
+    font-size: 12px; line-height: 1;
+  }
+  .template-item:hover .template-item-del { opacity: 1; }
+  .template-item-del:hover { color: var(--red-fg); }
+
+  .add-item-row {
+    display: flex; gap: 8px; padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .add-item-input {
+    flex: 1; padding: 6px 10px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px; color: var(--text);
+    background: var(--surface); outline: none;
+  }
+  .add-item-input:focus { border-color: var(--navy3); }
+  .btn-add-item {
+    padding: 6px 12px; background: var(--navy); color: #fff;
+    border: none; border-radius: var(--radius);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    white-space: nowrap; transition: background 0.15s;
+  }
+  .btn-add-item:hover { background: var(--navy2); }
+
+  .template-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px; background: var(--bg);
+    border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--muted);
+  }
+  .set-default-btn {
+    font-size: 11px; font-weight: 500; color: var(--navy3);
+    background: none; border: none; cursor: pointer;
+    font-family: 'IBM Plex Sans', sans-serif;
+    padding: 0; transition: color 0.15s;
+  }
+  .set-default-btn:hover { text-decoration: underline; }
+
+  /* empty state */
+  .templates-empty {
+    text-align: center; padding: 4rem 2rem; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); grid-column: 1/-1;
+  }
+  .templates-empty svg { opacity: 0.25; margin-bottom: 10px; }
+  .templates-empty p { font-size: 14px; font-weight: 500; color: var(--text); }
+</style>
+</head>
+<body data-page="templates">
+<div id="page-content">
+<div class="templates-wrap">
+
+  <div class="templates-header">
+    <div>
+      <h1>Checklist Templates</h1>
+      <p>Create reusable document checklists. The default template is auto-applied to every new tender.</p>
+    </div>
+    <button class="btn-primary" onclick="openNewTemplateModal()">+ New Template</button>
+  </div>
+
+  <div class="templates-grid" id="templatesGrid"></div>
+
+</div>
+</div>
+
+<!-- NEW TEMPLATE MODAL -->
+<div class="modal-overlay" id="newTemplateModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <span>New Template</span>
+      <button class="modal-close" onclick="closeNewTemplateModal()">&#x2715;</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Template Name</label>
+        <input type="text" id="tmpl_name" placeholder="e.g. KMC Standard, NHA Works">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeNewTemplateModal()">Cancel</button>
+      <button class="btn-save" id="newTmplBtn" onclick="createTemplate()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- RENAME MODAL -->
+<div class="modal-overlay" id="renameModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <span>Rename Template</span>
+      <button class="modal-close" onclick="closeRenameModal()">&#x2715;</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Template Name</label>
+        <input type="text" id="rename_input" placeholder="Template name">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeRenameModal()">Cancel</button>
+      <button class="btn-save" onclick="saveRename()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE -->
+<div class="modal-overlay" id="tmplConfirmOverlay">
+  <div class="modal confirm-modal">
+    <div class="confirm-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#c0392b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h3>Delete this template?</h3>
+    <p>This cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closeTmplConfirm()">Cancel</button>
+      <button class="btn-danger" onclick="confirmDeleteTemplate()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script type="module" src="templates.js"></script>
+<script type="module" src="nav.js"></script>
+</body>
+</html>

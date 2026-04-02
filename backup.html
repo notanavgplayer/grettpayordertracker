@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backup & Export — Grett Engineering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .backup-wrap { max-width: 760px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+  .backup-wrap h1 { font-size: 20px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+  .backup-wrap > p { font-size: 13px; color: var(--muted); margin-bottom: 1.75rem; }
+
+  .export-options { display: flex; flex-direction: column; gap: 12px; margin-bottom: 2rem; }
+  .export-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.25rem 1.5rem;
+    display: flex; align-items: center; gap: 16px;
+    transition: box-shadow 0.15s;
+  }
+  .export-card:hover { box-shadow: 0 4px 16px rgba(15,42,74,0.08); }
+  .export-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .export-icon svg { width: 22px; height: 22px; }
+  .ei-excel   { background: #e8f5e9; color: #2e7d32; }
+  .ei-all     { background: var(--blue-bg); color: var(--blue-fg); }
+  .export-info { flex: 1; }
+  .export-title { font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 3px; }
+  .export-desc  { font-size: 12px; color: var(--muted); }
+  .export-sheets { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+  .sheet-badge  {
+    font-size: 10px; font-weight: 600; padding: 2px 8px;
+    border-radius: 10px; background: var(--bg); color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-export {
+    padding: 9px 20px; background: var(--navy); color: #fff;
+    border: none; border-radius: var(--radius);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    white-space: nowrap; transition: background 0.15s;
+    display: flex; align-items: center; gap: 6px;
+    flex-shrink: 0;
+  }
+  .btn-export:hover { background: var(--navy2); }
+  .btn-export:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-export.green { background: #2e7d32; }
+  .btn-export.green:hover { background: #1b5e20; }
+
+  /* PROGRESS */
+  .export-progress {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.5rem;
+    display: none;
+  }
+  .export-progress.show { display: block; }
+  .progress-title { font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 10px; }
+  .progress-bar-wrap { background: var(--border); border-radius: 10px; height: 8px; overflow: hidden; margin-bottom: 8px; }
+  .progress-bar-fill { height: 100%; background: var(--navy); border-radius: 10px; transition: width 0.3s; }
+  .progress-steps { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+  .progress-step {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--muted);
+  }
+  .step-icon { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; }
+  .step-icon.done    { background: var(--green-fg); color: #fff; }
+  .step-icon.loading { background: var(--amber); color: #fff; }
+  .step-icon.pending { background: var(--border); color: var(--muted); }
+
+  .info-box {
+    background: var(--blue-bg); border: 1px solid #b5d4f4;
+    border-radius: var(--radius-lg); padding: 14px 16px;
+    font-size: 13px; color: var(--blue-fg); line-height: 1.6;
+    margin-bottom: 1.5rem; display: flex; gap: 10px; align-items: flex-start;
+  }
+  .info-box svg { flex-shrink: 0; margin-top: 1px; }
+</style>
+</head>
+<body data-page="backup">
+<div id="page-content">
+<div class="backup-wrap">
+
+  <h1>Backup & Export</h1>
+  <p>Download all your data as an Excel file for offline backup or sharing.</p>
+
+  <div class="info-box">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 7v5M8 5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <span>All exports are generated directly from your Firestore data in real time. No data is sent anywhere — the file is created and downloaded entirely in your browser.</span>
+  </div>
+
+  <div class="export-options">
+
+    <div class="export-card">
+      <div class="export-icon ei-all">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" stroke="currentColor" stroke-width="1.5"/><path d="M3 10h18M10 3v18" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <div class="export-info">
+        <div class="export-title">Full Backup — All Data</div>
+        <div class="export-desc">Exports every collection into separate sheets in one Excel file.</div>
+        <div class="export-sheets">
+          <span class="sheet-badge">Pay Orders</span>
+          <span class="sheet-badge">Tenders</span>
+          <span class="sheet-badge">Expenses</span>
+          <span class="sheet-badge">Contacts</span>
+          <span class="sheet-badge">Notes</span>
+          <span class="sheet-badge">To-Do</span>
+          <span class="sheet-badge">Tender Fees</span>
+        </div>
+      </div>
+      <button class="btn-export" id="btnFullExport" onclick="exportAll()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v8M3.5 6l3 3 3-3M1 10v1.5A1.5 1.5 0 002.5 13h8a1.5 1.5 0 001.5-1.5V10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export All
+      </button>
+    </div>
+
+    <div class="export-card">
+      <div class="export-icon ei-excel">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 8l4 4-4 4M12 16h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="export-info">
+        <div class="export-title">Pay Orders Only</div>
+        <div class="export-desc">Export just the pay orders register with all columns.</div>
+      </div>
+      <button class="btn-export green" onclick="exportSingle('payOrders')">Export</button>
+    </div>
+
+    <div class="export-card">
+      <div class="export-icon ei-excel">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h10l6 6v10H4V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M14 4v6h6" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="export-info">
+        <div class="export-title">Tenders Only</div>
+        <div class="export-desc">Export all tenders with status, value, and dates.</div>
+      </div>
+      <button class="btn-export green" onclick="exportSingle('tenders')">Export</button>
+    </div>
+
+    <div class="export-card">
+      <div class="export-icon ei-excel">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 11h20" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <div class="export-info">
+        <div class="export-title">Expenses Only</div>
+        <div class="export-desc">Export all expense entries with categories and amounts.</div>
+      </div>
+      <button class="btn-export green" onclick="exportSingle('expenses')">Export</button>
+    </div>
+
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="export-progress" id="exportProgress">
+    <div class="progress-title" id="progressTitle">Preparing export…</div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+    <div class="progress-steps" id="progressSteps"></div>
+  </div>
+
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+onAuthStateChanged(auth, user => {
+  if (!user) window.location.href = 'index.html';
+});
+
+async function fetchCol(name) {
+  const snap = await getDocs(collection(db, name));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  if (d?.seconds) return new Date(d.seconds*1000).toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'});
+  if (typeof d === 'string') return d;
+  return '';
+}
+
+function setProgress(pct, title) {
+  document.getElementById('progressBar').style.width = pct + '%';
+  if (title) document.getElementById('progressTitle').textContent = title;
+}
+
+function updateStep(steps, idx, state) {
+  const el = document.getElementById(`step-${idx}`);
+  if (!el) return;
+  el.className = `step-icon ${state}`;
+  el.textContent = state === 'done' ? '✓' : state === 'loading' ? '…' : String(idx+1);
+}
+
+function showProgress(stepLabels) {
+  const prog = document.getElementById('exportProgress');
+  prog.classList.add('show');
+  document.getElementById('progressSteps').innerHTML = stepLabels.map((l,i) => `
+    <div class="progress-step">
+      <div class="step-icon pending" id="step-${i}">${i+1}</div>
+      <span>${l}</span>
+    </div>`).join('');
+}
+
+// ── Formatters per collection ─────────────────────────────────────────────────
+const FORMATTERS = {
+  payOrders: docs => docs.map(d => ({
+    'PO Number': d.po||'', 'Bank': d.bank||'', 'Tender': d.tender||'',
+    'Agency': d.agency||'', 'Amount (PKR)': d.amount||'',
+    'Date Issued': d.issued||'', 'Status': d.status||'',
+    'Bid Result': d.bidResult||'', 'Notes': d.notes||'',
+  })),
+  tenders: docs => docs.map(d => ({
+    'Name': d.name||'', 'Agency': d.agency||'', 'NIT / Ref': d.nit||'',
+    'Value (PKR)': d.value||'', 'Status': d.status||'',
+    'Submission Date': d.submissionDate||'', 'Opening Date': d.openingDate||'',
+    'Linked PO': d.linkedPO||'', 'Notes': d.notes||'',
+  })),
+  expenses: docs => docs.map(d => ({
+    'Description': d.description||'', 'Category': d.category||'',
+    'Amount (PKR)': d.amount||'', 'Date': d.date||'',
+    'Note': d.note||'',
+  })),
+  contacts: docs => docs.map(d => ({
+    'Name': d.name||'', 'Category': d.category||'', 'Role': d.role||'',
+    'Organization': d.organization||'', 'Phone': d.phone||'',
+    'WhatsApp': d.whatsapp||'', 'Email': d.email||'',
+    'Address': d.address||'', 'Notes': d.notes||'',
+  })),
+  notes: docs => docs.map(d => ({
+    'Title': d.title||'', 'Body': d.body||'',
+    'Updated': fmtDate(d.updatedAt),
+  })),
+  todos: docs => docs.map(d => ({
+    'Task': d.text||'', 'Priority': d.priority||'',
+    'Done': d.done ? 'Yes' : 'No',
+    'Created': fmtDate(d.createdAt),
+  })),
+  tenderFees: docs => docs.map(d => ({
+    'Tender': d.tender||'', 'Agency': d.agency||'', 'NIT': d.nit||'',
+    'Amount (PKR)': d.amount||'', 'Date': d.date||'',
+    'Method': d.method||'', 'Receipt': d.receipt||'', 'Status': d.status||'',
+  })),
+};
+
+const SHEET_NAMES = {
+  payOrders: 'Pay Orders', tenders: 'Tenders', expenses: 'Expenses',
+  contacts: 'Contacts', notes: 'Notes', todos: 'To-Do', tenderFees: 'Tender Fees',
+};
+
+function makeSheet(data) {
+  if (!data.length) return XLSX.utils.aoa_to_sheet([['No data']]);
+  const ws = XLSX.utils.json_to_sheet(data);
+  // Style header row
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const addr = XLSX.utils.encode_cell({r:0,c});
+    if (!ws[addr]) continue;
+    ws[addr].s = { font:{bold:true,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'0F2A4A'}}, alignment:{horizontal:'center'} };
+  }
+  return ws;
+}
+
+window.exportAll = async function() {
+  const btn  = document.getElementById('btnFullExport');
+  const cols = Object.keys(FORMATTERS);
+  const labels = cols.map(c => `Loading ${SHEET_NAMES[c]}…`);
+
+  btn.disabled = true;
+  showProgress(labels);
+  setProgress(0, 'Starting export…');
+
+  try {
+    const wb = XLSX.utils.book_new();
+    for (let i = 0; i < cols.length; i++) {
+      const col = cols[i];
+      updateStep(labels, i, 'loading');
+      setProgress(Math.round((i/cols.length)*90), `Loading ${SHEET_NAMES[col]}…`);
+      const docs = await fetchCol(col);
+      const rows = FORMATTERS[col](docs);
+      XLSX.utils.book_append_sheet(wb, makeSheet(rows), SHEET_NAMES[col]);
+      updateStep(labels, i, 'done');
+    }
+    setProgress(100, 'Generating file…');
+    const filename = `Grett_Backup_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    toast('Export complete! File downloaded.');
+  } catch(e) {
+    console.error(e); toast('Error during export.');
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { document.getElementById('exportProgress').classList.remove('show'); setProgress(0); }, 3000);
+  }
+};
+
+window.exportSingle = async function(colName) {
+  try {
+    toast('Preparing export…');
+    const docs = await fetchCol(colName);
+    const rows = FORMATTERS[colName] ? FORMATTERS[colName](docs) : docs;
+    const wb   = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, makeSheet(rows), SHEET_NAMES[colName] || colName);
+    const filename = `Grett_${SHEET_NAMES[colName]||colName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    toast('Downloaded!');
+  } catch(e) { console.error(e); toast('Export failed.'); }
+};
+
+let toastTimer;
+window.toast = function(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+};
+</script>
+<script type="module" src="nav.js"></script>
+</body>
+</html>
