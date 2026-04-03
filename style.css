@@ -593,7 +593,7 @@ tbody tr.row-selected:hover { background: #cce4f7 !important; }
   .month-nav-label { min-width: 90px; font-size: 12px; }
 
   .selection-bar { left: 0.5rem; right: 0.5rem; transform: none; width: auto; }
-  .selection-bar.show { bottom: 4.5rem; }
+  .selection-bar.show { bottom: 1rem; }
 
   .btn-primary, .btn-add-task { font-size: 12px; padding: 7px 12px; }
 

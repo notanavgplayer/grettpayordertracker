@@ -320,11 +320,4 @@ onAuthStateChanged(auth, async user => {
   document.getElementById('sidebarLogout').addEventListener('click', () => {
     signOut(auth).then(() => window.location.href = 'index.html');
   });
-
-  // Inject bottom nav on mobile
-  if (window.innerWidth <= 640) {
-    import('./bottom-nav.js').then(m => {
-      m.injectBottomNav(document.body.dataset.page || '');
-    });
-  }
 });
