@@ -117,6 +117,7 @@ body { display: flex; min-height: 100vh; }
 
 /* ── MOBILE (≤ 640px) ── */
 @media (max-width: 640px) {
+  body { display: block; }
   .sidebar         { transform: translateX(-100%); width: 260px; }
   .sidebar.open    { transform: translateX(0); }
   .sidebar-toggle  { display: flex; }
