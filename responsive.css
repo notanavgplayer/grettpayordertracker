@@ -151,29 +151,44 @@
   /* ── DASHBOARD / PAY ORDERS ── */
   .main-wrap { padding: 0.75rem 0.75rem 1rem; }
   .cards-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px;
-    margin-bottom: 1rem;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px;
+    margin-bottom: 0.75rem;
   }
-  .stat-card { padding: 0.75rem 0.9rem; }
-  .stat-val  { font-size: 15px; }
-  .stat-label { font-size: 9px; }
+  .stat-card { padding: 0.6rem 0.7rem; }
+  .stat-val  { font-size: 13px; }
+  .stat-label { font-size: 8px; letter-spacing: 0.04em; margin-bottom: 3px; }
 
-  /* Analytics charts */
+  /* Analytics charts — compact on mobile */
   .analytics-row,
   .analytics-row.three {
     grid-template-columns: 1fr !important;
-    gap: 10px;
-    margin-bottom: 1rem;
+    gap: 8px;
+    margin-bottom: 0.75rem;
   }
-  .analytics-card { padding: 0.75rem 1rem; }
-  .analytics-chart { min-height: 80px; }
-  .monthly-bars { height: 80px; gap: 2px; }
-  .monthly-bar-label { font-size: 8px; }
-  .monthly-bar-val { font-size: 8px; }
-  .status-bar-label { font-size: 10px; width: 60px; }
-  .status-bar-track { height: 16px; }
-  .status-bar-val { font-size: 10px; width: 30px; }
+  .analytics-card {
+    padding: 0.6rem 0.8rem;
+    overflow: hidden;
+  }
+  .analytics-title { font-size: 9px; margin-bottom: 8px; }
+  .analytics-chart { min-height: auto; overflow: hidden; }
+  .monthly-bars { height: 60px; gap: 2px; overflow: hidden; }
+  .monthly-bar-col { min-width: 0; }
+  .monthly-bar-label { font-size: 7px; }
+  .monthly-bar-val { font-size: 7px; }
+  .status-bar-row { margin-bottom: 5px; gap: 6px; }
+  .status-bar-label { font-size: 9px; width: 55px; }
+  .status-bar-track { height: 14px; }
+  .status-bar-val { font-size: 9px; width: 26px; }
+
+  /* Win rate compact */
+  .winrate-wrap { gap: 10px; }
+  .winrate-donut svg { width: 64px; height: 64px; }
+  .winrate-pct { font-size: 15px; }
+  .winrate-label { font-size: 7px; }
+  .winrate-legend { font-size: 11px; gap: 3px; }
+  .winrate-dot { width: 8px; height: 8px; }
+  .winrate-leg-total { font-size: 10px; }
 
   .tabs-bar { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
   .tabs-bar::-webkit-scrollbar { display: none; }

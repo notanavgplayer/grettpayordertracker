@@ -397,9 +397,11 @@ tbody tr.row-selected:hover { background: #cce4f7 !important; }
 
 /* ── ANALYTICS ── */
 .analytics-row {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  display: none; /* hidden until JS adds .visible */
+  grid-template-columns: 1fr 1fr; gap: 12px;
   margin-bottom: 1.5rem;
 }
+.analytics-row.visible { display: grid; }
 .analytics-row.three { grid-template-columns: 1fr 1fr 1fr; }
 .analytics-card {
   background: var(--surface); border: 1px solid var(--border);
@@ -410,6 +412,20 @@ tbody tr.row-selected:hover { background: #cce4f7 !important; }
   text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
 }
 .analytics-chart { min-height: 100px; }
+
+/* Win rate donut */
+.winrate-wrap { display: flex; align-items: center; gap: 14px; }
+.winrate-donut { position: relative; flex-shrink: 0; }
+.winrate-center {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center; flex-direction: column;
+}
+.winrate-pct { font-size: 18px; font-weight: 700; color: var(--navy); font-family: 'IBM Plex Mono', monospace; line-height: 1; }
+.winrate-label { font-size: 8px; color: var(--muted); font-weight: 600; }
+.winrate-legend { display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
+.winrate-leg-item { display: flex; align-items: center; gap: 6px; color: var(--text); font-weight: 500; }
+.winrate-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.winrate-leg-total { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
 /* Status bar chart */
 .status-bar-row {

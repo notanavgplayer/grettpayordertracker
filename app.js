@@ -93,7 +93,8 @@ function renderCards() {
 function renderAnalytics() {
   const el = document.getElementById('analyticsRow');
   if (!payOrders.length) { el.style.display = 'none'; return; }
-  el.style.display = 'grid';
+  el.style.display = '';
+  el.classList.add('visible');
 
   // Status distribution
   const statuses = ['Pending','Submitted','Returned','Encashed','Forfeited'];
@@ -157,14 +158,14 @@ function renderWinRate() {
   }
 
   // SVG donut chart
-  const size = 90, stroke = 10, radius = (size - stroke) / 2;
+  const size = 80, stroke = 9, radius = (size - stroke) / 2;
   const circ = 2 * Math.PI * radius;
   const wonArc  = decided > 0 ? (won / decided) * circ : 0;
   const lostArc = decided > 0 ? (lost / decided) * circ : 0;
 
   el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:16px">
-      <div style="position:relative;width:${size}px;height:${size}px;flex-shrink:0">
+    <div class="winrate-wrap">
+      <div class="winrate-donut">
         <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform:rotate(-90deg)">
           <circle cx="${size/2}" cy="${size/2}" r="${radius}" fill="none" stroke="var(--bg)" stroke-width="${stroke}"/>
           ${decided > 0 ? `<circle cx="${size/2}" cy="${size/2}" r="${radius}" fill="none" stroke="var(--green-fg)" stroke-width="${stroke}"
@@ -172,27 +173,16 @@ function renderWinRate() {
           <circle cx="${size/2}" cy="${size/2}" r="${radius}" fill="none" stroke="var(--red-fg)" stroke-width="${stroke}"
             stroke-dasharray="${lostArc} ${circ}" stroke-dashoffset="${-wonArc}" stroke-linecap="round"/>` : ''}
         </svg>
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column">
-          <span style="font-size:20px;font-weight:700;color:var(--navy);font-family:'IBM Plex Mono',monospace;line-height:1">${rate}%</span>
-          <span style="font-size:9px;color:var(--muted);font-weight:600">WIN RATE</span>
+        <div class="winrate-center">
+          <span class="winrate-pct">${rate}%</span>
+          <span class="winrate-label">WIN RATE</span>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="width:10px;height:10px;border-radius:50%;background:var(--green-fg)"></div>
-          <span style="color:var(--text);font-weight:500">Won: ${won}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="width:10px;height:10px;border-radius:50%;background:var(--red-fg)"></div>
-          <span style="color:var(--text);font-weight:500">Lost: ${lost}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="width:10px;height:10px;border-radius:50%;background:var(--blue-fg)"></div>
-          <span style="color:var(--text);font-weight:500">Active: ${active}</span>
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">
-          Total: ${total} tenders
-        </div>
+      <div class="winrate-legend">
+        <div class="winrate-leg-item"><div class="winrate-dot" style="background:var(--green-fg)"></div>Won: ${won}</div>
+        <div class="winrate-leg-item"><div class="winrate-dot" style="background:var(--red-fg)"></div>Lost: ${lost}</div>
+        <div class="winrate-leg-item"><div class="winrate-dot" style="background:var(--blue-fg)"></div>Active: ${active}</div>
+        <div class="winrate-leg-total">Total: ${total} tenders</div>
       </div>
     </div>`;
 }
