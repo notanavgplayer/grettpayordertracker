@@ -56,14 +56,20 @@
 ───────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
 
-  /* ── PREVENT HORIZONTAL OVERFLOW — GLOBAL ── */
-  html, body {
+  /* ── PREVENT HORIZONTAL OVERFLOW — NUCLEAR ── */
+  html {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+  body {
+    display: block !important;
     overflow-x: hidden !important;
     width: 100% !important;
     max-width: 100vw !important;
   }
-  body { display: block !important; }
+  /* Lock every element to viewport width */
   .page-content,
+  .page-content > *,
   .main-wrap,
   .home-wrap,
   .todo-wrap,
@@ -78,9 +84,10 @@
   .detail-wrap,
   #page-content {
     overflow-x: hidden !important;
-    max-width: 100vw;
-    min-width: 0;
-    box-sizing: border-box;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   /* Force ALL grids / flex with fixed columns to collapse */

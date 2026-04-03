@@ -117,10 +117,35 @@ body { display: flex; min-height: 100vh; }
 
 /* ── MOBILE (≤ 640px) ── */
 @media (max-width: 640px) {
-  body { display: block; }
-  .sidebar         { transform: translateX(-100%); width: 260px; }
-  .sidebar.open    { transform: translateX(0); }
-  .sidebar-toggle  { display: flex; }
+  /* Kill flex layout — block prevents sidebar from affecting page width */
+  body {
+    display: block !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    position: relative;
+  }
+
+  /* Sidebar: off-screen, slides in */
+  .sidebar {
+    transform: translateX(-100%);
+    width: 75vw;
+    max-width: 280px;
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* Hamburger button */
+  .sidebar-toggle { display: flex; }
+
+  /* Overlay */
   .sidebar-overlay.open { display: block; }
-  .page-content    { margin-left: 0; padding-top: 56px; }
+
+  /* Page content: full width, no margin */
+  .page-content {
+    margin-left: 0 !important;
+    padding-top: 56px;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
 }

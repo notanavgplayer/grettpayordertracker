@@ -297,6 +297,19 @@ onAuthStateChanged(auth, async user => {
   const pageContent = document.getElementById('page-content');
   if (pageContent) pageContent.classList.add('page-content');
 
+  // Force viewport lock on mobile after sidebar injection
+  if (window.innerWidth <= 640) {
+    document.documentElement.style.overflowX = 'hidden';
+    document.body.style.overflowX = 'hidden';
+    document.body.style.maxWidth = '100vw';
+    document.body.style.width = '100%';
+    if (pageContent) {
+      pageContent.style.overflowX = 'hidden';
+      pageContent.style.maxWidth = '100vw';
+      pageContent.style.width = '100%';
+    }
+  }
+
   // Update sidebar with display name if available
   if (window.__displayName) {
     const emailEl = document.querySelector('.sidebar-user-email');
