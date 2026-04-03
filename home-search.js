@@ -8,18 +8,22 @@ let hsTimer  = null;
 
 onAuthStateChanged(auth, async user => {
   if (!user) return;
-  const [tSnap, pSnap, nSnap, tdSnap, eSnap] = await Promise.all([
-    getDocs(collection(db, "tenders")),
-    getDocs(collection(db, "payOrders")),
-    getDocs(collection(db, "notes")),
-    getDocs(collection(db, "todos")),
-    getDocs(collection(db, "expenses")),
-  ]);
-  hsData.tenders   = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  hsData.payOrders = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  hsData.notes     = nSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  hsData.todos     = tdSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  hsData.expenses  = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    const [tSnap, pSnap, nSnap, tdSnap, eSnap] = await Promise.all([
+      getDocs(collection(db, "tenders")),
+      getDocs(collection(db, "payOrders")),
+      getDocs(collection(db, "notes")),
+      getDocs(collection(db, "todos")),
+      getDocs(collection(db, "expenses")),
+    ]);
+    hsData.tenders   = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    hsData.payOrders = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    hsData.notes     = nSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    hsData.todos     = tdSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    hsData.expenses  = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error('Failed to load home search data:', e);
+  }
   hsLoaded = true;
 });
 
@@ -78,7 +82,7 @@ function runHomeSearch(q) {
   // Notes
   hsData.notes.forEach(n => {
     if (matches(ql, n.title, n.body)) results.push({
-      type:'note', title: n.title||'Untitled', sub: (n.body||'').slice(0,60),
+      type:'note', title: n.title||'Untitled', sub: stripHtml(n.body||'').slice(0,150)||'No content',
       href: 'notes.html'
     });
   });
@@ -135,4 +139,16 @@ function highlight(text, q) {
 }
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function stripHtml(s) {
+  return String(s||'')
+    .replace(/<[^>]*>?/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#\d+;/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }

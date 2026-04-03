@@ -17,18 +17,22 @@ onAuthStateChanged(auth, async user => {
 });
 
 async function loadAllData() {
-  const [tSnap, pSnap, nSnap, tdSnap, eSnap] = await Promise.all([
-    getDocs(collection(db, "tenders")),
-    getDocs(collection(db, "payOrders")),
-    getDocs(collection(db, "notes")),
-    getDocs(collection(db, "todos")),
-    getDocs(collection(db, "expenses")),
-  ]);
-  allData.tenders   = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  allData.payOrders = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  allData.notes     = nSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  allData.todos     = tdSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  allData.expenses  = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    const [tSnap, pSnap, nSnap, tdSnap, eSnap] = await Promise.all([
+      getDocs(collection(db, "tenders")),
+      getDocs(collection(db, "payOrders")),
+      getDocs(collection(db, "notes")),
+      getDocs(collection(db, "todos")),
+      getDocs(collection(db, "expenses")),
+    ]);
+    allData.tenders   = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allData.payOrders = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allData.notes     = nSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allData.todos     = tdSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allData.expenses  = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error('Failed to load search data:', e);
+  }
   dataLoaded = true;
 }
 
@@ -104,7 +108,7 @@ function runSearch(q) {
         results.push({
           type: 'note', id: n.id,
           title: n.title || 'Untitled Note',
-          sub: (n.body||'').slice(0, 80) || 'No content',
+          sub: stripHtml(n.body||'').slice(0, 150) || 'No content',
           href: 'notes.html',
           q,
         });
@@ -237,6 +241,18 @@ function fmtDate(d) {
 
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function stripHtml(s) {
+  return String(s||'')
+    .replace(/<[^>]*>?/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#\d+;/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function statusBadgeClass(s) {

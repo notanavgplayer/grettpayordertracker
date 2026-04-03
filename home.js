@@ -301,7 +301,7 @@ function runSearch(q) {
     if (hit(ql, p.po, p.tender, p.agency, p.bank)) results.push({ type:'po', title:p.tender||`PO ${p.po||'—'}`, sub:`${p.po||'—'} · ${p.bank||'—'}`, href:'dashboard.html' });
   });
   _notes.forEach(n => {
-    if (hit(ql, n.title, n.body)) results.push({ type:'note', title:n.title||'Untitled', sub:stripHtml((n.body||'').slice(0,80))||'No content', href:`notes.html?id=${n.id}` });
+    if (hit(ql, n.title, n.body)) results.push({ type:'note', title:n.title||'Untitled', sub:stripHtml(n.body||'').slice(0,150)||'No content', href:`notes.html?id=${n.id}` });
   });
   _todos.forEach(t => {
     if (hit(ql, t.text)) results.push({ type:'todo', title:t.text||'—', sub:`${t.priority||'medium'} · ${t.done?'Done':'Open'}`, href:'todo.html' });
@@ -336,7 +336,16 @@ document.addEventListener('click', e => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function stripHtml(s) {
-  return String(s||'').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return String(s||'')
+    .replace(/<[^>]*>?/g, ' ')        // strip tags (including unclosed ones)
+    .replace(/&nbsp;/gi, ' ')          // decode common entities
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#\d+;/g, '')            // strip numeric entities
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function hit(q, ...fields) { return fields.some(f => (f||'').toLowerCase().includes(q)); }
