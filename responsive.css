@@ -26,6 +26,7 @@
 
   /* Grids collapse */
   .home-cards        { grid-template-columns: repeat(3, 1fr); }
+  .cards-grid        { grid-template-columns: repeat(3, 1fr); }
   .exp-cards         { grid-template-columns: repeat(2, 1fr); }
   .fees-cards        { grid-template-columns: repeat(2, 1fr); }
   .top-stats         { grid-template-columns: repeat(3, 1fr); }
@@ -33,6 +34,9 @@
   .exp-main-grid     { grid-template-columns: 1fr; }
   .reports-grid      { grid-template-columns: 1fr; }
   .contact-info-grid { grid-template-columns: 1fr; }
+
+  /* Analytics */
+  .analytics-row, .analytics-row.three { grid-template-columns: 1fr 1fr; }
 
   /* Two panel layouts stack */
   .tenders-layout  { grid-template-columns: 1fr; height: auto; overflow: visible; }
@@ -154,6 +158,23 @@
   .stat-card { padding: 0.75rem 0.9rem; }
   .stat-val  { font-size: 15px; }
   .stat-label { font-size: 9px; }
+
+  /* Analytics charts */
+  .analytics-row,
+  .analytics-row.three {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+    margin-bottom: 1rem;
+  }
+  .analytics-card { padding: 0.75rem 1rem; }
+  .analytics-chart { min-height: 80px; }
+  .monthly-bars { height: 80px; gap: 2px; }
+  .monthly-bar-label { font-size: 8px; }
+  .monthly-bar-val { font-size: 8px; }
+  .status-bar-label { font-size: 10px; width: 60px; }
+  .status-bar-track { height: 16px; }
+  .status-bar-val { font-size: 10px; width: 30px; }
+
   .tabs-bar { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
   .tabs-bar::-webkit-scrollbar { display: none; }
   .tab-btn { white-space: nowrap; padding: 8px 12px; font-size: 12px; }
@@ -179,10 +200,10 @@
   /* ── TOOLBAR ── */
   .toolbar      { flex-direction: column; align-items: stretch; gap: 8px; }
   .filter-group { flex-wrap: wrap; }
-  .toolbar-right { flex-direction: column; gap: 6px; }
+  .toolbar-right { flex-wrap: wrap; gap: 6px; }
   .search-box   { width: 100% !important; }
-  .btn-primary  { width: 100%; justify-content: center; }
-  .btn-select-mode { width: 100%; }
+  .btn-select-mode { flex: 1; }
+  .btn-primary  { flex: 1; justify-content: center; min-width: 0; }
 
   /* ── TENDERS LIST ── */
   .tenders-layout  { grid-template-columns: 1fr; height: auto; overflow: visible; }

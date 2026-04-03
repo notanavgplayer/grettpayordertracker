@@ -200,8 +200,12 @@ function buildSidebar(userEmail) {
 
 function injectStyles() {
   if (document.getElementById('nav-styles')) return;
-  // All layout CSS is in layout.css — loaded statically in <head>
-  // Only inject responsive.css if not already present
+  // All layout CSS should be in <head> — these are safety fallbacks
+  if (!document.querySelector('link[href*="layout.css"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet'; link.href = 'layout.css';
+    document.head.appendChild(link);
+  }
   if (!document.querySelector('link[href*="responsive.css"]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = 'responsive.css';

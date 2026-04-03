@@ -302,31 +302,10 @@ textarea { resize: vertical; min-height: 64px; }
 }
 .toast.show { opacity: 1; transform: translateY(0); }
 
-/* ── RESPONSIVE ── */
+/* ── RESPONSIVE — see responsive.css for full mobile/tablet rules ── */
+/* Base breakpoint kept here for pages that might not load responsive.css */
 @media (max-width: 900px) {
   .cards-grid { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 600px) {
-  .cards-grid { grid-template-columns: repeat(2, 1fr); }
-  .form-grid { grid-template-columns: 1fr; }
-  .search-box { width: 100%; }
-  .toolbar { flex-direction: column; align-items: stretch; }
-  .toolbar-right { margin-left: 0; flex-wrap: wrap; }
-  .filter-group { flex-wrap: wrap; }
-  .nav-user { display: none; }
-  .main-wrap { padding: 1rem; }
-  .btn-primary { font-size: 12px; padding: 7px 12px; }
-  .tab-btn { padding: 8px 14px; font-size: 12px; }
-  .stat-val { font-size: 16px; }
-  .stat-label { font-size: 9px; }
-  .stat-card { padding: 0.75rem 0.9rem; }
-  .modal { padding: 1.25rem; margin: 0.5rem; max-height: 95vh; }
-  .table-wrap { font-size: 11px; }
-  thead th { padding: 8px 8px; font-size: 9px; }
-  td { padding: 8px; }
-  .btn-select-mode { font-size: 12px; padding: 6px 12px; }
-  .selection-bar-inner { padding: 8px 8px 8px 16px; gap: 10px; font-size: 12px; }
-  .toast { left: 1rem; right: 1rem; bottom: 1rem; text-align: center; }
 }
 
 /* ── BULK DELETE ── */
@@ -455,13 +434,6 @@ tbody tr.row-selected:hover { background: #cce4f7 !important; }
   font-size: 9px; color: var(--navy); font-weight: 600;
   font-family: 'IBM Plex Mono', monospace;
   white-space: nowrap;
-}
-
-@media (max-width: 900px) {
-  .analytics-row, .analytics-row.three { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 600px) {
-  .analytics-row, .analytics-row.three { grid-template-columns: 1fr; }
 }
 
 /* ── ROLE: VIEWER (hide write actions) ── */
