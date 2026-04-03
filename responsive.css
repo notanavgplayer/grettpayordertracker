@@ -276,14 +276,12 @@
   .confirm-modal { max-width: 100% !important; border-radius: 12px 12px 0 0; }
 
   /* ── SELECTION BAR ── */
+  .selection-bar { left: 0; right: 0; transform: none; }
   .selection-bar-inner { flex-wrap: wrap; gap: 10px; border-radius: 12px; margin: 0 10px; }
   .selection-bar.show  { bottom: 72px; }
 
   /* ── TOAST ── */
   .toast { bottom: 72px; left: 1rem; right: 1rem; text-align: center; }
-
-  /* ── FLOATING PILL ── */
-  .selection-bar { left: 0; right: 0; transform: none; }
 
   /* ── SETTINGS ── */
   .settings-wrap { padding: 1rem 0.75rem 4rem; }

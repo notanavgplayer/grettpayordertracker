@@ -592,8 +592,8 @@ tbody tr.row-selected:hover { background: #cce4f7 !important; }
   .cal-cell { min-height: 48px; }
   .month-nav-label { min-width: 90px; font-size: 12px; }
 
-  .selection-bar { bottom: 0.75rem; left: 0.5rem; right: 0.5rem; transform: none; width: auto; }
-  .selection-bar.show { bottom: 0.75rem; }
+  .selection-bar { left: 0.5rem; right: 0.5rem; transform: none; width: auto; }
+  .selection-bar.show { bottom: 4.5rem; }
 
   .btn-primary, .btn-add-task { font-size: 12px; padding: 7px 12px; }
 
