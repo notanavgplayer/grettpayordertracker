@@ -52,6 +52,7 @@ service cloud.firestore {
     match /contacts/{d}           { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /checklistTemplates/{d} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /tenderFees/{d}         { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /calendarEvents/{d}    { allow read: if isAuthenticated(); allow write: if isAdmin(); }
 
     // Deny everything else
     match /{document=**} { allow read, write: if false; }

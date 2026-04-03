@@ -6,6 +6,38 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+// ── THEME — apply immediately before render to prevent flash ─────────────────
+(function() {
+  const saved = localStorage.getItem('grett-theme');
+  if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+})();
+
+window.toggleTheme = function() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  if (isDark) {
+    html.removeAttribute('data-theme');
+    localStorage.setItem('grett-theme', 'light');
+  } else {
+    html.setAttribute('data-theme', 'dark');
+    localStorage.setItem('grett-theme', 'dark');
+  }
+  updateThemeIcon();
+};
+
+function updateThemeIcon() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const icon = document.getElementById('themeIcon');
+  if (!icon) return;
+  if (isDark) {
+    // Sun icon
+    icon.innerHTML = '<circle cx="10" cy="10" r="4" stroke="currentColor" stroke-width="1.3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>';
+  } else {
+    // Moon icon
+    icon.innerHTML = '<path d="M17 10a7 7 0 01-9.9 6.3A7 7 0 0110.7 3 5.5 5.5 0 0017 10z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>';
+  }
+}
+
 // Global role — other scripts can read window.__userRole
 window.__userRole = 'viewer'; // default to viewer until loaded
 
@@ -180,6 +212,12 @@ function buildSidebar(userEmail) {
           <span class="sidebar-user-role">Administrator</span>
         </div>
       </div>
+      <button class="sidebar-theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">
+        <svg viewBox="0 0 20 20" fill="none" width="15" height="15" id="themeIcon">
+          <path d="M10 3a7 7 0 100 14 7 7 0 000-14zm0 12.5a5.5 5.5 0 110-11 5.5 5.5 0 010 11z" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M10 6v8M6 10h8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      </button>
       <button class="sidebar-logout" id="sidebarLogout" title="Sign Out">
         <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
           <path d="M7 3H4a1 1 0 00-1 1v12a1 1 0 001 1h3M13 14l4-4-4-4M17 10H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -333,4 +371,7 @@ onAuthStateChanged(auth, async user => {
   document.getElementById('sidebarLogout').addEventListener('click', () => {
     signOut(auth).then(() => window.location.href = 'index.html');
   });
+
+  // Set correct theme icon after sidebar is in DOM
+  updateThemeIcon();
 });

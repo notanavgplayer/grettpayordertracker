@@ -6,6 +6,10 @@
 <title>Grett Engineering — Login</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script>
+  // Apply saved theme immediately
+  if (localStorage.getItem('grett-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+</script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -20,6 +24,23 @@
     --danger:  #c0392b;
     --radius:  10px;
   }
+  [data-theme="dark"] {
+    --navy:    #e8ecf1;
+    --navy2:   #c5d0dd;
+    --amber:   #e8940a;
+    --bg:      #0d1117;
+    --surface: #161b22;
+    --border:  #2a3140;
+    --text:    #e0e6ed;
+    --muted:   #8b95a5;
+    --danger:  #f07068;
+  }
+  [data-theme="dark"] input { background: #1c2230 !important; color: var(--text); }
+  [data-theme="dark"] input:focus { background: #222a38 !important; }
+  [data-theme="dark"] input::placeholder { color: #555e6e; }
+  [data-theme="dark"] .error { background: #2d1215; border-color: #5a2020; }
+  [data-theme="dark"] .lock-note { background: #1a1f28; }
+  [data-theme="dark"] .logo-mark { background: #1a2332; }
   body {
     font-family: 'IBM Plex Sans', sans-serif;
     background: var(--bg);

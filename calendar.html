@@ -95,6 +95,41 @@
   .cal-event.submission { background: #fdf3dc; color: #7a4500; border-left: 2px solid var(--amber); }
   .cal-event.opening    { background: var(--blue-bg); color: var(--blue-fg); border-left: 2px solid var(--blue-fg); }
   .cal-event.expiry     { background: var(--red-bg);  color: var(--red-fg);  border-left: 2px solid var(--red-fg); }
+  .cal-event.custom     { background: var(--purple-bg); color: var(--purple-fg); border-left: 2px solid var(--purple-fg); }
+
+  /* Clickable cells */
+  .cal-cell.current-month { cursor: pointer; }
+  .cal-cell.current-month:hover { background: var(--bg); }
+
+  /* Add event button */
+  .cal-add-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 14px; border-radius: var(--radius);
+    background: var(--surface); border: 1px solid var(--border);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px; font-weight: 600; color: var(--muted);
+    cursor: pointer; transition: all 0.15s; margin-left: auto;
+  }
+  .cal-add-btn:hover { border-color: var(--navy3); color: var(--navy); }
+
+  /* Day detail events list */
+  .day-event-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .day-event-item:last-child { border-bottom: none; }
+  .day-event-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .day-event-info { flex: 1; min-width: 0; }
+  .day-event-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .day-event-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .day-event-edit {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    width: 28px; height: 28px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; color: var(--muted);
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .day-event-edit:hover { border-color: var(--navy3); color: var(--navy); }
+  .day-no-events { font-size: 13px; color: var(--muted); text-align: center; padding: 1rem 0; }
 
   /* ── UPCOMING LIST ── */
   .upcoming-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
@@ -164,6 +199,11 @@
       <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#e8940a"></div>Submission</div>
       <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#185fa5"></div>Opening</div>
       <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#c0392b"></div>PO Expiry</div>
+      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#5d3fa5"></div>Custom</div>
+      <button class="cal-add-btn" onclick="openEventModal()">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Add Event
+      </button>
     </div>
   </div>
 
@@ -186,6 +226,60 @@
   </div>
 
 </div>
+</div>
+
+<!-- DAY DETAIL PANEL (shows when you click a date) -->
+<div class="modal-overlay" id="dayDetailOverlay">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <span id="dayDetailTitle">—</span>
+      <button class="modal-close" onclick="closeDayDetail()">&#x2715;</button>
+    </div>
+    <div id="dayDetailEvents" style="margin-bottom:1rem"></div>
+    <button class="btn-primary" style="width:100%" onclick="closeDayDetail();openEventModal(document.getElementById('dayDetailOverlay').dataset.date)">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Add Event on This Date
+    </button>
+  </div>
+</div>
+
+<!-- ADD/EDIT EVENT MODAL -->
+<div class="modal-overlay" id="eventModalOverlay">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <span id="eventModalTitle">New Event</span>
+      <button class="modal-close" onclick="closeEventModal()">&#x2715;</button>
+    </div>
+    <div class="form-grid" style="grid-template-columns:1fr">
+      <div class="form-group">
+        <label>Event Title</label>
+        <input type="text" id="ev_title" placeholder="e.g. Submit tender documents">
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="ev_date">
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="ev_type">
+          <option value="deadline">Deadline</option>
+          <option value="meeting">Meeting</option>
+          <option value="reminder">Reminder</option>
+          <option value="site-visit">Site Visit</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes (optional)</label>
+        <textarea id="ev_notes" placeholder="Any additional details…" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeEventModal()">Cancel</button>
+      <button class="btn-danger" id="evDeleteBtn" onclick="deleteEvent()" style="display:none">Delete</button>
+      <button class="btn-save" id="evSaveBtn" onclick="saveEvent()">Save Event</button>
+    </div>
+  </div>
 </div>
 
 <div class="cal-tooltip" id="calTooltip"></div>

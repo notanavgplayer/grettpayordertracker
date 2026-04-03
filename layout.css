@@ -149,3 +149,22 @@ body { display: flex; min-height: 100vh; }
     overflow-x: hidden !important;
   }
 }
+
+/* ── DARK MODE SIDEBAR ── */
+[data-theme="dark"] .sidebar { background: #0a0f16; border-right: 1px solid #1e2736; }
+[data-theme="dark"] .sidebar-brand { border-bottom-color: rgba(255,255,255,0.06); }
+[data-theme="dark"] .sidebar-footer { border-top-color: rgba(255,255,255,0.06); }
+[data-theme="dark"] .sidebar-toggle { background: #161b22; border: 1px solid #2a3140; }
+[data-theme="dark"] .nav-item:hover { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] .nav-item.active { background: rgba(232,148,10,0.12); }
+
+/* Dark mode toggle button in sidebar */
+.sidebar-theme-toggle {
+  width: 30px; height: 30px; flex-shrink: 0;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.5); transition: all 0.15s;
+}
+.sidebar-theme-toggle:hover { background: rgba(255,255,255,0.12); color: #e8940a; }
