@@ -56,9 +56,69 @@
 ───────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
 
-  /* ── PREVENT HORIZONTAL OVERFLOW ── */
-  html, body { overflow-x: hidden !important; width: 100% !important; }
-  .page-content { overflow-x: hidden; max-width: 100vw; }
+  /* ── PREVENT HORIZONTAL OVERFLOW — GLOBAL ── */
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+  .page-content,
+  .main-wrap,
+  .home-wrap,
+  .todo-wrap,
+  .cal-wrap,
+  .exp-wrap,
+  .fees-wrap,
+  .reports-wrap,
+  .activity-wrap,
+  .backup-wrap,
+  .templates-wrap,
+  .settings-wrap,
+  .detail-wrap,
+  #page-content {
+    overflow-x: hidden !important;
+    max-width: 100vw;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  /* Force ALL grids / flex with fixed columns to collapse */
+  .tenders-layout,
+  .contacts-layout,
+  .notes-layout,
+  .exp-main-grid {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    overflow: visible !important;
+    max-width: 100% !important;
+  }
+
+  /* All panels / cards / containers must not exceed viewport */
+  .tenders-list-panel,
+  .tenders-preview-panel,
+  .contacts-list-panel,
+  .contacts-detail-panel,
+  .notes-list-panel,
+  .notes-editor-panel,
+  .analytics-card,
+  .home-panel,
+  .stat-card,
+  .exp-table-panel,
+  .fees-table-wrap,
+  .table-wrap {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: auto;
+  }
+
+  /* Tables scroll horizontally inside their wrapper */
+  table { min-width: 0 !important; }
+  .table-wrap table,
+  .fees-table-wrap table,
+  .exp-table-panel table { min-width: 480px; }
+
+  /* Templates grid */
+  .templates-grid { grid-template-columns: 1fr !important; }
 
   /* ── HAMBURGER SIDEBAR ── */
   .sidebar          { display: flex !important; transform: translateX(-100%); width: 260px; }

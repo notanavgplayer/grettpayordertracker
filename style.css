@@ -486,7 +486,7 @@ tbody tr.row-selected:hover { background: #cce4f7 !important; }
 
   /* Tables: horizontal scroll */
   .table-wrap, .fees-table-wrap, .exp-table-panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table { min-width: 540px; }
+  .table-wrap table, .fees-table-wrap table, .exp-table-panel table { min-width: 540px; }
 
   /* Stack toolbars */
   .toolbar      { flex-direction: column; align-items: stretch; }
