@@ -56,6 +56,10 @@
 ───────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
 
+  /* ── PREVENT HORIZONTAL OVERFLOW ── */
+  html, body { overflow-x: hidden !important; width: 100% !important; }
+  .page-content { overflow-x: hidden; max-width: 100vw; }
+
   /* ── HIDE SIDEBAR, SHOW BOTTOM NAV ── */
   .sidebar          { display: none !important; }
   .sidebar-toggle   { display: none !important; }
@@ -149,14 +153,15 @@
   }
 
   /* ── DASHBOARD / PAY ORDERS ── */
-  .main-wrap { padding: 0.75rem 0.75rem 1rem; }
+  .main-wrap { padding: 0.75rem 0.75rem 1rem; max-width: 100vw; overflow: hidden; }
   .cards-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: 1fr 1fr !important;
     gap: 6px;
     margin-bottom: 0.75rem;
   }
-  .stat-card { padding: 0.6rem 0.7rem; }
-  .stat-val  { font-size: 13px; }
+  .stat-card { padding: 0.6rem 0.7rem; min-width: 0; }
+  .stat-card.navy { grid-column: 1 / -1; }
+  .stat-val  { font-size: 14px; }
   .stat-label { font-size: 8px; letter-spacing: 0.04em; margin-bottom: 3px; }
 
   /* Analytics charts — compact on mobile */
@@ -169,11 +174,12 @@
   .analytics-card {
     padding: 0.6rem 0.8rem;
     overflow: hidden;
+    min-width: 0;
   }
   .analytics-title { font-size: 9px; margin-bottom: 8px; }
   .analytics-chart { min-height: auto; overflow: hidden; }
   .monthly-bars { height: 60px; gap: 2px; overflow: hidden; }
-  .monthly-bar-col { min-width: 0; }
+  .monthly-bar-col { min-width: 0; overflow: hidden; }
   .monthly-bar-label { font-size: 7px; }
   .monthly-bar-val { font-size: 7px; }
   .status-bar-row { margin-bottom: 5px; gap: 6px; }
@@ -213,8 +219,10 @@
   .info-cards { grid-template-columns: 1fr 1fr; }
 
   /* ── TOOLBAR ── */
-  .toolbar      { flex-direction: column; align-items: stretch; gap: 8px; }
-  .filter-group { flex-wrap: wrap; }
+  .toolbar      { flex-direction: column; align-items: stretch; gap: 8px; max-width: 100%; }
+  .filter-group { display: flex; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; gap: 4px; }
+  .filter-group::-webkit-scrollbar { display: none; }
+  .filter-btn { flex-shrink: 0; font-size: 11px; padding: 5px 10px; }
   .toolbar-right { flex-wrap: wrap; gap: 6px; }
   .search-box   { width: 100% !important; }
   .btn-select-mode { flex: 1; }
