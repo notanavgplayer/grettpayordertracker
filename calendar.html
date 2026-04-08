@@ -71,7 +71,7 @@
     transition: background 0.1s;
   }
   .cal-cell:nth-child(7n) { border-right: none; }
-  .cal-cell.other-month .cal-date { color: #c8d3e0; }
+  .cal-cell.other-month { background: var(--bg); opacity: 0.4; }
   .cal-cell.today { background: #f0f7ff; }
   .cal-cell.today .cal-date {
     background: var(--navy); color: #fff;
@@ -173,6 +173,16 @@
     .cal-cell { min-height: 60px; }
     .cal-event { font-size: 9px; padding: 1px 3px; }
   }
+
+  /* Dark mode calendar */
+  [data-theme="dark"] .cal-day-headers { background: #1a2332; }
+  [data-theme="dark"] .cal-day-header { color: rgba(255,255,255,0.5); }
+  [data-theme="dark"] .cal-cell { border-color: var(--border); }
+  [data-theme="dark"] .cal-cell.today { background: rgba(88,166,255,0.08); }
+  [data-theme="dark"] .cal-cell.today .cal-date { background: var(--amber); color: #0d1117; }
+  [data-theme="dark"] .cal-cell.other-month { background: #0a0e14; }
+  [data-theme="dark"] .cal-cell.current-month:hover { background: rgba(255,255,255,0.04); }
+  [data-theme="dark"] .cal-tooltip { background: #1a2332; color: #e0e6ed; }
 </style>
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">

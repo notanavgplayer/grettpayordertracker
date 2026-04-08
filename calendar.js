@@ -79,19 +79,26 @@ function renderCalendar() {
     firstDay.toLocaleDateString('en-PK', { month: 'long', year: 'numeric' });
 
   const cells = [];
+  // Empty padding cells for days before the 1st
   for (let i = 0; i < startDow; i++) {
-    cells.push({ date: new Date(currentYear, currentMonth, -startDow + i + 1), current: false });
+    cells.push({ date: null, current: false });
   }
+  // Current month days
   for (let d = 1; d <= lastDay.getDate(); d++) {
     cells.push({ date: new Date(currentYear, currentMonth, d), current: true });
   }
-  const remaining = 42 - cells.length;
-  for (let i = 1; i <= remaining; i++) {
-    cells.push({ date: new Date(currentYear, currentMonth + 1, i), current: false });
+  // Pad to complete the last row (to fill up to multiple of 7)
+  while (cells.length % 7 !== 0) {
+    cells.push({ date: null, current: false });
   }
 
   const container = document.getElementById('calDays');
   container.innerHTML = cells.map(cell => {
+    if (!cell.date) {
+      // Empty padding cell
+      return `<div class="cal-cell other-month"></div>`;
+    }
+
     const key   = dateKey(cell.date);
     const isToday = sameDay(cell.date, today);
     const dayEvents = events[key] || [];
@@ -107,8 +114,8 @@ function renderCalendar() {
     const more = dayEvents.length > 3 ? `<div style="font-size:9px;color:var(--muted);padding:1px 4px">+${dayEvents.length-3} more</div>` : '';
 
     return `
-    <div class="cal-cell ${!cell.current ? 'other-month' : 'current-month'} ${isToday ? 'today' : ''}"
-         onclick="${cell.current ? `openDayDetail('${key}')` : ''}">
+    <div class="cal-cell current-month ${isToday ? 'today' : ''}"
+         onclick="openDayDetail('${key}')">
       <div class="cal-date">${cell.date.getDate()}</div>
       ${evHtml}${more}
     </div>`;
