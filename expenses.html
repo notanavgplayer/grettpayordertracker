@@ -5,10 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Expenses — Grett Engineering</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="layout.css" as="style">
+<link rel="preload" href="style.css" as="style">
+<link rel="modulepreload" href="firebase-config.js">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="layout.css">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="responsive.css">
+<style>
+  .skeleton{background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+  .skeleton-card{height:72px;margin-bottom:12px;border-radius:10px}
+  .skeleton-line{height:14px;margin-bottom:10px}
+  .skeleton-line:last-child{width:60%}
+  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  [data-theme="dark"] .skeleton{background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%);background-size:200% 100%}
+</style>
 <style>
   .exp-wrap { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
 

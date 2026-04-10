@@ -484,6 +484,14 @@ function resultBadge(r) {
   return `<span class="badge ${map[r]||'b-na'}">${r||'N/A'}</span>`;
 }
 
+// ── Debounced search ─────────────────────────────────────────────────────────
+function debounce(fn, delay = 250) {
+  let timer;
+  return function(...args) { clearTimeout(timer); timer = setTimeout(() => fn.apply(this, args), delay); };
+}
+const searchBox = document.getElementById('searchBox');
+if (searchBox) searchBox.addEventListener('input', debounce(() => renderPOTable(), 250));
+
 let toastTimer;
 function toast(msg) {
   const el = document.getElementById('toast');

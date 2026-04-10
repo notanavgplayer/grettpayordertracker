@@ -5,10 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pay Order Tracker — Grett Engineering</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="layout.css" as="style">
+<link rel="preload" href="style.css" as="style">
+<link rel="modulepreload" href="firebase-config.js">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="layout.css">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="responsive.css">
+<style>
+  .skeleton{background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+  .skeleton-card{height:72px;margin-bottom:12px;border-radius:10px}
+  .skeleton-line{height:14px;margin-bottom:10px}
+  .skeleton-line:last-child{width:60%}
+  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  [data-theme="dark"] .skeleton{background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%);background-size:200% 100%}
+</style>
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
@@ -82,7 +94,7 @@
       </div>
       <div class="toolbar-right">
 <button class="btn-select-mode" id="selectModeBtn" onclick="toggleSelectMode()">Select</button>
-        <input class="search-box" type="text" id="searchBox" placeholder="Search tender, agency, PO…" oninput="renderPOTable()">
+        <input class="search-box" type="text" id="searchBox" placeholder="Search tender, agency, PO…">
         <button class="btn-primary" onclick="openPOModal()">+ Add Pay Order</button>
         <button class="btn-primary" style="background:var(--navy2);display:flex;align-items:center;gap:6px" onclick="exportPOCSV()">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5l3 3 3-3M1 9v1a1 1 0 001 1h8a1 1 0 001-1V9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
