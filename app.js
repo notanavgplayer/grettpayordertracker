@@ -7,7 +7,7 @@ import {
 
 // ── Auth Guard ────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, user => {
-  if (!user) { window.location.href = "index.html"; return; }
+  if (!user) { window.location.href = "/"; return; }
   loadAll();
 });
 

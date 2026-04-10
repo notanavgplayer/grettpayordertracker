@@ -4,37 +4,37 @@
 export function injectBottomNav(currentPage) {
   // Primary 4 nav items always visible
   const PRIMARY = [
-    { id:'home',      label:'Home',     href:'home.html',
+    { id:'home',      label:'Home',     href:'/home',
       icon:`<svg viewBox="0 0 20 20" fill="none"><path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 18v-6h6v6" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>` },
-    { id:'tenders',   label:'Tenders',  href:'tenders.html',
+    { id:'tenders',   label:'Tenders',  href:'/tenders',
       icon:`<svg viewBox="0 0 20 20" fill="none"><path d="M4 3h8l4 4v10H4V3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 3v4h4" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>` },
-    { id:'payorders', label:'Pay Orders',href:'dashboard.html',
+    { id:'payorders', label:'Pay Orders',href:'/dashboard',
       icon:`<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
-    { id:'todo',      label:'To-Do',    href:'todo.html',
+    { id:'todo',      label:'To-Do',    href:'/todo',
       icon:`<svg viewBox="0 0 20 20" fill="none"><path d="M8 5h9M8 10h9M8 15h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3 5.5l1.5 1.5L7 4M3 10.5l1.5 1.5L7 9M3 15.5l1.5 1.5L7 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` },
   ];
 
   // All remaining items in "More" menu
   const MORE = [
-    { id:'notes',     label:'Notes',     href:'notes.html',
+    { id:'notes',     label:'Notes',     href:'/notes',
       icon:`<svg viewBox="0 0 20 20" fill="none"><path d="M4 4h12v9l-4 4H4V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>` },
-    { id:'expenses',  label:'Expenses',  href:'expenses.html',
+    { id:'expenses',  label:'Expenses',  href:'/expenses',
       icon:`<svg viewBox="0 0 20 20" fill="none"><rect x="2" y="5" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 9h16" stroke="currentColor" stroke-width="1.5"/></svg>` },
-    { id:'contacts',  label:'Contacts',  href:'contacts.html',
+    { id:'contacts',  label:'Contacts',  href:'/contacts',
       icon:`<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 18c0-3.9 3.1-7 7-7s7 3.1 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
-    { id:'calendar',  label:'Calendar',  href:'calendar.html',
+    { id:'calendar',  label:'Calendar',  href:'/calendar',
       icon:`<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 8h14M7 2v4M13 2v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
-    { id:'fees',      label:'Fees',      href:'fees.html',
+    { id:'fees',      label:'Fees',      href:'/fees',
       icon:`<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 7v1.5M10 11.5V13M8 9a2 2 0 114 0c0 1-1 1.5-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
-    { id:'reports',   label:'Reports',   href:'reports.html',
+    { id:'reports',   label:'Reports',   href:'/reports',
       icon:`<svg viewBox="0 0 20 20" fill="none"><path d="M3 15V9M7 15V5M11 15V8M15 15V3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
-    { id:'activity',  label:'Activity',  href:'activity.html',
+    { id:'activity',  label:'Activity',  href:'/activity',
       icon:`<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v5l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
-    { id:'templates', label:'Templates', href:'templates.html',
+    { id:'templates', label:'Templates', href:'/templates',
       icon:`<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 6h6M7 10h6M7 14h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
-    { id:'backup',    label:'Backup',    href:'backup.html',
+    { id:'backup',    label:'Backup',    href:'/backup',
       icon:`<svg viewBox="0 0 20 20" fill="none"><path d="M10 3v10M6 9l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 15v1a1 1 0 001 1h12a1 1 0 001-1v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
-    { id:'settings',  label:'Settings',  href:'settings.html',
+    { id:'settings',  label:'Settings',  href:'/settings',
       icon:`<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M10 2v2M10 16v2M3.5 5.5l1.4 1.4M15.1 15.1l1.4 1.4M2 10h2M16 10h2M3.5 14.5l1.4-1.4M15.1 4.9l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>` },
   ];
 

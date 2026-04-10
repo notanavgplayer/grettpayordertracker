@@ -15,7 +15,7 @@ const CAT_COLORS = {
 };
 
 onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (!user) { window.location.href = '/'; return; }
   document.getElementById('yearLabel').textContent = currentYear;
   await loadAll();
   renderAll();

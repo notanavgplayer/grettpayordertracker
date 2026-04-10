@@ -16,7 +16,7 @@ const DEFAULT_ITEMS = [
 ];
 
 onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (!user) { window.location.href = '/'; return; }
   try {
     await loadTemplates();
     if (!templates.length) await seedDefault();

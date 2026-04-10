@@ -17,7 +17,7 @@ const ICONS = {
 };
 
 onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (!user) { window.location.href = '/'; return; }
   await loadAll();
 });
 
@@ -43,8 +43,8 @@ async function loadAll() {
   allEvents = [];
 
   tenders.forEach(t => {
-    if (t.createdAt?.seconds) allEvents.push({ type:'tender', ts: t.createdAt.seconds, text: `Created tender <strong>${esc(t.name||'Untitled')}</strong>`, sub: t.agency||'—', href: `tender-detail.html?id=${t.id}`, badge: t.status });
-    if (t.updatedAt?.seconds && t.updatedAt.seconds !== t.createdAt?.seconds) allEvents.push({ type:'tender', ts: t.updatedAt.seconds, text: `Updated tender <strong>${esc(t.name||'Untitled')}</strong>`, sub: `Status: ${t.status||'—'}`, href: `tender-detail.html?id=${t.id}` });
+    if (t.createdAt?.seconds) allEvents.push({ type:'tender', ts: t.createdAt.seconds, text: `Created tender <strong>${esc(t.name||'Untitled')}</strong>`, sub: t.agency||'—', href: `/tender-detail?id=${t.id}`, badge: t.status });
+    if (t.updatedAt?.seconds && t.updatedAt.seconds !== t.createdAt?.seconds) allEvents.push({ type:'tender', ts: t.updatedAt.seconds, text: `Updated tender <strong>${esc(t.name||'Untitled')}</strong>`, sub: `Status: ${t.status||'—'}`, href: `/tender-detail?id=${t.id}` });
   });
 
   payOrders.forEach(p => {
@@ -52,21 +52,21 @@ async function loadAll() {
   });
 
   notes.forEach(n => {
-    if (n.createdAt?.seconds) allEvents.push({ type:'note', ts: n.createdAt.seconds, text: `Created note <strong>${esc(n.title||'Untitled')}</strong>`, sub: (n.body||'').slice(0,60), href: 'notes.html' });
-    if (n.updatedAt?.seconds && n.updatedAt.seconds !== n.createdAt?.seconds) allEvents.push({ type:'note', ts: n.updatedAt.seconds, text: `Updated note <strong>${esc(n.title||'Untitled')}</strong>`, href: 'notes.html' });
+    if (n.createdAt?.seconds) allEvents.push({ type:'note', ts: n.createdAt.seconds, text: `Created note <strong>${esc(n.title||'Untitled')}</strong>`, sub: (n.body||'').slice(0,60), href: '/notes' });
+    if (n.updatedAt?.seconds && n.updatedAt.seconds !== n.createdAt?.seconds) allEvents.push({ type:'note', ts: n.updatedAt.seconds, text: `Updated note <strong>${esc(n.title||'Untitled')}</strong>`, href: '/notes' });
   });
 
   todos.forEach(t => {
-    if (t.createdAt?.seconds) allEvents.push({ type:'todo', ts: t.createdAt.seconds, text: `Added task <strong>${esc(t.text||'—')}</strong>`, sub: `${t.priority||'medium'} priority`, href: 'todo.html' });
-    if (t.done && t.createdAt?.seconds) allEvents.push({ type:'todo', ts: t.createdAt.seconds + 1, text: `Completed task <strong>${esc(t.text||'—')}</strong>`, href: 'todo.html' });
+    if (t.createdAt?.seconds) allEvents.push({ type:'todo', ts: t.createdAt.seconds, text: `Added task <strong>${esc(t.text||'—')}</strong>`, sub: `${t.priority||'medium'} priority`, href: '/todo' });
+    if (t.done && t.createdAt?.seconds) allEvents.push({ type:'todo', ts: t.createdAt.seconds + 1, text: `Completed task <strong>${esc(t.text||'—')}</strong>`, href: '/todo' });
   });
 
   expenses.forEach(e => {
-    if (e.createdAt?.seconds) allEvents.push({ type:'expense', ts: e.createdAt.seconds, text: `Logged expense <strong>${esc(e.description||'—')}</strong>`, sub: `${e.category||'—'} · Rs ${Number(e.amount||0).toLocaleString('en-PK')}`, href: 'expenses.html' });
+    if (e.createdAt?.seconds) allEvents.push({ type:'expense', ts: e.createdAt.seconds, text: `Logged expense <strong>${esc(e.description||'—')}</strong>`, sub: `${e.category||'—'} · Rs ${Number(e.amount||0).toLocaleString('en-PK')}`, href: '/expenses' });
   });
 
   contacts.forEach(c => {
-    if (c.createdAt?.seconds) allEvents.push({ type:'contact', ts: c.createdAt.seconds, text: `Added contact <strong>${esc(c.name||'—')}</strong>`, sub: `${c.role||'—'} · ${c.organization||'—'}`, href: 'contacts.html' });
+    if (c.createdAt?.seconds) allEvents.push({ type:'contact', ts: c.createdAt.seconds, text: `Added contact <strong>${esc(c.name||'—')}</strong>`, sub: `${c.role||'—'} · ${c.organization||'—'}`, href: '/contacts' });
   });
 
   tenderFees.forEach(f => {
@@ -74,7 +74,7 @@ async function loadAll() {
       type: 'fee', ts: f.createdAt.seconds,
       text: `Recorded tender fee for <strong>${esc(f.tender||'—')}</strong>`,
       sub:  `${f.agency||'—'} · Rs ${Number(f.amount||0).toLocaleString('en-PK')}`,
-      href: 'fees.html'
+      href: '/fees'
     });
   });
 

@@ -13,7 +13,7 @@ let selectMode    = false;
 let selectedTenderIds = new Set();
 
 onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (!user) { window.location.href = '/'; return; }
   try {
     await Promise.all([loadTenders(), loadTemplates()]);
   } catch(e) {
@@ -89,7 +89,7 @@ window.renderTenderList = function() {
 window.selectTender = function(id) {
   // On mobile the preview panel is hidden — go straight to detail page
   if (window.innerWidth <= 640) {
-    window.location.href = `tender-detail.html?id=${id}`;
+    window.location.href = `/tender-detail?id=${id}`;
     return;
   }
 
@@ -124,7 +124,7 @@ window.selectTender = function(id) {
     : '<span style="font-size:12px;color:var(--muted)">No checklist items yet</span>';
 
   document.getElementById('pvOpenBtn').onclick = () => {
-    window.location.href = `tender-detail.html?id=${id}`;
+    window.location.href = `/tender-detail?id=${id}`;
   };
 };
 

@@ -73,6 +73,21 @@
   to   = "/index.html"
   status = 200
 
+[[redirects]]
+  from = "/tender-detail"
+  to   = "/tender-detail.html"
+  status = 200
+
+[[redirects]]
+  from = "/search"
+  to   = "/search.html"
+  status = 200
+
+[[redirects]]
+  from = "/import"
+  to   = "/import.html"
+  status = 200
+
 # Catch-all: send unknown routes to login
 [[redirects]]
   from = "/*"

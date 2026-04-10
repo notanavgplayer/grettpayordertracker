@@ -12,7 +12,7 @@ let customEvents = [];
 let editingEventId = null;
 
 onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (!user) { window.location.href = '/'; return; }
   try { await loadData(); } catch(e) { console.error('Failed to load calendar data:', e); }
   renderCalendar();
 });
@@ -147,7 +147,7 @@ function renderUpcoming(events) {
   const typeBadge = { submission: 'b-pending', opening: 'b-submitted', expiry: 'b-encashed', custom: 'b-forfeited' };
 
   el.innerHTML = upcoming.map(e => {
-    const href = e.source === 'tender' ? `tender-detail.html?id=${e.id}` : '';
+    const href = e.source === 'tender' ? `/tender-detail?id=${e.id}` : '';
     const customLabel = e.source === 'custom' ? (e.eventType || 'Event') : typeLabel[e.type];
     return `
     <div class="upcoming-item" onclick="${href ? `window.location.href='${href}'` : e.source === 'custom' ? `openEditEvent('${e.id}')` : ''}">

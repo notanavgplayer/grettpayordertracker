@@ -243,7 +243,7 @@
 
       <div class="warning">
         <strong>⚠ Before you proceed:</strong>
-        Make sure you are logged into the tracker first (open index.html and
+        Make sure you are logged into the tracker first (open the login page and
         sign in). This page uses your active Firebase session to write to
         Firestore. Delete this file from your project after import is complete.
       </div>
@@ -254,7 +254,7 @@
       </button>
       <button
         class="btn-back"
-        onclick="window.location.href = 'dashboard.html'"
+        onclick="window.location.href = '/dashboard'"
       >
         ← Back to Dashboard
       </button>
@@ -464,7 +464,7 @@
           document.getElementById("importBtn").disabled = true;
           showResult(
             "error",
-            "You are not logged in. Please sign in first via index.html, then return to this page.",
+            "You are not logged in. Please sign in first via the login page, then return to this page.",
           );
         }
       });
