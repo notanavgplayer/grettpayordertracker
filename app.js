@@ -22,13 +22,24 @@ let deleteTarget = null; // { type: 'po'|'log', id }
 
 // ── Load all data ─────────────────────────────────────────────────────────────
 async function loadAll() {
+  const TIMEOUT = 8000;
   try {
-    await Promise.all([loadPO(), loadLog(), loadTenders()]);
-    renderAll();
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), TIMEOUT)
+    );
+    await Promise.race([
+      Promise.all([loadPO(), loadLog(), loadTenders()]),
+      timeout
+    ]);
   } catch(e) {
     console.error('Failed to load dashboard data:', e);
-    toast('Error loading data. Please refresh the page.');
+    if (e.message === 'timeout') {
+      toast('Loading timed out. Check your connection and refresh.');
+    } else {
+      toast('Error loading data. Please refresh the page.');
+    }
   }
+  renderAll();
 }
 
 async function loadPO() {
@@ -220,17 +231,17 @@ window.renderPOTable = function() {
     }
     return `
     <tr data-id="${p.id}" onclick="handleRowClick('${p.id}', this)">
-      <td><span class="td-po">${esc(p.po||'—')}</span></td>
-      <td><span class="td-muted">${esc(p.bank||'—')}</span></td>
-      <td><span class="td-muted">${esc(p.nit||'—')}</span></td>
-      <td><div class="td-tender">${esc(p.tender||'—')}</div></td>
-      <td><span class="td-muted">${esc(p.agency||'—')}</span></td>
-      <td class="num">${p.amount ? 'Rs '+Number(p.amount).toLocaleString('en-PK') : '—'}</td>
-      <td class="td-date">${fmtDate(p.issued)}</td>
+      <td data-label="PO Number"><span class="td-po">${esc(p.po||'—')}</span></td>
+      <td data-label="Bank"><span class="td-muted">${esc(p.bank||'—')}</span></td>
+      <td data-label="NIT / Ref"><span class="td-muted">${esc(p.nit||'—')}</span></td>
+      <td data-label="Tender"><div class="td-tender">${esc(p.tender||'—')}</div></td>
+      <td data-label="Agency"><span class="td-muted">${esc(p.agency||'—')}</span></td>
+      <td data-label="Amount" class="num">${p.amount ? 'Rs '+Number(p.amount).toLocaleString('en-PK') : '—'}</td>
+      <td data-label="Issued" class="td-date">${fmtDate(p.issued)}</td>
 
-      <td>${statusBadge(p.status)}</td>
-      <td>${resultBadge(p.bidResult)}</td>
-      <td>
+      <td data-label="Status">${statusBadge(p.status)}</td>
+      <td data-label="Bid Result">${resultBadge(p.bidResult)}</td>
+      <td data-label="Actions">
         <div class="row-actions">
           <button class="btn-icon" title="Edit" onclick="openEditPO('${p.id}')">
             <svg viewBox="0 0 12 12" fill="none"><path d="M8 1.5l2.5 2.5L3 11H.5V8.5L8 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
@@ -262,13 +273,13 @@ function renderLogTable() {
 
   tbody.innerHTML = activityLog.map(l => `
     <tr>
-      <td class="td-date">${fmtDate(l.date)}</td>
-      <td><span class="td-po">${esc(l.po||'—')}</span></td>
-      <td><span class="td-muted">${esc(l.ref||'—')}</span></td>
-      <td>${esc(l.action||'—')}</td>
-      <td><span class="td-muted">${esc(l.next||'—')}</span></td>
-      <td><span class="td-muted">${esc(l.by||'—')}</span></td>
-      <td>
+      <td data-label="Date" class="td-date">${fmtDate(l.date)}</td>
+      <td data-label="PO Number"><span class="td-po">${esc(l.po||'—')}</span></td>
+      <td data-label="Reference"><span class="td-muted">${esc(l.ref||'—')}</span></td>
+      <td data-label="Action">${esc(l.action||'—')}</td>
+      <td data-label="Next Step"><span class="td-muted">${esc(l.next||'—')}</span></td>
+      <td data-label="By"><span class="td-muted">${esc(l.by||'—')}</span></td>
+      <td data-label="Actions">
         <div class="row-actions">
           <button class="btn-icon" title="Edit" onclick="openEditLog('${l.id}')">
             <svg viewBox="0 0 12 12" fill="none"><path d="M8 1.5l2.5 2.5L3 11H.5V8.5L8 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
@@ -339,11 +350,11 @@ window.savePO = async function() {
   try {
     if (editPOId) {
       await updateDoc(doc(db, "payOrders", editPOId), data);
-      toast('Pay order updated.');
+      toast(`Pay Order updated — ${data.po || 'N/A'} | ${fmtPKR(data.amount)} | ${data.status}`);
     } else {
       data.createdAt = serverTimestamp();
       await addDoc(collection(db, "payOrders"), data);
-      toast('Pay order added.');
+      toast(`Pay Order added — ${data.po || 'N/A'} | ${fmtPKR(data.amount)} | ${data.status}`);
     }
     await loadPO(); renderAll(); closePOModal();
   } catch(e) { toast('Error saving. Please try again.'); console.error(e); }

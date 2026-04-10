@@ -46,25 +46,43 @@ async function setGreeting(user) {
 
 // ── Load ALL data once ────────────────────────────────────────────────────────
 async function loadAll() {
-  // Use allSettled so one failed collection never blocks the rest
-  const [tRes, pRes, tdRes, nRes, eRes] = await Promise.allSettled([
-    getDocs(collection(db, "tenders")),
-    getDocs(collection(db, "payOrders")),
-    getDocs(collection(db, "todos")),
-    getDocs(collection(db, "notes")),
-    getDocs(collection(db, "expenses")),
-  ]);
-  const parse = res => res.status === 'fulfilled' ? res.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
-  _tenders   = parse(tRes);
-  _payOrders = parse(pRes);
-  _todos     = parse(tdRes);
-  _notes     = parse(nRes);
-  _expenses  = parse(eRes);
-  _loaded    = true;
-  // Log any failures to help debug
-  [tRes,pRes,tdRes,nRes,eRes].forEach((r,i) => {
-    if (r.status === 'rejected') console.warn(`Collection ${['tenders','payOrders','todos','notes','expenses'][i]} failed:`, r.reason);
-  });
+  const TIMEOUT = 8000;
+  try {
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), TIMEOUT)
+    );
+    await Promise.race([
+      (async () => {
+        const [tRes, pRes, tdRes, nRes, eRes] = await Promise.allSettled([
+          getDocs(collection(db, "tenders")),
+          getDocs(collection(db, "payOrders")),
+          getDocs(collection(db, "todos")),
+          getDocs(collection(db, "notes")),
+          getDocs(collection(db, "expenses")),
+        ]);
+        const parse = res => res.status === 'fulfilled' ? res.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+        _tenders   = parse(tRes);
+        _payOrders = parse(pRes);
+        _todos     = parse(tdRes);
+        _notes     = parse(nRes);
+        _expenses  = parse(eRes);
+        _loaded    = true;
+        [tRes,pRes,tdRes,nRes,eRes].forEach((r,i) => {
+          if (r.status === 'rejected') console.warn(`Collection ${['tenders','payOrders','todos','notes','expenses'][i]} failed:`, r.reason);
+        });
+      })(),
+      timeout
+    ]);
+  } catch(e) {
+    console.error('Home loadAll failed:', e);
+    const sub = document.getElementById('greetingSub');
+    if (sub) {
+      sub.textContent = e.message === 'timeout'
+        ? 'Data is taking too long to load. Please check your connection and refresh.'
+        : 'Some data failed to load. Please refresh the page.';
+      sub.style.color = 'var(--red-fg)';
+    }
+  }
   renderCards();
   renderAlerts();
   renderDeadlines();
