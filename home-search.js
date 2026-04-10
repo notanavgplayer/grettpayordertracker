@@ -69,35 +69,35 @@ function runHomeSearch(q) {
   hsData.tenders.forEach(t => {
     if (matches(ql, t.name, t.nit, t.agency)) results.push({
       type:'tender', title: t.name||'Untitled', sub: `${t.agency||'—'} · ${t.nit||'—'}`,
-      href: `tender-detail.html?id=${t.id}`
+      href: `/tender-detail?id=${t.id}`
     });
   });
   // Pay Orders
   hsData.payOrders.forEach(p => {
     if (matches(ql, p.po, p.tender, p.agency, p.bank)) results.push({
       type:'po', title: p.tender||`PO ${p.po||'—'}`, sub: `${p.po||'—'} · ${p.bank||'—'}`,
-      href: 'dashboard.html'
+      href: '/dashboard'
     });
   });
   // Notes
   hsData.notes.forEach(n => {
     if (matches(ql, n.title, n.body)) results.push({
       type:'note', title: n.title||'Untitled', sub: stripHtml(n.body||'').slice(0,150)||'No content',
-      href: 'notes.html'
+      href: '/notes'
     });
   });
   // Todos
   hsData.todos.forEach(t => {
     if (matches(ql, t.text)) results.push({
       type:'todo', title: t.text||'—', sub: `${t.priority||'medium'} · ${t.done?'Done':'Open'}`,
-      href: 'todo.html'
+      href: '/todo'
     });
   });
   // Expenses
   hsData.expenses.forEach(e => {
     if (matches(ql, e.description, e.category, e.note)) results.push({
       type:'expense', title: e.description||'—', sub: `${e.category||'—'} · Rs ${Number(e.amount||0).toLocaleString('en-PK')}`,
-      href: 'expenses.html'
+      href: '/expenses'
     });
   });
 

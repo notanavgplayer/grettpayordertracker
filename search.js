@@ -9,7 +9,7 @@ let searchTimer = null;
 
 // ── Auth + load ───────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (!user) { window.location.href = '/'; return; }
   await loadAllData();
   // If there's already a query in the input (e.g. from URL), run it
   const q = document.getElementById('globalSearch').value.trim();
@@ -77,7 +77,7 @@ function runSearch(q) {
           sub: `${t.agency||'—'} · ${t.nit||'—'}`,
           badge: t.status,
           badgeCls: statusBadgeClass(t.status),
-          href: `tender-detail.html?id=${t.id}`,
+          href: `/tender-detail?id=${t.id}`,
           q,
         });
       }
@@ -94,7 +94,7 @@ function runSearch(q) {
           sub: `${p.po||'—'} · ${p.bank||'—'} · Rs ${Number(p.amount||0).toLocaleString('en-PK')}`,
           badge: p.status,
           badgeCls: poBadgeClass(p.status),
-          href: 'dashboard.html',
+          href: '/dashboard',
           q,
         });
       }
@@ -109,7 +109,7 @@ function runSearch(q) {
           type: 'note', id: n.id,
           title: n.title || 'Untitled Note',
           sub: stripHtml(n.body||'').slice(0, 150) || 'No content',
-          href: 'notes.html',
+          href: '/notes',
           q,
         });
       }
@@ -126,7 +126,7 @@ function runSearch(q) {
           sub: `${t.priority||'medium'} priority · ${t.done ? 'Completed' : 'Open'}`,
           badge: t.done ? 'Done' : 'Open',
           badgeCls: t.done ? 'b-returned' : 'b-submitted',
-          href: 'todo.html',
+          href: '/todo',
           q,
         });
       }
@@ -141,7 +141,7 @@ function runSearch(q) {
           type: 'expense', id: e.id,
           title: e.description || '—',
           sub: `${e.category||'—'} · ${fmtDate(e.date)} · Rs ${Number(e.amount||0).toLocaleString('en-PK')}`,
-          href: 'expenses.html',
+          href: '/expenses',
           q,
         });
       }

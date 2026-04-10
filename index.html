@@ -170,7 +170,7 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 onAuthStateChanged(auth, user => {
-  if (user) window.location.href = "home.html";
+  if (user) window.location.href = "/home";
 });
 
 window.handleLogin = async function() {
@@ -188,7 +188,7 @@ window.handleLogin = async function() {
 
   try {
     await signInWithEmailAndPassword(auth, email, password);
-    window.location.href = "home.html";
+    window.location.href = "/home";
   } catch (e) {
     const messages = {
       'auth/user-not-found':   'No account found with this email.',

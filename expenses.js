@@ -31,7 +31,7 @@ const CAT_CONFIG = {
 let tenders = [];
 
 onAuthStateChanged(auth, user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (!user) { window.location.href = '/'; return; }
   loadAll();
 });
 

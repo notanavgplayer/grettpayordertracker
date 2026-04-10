@@ -10,17 +10,17 @@ let notesTimer = null;
 
 // ── Auth + Load ───────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (!user) { window.location.href = '/'; return; }
   const params = new URLSearchParams(window.location.search);
   tenderId     = params.get('id');
-  if (!tenderId) { window.location.href = 'tenders.html'; return; }
+  if (!tenderId) { window.location.href = '/tenders'; return; }
   await loadTender();
 });
 
 async function loadTender() {
   try {
     const snap = await getDoc(doc(db, "tenders", tenderId));
-    if (!snap.exists()) { window.location.href = 'tenders.html'; return; }
+    if (!snap.exists()) { window.location.href = '/tenders'; return; }
     tender = { id: snap.id, ...snap.data() };
     document.title = `${tender.name || 'Tender'} — Grett Engineering`;
     renderAll();
@@ -131,7 +131,7 @@ window.duplicateTender = async function() {
   try {
     const ref = await addDoc(col(db, "tenders"), copy);
     toast('Tender duplicated! Redirecting…');
-    setTimeout(() => { window.location.href = `tender-detail.html?id=${ref.id}`; }, 1000);
+    setTimeout(() => { window.location.href = `/tender-detail?id=${ref.id}`; }, 1000);
   } catch(e) { console.error(e); toast('Error duplicating tender.'); }
 };
 

@@ -15,7 +15,7 @@ let _searchTimer = null;
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (!user) { window.location.href = '/'; return; }
   await setGreeting(user);
   await loadAll();
 });
@@ -174,7 +174,7 @@ function renderDeadlines() {
   el.innerHTML = upcoming.map(t => {
     const cls   = t.daysLeft <= 3 ? 'urgent' : t.daysLeft <= 7 ? 'soon' : 'ok';
     const label = t.daysLeft === 0 ? 'Today!' : t.daysLeft === 1 ? '1 day' : `${t.daysLeft} days`;
-    return `<a class="deadline-item" href="tender-detail.html?id=${t.id}">
+    return `<a class="deadline-item" href="/tender-detail?id=${t.id}">
       <div class="deadline-dot ${cls}"></div>
       <div class="deadline-info">
         <div class="deadline-name">${esc(t.name||'Untitled')}</div>
@@ -248,8 +248,8 @@ window.toggleHomeTodo = async function(id, row) {
 function renderActivity() {
   const events = [];
   _tenders.forEach(t => {
-    if (t.createdAt?.seconds) events.push({ type:'tender', ts: t.createdAt.seconds, text: `Tender <strong>${esc(t.name||'Untitled')}</strong> created`, href: `tender-detail.html?id=${t.id}` });
-    if (t.updatedAt?.seconds && t.updatedAt.seconds !== t.createdAt?.seconds) events.push({ type:'tender', ts: t.updatedAt.seconds, text: `Tender <strong>${esc(t.name||'Untitled')}</strong> updated`, href: `tender-detail.html?id=${t.id}` });
+    if (t.createdAt?.seconds) events.push({ type:'tender', ts: t.createdAt.seconds, text: `Tender <strong>${esc(t.name||'Untitled')}</strong> created`, href: `/tender-detail?id=${t.id}` });
+    if (t.updatedAt?.seconds && t.updatedAt.seconds !== t.createdAt?.seconds) events.push({ type:'tender', ts: t.updatedAt.seconds, text: `Tender <strong>${esc(t.name||'Untitled')}</strong> updated`, href: `/tender-detail?id=${t.id}` });
   });
   _payOrders.forEach(p => { if (p.createdAt?.seconds) events.push({ type:'po', ts: p.createdAt.seconds, text: `Pay order <strong>${esc(p.po||'—')}</strong> added (${esc(p.bank||'—')})` }); });
   _todos.filter(t => t.done && t.createdAt?.seconds).forEach(t => { events.push({ type:'todo', ts: t.createdAt.seconds, text: `Task completed: <strong>${esc(t.text)}</strong>` }); });
@@ -313,19 +313,19 @@ function runSearch(q) {
   const typeLabel = { tender:'Tender', po:'Pay Order', note:'Note', todo:'To-Do', expense:'Expense' };
 
   _tenders.forEach(t => {
-    if (hit(ql, t.name, t.nit, t.agency, t.notes)) results.push({ type:'tender', title:t.name||'Untitled', sub:`${t.agency||'—'} · ${t.nit||'—'}`, href:`tender-detail.html?id=${t.id}` });
+    if (hit(ql, t.name, t.nit, t.agency, t.notes)) results.push({ type:'tender', title:t.name||'Untitled', sub:`${t.agency||'—'} · ${t.nit||'—'}`, href:`/tender-detail?id=${t.id}` });
   });
   _payOrders.forEach(p => {
-    if (hit(ql, p.po, p.tender, p.agency, p.bank)) results.push({ type:'po', title:p.tender||`PO ${p.po||'—'}`, sub:`${p.po||'—'} · ${p.bank||'—'}`, href:'dashboard.html' });
+    if (hit(ql, p.po, p.tender, p.agency, p.bank)) results.push({ type:'po', title:p.tender||`PO ${p.po||'—'}`, sub:`${p.po||'—'} · ${p.bank||'—'}`, href:'/dashboard' });
   });
   _notes.forEach(n => {
-    if (hit(ql, n.title, n.body)) results.push({ type:'note', title:n.title||'Untitled', sub:stripHtml(n.body||'').slice(0,150)||'No content', href:`notes.html?id=${n.id}` });
+    if (hit(ql, n.title, n.body)) results.push({ type:'note', title:n.title||'Untitled', sub:stripHtml(n.body||'').slice(0,150)||'No content', href:`/notes?id=${n.id}` });
   });
   _todos.forEach(t => {
-    if (hit(ql, t.text)) results.push({ type:'todo', title:t.text||'—', sub:`${t.priority||'medium'} · ${t.done?'Done':'Open'}`, href:'todo.html' });
+    if (hit(ql, t.text)) results.push({ type:'todo', title:t.text||'—', sub:`${t.priority||'medium'} · ${t.done?'Done':'Open'}`, href:'/todo' });
   });
   _expenses.forEach(e => {
-    if (hit(ql, e.description, e.category, e.note)) results.push({ type:'expense', title:e.description||'—', sub:`${e.category||'—'} · Rs ${Number(e.amount||0).toLocaleString('en-PK')}`, href:'expenses.html' });
+    if (hit(ql, e.description, e.category, e.note)) results.push({ type:'expense', title:e.description||'—', sub:`${e.category||'—'} · Rs ${Number(e.amount||0).toLocaleString('en-PK')}`, href:'/expenses' });
   });
 
   const show = results.slice(0, 8);

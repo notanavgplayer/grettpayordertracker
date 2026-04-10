@@ -3,7 +3,7 @@ import { onAuthStateChanged, updatePassword } from "https://www.gstatic.com/fire
 import { collection, getDocs, doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (!user) { window.location.href = '/'; return; }
 
   document.getElementById('settingsEmail').textContent = user.email || '—';
   document.getElementById('settingsCreated').textContent = user.metadata.creationTime
