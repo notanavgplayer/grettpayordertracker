@@ -121,9 +121,58 @@
 
   /* Tables scroll horizontally inside their wrapper */
   table { min-width: 0 !important; }
-  .table-wrap table,
   .fees-table-wrap table,
   .exp-table-panel table { min-width: 480px; }
+
+  /* ── CARD VIEW FOR PO & LOG TABLES ON MOBILE ── */
+  #poTableWrap table,
+  #logTableWrap table { min-width: 0; }
+
+  #poTableWrap thead,
+  #logTableWrap thead { display: none; }
+
+  #poTableWrap tbody tr,
+  #logTableWrap tbody tr {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+
+  #poTableWrap tbody td,
+  #logTableWrap tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border: none;
+    font-size: 12px;
+  }
+
+  #poTableWrap tbody td::before,
+  #logTableWrap tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    flex-shrink: 0;
+    margin-right: 12px;
+  }
+
+  #poTableWrap td[data-label="Actions"]::before,
+  #logTableWrap td[data-label="Actions"]::before { display: none; }
+
+  #poTableWrap td[data-label="Actions"],
+  #logTableWrap td[data-label="Actions"] {
+    justify-content: flex-end;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+    padding-top: 8px;
+  }
 
   /* Templates grid */
   .templates-grid { grid-template-columns: 1fr !important; }
