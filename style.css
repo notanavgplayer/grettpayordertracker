@@ -232,10 +232,35 @@ td.num { text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight
 .td-muted { color: var(--muted); font-size: 12px; }
 .td-date { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .td-days { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 12px; text-align: center; white-space: nowrap; }
-.days-ok     { color: var(--green-fg); }
-.days-warn   { color: var(--amber-fg); }
-.days-danger { color: var(--red-fg); }
-.days-closed { color: var(--muted); font-weight: 400; }
+
+/* ── TOOLBAR DELETE BUTTON ── */
+.toolbar-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--red-fg, #ef4444);
+  background: transparent;
+  color: var(--red-fg, #ef4444);
+  font-family: 'IBM Plex Sans', sans-serif;
+  transition: background 0.15s, color 0.15s;
+}
+.toolbar-delete:hover {
+  background: var(--red-fg, #ef4444);
+  color: white;
+}
+.toolbar-delete:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.toolbar-delete:disabled:hover {
+  background: transparent;
+  color: var(--red-fg, #ef4444);
+}
 
 /* ── BADGES ── */
 .badge {

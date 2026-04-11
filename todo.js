@@ -5,8 +5,9 @@ import {
   deleteDoc, doc, query, orderBy, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-let tasks      = [];
-let todoFilter = 'all';
+let tasks         = [];
+let todoFilter    = 'all';
+let selectedTaskId = null;
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, user => {
@@ -94,9 +95,10 @@ function taskHtml(t) {
   const todayStr = new Date().toISOString().split('T')[0];
   const isOverdue = !t.done && t.dueDate && t.dueDate < todayStr;
   const dueDateHtml = t.dueDate ? `<span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:8px;background:${isOverdue ? 'var(--red-bg)' : 'var(--blue-bg)'};color:${isOverdue ? 'var(--red-fg)' : 'var(--blue-fg)'}">Due: ${new Date(t.dueDate+'T00:00:00').toLocaleDateString('en-PK',{day:'2-digit',month:'short'})}</span>` : '';
+  const selClass = selectedTaskId === t.id ? 'task-selected' : '';
   return `
-  <div class="task-item ${t.done ? 'done' : ''} ${isOverdue ? 'overdue' : ''}" id="task-${t.id}">
-    <button class="task-check-btn" onclick="toggleDone('${t.id}')" title="${t.done ? 'Mark open' : 'Mark done'}">
+  <div class="task-item ${t.done ? 'done' : ''} ${isOverdue ? 'overdue' : ''} ${selClass}" id="task-${t.id}" onclick="selectTask('${t.id}', this)">
+    <button class="task-check-btn" onclick="event.stopPropagation();toggleDone('${t.id}')" title="${t.done ? 'Mark open' : 'Mark done'}">
       <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
         <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
@@ -104,16 +106,11 @@ function taskHtml(t) {
     <div class="task-body">
       <div class="task-text">${esc(t.text)}</div>
       <div class="task-meta">
-        <span class="priority-badge ${pClass[t.priority] || 'p-medium'}" onclick="cyclePriority('${t.id}')" title="Click to change priority">${pMap[t.priority] || 'Medium'}</span>
+        <span class="priority-badge ${pClass[t.priority] || 'p-medium'}" onclick="event.stopPropagation();cyclePriority('${t.id}')" title="Click to change priority">${pMap[t.priority] || 'Medium'}</span>
         ${dueDateHtml}
         <span class="task-date">${date}</span>
       </div>
     </div>
-    <button class="task-del-btn" onclick="deleteTask('${t.id}')" title="Delete">
-      <svg viewBox="0 0 12 12" fill="none">
-        <path d="M1 3h10M4 3V2h4v1M2.5 3l.8 8h5.4l.8-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
   </div>`;
 }
 
@@ -173,7 +170,47 @@ window.toggleDone = async function(id) {
   }
 };
 
-// ── Delete task ───────────────────────────────────────────────────────────────
+// ── Select task ───────────────────────────────────────────────────────────────
+window.selectTask = function(id, el) {
+  if (selectedTaskId === id) {
+    selectedTaskId = null;
+  } else {
+    selectedTaskId = id;
+  }
+  const btn = document.getElementById('todoDeleteBtn');
+  if (btn) btn.disabled = !selectedTaskId;
+  renderTasks();
+};
+
+// ── Delete task (via toolbar) ─────────────────────────────────────────────────
+window.deleteSelectedTask = function() {
+  if (!selectedTaskId) { toast('Select a task to delete first.'); return; }
+  document.getElementById('todoConfirmOverlay').classList.add('open');
+};
+
+window.closeTodoConfirm = function() {
+  document.getElementById('todoConfirmOverlay').classList.remove('open');
+};
+
+window.confirmDeleteTask = async function() {
+  if (!selectedTaskId) return;
+  const idToDelete = selectedTaskId;
+  selectedTaskId = null;
+  closeTodoConfirm();
+  tasks = tasks.filter(x => x.id !== idToDelete);
+  renderTasks();
+  const btn = document.getElementById('todoDeleteBtn');
+  if (btn) btn.disabled = true;
+  try {
+    await deleteDoc(doc(db, "todos", idToDelete));
+    toast('Task deleted.');
+  } catch(e) {
+    console.error('Delete error:', e);
+    toast('Error deleting task.');
+  }
+};
+
+// ── Delete task (legacy, kept for compatibility) ───────────────────────────────
 window.deleteTask = async function(id) {
   tasks = tasks.filter(x => x.id !== id);
   renderTasks();

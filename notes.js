@@ -51,9 +51,6 @@ function renderList() {
       </div>
       <div class="note-item-preview">${esc(stripHtml(n.body || '').split('\n')[0]) || 'No content'}</div>
       <div class="note-item-date">${fmtDate(n.updatedAt)}</div>
-      <button class="note-item-del" onclick="deleteNoteById(event,'${n.id}')" title="Delete note">
-        <svg viewBox="0 0 12 12" fill="none"><path d="M1 3h10M4 3V2h4v1M2.5 3l.8 8h5.4l.8-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
     </div>`;
   }).join('');
 }

@@ -10,6 +10,7 @@ let expFilter   = 'month';
 let breakdown   = 'category';
 let deleteId    = null;
 let editId      = null;
+let selectedExpIds = new Set();
 let currentYear  = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
 
@@ -128,8 +129,9 @@ function renderTable() {
 
   tbody.innerHTML = rows.map(e => {
     const cfg = CAT_CONFIG[e.category] || CAT_CONFIG['Miscellaneous'];
+    const sel = selectedExpIds.has(e.id) ? 'row-selected' : '';
     return `
-    <tr>
+    <tr class="${sel}" onclick="toggleExpRow('${e.id}', this)" style="cursor:pointer">
       <td><span class="exp-desc">${esc(e.description||'—')}</span></td>
       <td><span class="badge ${cfg.cls}" style="font-size:10px">${esc(e.category||'—')}</span></td>
       <td><span class="exp-date">${fmtDate(e.date)}</span></td>
@@ -138,11 +140,8 @@ function renderTable() {
       <td><span class="exp-note">${esc(e.note||'—')}</span></td>
       <td>
         <div class="row-actions">
-          <button class="btn-icon" title="Edit" onclick="openEditModal('${e.id}')">
+          <button class="btn-icon" title="Edit" onclick="event.stopPropagation();openEditModal('${e.id}')">
             <svg viewBox="0 0 12 12" fill="none"><path d="M8 1.5l2.5 2.5L3 11H.5V8.5L8 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-          </button>
-          <button class="btn-icon del" title="Delete" onclick="openExpConfirm('${e.id}')">
-            <svg viewBox="0 0 12 12" fill="none"><path d="M1 3h10M4 3V2h4v1M2.5 3l.8 8h5.4l.8-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
       </td>
@@ -373,9 +372,38 @@ window.saveExpense = async function() {
   }
 };
 
+// ── Row selection ─────────────────────────────────────────────────────────────
+window.toggleExpRow = function(id, tr) {
+  if (selectedExpIds.has(id)) {
+    selectedExpIds.delete(id);
+    tr.classList.remove('row-selected');
+  } else {
+    selectedExpIds.add(id);
+    tr.classList.add('row-selected');
+  }
+  const btn = document.getElementById('expDeleteBtn');
+  if (btn) {
+    btn.disabled = selectedExpIds.size === 0;
+    btn.textContent = selectedExpIds.size > 1
+      ? `Delete Selected (${selectedExpIds.size})`
+      : 'Delete Selected';
+  }
+};
+
 // ── Delete ────────────────────────────────────────────────────────────────────
+window.deleteSelectedExpenses = function() {
+  if (!selectedExpIds.size) { toast('Select expenses to delete first.'); return; }
+  const n = selectedExpIds.size;
+  const h3 = document.querySelector('#expConfirmOverlay h3');
+  if (h3) h3.textContent = n === 1 ? 'Delete this expense?' : `Delete ${n} selected expenses?`;
+  deleteId = '__bulk__';
+  document.getElementById('expConfirmOverlay').classList.add('open');
+};
+
 window.openExpConfirm = function(id) {
   deleteId = id;
+  const h3 = document.querySelector('#expConfirmOverlay h3');
+  if (h3) h3.textContent = 'Delete this expense?';
   document.getElementById('expConfirmOverlay').classList.add('open');
 };
 window.closeExpConfirm = function() {
@@ -383,13 +411,19 @@ window.closeExpConfirm = function() {
   deleteId = null;
 };
 window.confirmExpDelete = async function() {
-  if (!deleteId) return;
+  const ids = deleteId === '__bulk__' ? [...selectedExpIds] : (deleteId ? [deleteId] : []);
+  if (!ids.length) return;
   try {
-    await deleteDoc(doc(db, "expenses", deleteId));
-    expenses = expenses.filter(e => e.id !== deleteId);
+    await Promise.all(ids.map(id => deleteDoc(doc(db, "expenses", id))));
+    expenses = expenses.filter(e => !ids.includes(e.id));
+    selectedExpIds.clear();
+    deleteId = null;
     closeExpConfirm();
     renderAll();
-    toast('Expense deleted.');
+    // Reset button
+    const btn = document.getElementById('expDeleteBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Delete Selected'; }
+    toast(`${ids.length} expense${ids.length > 1 ? 's' : ''} deleted.`);
   } catch(e) { toast('Error deleting.'); }
 };
 

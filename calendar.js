@@ -49,13 +49,6 @@ function buildEvents() {
     });
   });
 
-  payOrders.forEach(p => {
-    if (p.expiry && p.status === 'Submitted') add(p.expiry, {
-      type: 'expiry', label: `PO ${p.po || '—'}`, id: p.id,
-      agency: p.bank, detail: 'Pay order expiry', source: 'po'
-    });
-  });
-
   customEvents.forEach(e => {
     if (e.date) add(e.date, {
       type: 'custom', label: e.title || 'Untitled', id: e.id,
@@ -143,8 +136,8 @@ function renderUpcoming(events) {
     return;
   }
 
-  const typeLabel = { submission: 'Submission', opening: 'Bid Opening', expiry: 'PO Expiry', custom: 'Event' };
-  const typeBadge = { submission: 'b-pending', opening: 'b-submitted', expiry: 'b-encashed', custom: 'b-forfeited' };
+  const typeLabel = { submission: 'Submission', opening: 'Bid Opening', custom: 'Event' };
+  const typeBadge = { submission: 'b-pending', opening: 'b-submitted', custom: 'b-forfeited' };
 
   el.innerHTML = upcoming.map(e => {
     const href = e.source === 'tender' ? `/tender-detail?id=${e.id}` : '';
@@ -180,8 +173,8 @@ window.openDayDetail = function(dateStr) {
   overlay.dataset.date = dateStr;
 
   const el = document.getElementById('dayDetailEvents');
-  const dotColors = { submission: '#e8940a', opening: '#185fa5', expiry: '#c0392b', custom: '#5d3fa5' };
-  const typeLabels = { submission: 'Submission', opening: 'Bid Opening', expiry: 'PO Expiry' };
+  const dotColors = { submission: '#e8940a', opening: '#185fa5', custom: '#5d3fa5' };
+  const typeLabels = { submission: 'Submission', opening: 'Bid Opening' };
 
   if (!dayEvents.length) {
     el.innerHTML = '<div class="day-no-events">No events on this date</div>';

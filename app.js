@@ -218,17 +218,7 @@ window.renderPOTable = function() {
   wrap.style.display  = 'block';
   empty.style.display = 'none';
 
-  const today = new Date(); today.setHours(0,0,0,0);
-
   tbody.innerHTML = rows.map(p => {
-    const daysLeft = daysTo(p.expiry);
-    let daysHtml = '—';
-    if (p.status === 'Returned' || p.status === 'Encashed' || p.status === 'Forfeited') {
-      daysHtml = `<span class="days-closed">Closed</span>`;
-    } else if (daysLeft !== null) {
-      const cls = daysLeft <= 7 ? 'days-danger' : daysLeft <= 14 ? 'days-warn' : 'days-ok';
-      daysHtml = `<span class="${cls}">${daysLeft}d</span>`;
-    }
     return `
     <tr data-id="${p.id}" onclick="handleRowClick('${p.id}', this)">
       <td data-label="PO Number"><span class="td-po">${esc(p.po||'—')}</span></td>
@@ -238,7 +228,6 @@ window.renderPOTable = function() {
       <td data-label="Agency"><span class="td-muted">${esc(p.agency||'—')}</span></td>
       <td data-label="Amount" class="num">${p.amount ? 'Rs '+Number(p.amount).toLocaleString('en-PK') : '—'}</td>
       <td data-label="Issued" class="td-date">${fmtDate(p.issued)}</td>
-
       <td data-label="Status">${statusBadge(p.status)}</td>
       <td data-label="Bid Result">${resultBadge(p.bidResult)}</td>
       <td data-label="Actions">
@@ -249,9 +238,6 @@ window.renderPOTable = function() {
           ${p.status === 'Submitted' ? `<button class="btn-icon" title="Mark as Returned" onclick="quickReturn('${p.id}', event)" style="color:var(--green-fg);border-color:var(--green-fg)">
             <svg viewBox="0 0 12 12" fill="none"><path d="M1.5 6.5l2.5 2.5 6-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>` : ''}
-          <button class="btn-icon del" title="Delete" onclick="openConfirm('po','${p.id}')">
-            <svg viewBox="0 0 12 12" fill="none"><path d="M1 3h10M4 3V2h4v1M2.5 3l.8 8h5.4l.8-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
         </div>
       </td>
     </tr>`;
@@ -284,9 +270,6 @@ function renderLogTable() {
           <button class="btn-icon" title="Edit" onclick="openEditLog('${l.id}')">
             <svg viewBox="0 0 12 12" fill="none"><path d="M8 1.5l2.5 2.5L3 11H.5V8.5L8 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
           </button>
-          <button class="btn-icon del" title="Delete" onclick="openConfirm('log','${l.id}')">
-            <svg viewBox="0 0 12 12" fill="none"><path d="M1 3h10M4 3V2h4v1M2.5 3l.8 8h5.4l.8-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
         </div>
       </td>
     </tr>`).join('');
@@ -296,7 +279,7 @@ function renderLogTable() {
 window.openPOModal = function() {
   editPOId = null;
   document.getElementById('poModalTitle').textContent = 'New Pay Order';
-  ['po','bank','nit','amount','tender','agency','issued','submitted','expiry','notes'].forEach(f => {
+  ['po','bank','nit','amount','tender','agency','issued','submitted','notes'].forEach(f => {
     document.getElementById('f_'+f).value = '';
   });
   document.getElementById('f_status').value = 'Pending';
@@ -317,7 +300,6 @@ window.openEditPO = function(id) {
   document.getElementById('f_agency').value    = p.agency    || '';
   document.getElementById('f_issued').value    = p.issued    || '';
   document.getElementById('f_submitted').value = p.submitted || '';
-  document.getElementById('f_expiry').value    = p.expiry    || '';
   document.getElementById('f_status').value    = p.status    || 'Pending';
   document.getElementById('f_result').value    = p.bidResult || 'N/A';
   document.getElementById('f_notes').value     = p.notes     || '';
@@ -340,7 +322,6 @@ window.savePO = async function() {
     agency:    gv('f_agency'),
     issued:    gv('f_issued'),
     submitted: gv('f_submitted'),
-    expiry:    gv('f_expiry'),
     status:    gv('f_status'),
     bidResult: gv('f_result'),
     notes:     gv('f_notes'),
@@ -468,12 +449,6 @@ function fmtDate(d) {
 function fmtPKR(n) {
   if (!n) return 'Rs 0';
   return 'Rs ' + Number(n).toLocaleString('en-PK');
-}
-function daysTo(dateStr) {
-  if (!dateStr) return null;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const exp   = new Date(dateStr + 'T00:00:00');
-  return Math.round((exp - today) / 86400000);
 }
 function statusBadge(s) {
   const map = { Pending:'b-pending', Submitted:'b-submitted', Returned:'b-returned', Encashed:'b-encashed', Forfeited:'b-forfeited' };
@@ -664,10 +639,10 @@ window.exportPOPDF = function() {
 window.exportPOCSV = function() {
   if (!payOrders.length) { toast('No pay orders to export.'); return; }
 
-  const headers = ['PO Number','Bank','NIT / Ref','Tender / Project','Agency','Amount (PKR)','Date Issued','Date Submitted','Expiry Date','Status','Bid Result','Notes'];
+  const headers = ['PO Number','Bank','NIT / Ref','Tender / Project','Agency','Amount (PKR)','Date Issued','Date Submitted','Status','Bid Result','Notes'];
   const rows = payOrders.map(p => [
     p.po || '', p.bank || '', p.nit || '', p.tender || '', p.agency || '',
-    p.amount || '', p.issued || '', p.submitted || '', p.expiry || '',
+    p.amount || '', p.issued || '', p.submitted || '',
     p.status || '', p.bidResult || '', (p.notes || '').replace(/[\r\n]+/g, ' ')
   ]);
 

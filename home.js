@@ -86,27 +86,18 @@ async function loadAll() {
   renderCards();
   renderAlerts();
   renderDeadlines();
-  renderPOExpiry();
   renderTodos();
   renderActivity();
 }
 
 // ── CARDS ─────────────────────────────────────────────────────────────────────
 function renderCards() {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const in7   = new Date(today); in7.setDate(in7.getDate() + 7);
   const active    = _tenders.filter(t => ['Bidding','Submitted'].includes(t.status)).length;
   const awarded   = _tenders.filter(t => t.status === 'Awarded').length;
   const atRisk    = _payOrders.filter(p => p.status === 'Submitted').length;
-  const expiring  = _payOrders.filter(p => {
-    if (p.status !== 'Submitted' || !p.expiry) return false;
-    const d = new Date(p.expiry + 'T00:00:00');
-    return d >= today && d <= in7;
-  }).length;
   const openTasks = _todos.filter(t => !t.done).length;
   document.getElementById('hActiveTenders').textContent = active;
   document.getElementById('hPOAtRisk').textContent      = atRisk;
-  document.getElementById('hPOExpiring').textContent    = expiring;
   document.getElementById('hOpenTasks').textContent     = openTasks;
   document.getElementById('hAwarded').textContent       = awarded;
 }
@@ -115,19 +106,6 @@ function renderCards() {
 function renderAlerts() {
   const today = new Date(); today.setHours(0,0,0,0);
   const alerts = [];
-
-  // POs expiring within 3 days
-  _payOrders.filter(p => p.status === 'Submitted' && p.expiry).forEach(p => {
-    const d = new Date(p.expiry + 'T00:00:00');
-    const daysLeft = Math.round((d - today) / 86400000);
-    if (daysLeft <= 0) {
-      alerts.push({ level:'urgent', text:`Pay order <strong>${esc(p.po||'—')}</strong> (${esc(p.bank||'—')}) has <strong>expired today</strong>!` });
-    } else if (daysLeft <= 3) {
-      alerts.push({ level:'urgent', text:`Pay order <strong>${esc(p.po||'—')}</strong> (${esc(p.bank||'—')}) expires in <strong>${daysLeft} day${daysLeft>1?'s':''}</strong>` });
-    } else if (daysLeft <= 7) {
-      alerts.push({ level:'warning', text:`Pay order <strong>${esc(p.po||'—')}</strong> expires in <strong>${daysLeft} days</strong>` });
-    }
-  });
 
   // Tender submissions within 2 days
   _tenders.filter(t => t.submissionDate && ['Bidding','Submitted'].includes(t.status)).forEach(t => {
@@ -182,39 +160,6 @@ function renderDeadlines() {
       </div>
       <span class="deadline-days ${cls}">${label}</span>
     </a>`;
-  }).join('');
-}
-
-// ── PO EXPIRY ─────────────────────────────────────────────────────────────────
-function renderPOExpiry() {
-  const today    = new Date(); today.setHours(0,0,0,0);
-  const expiring = _payOrders
-    .filter(p => p.status === 'Submitted' && p.expiry)
-    .map(p => ({ ...p, daysLeft: Math.round((new Date(p.expiry + 'T00:00:00') - today) / 86400000) }))
-    .filter(p => p.daysLeft >= 0 && p.daysLeft <= 30)
-    .sort((a,b) => a.daysLeft - b.daysLeft)
-    .slice(0, 6);
-
-  // Also check for already-expired POs
-  const expired = _payOrders
-    .filter(p => p.status === 'Submitted' && p.expiry)
-    .map(p => ({ ...p, daysLeft: Math.round((new Date(p.expiry + 'T00:00:00') - today) / 86400000) }))
-    .filter(p => p.daysLeft < 0)
-    .sort((a,b) => b.daysLeft - a.daysLeft)
-    .slice(0, 3);
-
-  const el = document.getElementById('poExpiryList');
-  const allItems = [...expired, ...expiring];
-  if (!allItems.length) { el.innerHTML = '<div class="panel-empty">No pay orders expiring soon.</div>'; return; }
-  el.innerHTML = allItems.map(p => {
-    const isExpired = p.daysLeft < 0;
-    const cls   = isExpired ? 'urgent' : p.daysLeft <= 7 ? 'urgent' : 'soon';
-    const label = isExpired ? `${Math.abs(p.daysLeft)}d overdue!` : p.daysLeft === 0 ? 'Today!' : p.daysLeft === 1 ? '1 day' : `${p.daysLeft}d left`;
-    return `<div class="po-item">
-      <span class="po-num">${esc(p.po||'—')}</span>
-      <span class="po-bank">${esc(p.bank||'—')} · Rs ${Number(p.amount||0).toLocaleString('en-PK')}</span>
-      <span class="po-days ${cls}">${label}</span>
-    </div>`;
   }).join('');
 }
 

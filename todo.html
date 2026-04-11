@@ -173,6 +173,11 @@
     font-family: 'IBM Plex Sans', sans-serif;
   }
   .clear-done-btn:hover { color: var(--red-fg); background: var(--red-bg); }
+  .task-item.task-selected {
+    border-color: var(--navy3);
+    background: #eef4fb;
+    box-shadow: 0 0 0 2px rgba(24,95,165,0.15);
+  }
 </style>
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -214,13 +219,32 @@
     <button class="todo-filter-btn" onclick="setTodoFilter('high', this)">High Priority</button>
     <button class="todo-filter-btn" onclick="setTodoFilter('done', this)">Completed</button>
     <button class="todo-filter-btn" onclick="setTodoFilter('overdue', this)">Overdue</button>
-    <button class="clear-done-btn" onclick="clearDone()" style="margin-left:auto">Clear completed</button>
+    <button class="toolbar-delete" id="todoDeleteBtn" onclick="deleteSelectedTask()" disabled style="margin-left:auto">
+      <svg viewBox="0 0 12 12" fill="none" width="14" height="14"><path d="M1 3h10M4 3V2h4v1M2.5 3l.8 8h5.4l.8-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Delete Selected
+    </button>
+    <button class="clear-done-btn" onclick="clearDone()">Clear completed</button>
   </div>
 
   <!-- LIST -->
   <div id="taskList"></div>
 
 </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="modal-overlay" id="todoConfirmOverlay">
+  <div class="modal confirm-modal">
+    <div class="confirm-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="#c0392b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h3>Delete this task?</h3>
+    <p>This cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closeTodoConfirm()">Cancel</button>
+      <button class="btn-danger" onclick="confirmDeleteTask()">Delete</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
