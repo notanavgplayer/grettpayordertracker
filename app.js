@@ -190,7 +190,7 @@ function renderWinRate() {
         </div>
       </div>
       <div class="winrate-legend">
-        <div class="winrate-leg-item"><div class="winrate-dot" style="background:var(--green-fg)"></div>Won: ${won}</div>
+        <div class="winrate-leg-item"><div class="winrate-dot" style="background:var(--green-fg)"></div>Awarded: ${won}</div>
         <div class="winrate-leg-item"><div class="winrate-dot" style="background:var(--red-fg)"></div>Lost: ${lost}</div>
         <div class="winrate-leg-item"><div class="winrate-dot" style="background:var(--blue-fg)"></div>Active: ${active}</div>
         <div class="winrate-leg-total">Total: ${total} tenders</div>
@@ -232,10 +232,10 @@ window.renderPOTable = function() {
       <td data-label="Bid Result">${resultBadge(p.bidResult)}</td>
       <td data-label="Actions">
         <div class="row-actions">
-          <button class="btn-icon" title="Edit" onclick="openEditPO('${p.id}')">
+          <button class="btn-icon" title="Edit" aria-label="Edit pay order" onclick="openEditPO('${p.id}')">
             <svg viewBox="0 0 12 12" fill="none"><path d="M8 1.5l2.5 2.5L3 11H.5V8.5L8 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
           </button>
-          ${p.status === 'Submitted' ? `<button class="btn-icon" title="Mark as Returned" onclick="quickReturn('${p.id}', event)" style="color:var(--green-fg);border-color:var(--green-fg)">
+          ${p.status === 'Submitted' ? `<button class="btn-icon" title="Mark as Returned" aria-label="Mark as returned" onclick="quickReturn('${p.id}', event)" style="color:var(--green-fg);border-color:var(--green-fg)">
             <svg viewBox="0 0 12 12" fill="none"><path d="M1.5 6.5l2.5 2.5 6-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>` : ''}
         </div>
@@ -267,7 +267,7 @@ function renderLogTable() {
       <td data-label="By"><span class="td-muted">${esc(l.by||'—')}</span></td>
       <td data-label="Actions">
         <div class="row-actions">
-          <button class="btn-icon" title="Edit" onclick="openEditLog('${l.id}')">
+          <button class="btn-icon" title="Edit" aria-label="Edit log entry" onclick="openEditLog('${l.id}')">
             <svg viewBox="0 0 12 12" fill="none"><path d="M8 1.5l2.5 2.5L3 11H.5V8.5L8 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
           </button>
         </div>
@@ -326,7 +326,9 @@ window.savePO = async function() {
     bidResult: gv('f_result'),
     notes:     gv('f_notes'),
   };
-  if (!data.tender && !data.po) { toast('Enter at least a PO number or tender name.'); return; }
+  if (!data.po) { toast('Please enter a PO Number.'); document.getElementById('f_po').focus(); return; }
+  if (!data.bank) { toast('Please enter a Bank.'); document.getElementById('f_bank').focus(); return; }
+  if (!data.amount) { toast('Please enter an Amount.'); document.getElementById('f_amount').focus(); return; }
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
     if (editPOId) {

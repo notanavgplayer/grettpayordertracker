@@ -22,23 +22,25 @@ onAuthStateChanged(auth, async user => {
 });
 
 async function loadAll() {
-  const [tRes, pRes, nRes, tdRes, eRes, cRes] = await Promise.allSettled([
+  const [tRes, pRes, nRes, tdRes, eRes, cRes, fRes] = await Promise.allSettled([
     getDocs(collection(db, "tenders")),
     getDocs(collection(db, "payOrders")),
     getDocs(collection(db, "notes")),
     getDocs(collection(db, "todos")),
     getDocs(collection(db, "expenses")),
     getDocs(collection(db, "contacts")),
+    getDocs(collection(db, "tenderFees")),
   ]);
 
   const parse = res => res.status === 'fulfilled' ? res.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
 
-  const tenders   = parse(tRes);
-  const payOrders = parse(pRes);
-  const notes     = parse(nRes);
-  const todos     = parse(tdRes);
-  const expenses  = parse(eRes);
-  const contacts  = parse(cRes);
+  const tenders    = parse(tRes);
+  const payOrders  = parse(pRes);
+  const notes      = parse(nRes);
+  const todos      = parse(tdRes);
+  const expenses   = parse(eRes);
+  const contacts   = parse(cRes);
+  const tenderFees = parse(fRes);
 
   allEvents = [];
 

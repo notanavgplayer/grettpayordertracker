@@ -121,7 +121,7 @@
   <meta name="theme-color" content="#0f2a4a">
 </head>
 <body data-page="settings">
-<div id="page-content">
+<div id="page-content" role="main">
 <div class="settings-wrap">
 
   <div class="settings-header">
@@ -168,6 +168,10 @@
   <div class="settings-section">
     <div class="settings-section-header">Change Password</div>
     <div class="settings-section-body">
+      <div class="settings-form-group">
+        <label>Current Password <span style="color:var(--red-fg)">*</span></label>
+        <input type="password" id="currentPassword" placeholder="Enter current password" autocomplete="current-password">
+      </div>
       <div class="settings-form-group">
         <label>New Password</label>
         <input type="password" id="newPassword" placeholder="Minimum 6 characters" autocomplete="new-password">
@@ -231,7 +235,7 @@
 </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" aria-live="polite"></div>
 <script type="module" src="settings.js"></script>
 <script type="module" src="nav.js"></script>
 </body>

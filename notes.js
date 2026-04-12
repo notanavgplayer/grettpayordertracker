@@ -56,17 +56,27 @@ function renderList() {
 }
 
 // ── New note ──────────────────────────────────────────────────────────────────
-window.newNote = async function() {
-  const ref = await addDoc(collection(db, "notes"), {
-    title: '', body: '', priority: 'none', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
-  });
-  notes.unshift({ id: ref.id, title: '', body: '', priority: 'none', updatedAt: null });
+let unsavedDraftId = null;
+
+window.newNote = function() {
+  // Create local-only draft — not saved to Firestore until user types content
+  const tempId = '_draft_' + Date.now();
+  unsavedDraftId = tempId;
+  notes.unshift({ id: tempId, title: '', body: '', priority: 'none', updatedAt: null, _isLocal: true });
   renderList();
-  openNote(ref.id);
+  openNote(tempId);
 };
 
 // ── Open note ─────────────────────────────────────────────────────────────────
 window.openNote = function(id) {
+  // Clean up empty unsaved drafts when switching to another note
+  if (unsavedDraftId && unsavedDraftId !== id) {
+    const draft = notes.find(x => x.id === unsavedDraftId);
+    if (draft && draft._isLocal && !draft.title?.trim() && !stripHtml(draft.body || '').trim()) {
+      notes = notes.filter(x => x.id !== unsavedDraftId);
+    }
+    unsavedDraftId = null;
+  }
   activeId = id;
   const n  = notes.find(x => x.id === id);
   if (!n) return;
@@ -117,13 +127,33 @@ async function saveActive() {
   const idx      = notes.findIndex(x => x.id === activeId);
   const priority = idx > -1 ? (notes[idx].priority || 'none') : 'none';
 
+  // Don't save completely empty notes
+  const hasContent = title.trim() || stripHtml(body).trim();
+  if (!hasContent && idx > -1 && notes[idx]._isLocal) {
+    setSaveStatus('idle');
+    return;
+  }
+
   if (idx > -1) {
     notes[idx].title = title;
     notes[idx].body  = body;
     notes[idx].updatedAt = { seconds: Date.now() / 1000 };
   }
+
   try {
-    await updateDoc(doc(db, "notes", activeId), { title, body, priority, updatedAt: serverTimestamp() });
+    // If this is a local draft, create it in Firestore first
+    if (idx > -1 && notes[idx]._isLocal) {
+      const ref = await addDoc(collection(db, "notes"), {
+        title, body, priority, createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+      });
+      const oldId = notes[idx].id;
+      notes[idx].id = ref.id;
+      delete notes[idx]._isLocal;
+      activeId = ref.id;
+      unsavedDraftId = null;
+    } else {
+      await updateDoc(doc(db, "notes", activeId), { title, body, priority, updatedAt: serverTimestamp() });
+    }
     setSaveStatus('saved');
     document.getElementById('editorDate').textContent = 'Just now';
     const updated = notes.splice(idx, 1)[0];
@@ -171,8 +201,12 @@ window.closeNoteConfirm = function() {
 window.confirmDeleteNote = async function() {
   if (!pendingDeleteId) return;
   const idToDelete = pendingDeleteId;
+  const noteToDelete = notes.find(x => x.id === idToDelete);
   try {
-    await deleteDoc(doc(db, "notes", idToDelete));
+    // Skip Firestore delete for local-only drafts
+    if (!noteToDelete?._isLocal) {
+      await deleteDoc(doc(db, "notes", idToDelete));
+    }
     notes = notes.filter(x => x.id !== idToDelete);
     if (activeId === idToDelete) {
       activeId = null;

@@ -75,9 +75,9 @@
 [data-theme="dark"] thead th { color: rgba(255,255,255,0.7); }
 [data-theme="dark"] tbody tr:hover { background: #1a2030; }
 
-[data-theme="dark"] .stat-card.navy { background: #1a2332; border-top-color: var(--amber); }
-[data-theme="dark"] .stat-card.navy .stat-label { color: rgba(255,255,255,0.5); }
-[data-theme="dark"] .stat-card.navy .stat-val { color: #fff; }
+[data-theme="dark"] .stat-card.navy { background: var(--surface); border-top-color: var(--navy); }
+[data-theme="dark"] .stat-card.navy .stat-label { color: var(--muted); }
+[data-theme="dark"] .stat-card.navy .stat-val { color: var(--navy); }
 
 [data-theme="dark"] .modal { background: var(--surface); }
 [data-theme="dark"] .modal-overlay { background: rgba(0,0,0,0.7); }
@@ -487,9 +487,9 @@ tbody tr.row-selected:hover { background: #cce4f7 !important; }
 }
 .sel-btn-delete:hover { background: #a93226; }
 
-.stat-card.navy { border-top-color: var(--navy); background: var(--navy); }
-.stat-card.navy .stat-label { color: rgba(255,255,255,0.6); }
-.stat-card.navy .stat-val { color: #fff; }
+.stat-card.navy { border-top-color: var(--navy); background: var(--surface); }
+.stat-card.navy .stat-label { color: var(--muted); }
+.stat-card.navy .stat-val { color: var(--navy); font-size: 18px; }
 
 /* ── PRIORITY BADGES ── */
 .p-high   { background: var(--red-bg);   color: var(--red-fg);   }

@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { collection, getDocs, doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 onAuthStateChanged(auth, async user => {
@@ -37,16 +37,21 @@ onAuthStateChanged(auth, async user => {
 
 // ── Change Password ──────────────────────────────────────────────────────────
 window.changePassword = async function() {
-  const newPw   = document.getElementById('newPassword').value;
-  const confirm = document.getElementById('confirmPassword').value;
-  const msgEl   = document.getElementById('pwMsg');
-  const btn     = document.getElementById('changePwBtn');
+  const currentPw = document.getElementById('currentPassword').value;
+  const newPw     = document.getElementById('newPassword').value;
+  const confirm   = document.getElementById('confirmPassword').value;
+  const msgEl     = document.getElementById('pwMsg');
+  const btn       = document.getElementById('changePwBtn');
 
   msgEl.className = 'settings-msg';
   msgEl.style.display = 'none';
 
+  if (!currentPw) {
+    showMsg(msgEl, 'error', 'Please enter your current password.');
+    return;
+  }
   if (!newPw || newPw.length < 6) {
-    showMsg(msgEl, 'error', 'Password must be at least 6 characters.');
+    showMsg(msgEl, 'error', 'New password must be at least 6 characters.');
     return;
   }
   if (newPw !== confirm) {
@@ -56,13 +61,18 @@ window.changePassword = async function() {
 
   btn.disabled = true; btn.textContent = 'Updating…';
   try {
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPw);
+    await reauthenticateWithCredential(auth.currentUser, credential);
     await updatePassword(auth.currentUser, newPw);
     showMsg(msgEl, 'success', 'Password updated successfully.');
+    document.getElementById('currentPassword').value = '';
     document.getElementById('newPassword').value = '';
     document.getElementById('confirmPassword').value = '';
   } catch(e) {
     console.error('Password change error:', e);
-    if (e.code === 'auth/requires-recent-login') {
+    if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+      showMsg(msgEl, 'error', 'Current password is incorrect.');
+    } else if (e.code === 'auth/requires-recent-login') {
       showMsg(msgEl, 'error', 'Please sign out and sign in again before changing your password.');
     } else {
       showMsg(msgEl, 'error', 'Failed to update password. ' + (e.message || ''));
