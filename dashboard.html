@@ -29,7 +29,7 @@
 </head>
 <body data-page="payorders">
 
-<div id="page-content" class="page-content">
+<div id="page-content" class="page-content" role="main">
 <!-- SUMMARY CARDS -->
 <div class="main-wrap">
   <div class="cards-grid" id="cardsGrid">
@@ -173,20 +173,20 @@
     </div>
     <div class="form-grid">
       <div class="form-group">
-        <label>PO Number</label>
-        <input type="number" id="f_po" placeholder="e.g. 18550818">
+        <label>PO Number <span style="color:var(--red-fg)">*</span></label>
+        <input type="number" id="f_po" placeholder="e.g. 18550818" required>
       </div>
       <div class="form-group">
-        <label>Bank</label>
-        <input type="text" id="f_bank" placeholder="e.g. HBL, UBL">
+        <label>Bank <span style="color:var(--red-fg)">*</span></label>
+        <input type="text" id="f_bank" placeholder="e.g. HBL, UBL" required>
       </div>
       <div class="form-group">
         <label>NIT / Reference No.</label>
         <input type="text" id="f_nit" placeholder="e.g. NIT-KMC-2024-041">
       </div>
       <div class="form-group">
-        <label>Amount (PKR)</label>
-        <input type="number" id="f_amount" placeholder="0">
+        <label>Amount (PKR) <span style="color:var(--red-fg)">*</span></label>
+        <input type="number" id="f_amount" placeholder="0" required>
       </div>
       <div class="form-group full">
         <label>Tender / Project Name</label>
@@ -321,7 +321,7 @@
 </div>
 
 <!-- TOAST -->
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" aria-live="polite"></div>
 
 </div>
 <script type="module" src="app.js"></script>

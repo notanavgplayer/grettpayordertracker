@@ -300,7 +300,7 @@
   <meta name="theme-color" content="#0f2a4a">
 </head>
 <body data-page="home">
-<div id="page-content" class="page-content">
+<div id="page-content" class="page-content" role="main">
 <div class="home-wrap">
 
   <div class="home-greeting">
@@ -357,7 +357,7 @@
         <span class="home-panel-title">Upcoming Submission Deadlines</span>
         <a class="home-panel-link" href="/calendar">View calendar →</a>
       </div>
-      <div class="home-panel-body" id="deadlinesList"><div class="panel-empty" style="opacity:0.5">Loading…</div></div>
+      <div class="home-panel-body" id="deadlinesList"><div class="skeleton-group"><div class="skeleton skeleton-line" style="width:80%"></div><div class="skeleton skeleton-line" style="width:60%"></div><div class="skeleton skeleton-line" style="width:70%"></div></div></div>
     </div>
   </div>
 
@@ -368,19 +368,19 @@
         <span class="home-panel-title">Open To-Do Items</span>
         <a class="home-panel-link" href="/todo">View all →</a>
       </div>
-      <div class="home-panel-body" id="todoList"><div class="panel-empty" style="opacity:0.5">Loading…</div></div>
+      <div class="home-panel-body" id="todoList"><div class="skeleton-group"><div class="skeleton skeleton-line" style="width:80%"></div><div class="skeleton skeleton-line" style="width:60%"></div><div class="skeleton skeleton-line" style="width:70%"></div></div></div>
     </div>
     <div class="home-panel">
       <div class="home-panel-header">
         <span class="home-panel-title">Recent Activity</span>
       </div>
-      <div class="home-panel-body" id="activityList"><div class="panel-empty" style="opacity:0.5">Loading…</div></div>
+      <div class="home-panel-body" id="activityList"><div class="skeleton-group"><div class="skeleton skeleton-line" style="width:80%"></div><div class="skeleton skeleton-line" style="width:60%"></div><div class="skeleton skeleton-line" style="width:70%"></div></div></div>
     </div>
   </div>
 
 </div>
 </div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" aria-live="polite"></div>
 <script type="module" src="home.js"></script>
 <script type="module" src="nav.js"></script>
 </body>

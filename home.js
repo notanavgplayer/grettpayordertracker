@@ -88,11 +88,11 @@ async function loadAll() {
     try { fn(); } catch(err) { console.warn(`${fn.name} failed, will retry:`, err); }
   });
 
-  // Fallback: replace any remaining "Loading…" after 8s
+  // Fallback: replace any remaining skeletons after 8s
   setTimeout(() => {
     ['deadlinesList','todoList','activityList'].forEach(id => {
       const el = document.getElementById(id);
-      if (el && el.querySelector('.panel-empty[style*="opacity"]')) {
+      if (el && el.querySelector('.skeleton-group')) {
         const msgs = { deadlinesList:'No upcoming deadlines.', todoList:'All tasks completed!', activityList:'No recent activity.' };
         el.innerHTML = `<div class="panel-empty">${msgs[id]}</div>`;
       }
@@ -102,21 +102,18 @@ async function loadAll() {
 
 // ── CARDS ─────────────────────────────────────────────────────────────────────
 function renderCards() {
-  const els = {
-    hActiveTenders: document.getElementById('hActiveTenders'),
-    hPOAtRisk:      document.getElementById('hPOAtRisk'),
-    hOpenTasks:     document.getElementById('hOpenTasks'),
-    hAwarded:       document.getElementById('hAwarded'),
-  };
+  const ids = ['hActiveTenders','hPOAtRisk','hOpenTasks','hAwarded'];
+  const els = {};
+  for (const id of ids) els[id] = document.getElementById(id);
   // If DOM not ready (nav.js may be injecting sidebar), retry shortly
   if (Object.values(els).some(e => !e)) {
     requestAnimationFrame(renderCards);
     return;
   }
-  els.hActiveTenders.textContent = _tenders.filter(t => ['Bidding','Submitted'].includes(t.status)).length;
-  els.hAwarded.textContent       = _tenders.filter(t => t.status === 'Awarded').length;
-  els.hPOAtRisk.textContent      = _payOrders.filter(p => p.status === 'Submitted').length;
-  els.hOpenTasks.textContent     = _todos.filter(t => !t.done).length;
+  if (els.hActiveTenders) els.hActiveTenders.textContent = _tenders.filter(t => ['Bidding','Submitted'].includes(t.status)).length;
+  if (els.hAwarded)       els.hAwarded.textContent       = _tenders.filter(t => t.status === 'Awarded').length;
+  if (els.hPOAtRisk)      els.hPOAtRisk.textContent      = _payOrders.filter(p => p.status === 'Submitted').length;
+  if (els.hOpenTasks)     els.hOpenTasks.textContent     = _todos.filter(t => !t.done).length;
 }
 
 // ── ALERTS ────────────────────────────────────────────────────────────────────
@@ -138,6 +135,7 @@ function renderAlerts() {
   });
 
   const el = document.getElementById('alertBanner');
+  if (!el) return;
   if (!alerts.length) { el.style.display = 'none'; return; }
 
   const icons = {
