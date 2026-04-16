@@ -83,23 +83,37 @@ async function loadAll() {
       sub.style.color = 'var(--red-fg)';
     }
   }
-  renderCards();
-  renderAlerts();
-  renderDeadlines();
-  renderTodos();
-  renderActivity();
+  // Call each render independently so one crash doesn't block the rest
+  [renderCards, renderAlerts, renderDeadlines, renderTodos, renderActivity].forEach(fn => {
+    try { fn(); } catch(err) { console.warn(`${fn.name} failed, will retry:`, err); }
+  });
+
+  // Fallback: replace any remaining skeletons after 8s
+  setTimeout(() => {
+    ['deadlinesList','todoList','activityList'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.querySelector('.skeleton-group')) {
+        const msgs = { deadlinesList:'No upcoming deadlines.', todoList:'All tasks completed!', activityList:'No recent activity.' };
+        el.innerHTML = `<div class="panel-empty">${msgs[id]}</div>`;
+      }
+    });
+  }, 8000);
 }
 
 // ── CARDS ─────────────────────────────────────────────────────────────────────
 function renderCards() {
-  const active    = _tenders.filter(t => ['Bidding','Submitted'].includes(t.status)).length;
-  const awarded   = _tenders.filter(t => t.status === 'Awarded').length;
-  const atRisk    = _payOrders.filter(p => p.status === 'Submitted').length;
-  const openTasks = _todos.filter(t => !t.done).length;
-  document.getElementById('hActiveTenders').textContent = active;
-  document.getElementById('hPOAtRisk').textContent      = atRisk;
-  document.getElementById('hOpenTasks').textContent     = openTasks;
-  document.getElementById('hAwarded').textContent       = awarded;
+  const ids = ['hActiveTenders','hPOAtRisk','hOpenTasks','hAwarded'];
+  const els = {};
+  for (const id of ids) els[id] = document.getElementById(id);
+  // If DOM not ready (nav.js may be injecting sidebar), retry shortly
+  if (Object.values(els).some(e => !e)) {
+    requestAnimationFrame(renderCards);
+    return;
+  }
+  if (els.hActiveTenders) els.hActiveTenders.textContent = _tenders.filter(t => ['Bidding','Submitted'].includes(t.status)).length;
+  if (els.hAwarded)       els.hAwarded.textContent       = _tenders.filter(t => t.status === 'Awarded').length;
+  if (els.hPOAtRisk)      els.hPOAtRisk.textContent      = _payOrders.filter(p => p.status === 'Submitted').length;
+  if (els.hOpenTasks)     els.hOpenTasks.textContent     = _todos.filter(t => !t.done).length;
 }
 
 // ── ALERTS ────────────────────────────────────────────────────────────────────
@@ -121,6 +135,7 @@ function renderAlerts() {
   });
 
   const el = document.getElementById('alertBanner');
+  if (!el) return;
   if (!alerts.length) { el.style.display = 'none'; return; }
 
   const icons = {
@@ -140,6 +155,8 @@ function renderAlerts() {
 
 // ── DEADLINES ─────────────────────────────────────────────────────────────────
 function renderDeadlines() {
+  const el = document.getElementById('deadlinesList');
+  if (!el) { requestAnimationFrame(renderDeadlines); return; }
   const today    = new Date(); today.setHours(0,0,0,0);
   const upcoming = _tenders
     .filter(t => t.submissionDate && ['Bidding','Submitted'].includes(t.status))
@@ -147,7 +164,6 @@ function renderDeadlines() {
     .filter(t => t.daysLeft >= 0)
     .sort((a,b) => a.daysLeft - b.daysLeft)
     .slice(0, 6);
-  const el = document.getElementById('deadlinesList');
   if (!upcoming.length) { el.innerHTML = '<div class="panel-empty">No upcoming deadlines.</div>'; return; }
   el.innerHTML = upcoming.map(t => {
     const cls   = t.daysLeft <= 3 ? 'urgent' : t.daysLeft <= 7 ? 'soon' : 'ok';
@@ -165,11 +181,12 @@ function renderDeadlines() {
 
 // ── TODOS ─────────────────────────────────────────────────────────────────────
 function renderTodos() {
+  const el = document.getElementById('todoList');
+  if (!el) { requestAnimationFrame(renderTodos); return; }
   const open = _todos
     .filter(t => !t.done)
     .sort((a,b) => ({ high:0, medium:1, low:2 }[a.priority]||1) - ({ high:0, medium:1, low:2 }[b.priority]||1))
     .slice(0, 6);
-  const el = document.getElementById('todoList');
   if (!open.length) { el.innerHTML = '<div class="panel-empty">All tasks completed! 🎉</div>'; return; }
   el.innerHTML = open.map(t => `
     <div class="todo-home-item" onclick="toggleHomeTodo('${t.id}', this)">
@@ -206,6 +223,7 @@ function renderActivity() {
     note:   `<svg viewBox="0 0 20 20" fill="none"><path d="M4 4h12v9l-4 4H4V4z" stroke="currentColor" stroke-width="1.5"/></svg>`,
   };
   const el = document.getElementById('activityList');
+  if (!el) { requestAnimationFrame(renderActivity); return; }
   const recent = events.slice(0, 8);
   if (!recent.length) { el.innerHTML = '<div class="panel-empty">No recent activity.</div>'; return; }
   el.innerHTML = recent.map(e => `

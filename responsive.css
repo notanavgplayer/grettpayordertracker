@@ -52,6 +52,18 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
+   SIDEBAR COLLAPSE  (≤ 768px)
+───────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar          { display: flex !important; transform: translateX(-100%); width: 260px; }
+  .sidebar.open     { transform: translateX(0); }
+  .sidebar-toggle   { display: flex !important; }
+  .sidebar-overlay  { display: none; }
+  .sidebar-overlay.open { display: block !important; }
+  .page-content     { margin-left: 0 !important; padding-top: 56px; }
+}
+
+/* ─────────────────────────────────────────────────────────────
    MOBILE  (< 640px)
 ───────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
@@ -177,13 +189,8 @@
   /* Templates grid */
   .templates-grid { grid-template-columns: 1fr !important; }
 
-  /* ── HAMBURGER SIDEBAR ── */
-  .sidebar          { display: flex !important; transform: translateX(-100%); width: 260px; }
-  .sidebar.open     { transform: translateX(0); }
-  .sidebar-toggle   { display: flex !important; }
-  .sidebar-overlay  { display: none; }
-  .sidebar-overlay.open { display: block !important; }
-  .page-content     { margin-left: 0 !important; padding-top: 56px; padding-bottom: 1rem; }
+  /* Sidebar collapse inherited from 768px block */
+  .page-content     { padding-bottom: 1rem; }
 
   /* ── HIDE BOTTOM NAV ── */
   .bottom-nav              { display: none !important; }

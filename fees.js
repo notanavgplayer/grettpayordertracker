@@ -72,10 +72,10 @@ window.renderFeeTable = function() {
       <td><span class="badge ${badgeCls[f.status]||'b-pending'}">${f.status||'—'}</span></td>
       <td>
         <div class="row-actions">
-          <button class="btn-icon" title="Edit" onclick="openEditFee('${f.id}')">
+          <button class="btn-icon" title="Edit" aria-label="Edit fee" onclick="openEditFee('${f.id}')">
             <svg viewBox="0 0 12 12" fill="none"><path d="M8 1.5l2.5 2.5L3 11H.5V8.5L8 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
           </button>
-          <button class="btn-icon del" title="Delete" onclick="openFeeConfirm('${f.id}')">
+          <button class="btn-icon del" title="Delete" aria-label="Delete fee" onclick="openFeeConfirm('${f.id}')">
             <svg viewBox="0 0 12 12" fill="none"><path d="M1 3h10M4 3V2h4v1M2.5 3l.8 8h5.4l.8-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
@@ -135,6 +135,12 @@ window.saveFee = async function() {
   const amount = document.getElementById('ff_amount').value;
   if (!tender) { toast('Enter a tender name.'); return; }
   if (!amount) { toast('Enter an amount.'); return; }
+  // Prevent duplicate entries (same tender + amount + date)
+  if (!editId) {
+    const date = document.getElementById('ff_date').value;
+    const existing = fees.find(f => f.tender === tender && String(f.amount) === String(amount) && f.date === date);
+    if (existing) { toast('A fee entry for this tender with the same amount and date already exists.'); return; }
+  }
   const data = {
     tender, amount,
     agency:  document.getElementById('ff_agency').value.trim(),

@@ -188,7 +188,7 @@ function buildSidebar(userEmail) {
   `).join('');
 
   return `
-  <aside class="sidebar" id="sidebar">
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
     <div class="sidebar-brand">
       <div class="sidebar-logo">
         <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L3 8v2h2v10h4v-5h6v5h4V10h2V8L12 2z" fill="#e8940a"/></svg>
@@ -212,13 +212,13 @@ function buildSidebar(userEmail) {
           <span class="sidebar-user-role">Administrator</span>
         </div>
       </div>
-      <button class="sidebar-theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">
+      <button class="sidebar-theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode" aria-label="Toggle dark mode">
         <svg viewBox="0 0 20 20" fill="none" width="15" height="15" id="themeIcon">
           <path d="M10 3a7 7 0 100 14 7 7 0 000-14zm0 12.5a5.5 5.5 0 110-11 5.5 5.5 0 010 11z" stroke="currentColor" stroke-width="1.3"/>
           <path d="M10 6v8M6 10h8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
         </svg>
       </button>
-      <button class="sidebar-logout" id="sidebarLogout" title="Sign Out">
+      <button class="sidebar-logout" id="sidebarLogout" title="Sign Out" aria-label="Sign out">
         <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
           <path d="M7 3H4a1 1 0 00-1 1v12a1 1 0 001 1h3M13 14l4-4-4-4M17 10H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -226,7 +226,7 @@ function buildSidebar(userEmail) {
     </div>
   </aside>
 
-  <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+  <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Open menu">
     <svg viewBox="0 0 20 20" fill="none" width="18" height="18">
       <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
