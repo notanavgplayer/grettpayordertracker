@@ -10,6 +10,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
 import { toast } from 'sonner'
@@ -31,6 +32,7 @@ export default function Layout({ children }) {
   }
 
   return (
+    <TooltipProvider delayDuration={300}>
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-shrink-0">
@@ -78,15 +80,20 @@ export default function Layout({ children }) {
           <CommandPalette />
 
           {/* Dark mode toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleTheme}
-            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="h-9 w-9"
-          >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                className="h-9 w-9"
+              >
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{isDark ? 'Light mode' : 'Dark mode'}</TooltipContent>
+          </Tooltip>
 
           {/* User menu */}
           <DropdownMenu>
@@ -131,5 +138,6 @@ export default function Layout({ children }) {
         </main>
       </div>
     </div>
+    </TooltipProvider>
   )
 }

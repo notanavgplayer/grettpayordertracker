@@ -4,12 +4,13 @@ import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Activity, Loader2 } from 'lucide-react'
+import { PageTableSkeleton } from '@/components/shared/LoadingSkeletons'
+import { Activity } from 'lucide-react'
 
 export default function ActivityPage() {
   const { data: logs, loading } = useCollection('activityLog', 'createdAt', 'desc')
 
-  if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+  if (loading) return <PageTableSkeleton rows={8} cols={5} metrics={0} />
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">

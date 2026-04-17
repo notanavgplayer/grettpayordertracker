@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/shared/StatusBadge'
 import PageHeader from '@/components/shared/PageHeader'
 import MetricCard from '@/components/shared/MetricCard'
+import { MetricRowSkeleton } from '@/components/shared/LoadingSkeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   FileStack, FileText, CheckSquare, Trophy, AlertTriangle,
   Clock, ChevronRight, X, Loader2,
@@ -74,8 +76,32 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-56" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <MetricRowSkeleton count={4} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[0, 1].map((i) => (
+            <Card key={i}>
+              <CardHeader className="pb-3">
+                <Skeleton className="h-5 w-40" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[0, 1, 2, 3, 4].map((r) => (
+                  <div key={r} className="flex items-center justify-between gap-3">
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                    <Skeleton className="h-5 w-12" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     )
   }
