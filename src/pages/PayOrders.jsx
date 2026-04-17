@@ -287,8 +287,8 @@ export default function PayOrders() {
 
                       {(p.tender || p.agency) && (
                         <div className="space-y-0.5">
-                          {p.tender && <p className="text-sm font-medium text-foreground truncate">{p.tender}</p>}
-                          {p.agency && <p className="text-xs text-muted-foreground truncate">{p.agency}</p>}
+                          {p.tender && <p className="text-sm font-medium text-foreground break-words">{p.tender}</p>}
+                          {p.agency && <p className="text-xs text-muted-foreground break-words">{p.agency}</p>}
                         </div>
                       )}
 

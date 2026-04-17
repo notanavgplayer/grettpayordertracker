@@ -141,14 +141,64 @@ export default function Expenses() {
           {displayExpenses.length === 0 ? (
             <EmptyState icon={Receipt} title="No expenses" description="Start tracking your project expenses." action={isAdmin && <Button onClick={() => openDialog()}><Plus className="h-4 w-4" /> Add Expense</Button>} />
           ) : (
-            <Card>
-              <Table>
+            <Card className="overflow-hidden">
+              {/* Mobile: card per row */}
+              <div className="md:hidden p-3 space-y-3 bg-muted/30">
+                {displayExpenses.map((e) => (
+                  <Card key={e.id} className="overflow-hidden">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground break-words">{e.description}</p>
+                          <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                            <Badge variant="secondary" className="text-xs font-normal">{e.category}</Badge>
+                            <span className="text-xs text-muted-foreground">{formatDate(e.date)}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="text-sm font-mono tabular-nums font-semibold text-foreground whitespace-nowrap">{formatCurrency(e.amount)}</span>
+                          {isAdmin && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon-sm" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Open menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openDialog(e)}>
+                                  <Pencil className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => setDeleteId(e.id)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                      </div>
+                      {e.tenderId && (
+                        <div className="text-xs text-muted-foreground pt-2 border-t border-border">
+                          <span className="font-medium">Tender:</span> <span className="font-mono">{e.tenderId}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop: table */}
+              <Table className="hidden md:table">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead>Description</TableHead>
-                    <TableHead className="hidden sm:table-cell">Category</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="hidden md:table-cell">Date</TableHead>
+                    <TableHead>Date</TableHead>
                     <TableHead className="hidden lg:table-cell">Tender</TableHead>
                     {isAdmin && <TableHead className="w-12"></TableHead>}
                   </TableRow>
@@ -156,10 +206,10 @@ export default function Expenses() {
                 <TableBody>
                   {displayExpenses.map((e) => (
                     <TableRow key={e.id}>
-                      <TableCell className="text-sm font-medium max-w-[200px] truncate">{e.description}</TableCell>
-                      <TableCell className="hidden sm:table-cell"><Badge variant="secondary" className="text-xs font-normal">{e.category}</Badge></TableCell>
+                      <TableCell className="text-sm font-medium max-w-[260px] truncate">{e.description}</TableCell>
+                      <TableCell><Badge variant="secondary" className="text-xs font-normal">{e.category}</Badge></TableCell>
                       <TableCell className="text-sm font-mono tabular-nums font-semibold text-right">{formatCurrency(e.amount)}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{formatDate(e.date)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{formatDate(e.date)}</TableCell>
                       <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{e.tenderId || '—'}</TableCell>
                       {isAdmin && (
                         <TableCell>
