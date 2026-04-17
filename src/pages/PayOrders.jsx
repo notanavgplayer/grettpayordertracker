@@ -230,16 +230,16 @@ export default function PayOrders() {
 
         <TabsContent value="payorders" className="mt-4">
           {/* Filter chips */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-thin -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
             {['All', ...PO_STATUSES].map((s) => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
                   filterStatus === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'
                 }`}
               >
-                {s} {s !== 'All' && `(${payOrders.filter((p) => p.status === s).length})`}
+                {s} {s !== 'All' && <span className="font-mono tabular-nums">({payOrders.filter((p) => p.status === s).length})</span>}
               </button>
             ))}
           </div>
