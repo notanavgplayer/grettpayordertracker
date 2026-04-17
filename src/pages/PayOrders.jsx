@@ -23,8 +23,9 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid,
 } from 'recharts'
+import ChartTooltip, { AXIS_TICK, CHART_SEMANTIC } from '@/components/shared/ChartTooltip'
 import {
   Plus, FileText, Download, Printer, Search, Pencil, Trash2,
   Loader2, TrendingUp, DollarSign, AlertCircle, CheckCircle, MoreHorizontal,
@@ -78,9 +79,9 @@ export default function PayOrders() {
   })).filter((d) => d.count > 0)
 
   const winData = [
-    { name: 'Won', value: payOrders.filter((p) => p.bidResult === 'Won').length, color: '#22c55e' },
-    { name: 'Lost', value: payOrders.filter((p) => p.bidResult === 'Lost').length, color: '#ef4444' },
-    { name: 'Active', value: payOrders.filter((p) => ['N/A', 'Awaiting'].includes(p.bidResult)).length, color: '#3b82f6' },
+    { name: 'Won', value: payOrders.filter((p) => p.bidResult === 'Won').length, color: CHART_SEMANTIC.positive },
+    { name: 'Lost', value: payOrders.filter((p) => p.bidResult === 'Lost').length, color: CHART_SEMANTIC.negative },
+    { name: 'Active', value: payOrders.filter((p) => ['N/A', 'Awaiting'].includes(p.bidResult)).length, color: CHART_SEMANTIC.neutral },
   ].filter((d) => d.value > 0)
 
   const openDialog = (item = null) => {
@@ -166,11 +167,12 @@ export default function PayOrders() {
             <CardHeader className="pb-2"><CardTitle className="text-sm">Status Distribution</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={statusChart} layout="vertical" margin={{ left: 16 }}>
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="status" type="category" tick={{ fontSize: 11 }} width={70} />
-                  <Tooltip formatter={(v) => [v, 'Count']} />
-                  <Bar dataKey="count" fill="hsl(213 65% 18%)" radius={[0, 4, 4, 0]} />
+                <BarChart data={statusChart} layout="vertical" margin={{ left: 16, right: 16 }}>
+                  <CartesianGrid horizontal={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
+                  <XAxis type="number" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                  <YAxis dataKey="status" type="category" tick={AXIS_TICK} width={70} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} content={<ChartTooltip />} />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -180,10 +182,23 @@ export default function PayOrders() {
             <CardContent className="flex items-center justify-center">
               <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
-                  <Pie data={winData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                  <Pie
+                    data={winData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={70}
+                    paddingAngle={2}
+                    label={({ name, value }) => `${name}: ${value}`}
+                    labelLine={false}
+                    stroke="hsl(var(--card))"
+                    strokeWidth={2}
+                  >
                     {winData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip content={<ChartTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>

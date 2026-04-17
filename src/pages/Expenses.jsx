@@ -22,15 +22,13 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid,
 } from 'recharts'
+import ChartTooltip, { CHART_COLORS, AXIS_TICK } from '@/components/shared/ChartTooltip'
 import { Plus, Download, Pencil, Trash2, Loader2, Receipt, TrendingUp, Calendar, Tag, MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 
-const CATEGORY_COLORS = [
-  '#0f2a4a', '#e8940a', '#185fa5', '#0e6b4a', '#c0392b',
-  '#5d3fa5', '#2d5f9e', '#d68910', '#1a5276', '#6b7a90',
-]
+const CATEGORY_COLORS = CHART_COLORS
 
 const EMPTY = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', tenderId: '', note: '' }
 
@@ -201,10 +199,23 @@ export default function Expenses() {
               <CardContent>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    <Pie data={catData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name }) => name}>
+                    <Pie
+                      data={catData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={85}
+                      paddingAngle={2}
+                      label={({ name }) => name}
+                      labelLine={false}
+                      stroke="hsl(var(--card))"
+                      strokeWidth={2}
+                    >
                       {catData.map((e, i) => <Cell key={i} fill={e.color} />)}
                     </Pie>
-                    <Tooltip formatter={(v) => formatCurrency(v)} />
+                    <Tooltip content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -213,11 +224,12 @@ export default function Expenses() {
               <CardHeader className="pb-2"><CardTitle className="text-sm">Monthly Trend (6 months)</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={monthlyData} margin={{ left: 8 }}>
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
-                    <Tooltip formatter={(v) => formatCurrency(v)} />
-                    <Bar dataKey="total" fill="hsl(213 65% 18%)" radius={[4, 4, 0, 0]} />
+                  <BarChart data={monthlyData} margin={{ left: 8, right: 8, top: 8 }}>
+                    <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
+                    <XAxis dataKey="month" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                    <YAxis tick={AXIS_TICK} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
+                    <Bar dataKey="total" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
