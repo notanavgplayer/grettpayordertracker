@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -226,14 +226,19 @@ export default function Expenses() {
         </TabsContent>
       </Tabs>
 
-      {/* Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editItem ? 'Edit Expense' : 'New Expense'}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
+      {/* Expense Sheet */}
+      <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
+          <SheetHeader className="px-6 py-4 border-b border-border">
+            <SheetTitle>{editItem ? 'Edit Expense' : 'New Expense'}</SheetTitle>
+            <SheetDescription>
+              {editItem ? 'Update expense details.' : 'Record a new project expense.'}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
             <div className="space-y-1.5">
-              <Label>Description *</Label>
-              <Input value={form.description} onChange={setF('description')} placeholder="What was this expense for?" />
+              <Label htmlFor="e-desc">Description <span className="text-destructive">*</span></Label>
+              <Input id="e-desc" value={form.description} onChange={setF('description')} placeholder="What was this expense for?" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -244,34 +249,34 @@ export default function Expenses() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Amount (PKR)</Label>
-                <Input type="number" value={form.amount} onChange={setF('amount')} placeholder="0" />
+                <Label htmlFor="e-amt">Amount (PKR)</Label>
+                <Input id="e-amt" type="number" value={form.amount} onChange={setF('amount')} placeholder="0" className="font-mono tabular-nums" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Date</Label>
-                <Input type="date" value={form.date} onChange={setF('date')} />
+                <Label htmlFor="e-date">Date</Label>
+                <Input id="e-date" type="date" value={form.date} onChange={setF('date')} />
               </div>
               <div className="space-y-1.5">
-                <Label>Related Tender</Label>
-                <Input value={form.tenderId} onChange={setF('tenderId')} placeholder="Tender name / NIT" />
+                <Label htmlFor="e-tender">Related Tender</Label>
+                <Input id="e-tender" value={form.tenderId} onChange={setF('tenderId')} placeholder="Tender / NIT" />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Textarea value={form.note} onChange={setF('note')} rows={2} />
+              <Label htmlFor="e-note">Notes</Label>
+              <Textarea id="e-note" value={form.note} onChange={setF('note')} rows={3} />
             </div>
           </div>
-          <DialogFooter>
+          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editItem ? 'Save Changes' : 'Add Expense'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={async () => { await remove(deleteId); toast.success('Expense deleted'); setDeleteId(null) }} title="Delete expense" description="This will permanently remove this expense record." />
     </div>

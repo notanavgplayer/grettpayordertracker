@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Progress } from '@/components/ui/progress'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -272,62 +272,71 @@ export default function Tenders() {
         </Card>
       )}
 
-      {/* Tender Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editItem ? 'Edit Tender' : 'New Tender'}</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>Tender Name *</Label>
-              <Input value={form.name} onChange={setF('name')} placeholder="e.g. Supply of Office Equipment" />
+      {/* Tender Sheet */}
+      <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col gap-0">
+          <SheetHeader className="px-6 py-4 border-b border-border">
+            <SheetTitle>{editItem ? 'Edit Tender' : 'New Tender'}</SheetTitle>
+            <SheetDescription>
+              {editItem ? 'Update tender details and status.' : 'Add a new tender to the pipeline.'}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="t-name">Tender Name <span className="text-destructive">*</span></Label>
+              <Input id="t-name" value={form.name} onChange={setF('name')} placeholder="e.g. Supply of Office Equipment" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="t-nit">NIT / Reference</Label>
+                <Input id="t-nit" value={form.nit} onChange={setF('nit')} placeholder="NIT-2024-001" className="font-mono" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="t-value">Value (PKR)</Label>
+                <Input id="t-value" type="number" value={form.value} onChange={setF('value')} placeholder="0" className="font-mono tabular-nums" />
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label>NIT / Reference</Label>
-              <Input value={form.nit} onChange={setF('nit')} placeholder="e.g. NIT-2024-001" />
+              <Label htmlFor="t-agency">Procuring Agency</Label>
+              <Input id="t-agency" value={form.agency} onChange={setF('agency')} placeholder="e.g. PPRA, NHA" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={setF('status')}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{TENDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="t-po">Linked Pay Order</Label>
+                <Input id="t-po" value={form.linkedPO} onChange={setF('linkedPO')} placeholder="PO-2024-001" className="font-mono" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="t-sub">Submission Date</Label>
+                <Input id="t-sub" type="date" value={form.submissionDate} onChange={setF('submissionDate')} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="t-open">Opening Date</Label>
+                <Input id="t-open" type="date" value={form.openingDate} onChange={setF('openingDate')} />
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Value (PKR)</Label>
-              <Input type="number" value={form.value} onChange={setF('value')} placeholder="0" />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>Procuring Agency</Label>
-              <Input value={form.agency} onChange={setF('agency')} placeholder="e.g. PPRA, NHA" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={setF('status')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{TENDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Linked Pay Order</Label>
-              <Input value={form.linkedPO} onChange={setF('linkedPO')} placeholder="e.g. PO-2024-001" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Submission Date</Label>
-              <Input type="date" value={form.submissionDate} onChange={setF('submissionDate')} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Opening Date</Label>
-              <Input type="date" value={form.openingDate} onChange={setF('openingDate')} />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>Notes</Label>
-              <Textarea value={form.notes} onChange={setF('notes')} rows={3} placeholder="Optional notes…" />
+              <Label htmlFor="t-notes">Notes</Label>
+              <Textarea id="t-notes" value={form.notes} onChange={setF('notes')} rows={4} placeholder="Optional notes…" />
             </div>
           </div>
-          <DialogFooter>
+          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editItem ? 'Save Changes' : 'Create Tender'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={handleDelete} title="Delete tender" description="This will permanently delete the tender and all related data." />
     </div>

@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -353,77 +353,93 @@ export default function PayOrders() {
         </TabsContent>
       </Tabs>
 
-      {/* Pay Order Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editItem ? 'Edit Pay Order' : 'New Pay Order'}</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-            <Field label="PO Number *" value={form.po} onChange={setF('po')} placeholder="e.g. PO-2024-001" />
-            <div className="space-y-1.5">
-              <Label>Bank</Label>
-              <Select value={form.bank} onValueChange={setF('bank')}>
-                <SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger>
-                <SelectContent>{BANKS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-              </Select>
+      {/* Pay Order Sheet */}
+      <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col gap-0">
+          <SheetHeader className="px-6 py-4 border-b border-border">
+            <SheetTitle>{editItem ? 'Edit Pay Order' : 'New Pay Order'}</SheetTitle>
+            <SheetDescription>
+              {editItem ? 'Update pay order details.' : 'Record a new pay order entry.'}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label={<>PO Number <span className="text-destructive">*</span></>} value={form.po} onChange={setF('po')} placeholder="PO-2024-001" className="font-mono" />
+              <div className="space-y-1.5">
+                <Label>Bank</Label>
+                <Select value={form.bank} onValueChange={setF('bank')}>
+                  <SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger>
+                  <SelectContent>{BANKS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
             </div>
-            <Field label="NIT / Reference" value={form.nit} onChange={setF('nit')} />
-            <Field label="Amount (PKR)" type="number" value={form.amount} onChange={setF('amount')} placeholder="0" />
-            <Field label="Tender / Project" value={form.tender} onChange={setF('tender')} className="sm:col-span-2" />
-            <Field label="Agency" value={form.agency} onChange={setF('agency')} className="sm:col-span-2" />
-            <Field label="Date Issued" type="date" value={form.issued} onChange={setF('issued')} />
-            <Field label="Date Submitted" type="date" value={form.submitted} onChange={setF('submitted')} />
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={setF('status')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{PO_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="NIT / Reference" value={form.nit} onChange={setF('nit')} className="font-mono" />
+              <Field label="Amount (PKR)" type="number" value={form.amount} onChange={setF('amount')} placeholder="0" className="font-mono tabular-nums" />
+            </div>
+            <Field label="Tender / Project" value={form.tender} onChange={setF('tender')} />
+            <Field label="Agency" value={form.agency} onChange={setF('agency')} />
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Date Issued" type="date" value={form.issued} onChange={setF('issued')} />
+              <Field label="Date Submitted" type="date" value={form.submitted} onChange={setF('submitted')} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={setF('status')}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{PO_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Bid Result</Label>
+                <Select value={form.bidResult} onValueChange={setF('bidResult')}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{BID_RESULTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Bid Result</Label>
-              <Select value={form.bidResult} onValueChange={setF('bidResult')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{BID_RESULTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
               <Label>Notes</Label>
-              <Textarea value={form.notes} onChange={setF('notes')} rows={3} placeholder="Optional remarks…" />
+              <Textarea value={form.notes} onChange={setF('notes')} rows={4} placeholder="Optional remarks…" />
             </div>
           </div>
-          <DialogFooter>
+          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editItem ? 'Save Changes' : 'Add Pay Order'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
-      {/* Activity Log Dialog */}
-      <Dialog open={logDialogOpen} onOpenChange={setLogDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editLog ? 'Edit Log Entry' : 'New Log Entry'}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-            <Field label="Date" type="date" value={logForm.date} onChange={setLF('date')} />
-            <Field label="PO Number" value={logForm.po} onChange={setLF('po')} />
-            <Field label="Reference" value={logForm.ref} onChange={setLF('ref')} className="sm:col-span-2" />
-            <Field label="Action *" value={logForm.action} onChange={setLF('action')} className="sm:col-span-2" placeholder="What was done?" />
-            <Field label="Next Step" value={logForm.next} onChange={setLF('next')} className="sm:col-span-2" placeholder="What needs to happen next?" />
+      {/* Activity Log Sheet */}
+      <Sheet open={logDialogOpen} onOpenChange={setLogDialogOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
+          <SheetHeader className="px-6 py-4 border-b border-border">
+            <SheetTitle>{editLog ? 'Edit Log Entry' : 'New Log Entry'}</SheetTitle>
+            <SheetDescription>Track a follow-up action for this pay order.</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Date" type="date" value={logForm.date} onChange={setLF('date')} />
+              <Field label="PO Number" value={logForm.po} onChange={setLF('po')} className="font-mono" />
+            </div>
+            <Field label="Reference" value={logForm.ref} onChange={setLF('ref')} className="font-mono" />
+            <Field label={<>Action <span className="text-destructive">*</span></>} value={logForm.action} onChange={setLF('action')} placeholder="What was done?" />
+            <Field label="Next Step" value={logForm.next} onChange={setLF('next')} placeholder="What needs to happen next?" />
             <Field label="By" value={logForm.by} onChange={setLF('by')} placeholder="Who performed this?" />
           </div>
-          <DialogFooter>
+          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
             <Button variant="outline" onClick={() => setLogDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveLog} disabled={savingLog}>
               {savingLog && <Loader2 className="h-4 w-4 animate-spin" />}
               {editLog ? 'Save Changes' : 'Add Entry'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={handleDelete} title="Delete pay order" description="This will permanently remove the pay order record." />
       <ConfirmDelete open={!!deleteLogId} onOpenChange={() => setDeleteLogId(null)} onConfirm={async () => { await removeLog(deleteLogId); toast.success('Log deleted'); setDeleteLogId(null) }} title="Delete log entry" description="This will remove this activity log entry." />
@@ -431,11 +447,11 @@ export default function PayOrders() {
   )
 }
 
-function Field({ label, className, ...props }) {
+function Field({ label, className, inputClassName, ...props }) {
   return (
-    <div className={`space-y-1.5 ${className || ''}`}>
+    <div className="space-y-1.5">
       <Label>{label}</Label>
-      <Input {...props} />
+      <Input className={className} {...props} />
     </div>
   )
 }
