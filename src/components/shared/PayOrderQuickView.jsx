@@ -36,7 +36,6 @@ export default function PayOrderQuickView({ payOrder, open, onOpenChange, onEdit
           <Row label="NIT / Ref" value={payOrder.nit} mono />
           <Row label="Tender" value={payOrder.tender} />
           <Row label="Agency" value={payOrder.agency} />
-          <Row label="Issued" value={formatDate(payOrder.issued)} />
           <Row label="Submitted" value={formatDate(payOrder.submitted)} />
           {payOrder.notes && (
             <div className="pt-3">

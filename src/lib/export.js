@@ -22,10 +22,10 @@ function toCSV(headers, rows) {
 
 export function exportPayOrdersCSV(payOrders) {
   if (!payOrders.length) return false
-  const headers = ['PO Number', 'Bank', 'NIT / Ref', 'Tender / Project', 'Agency', 'Amount (PKR)', 'Date Issued', 'Date Submitted', 'Status', 'Bid Result', 'Notes']
+  const headers = ['PO Number', 'Bank', 'NIT / Ref', 'Tender / Project', 'Agency', 'Amount (PKR)', 'Date Submitted', 'Status', 'Bid Result', 'Notes']
   const rows = payOrders.map((p) => [
     p.po, p.bank, p.nit, p.tender, p.agency,
-    p.amount, p.issued, p.submitted, p.status, p.bidResult, p.notes,
+    p.amount, p.submitted, p.status, p.bidResult, p.notes,
   ])
   const csv = toCSV(headers, rows)
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
@@ -67,7 +67,7 @@ export function exportPayOrdersPDF(payOrders) {
       (p) => `<tr>
         <td>${p.po || ''}</td><td>${p.bank || ''}</td><td>${p.nit || ''}</td>
         <td>${p.tender || ''}</td><td>${p.agency || ''}</td>
-        <td>${formatPKR(p.amount)}</td><td>${p.issued || ''}</td>
+        <td>${formatPKR(p.amount)}</td><td>${p.submitted || ''}</td>
         <td>${p.status || ''}</td><td>${p.bidResult || ''}</td>
       </tr>`
     )
@@ -99,7 +99,7 @@ export function exportPayOrdersPDF(payOrders) {
   </div>
   <table><thead><tr>
     <th>PO #</th><th>Bank</th><th>NIT/Ref</th><th>Tender</th><th>Agency</th>
-    <th>Amount</th><th>Issued</th><th>Status</th><th>Bid Result</th>
+    <th>Amount</th><th>Submitted</th><th>Status</th><th>Bid Result</th>
   </tr></thead><tbody>${rows}</tbody></table>
   </body></html>`
 

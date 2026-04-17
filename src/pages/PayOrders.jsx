@@ -35,7 +35,7 @@ import {
 import { toast } from 'sonner'
 import { serverTimestamp } from 'firebase/firestore'
 
-const EMPTY_PO = { po: '', bank: '', nit: '', amount: '', tender: '', agency: '', issued: '', submitted: '', status: 'Pending', bidResult: 'N/A', notes: '' }
+const EMPTY_PO = { po: '', bank: '', nit: '', amount: '', tender: '', agency: '', submitted: '', status: 'Pending', bidResult: 'N/A', notes: '' }
 
 export default function PayOrders() {
   const { data: payOrders, loading } = useCollection('payOrders', 'createdAt', 'desc')
@@ -89,7 +89,7 @@ export default function PayOrders() {
 
   const openDialog = (item = null) => {
     setEditItem(item)
-    setForm(item ? { ...EMPTY_PO, ...item } : { ...EMPTY_PO, issued: new Date().toISOString().slice(0, 10) })
+    setForm(item ? { ...EMPTY_PO, ...item } : { ...EMPTY_PO, submitted: new Date().toISOString().slice(0, 10) })
     setDialogOpen(true)
   }
 
@@ -258,7 +258,7 @@ export default function PayOrders() {
                       <div className="flex items-start justify-between gap-2">
                         <button type="button" onClick={() => setQuickView(p)} className="min-w-0 flex-1 text-left">
                           <p className="font-mono text-sm font-semibold text-foreground truncate hover:underline">{p.po || '—'}</p>
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">{p.bank || '—'} · {formatDate(p.issued) || 'No date'}</p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{p.bank || '—'}{p.submitted ? ` · ${formatDate(p.submitted)}` : ''}</p>
                         </button>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <StatusBadge status={p.status} />
@@ -324,7 +324,7 @@ export default function PayOrders() {
                       <TableHead className="text-xs hidden lg:table-cell">Tender</TableHead>
                       <TableHead className="text-xs">Agency</TableHead>
                       <TableHead className="text-xs text-right">Amount</TableHead>
-                      <TableHead className="text-xs">Issued</TableHead>
+                      <TableHead className="text-xs">Submitted</TableHead>
                       <TableHead className="text-xs">Status</TableHead>
                       <TableHead className="text-xs hidden lg:table-cell">Bid Result</TableHead>
                       {isAdmin && <TableHead className="w-12"></TableHead>}
@@ -341,7 +341,7 @@ export default function PayOrders() {
                         <TableCell className="hidden lg:table-cell text-xs min-w-[160px] max-w-[220px] whitespace-normal break-words">{p.tender || '—'}</TableCell>
                         <TableCell className="text-xs min-w-[140px] max-w-[200px] whitespace-normal break-words">{p.agency || '—'}</TableCell>
                         <TableCell className="text-xs font-mono tabular-nums text-right whitespace-nowrap">{formatCurrency(p.amount)}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(p.issued)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(p.submitted)}</TableCell>
                         <TableCell><StatusBadge status={p.status} /></TableCell>
                         <TableCell className="hidden lg:table-cell"><StatusBadge status={p.bidResult} /></TableCell>
                         {isAdmin && (
@@ -465,10 +465,7 @@ export default function PayOrders() {
             </div>
             <Field label="Tender / Project" value={form.tender} onChange={setF('tender')} />
             <Field label="Agency" value={form.agency} onChange={setF('agency')} />
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Date Issued" type="date" value={form.issued} onChange={setF('issued')} />
-              <Field label="Date Submitted" type="date" value={form.submitted} onChange={setF('submitted')} />
-            </div>
+            <Field label="Date Submitted" type="date" value={form.submitted} onChange={setF('submitted')} />
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Status</Label>
