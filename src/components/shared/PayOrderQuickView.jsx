@@ -4,12 +4,12 @@ import StatusBadge from '@/components/shared/StatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Pencil } from 'lucide-react'
 
-function Row({ label, value, mono = false }) {
+function Row({ label, value, mono = false, bold = false }) {
   if (value === null || value === undefined || value === '') value = '—'
   return (
     <div className="grid grid-cols-[110px_1fr] gap-3 py-2 border-b border-border last:border-0">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-sm text-foreground break-words ${mono ? 'font-mono tabular-nums' : ''}`}>{value}</p>
+      <p className={`text-sm text-foreground break-words ${mono ? 'font-mono tabular-nums' : ''} ${bold ? 'font-semibold' : ''}`}>{value}</p>
     </div>
   )
 }
@@ -34,7 +34,7 @@ export default function PayOrderQuickView({ payOrder, open, onOpenChange, onEdit
         <div className="mt-1">
           <Row label="Amount" value={formatCurrency(payOrder.amount)} mono />
           <Row label="NIT / Ref" value={payOrder.nit} mono />
-          <Row label="Tender" value={payOrder.tender} />
+          <Row label="Tender" value={payOrder.tender} bold />
           <Row label="Agency" value={payOrder.agency} />
           <Row label="Submitted" value={formatDate(payOrder.submitted)} />
           {payOrder.notes && (

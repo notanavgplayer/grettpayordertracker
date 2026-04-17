@@ -289,7 +289,7 @@ export default function PayOrders() {
 
                       {(p.tender || p.agency) && (
                         <div className="space-y-0.5">
-                          {p.tender && <p className="text-sm font-medium text-foreground break-words">{p.tender}</p>}
+                          {p.tender && <p className="text-sm font-semibold text-foreground break-words">{p.tender}</p>}
                           {p.agency && <p className="text-xs text-muted-foreground break-words">{p.agency}</p>}
                         </div>
                       )}
@@ -338,7 +338,7 @@ export default function PayOrders() {
                         </TableCell>
                         <TableCell className="text-xs">{p.bank || '—'}</TableCell>
                         <TableCell className="text-xs text-muted-foreground font-mono">{p.nit || '—'}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-xs min-w-[160px] max-w-[220px] whitespace-normal break-words">{p.tender || '—'}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-xs font-semibold text-foreground min-w-[160px] max-w-[220px] whitespace-normal break-words">{p.tender || '—'}</TableCell>
                         <TableCell className="text-xs min-w-[140px] max-w-[200px] whitespace-normal break-words">{p.agency || '—'}</TableCell>
                         <TableCell className="text-xs font-mono tabular-nums text-right whitespace-nowrap">{formatCurrency(p.amount)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(p.submitted)}</TableCell>

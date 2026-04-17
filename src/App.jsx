@@ -1,28 +1,41 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
+import { Loader2 } from 'lucide-react'
 import { AuthProvider } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import ProtectedRoute from '@/components/shared/ProtectedRoute'
 import Layout from '@/components/layout/Layout'
 
 import Login from '@/pages/Login'
-import Home from '@/pages/Home'
-import PayOrders from '@/pages/PayOrders'
-import Tenders from '@/pages/Tenders'
-import TenderDetail from '@/pages/TenderDetail'
-import Calendar from '@/pages/Calendar'
-import Expenses from '@/pages/Expenses'
-import Contacts from '@/pages/Contacts'
-import Notes from '@/pages/Notes'
-import Todo from '@/pages/Todo'
-import Activity from '@/pages/Activity'
-import Search from '@/pages/Search'
-import Settings from '@/pages/Settings'
+
+const Home = lazy(() => import('@/pages/Home'))
+const PayOrders = lazy(() => import('@/pages/PayOrders'))
+const Tenders = lazy(() => import('@/pages/Tenders'))
+const TenderDetail = lazy(() => import('@/pages/TenderDetail'))
+const Calendar = lazy(() => import('@/pages/Calendar'))
+const Expenses = lazy(() => import('@/pages/Expenses'))
+const Contacts = lazy(() => import('@/pages/Contacts'))
+const Notes = lazy(() => import('@/pages/Notes'))
+const Todo = lazy(() => import('@/pages/Todo'))
+const Activity = lazy(() => import('@/pages/Activity'))
+const Search = lazy(() => import('@/pages/Search'))
+const Settings = lazy(() => import('@/pages/Settings'))
+
+function PageLoading() {
+  return (
+    <div className="flex h-full min-h-[60vh] items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  )
+}
 
 function AppLayout({ children }) {
   return (
     <ProtectedRoute>
-      <Layout>{children}</Layout>
+      <Layout>
+        <Suspense fallback={<PageLoading />}>{children}</Suspense>
+      </Layout>
     </ProtectedRoute>
   )
 }
