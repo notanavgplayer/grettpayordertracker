@@ -8,6 +8,7 @@ import StatusBadge from '@/components/shared/StatusBadge'
 import EmptyState from '@/components/shared/EmptyState'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import MetricCard from '@/components/shared/MetricCard'
+import PayOrderQuickView from '@/components/shared/PayOrderQuickView'
 import { PageTableSkeleton } from '@/components/shared/LoadingSkeletons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,6 +51,7 @@ export default function PayOrders() {
   const [form, setForm] = useState(EMPTY_PO)
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState(null)
+  const [quickView, setQuickView] = useState(null)
 
   // Activity log state
   const [logDialogOpen, setLogDialogOpen] = useState(false)
@@ -254,10 +256,10 @@ export default function PayOrders() {
                   <Card key={p.id} className="overflow-hidden">
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-mono text-sm font-semibold text-foreground truncate">{p.po || '—'}</p>
+                        <button type="button" onClick={() => setQuickView(p)} className="min-w-0 flex-1 text-left">
+                          <p className="font-mono text-sm font-semibold text-foreground truncate hover:underline">{p.po || '—'}</p>
                           <p className="text-xs text-muted-foreground truncate mt-0.5">{p.bank || '—'} · {formatDate(p.issued) || 'No date'}</p>
-                        </div>
+                        </button>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <StatusBadge status={p.status} />
                           {isAdmin && (
@@ -331,7 +333,9 @@ export default function PayOrders() {
                   <TableBody>
                     {filtered.map((p) => (
                       <TableRow key={p.id}>
-                        <TableCell className="font-mono text-sm font-medium">{p.po || '—'}</TableCell>
+                        <TableCell className="font-mono text-sm font-medium">
+                          <button type="button" onClick={() => setQuickView(p)} className="hover:underline text-left">{p.po || '—'}</button>
+                        </TableCell>
                         <TableCell className="text-sm">{p.bank || '—'}</TableCell>
                         <TableCell className="text-sm text-muted-foreground font-mono">{p.nit || '—'}</TableCell>
                         <TableCell className="hidden lg:table-cell text-sm max-w-[160px] truncate">{p.tender || '—'}</TableCell>
@@ -522,6 +526,14 @@ export default function PayOrders() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <PayOrderQuickView
+        payOrder={quickView}
+        open={!!quickView}
+        onOpenChange={(v) => !v && setQuickView(null)}
+        canEdit={isAdmin}
+        onEdit={() => { const p = quickView; setQuickView(null); openDialog(p) }}
+      />
 
       <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={handleDelete} title="Delete pay order" description="This will permanently remove the pay order record." />
       <ConfirmDelete open={!!deleteLogId} onOpenChange={() => setDeleteLogId(null)} onConfirm={async () => { await removeLog(deleteLogId); toast.success('Log deleted'); setDeleteLogId(null) }} title="Delete log entry" description="This will remove this activity log entry." />

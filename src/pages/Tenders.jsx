@@ -8,6 +8,7 @@ import PageHeader from '@/components/shared/PageHeader'
 import StatusBadge from '@/components/shared/StatusBadge'
 import EmptyState from '@/components/shared/EmptyState'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
+import TenderQuickView from '@/components/shared/TenderQuickView'
 import { PageTableSkeleton } from '@/components/shared/LoadingSkeletons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,6 +48,7 @@ export default function Tenders() {
   const [form, setForm] = useState(EMPTY_TENDER)
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState(null)
+  const [quickView, setQuickView] = useState(null)
 
   const filtered = useMemo(() => {
     return tenders.filter((t) => {
@@ -207,11 +209,11 @@ export default function Tenders() {
                       <CardContent className="p-4 space-y-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <Link to={`/tenders/${t.id}`} className="block">
+                            <button type="button" onClick={() => setQuickView(t)} className="block text-left w-full">
                               <p className="font-semibold text-sm text-foreground hover:underline break-words">
                                 {t.name || 'Untitled'}
                               </p>
-                            </Link>
+                            </button>
                             {t.agency && <p className="text-xs text-muted-foreground break-words mt-0.5">{t.agency}</p>}
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
@@ -299,9 +301,9 @@ export default function Tenders() {
                     return (
                       <TableRow key={t.id}>
                         <TableCell>
-                          <Link to={`/tenders/${t.id}`} className="font-medium text-sm hover:underline text-foreground">
+                          <button type="button" onClick={() => setQuickView(t)} className="font-medium text-sm hover:underline text-foreground text-left">
                             {t.name || 'Untitled'}
-                          </Link>
+                          </button>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground truncate max-w-[160px]">{t.agency || '—'}</TableCell>
                         <TableCell className="text-sm text-muted-foreground font-mono">{t.nit || '—'}</TableCell>
@@ -422,6 +424,14 @@ export default function Tenders() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <TenderQuickView
+        tender={quickView}
+        open={!!quickView}
+        onOpenChange={(v) => !v && setQuickView(null)}
+        canEdit={isAdmin}
+        onEdit={() => { const t = quickView; setQuickView(null); openDialog(t) }}
+      />
 
       <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={handleDelete} title="Delete tender" description="This will permanently delete the tender and all related data." />
     </div>
