@@ -320,13 +320,13 @@ export default function Tenders() {
               <Table className="hidden md:table">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Tender Name</TableHead>
-                    <TableHead>Agency</TableHead>
-                    <TableHead>NIT/Ref</TableHead>
-                    <TableHead className="hidden lg:table-cell text-right">Value</TableHead>
-                    <TableHead>Submission</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="hidden lg:table-cell">Checklist</TableHead>
+                    <TableHead className="text-xs">Tender Name</TableHead>
+                    <TableHead className="text-xs">Agency</TableHead>
+                    <TableHead className="text-xs">NIT/Ref</TableHead>
+                    <TableHead className="text-xs hidden lg:table-cell text-right">Value</TableHead>
+                    <TableHead className="text-xs">Submission</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs hidden lg:table-cell">Checklist</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -337,15 +337,15 @@ export default function Tenders() {
                     const pct = total ? Math.round((done / total) * 100) : 0
                     return (
                       <TableRow key={t.id}>
-                        <TableCell>
-                          <button type="button" onClick={() => setQuickView(t)} className="font-medium text-sm hover:underline text-foreground text-left">
+                        <TableCell className="min-w-[180px] max-w-[280px]">
+                          <button type="button" onClick={() => setQuickView(t)} className="font-medium text-xs hover:underline text-foreground text-left whitespace-normal break-words">
                             {t.name || 'Untitled'}
                           </button>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground truncate max-w-[160px]">{t.agency || '—'}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground font-mono">{t.nit || '—'}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm font-mono tabular-nums text-right">{formatCurrency(t.value)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(t.submissionDate)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground min-w-[140px] max-w-[200px] whitespace-normal break-words">{t.agency || '—'}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">{t.nit || '—'}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-xs font-mono tabular-nums text-right whitespace-nowrap">{formatCurrency(t.value)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(t.submissionDate)}</TableCell>
                         <TableCell><StatusBadge status={t.status} /></TableCell>
                         <TableCell className="hidden lg:table-cell">
                           {total > 0 && (

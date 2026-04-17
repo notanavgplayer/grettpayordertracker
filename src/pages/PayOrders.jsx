@@ -318,30 +318,30 @@ export default function PayOrders() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead>PO #</TableHead>
-                      <TableHead>Bank</TableHead>
-                      <TableHead>NIT/Ref</TableHead>
-                      <TableHead className="hidden lg:table-cell">Tender</TableHead>
-                      <TableHead>Agency</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Issued</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="hidden lg:table-cell">Bid Result</TableHead>
+                      <TableHead className="text-xs">PO #</TableHead>
+                      <TableHead className="text-xs">Bank</TableHead>
+                      <TableHead className="text-xs">NIT/Ref</TableHead>
+                      <TableHead className="text-xs hidden lg:table-cell">Tender</TableHead>
+                      <TableHead className="text-xs">Agency</TableHead>
+                      <TableHead className="text-xs text-right">Amount</TableHead>
+                      <TableHead className="text-xs">Issued</TableHead>
+                      <TableHead className="text-xs">Status</TableHead>
+                      <TableHead className="text-xs hidden lg:table-cell">Bid Result</TableHead>
                       {isAdmin && <TableHead className="w-12"></TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.map((p) => (
                       <TableRow key={p.id}>
-                        <TableCell className="font-mono text-sm font-medium">
+                        <TableCell className="font-mono text-xs font-medium">
                           <button type="button" onClick={() => setQuickView(p)} className="hover:underline text-left">{p.po || '—'}</button>
                         </TableCell>
-                        <TableCell className="text-sm">{p.bank || '—'}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground font-mono">{p.nit || '—'}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm max-w-[160px] truncate">{p.tender || '—'}</TableCell>
-                        <TableCell className="text-sm max-w-[140px] truncate">{p.agency || '—'}</TableCell>
-                        <TableCell className="text-sm font-mono tabular-nums text-right">{formatCurrency(p.amount)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(p.issued)}</TableCell>
+                        <TableCell className="text-xs">{p.bank || '—'}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono">{p.nit || '—'}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-xs min-w-[160px] max-w-[220px] whitespace-normal break-words">{p.tender || '—'}</TableCell>
+                        <TableCell className="text-xs min-w-[140px] max-w-[200px] whitespace-normal break-words">{p.agency || '—'}</TableCell>
+                        <TableCell className="text-xs font-mono tabular-nums text-right whitespace-nowrap">{formatCurrency(p.amount)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(p.issued)}</TableCell>
                         <TableCell><StatusBadge status={p.status} /></TableCell>
                         <TableCell className="hidden lg:table-cell"><StatusBadge status={p.bidResult} /></TableCell>
                         {isAdmin && (

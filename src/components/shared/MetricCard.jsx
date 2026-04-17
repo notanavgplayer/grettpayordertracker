@@ -11,7 +11,7 @@ export default function MetricCard({ title, value, icon: Icon, delta, deltaPosit
       </CardHeader>
       <CardContent className="px-4 sm:px-5 pb-4 min-w-0">
         <p className={cn(
-          'text-lg sm:text-xl lg:text-2xl font-bold tracking-tight truncate',
+          'text-base sm:text-lg lg:text-xl font-bold tracking-tight truncate',
           mono && 'font-mono tabular-nums'
         )}>
           {value}
