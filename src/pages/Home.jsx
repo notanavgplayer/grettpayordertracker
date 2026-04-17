@@ -6,9 +6,9 @@ import { useAuth } from '@/context/AuthContext'
 import { daysUntil, formatCurrency, formatDate } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import StatusBadge from '@/components/shared/StatusBadge'
 import PageHeader from '@/components/shared/PageHeader'
+import MetricCard from '@/components/shared/MetricCard'
 import {
   FileStack, FileText, CheckSquare, Trophy, AlertTriangle,
   Clock, ChevronRight, X, Loader2,
@@ -120,39 +120,11 @@ export default function Home() {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={FileStack}
-          label="Active Tenders"
-          value={activeTenders.length}
-          color="text-blue-600"
-          bg="bg-blue-50 dark:bg-blue-950/30"
-          linkTo="/tenders"
-        />
-        <StatCard
-          icon={FileText}
-          label="POs At Risk"
-          value={atRisk.length}
-          color="text-amber-600"
-          bg="bg-amber-50 dark:bg-amber-950/30"
-          linkTo="/pay-orders"
-        />
-        <StatCard
-          icon={CheckSquare}
-          label="Open Tasks"
-          value={openTodos.length}
-          color="text-indigo-600"
-          bg="bg-indigo-50 dark:bg-indigo-950/30"
-          linkTo="/todo"
-        />
-        <StatCard
-          icon={Trophy}
-          label="Awarded Tenders"
-          value={awardedTenders.length}
-          color="text-green-600"
-          bg="bg-green-50 dark:bg-green-950/30"
-          linkTo="/tenders"
-        />
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard icon={FileStack} title="Active Tenders"   value={activeTenders.length}   href="/tenders"     mono={false} />
+        <MetricCard icon={FileText}  title="POs At Risk"      value={atRisk.length}          href="/pay-orders"  mono={false} />
+        <MetricCard icon={CheckSquare} title="Open Tasks"     value={openTodos.length}       href="/todo"        mono={false} />
+        <MetricCard icon={Trophy}    title="Awarded Tenders"  value={awardedTenders.length}  href="/tenders"     mono={false} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -241,22 +213,6 @@ export default function Home() {
         </Card>
       </div>
     </div>
-  )
-}
-
-function StatCard({ icon: Icon, label, value, color, bg, linkTo }) {
-  return (
-    <Link to={linkTo}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer">
-        <CardContent className="p-5">
-          <div className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${bg} mb-3`}>
-            <Icon className={`h-5 w-5 ${color}`} />
-          </div>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
-          <p className="text-sm text-muted-foreground mt-0.5">{label}</p>
-        </CardContent>
-      </Card>
-    </Link>
   )
 }
 

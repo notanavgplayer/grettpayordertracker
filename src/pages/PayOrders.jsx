@@ -7,6 +7,7 @@ import PageHeader from '@/components/shared/PageHeader'
 import StatusBadge from '@/components/shared/StatusBadge'
 import EmptyState from '@/components/shared/EmptyState'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
+import MetricCard from '@/components/shared/MetricCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,11 +19,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import {
   Plus, FileText, Download, Printer, Search, Pencil, Trash2,
-  Loader2, TrendingUp, DollarSign, AlertCircle, CheckCircle,
+  Loader2, TrendingUp, DollarSign, AlertCircle, CheckCircle, MoreHorizontal,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { serverTimestamp } from 'firebase/firestore'
@@ -147,11 +152,11 @@ export default function PayOrders() {
       />
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <SummaryCard icon={DollarSign} label="Total Amount" value={formatCurrency(total)} color="text-primary" />
-        <SummaryCard icon={FileText} label="Total Entries" value={payOrders.length} color="text-primary" />
-        <SummaryCard icon={AlertCircle} label="At Risk" value={atRisk} color="text-amber-600" />
-        <SummaryCard icon={CheckCircle} label="Encashed" value={encashed} color="text-green-600" />
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard icon={DollarSign}   title="Total Amount"   value={formatCurrency(total)} />
+        <MetricCard icon={FileText}     title="Total Entries"  value={payOrders.length} mono={false} delta={`${returned} returned`} deltaPositive={null} />
+        <MetricCard icon={AlertCircle}  title="At Risk"        value={atRisk} mono={false} delta={atRisk > 0 ? 'Submitted, awaiting result' : 'All clear'} deltaPositive={atRisk === 0} />
+        <MetricCard icon={CheckCircle}  title="Encashed"       value={encashed} mono={false} delta={encashed > 0 ? `${Math.round((encashed / (payOrders.length || 1)) * 100)}% of total` : undefined} deltaPositive={null} />
       </div>
 
       {/* Charts */}
@@ -229,17 +234,17 @@ export default function PayOrders() {
             <Card>
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="hover:bg-transparent">
                     <TableHead>PO #</TableHead>
                     <TableHead>Bank</TableHead>
                     <TableHead className="hidden md:table-cell">NIT/Ref</TableHead>
                     <TableHead className="hidden lg:table-cell">Tender</TableHead>
                     <TableHead className="hidden sm:table-cell">Agency</TableHead>
-                    <TableHead className="hidden sm:table-cell">Amount</TableHead>
+                    <TableHead className="hidden sm:table-cell text-right">Amount</TableHead>
                     <TableHead className="hidden md:table-cell">Issued</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden lg:table-cell">Bid Result</TableHead>
-                    {isAdmin && <TableHead className="w-20">Actions</TableHead>}
+                    {isAdmin && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -247,19 +252,35 @@ export default function PayOrders() {
                     <TableRow key={p.id}>
                       <TableCell className="font-mono text-sm font-medium">{p.po || '—'}</TableCell>
                       <TableCell className="text-sm">{p.bank || '—'}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{p.nit || '—'}</TableCell>
+                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground font-mono">{p.nit || '—'}</TableCell>
                       <TableCell className="hidden lg:table-cell text-sm max-w-[160px] truncate">{p.tender || '—'}</TableCell>
                       <TableCell className="hidden sm:table-cell text-sm max-w-[140px] truncate">{p.agency || '—'}</TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm font-medium">{formatCurrency(p.amount)}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-sm font-mono tabular-nums text-right">{formatCurrency(p.amount)}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{formatDate(p.issued)}</TableCell>
                       <TableCell><StatusBadge status={p.status} /></TableCell>
                       <TableCell className="hidden lg:table-cell"><StatusBadge status={p.bidResult} /></TableCell>
                       {isAdmin && (
                         <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon-sm" onClick={() => openDialog(p)}><Pencil className="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(p.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon-sm" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openDialog(p)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteId(p.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       )}
                     </TableRow>
@@ -280,14 +301,14 @@ export default function PayOrders() {
             <Card>
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="hover:bg-transparent">
                     <TableHead>Date</TableHead>
                     <TableHead>PO</TableHead>
                     <TableHead className="hidden sm:table-cell">Reference</TableHead>
                     <TableHead>Action</TableHead>
                     <TableHead className="hidden md:table-cell">Next Step</TableHead>
                     <TableHead className="hidden lg:table-cell">By</TableHead>
-                    {isAdmin && <TableHead className="w-20">Actions</TableHead>}
+                    {isAdmin && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -295,16 +316,32 @@ export default function PayOrders() {
                     <TableRow key={l.id}>
                       <TableCell className="text-sm text-muted-foreground">{formatDate(l.date)}</TableCell>
                       <TableCell className="font-mono text-sm">{l.po || '—'}</TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm">{l.ref || '—'}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-sm font-mono">{l.ref || '—'}</TableCell>
                       <TableCell className="text-sm">{l.action || '—'}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{l.next || '—'}</TableCell>
                       <TableCell className="hidden lg:table-cell text-sm">{l.by || '—'}</TableCell>
                       {isAdmin && (
                         <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon-sm" onClick={() => openLogDialog(l)}><Pencil className="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteLogId(l.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon-sm" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openLogDialog(l)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteLogId(l.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       )}
                     </TableRow>
@@ -391,22 +428,6 @@ export default function PayOrders() {
       <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={handleDelete} title="Delete pay order" description="This will permanently remove the pay order record." />
       <ConfirmDelete open={!!deleteLogId} onOpenChange={() => setDeleteLogId(null)} onConfirm={async () => { await removeLog(deleteLogId); toast.success('Log deleted'); setDeleteLogId(null) }} title="Delete log entry" description="This will remove this activity log entry." />
     </div>
-  )
-}
-
-function SummaryCard({ icon: Icon, label, value, color }) {
-  return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted flex-shrink-0">
-          <Icon className={`h-5 w-5 ${color}`} />
-        </div>
-        <div>
-          <p className="text-xl font-bold text-foreground">{value}</p>
-          <p className="text-xs text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
   )
 }
 

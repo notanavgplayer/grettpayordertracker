@@ -6,6 +6,7 @@ import { exportExpensesCSV } from '@/lib/export'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
+import MetricCard from '@/components/shared/MetricCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,9 +18,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts'
-import { Plus, Download, Pencil, Trash2, Loader2, Receipt, TrendingUp, Calendar } from 'lucide-react'
+import { Plus, Download, Pencil, Trash2, Loader2, Receipt, TrendingUp, Calendar, Tag, MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 
 const CATEGORY_COLORS = [
@@ -115,21 +120,10 @@ export default function Expenses() {
       />
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <Card><CardContent className="p-4">
-          <p className="text-xl font-bold text-foreground">{formatCurrency(totalMonth)}</p>
-          <p className="text-xs text-muted-foreground">This Month</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{thisMonthExpenses.length} entries</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <p className="text-xl font-bold text-foreground">{formatCurrency(totalAll)}</p>
-          <p className="text-xs text-muted-foreground">All Time Total</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{expenses.length} entries</p>
-        </CardContent></Card>
-        <Card className="hidden sm:block"><CardContent className="p-4">
-          <p className="text-base font-bold text-foreground truncate">{topCat}</p>
-          <p className="text-xs text-muted-foreground">Top Category (Month)</p>
-        </CardContent></Card>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <MetricCard icon={Calendar}   title="This Month"      value={formatCurrency(totalMonth)} delta={`${thisMonthExpenses.length} entries`} deltaPositive={null} />
+        <MetricCard icon={TrendingUp} title="All Time Total"  value={formatCurrency(totalAll)}   delta={`${expenses.length} entries`} deltaPositive={null} />
+        <MetricCard icon={Tag}        title="Top Category"    value={topCat} mono={false} delta="This month" deltaPositive={null} className="hidden sm:flex" />
       </div>
 
       <Tabs defaultValue="list">
@@ -151,29 +145,45 @@ export default function Expenses() {
             <Card>
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="hover:bg-transparent">
                     <TableHead>Description</TableHead>
                     <TableHead className="hidden sm:table-cell">Category</TableHead>
-                    <TableHead>Amount</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
                     <TableHead className="hidden md:table-cell">Date</TableHead>
                     <TableHead className="hidden lg:table-cell">Tender</TableHead>
-                    {isAdmin && <TableHead className="w-20">Actions</TableHead>}
+                    {isAdmin && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {displayExpenses.map((e) => (
                     <TableRow key={e.id}>
                       <TableCell className="text-sm font-medium max-w-[200px] truncate">{e.description}</TableCell>
-                      <TableCell className="hidden sm:table-cell"><Badge variant="secondary" className="text-xs">{e.category}</Badge></TableCell>
-                      <TableCell className="text-sm font-semibold">{formatCurrency(e.amount)}</TableCell>
+                      <TableCell className="hidden sm:table-cell"><Badge variant="secondary" className="text-xs font-normal">{e.category}</Badge></TableCell>
+                      <TableCell className="text-sm font-mono tabular-nums font-semibold text-right">{formatCurrency(e.amount)}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{formatDate(e.date)}</TableCell>
                       <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{e.tenderId || '—'}</TableCell>
                       {isAdmin && (
                         <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon-sm" onClick={() => openDialog(e)}><Pencil className="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(e.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon-sm" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openDialog(e)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteId(e.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       )}
                     </TableRow>

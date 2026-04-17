@@ -2,7 +2,7 @@ import { useCollection } from '@/hooks/useFirestore'
 import { formatDate } from '@/lib/utils'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
-import { Card } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Activity, Loader2 } from 'lucide-react'
 
@@ -19,9 +19,15 @@ export default function ActivityPage() {
         <EmptyState icon={Activity} title="No activity logged" description="Activity entries logged in Pay Orders will appear here." />
       ) : (
         <Card>
+          <CardHeader className="border-b border-border py-3 px-4">
+            <CardTitle className="text-sm">Activity entries</CardTitle>
+            <CardDescription className="text-xs">
+              <span className="font-mono tabular-nums">{logs.length}</span> total
+            </CardDescription>
+          </CardHeader>
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>Date</TableHead>
                 <TableHead>PO #</TableHead>
                 <TableHead className="hidden sm:table-cell">Reference</TableHead>
@@ -35,7 +41,7 @@ export default function ActivityPage() {
                 <TableRow key={l.id}>
                   <TableCell className="text-sm text-muted-foreground">{formatDate(l.date)}</TableCell>
                   <TableCell className="font-mono text-sm">{l.po || '—'}</TableCell>
-                  <TableCell className="hidden sm:table-cell text-sm">{l.ref || '—'}</TableCell>
+                  <TableCell className="hidden sm:table-cell text-sm font-mono">{l.ref || '—'}</TableCell>
                   <TableCell className="text-sm">{l.action || '—'}</TableCell>
                   <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{l.next || '—'}</TableCell>
                   <TableCell className="hidden lg:table-cell text-sm">{l.by || '—'}</TableCell>

@@ -5,48 +5,48 @@
 @layer base {
   :root {
     --background: 210 40% 98%;
-    --foreground: 213 50% 18%;
+    --foreground: 217 50% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 213 50% 18%;
+    --card-foreground: 217 50% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 213 50% 18%;
-    --primary: 213 65% 18%;
+    --popover-foreground: 217 50% 12%;
+    --primary: 217 91% 25%;
     --primary-foreground: 0 0% 100%;
     --secondary: 210 20% 94%;
-    --secondary-foreground: 213 50% 18%;
+    --secondary-foreground: 217 50% 12%;
     --muted: 210 20% 94%;
     --muted-foreground: 215 20% 50%;
     --accent: 210 20% 92%;
-    --accent-foreground: 213 50% 18%;
+    --accent-foreground: 217 50% 12%;
     --destructive: 4 76% 46%;
     --destructive-foreground: 0 0% 100%;
     --border: 214 20% 88%;
     --input: 214 20% 88%;
-    --ring: 213 65% 30%;
-    --radius: 0.5rem;
-    --amber: 35 93% 48%;
+    --ring: 217 91% 35%;
+    --radius: 0.75rem;
+    --amber: 38 92% 50%;
   }
 
   .dark {
-    --background: 216 28% 7%;
+    --background: 222 47% 6%;
     --foreground: 213 20% 88%;
-    --card: 215 25% 10%;
+    --card: 222 47% 9%;
     --card-foreground: 213 20% 88%;
-    --popover: 215 25% 10%;
+    --popover: 222 47% 9%;
     --popover-foreground: 213 20% 88%;
-    --primary: 213 65% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 215 20% 16%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 217 91% 8%;
+    --secondary: 222 30% 14%;
     --secondary-foreground: 213 20% 88%;
-    --muted: 215 20% 16%;
+    --muted: 222 30% 14%;
     --muted-foreground: 215 15% 55%;
-    --accent: 215 20% 18%;
+    --accent: 222 30% 16%;
     --accent-foreground: 213 20% 88%;
     --destructive: 4 70% 56%;
     --destructive-foreground: 0 0% 100%;
-    --border: 215 20% 20%;
-    --input: 215 20% 20%;
-    --ring: 213 65% 55%;
+    --border: 222 20% 18%;
+    --input: 222 20% 18%;
+    --ring: 217 91% 60%;
   }
 }
 
@@ -81,5 +81,8 @@
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: hsl(var(--border));
     border-radius: 3px;
+  }
+  .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
   }
 }
