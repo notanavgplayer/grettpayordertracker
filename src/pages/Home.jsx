@@ -121,12 +121,12 @@ export default function Home() {
         <div className="relative rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4">
           <button
             onClick={() => setAlertDismissed(true)}
-            className="absolute right-3 top-3 text-amber-600 hover:text-amber-800"
+            className="absolute right-3 top-3 text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200"
           >
             <X className="h-4 w-4" />
           </button>
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
                 {urgentAlerts.length} urgent deadline{urgentAlerts.length > 1 ? 's' : ''}
@@ -183,8 +183,8 @@ export default function Home() {
                     <div className="flex items-center gap-2 ml-3 flex-shrink-0">
                       <StatusBadge status={t.status} />
                       <span className={`text-xs font-semibold ${
-                        t.daysLeft <= 1 ? 'text-red-600' :
-                        t.daysLeft <= 3 ? 'text-amber-600' : 'text-muted-foreground'
+                        t.daysLeft <= 1 ? 'text-red-600 dark:text-red-400' :
+                        t.daysLeft <= 3 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'
                       }`}>
                         {t.daysLeft === 0 ? 'Today' : t.daysLeft === 1 ? 'Tomorrow' : `${t.daysLeft}d`}
                       </span>
@@ -226,7 +226,7 @@ export default function Home() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground leading-tight">{todo.text}</p>
                     {todo.dueDate && (
-                      <p className={`text-xs mt-0.5 ${daysUntil(todo.dueDate) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                      <p className={`text-xs mt-0.5 ${daysUntil(todo.dueDate) < 0 ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'}`}>
                         Due {formatDate(todo.dueDate)}
                       </p>
                     )}

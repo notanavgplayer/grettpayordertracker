@@ -146,7 +146,7 @@ export default function Todo() {
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm ${todo.done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{todo.text}</p>
                   {todo.dueDate && (
-                    <p className={`text-xs mt-0.5 ${overdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                    <p className={`text-xs mt-0.5 ${overdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-muted-foreground'}`}>
                       {overdue ? `Overdue by ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''}` : `Due ${formatDate(todo.dueDate)}`}
                     </p>
                   )}

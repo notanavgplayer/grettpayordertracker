@@ -40,7 +40,7 @@ export default function Sidebar({ onClose }) {
       <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary flex-shrink-0">
           <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
-            <path d="M12 2L3 8v2h2v10h4v-5h6v5h4V10h2V8L12 2z" fill="#e8940a" />
+            <path d="M12 2L3 8v2h2v10h4v-5h6v5h4V10h2V8L12 2z" fill="hsl(var(--amber))" />
           </svg>
         </div>
         <div className="min-w-0">

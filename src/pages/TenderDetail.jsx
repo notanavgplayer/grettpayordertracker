@@ -261,9 +261,9 @@ export default function TenderDetail() {
         {/* Bills tab */}
         <TabsContent value="bills" className="mt-4 space-y-4">
           <div className="grid grid-cols-3 gap-4">
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-bold">{formatCurrency(billTotal)}</p><p className="text-xs text-muted-foreground">Total Billed</p></CardContent></Card>
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-bold text-green-600">{formatCurrency(billPaid)}</p><p className="text-xs text-muted-foreground">Received</p></CardContent></Card>
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-bold text-amber-600">{formatCurrency(billTotal - billPaid)}</p><p className="text-xs text-muted-foreground">Outstanding</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold">{formatCurrency(billTotal)}</p><p className="text-xs text-muted-foreground">Total Billed</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(billPaid)}</p><p className="text-xs text-muted-foreground">Received</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400">{formatCurrency(billTotal - billPaid)}</p><p className="text-xs text-muted-foreground">Outstanding</p></CardContent></Card>
           </div>
           {isAdmin && <Button size="sm" onClick={addBill}><Plus className="h-3.5 w-3.5" /> Add Bill</Button>}
           {(form.bills || []).map((bill) => (
@@ -307,9 +307,9 @@ export default function TenderDetail() {
         {/* RA Bills tab */}
         <TabsContent value="rabills" className="mt-4 space-y-4">
           <div className="grid grid-cols-3 gap-4">
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-bold">{formatCurrency(raBillTotal)}</p><p className="text-xs text-muted-foreground">Total RA Billed</p></CardContent></Card>
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-bold text-green-600">{formatCurrency(raBillPaid)}</p><p className="text-xs text-muted-foreground">Received</p></CardContent></Card>
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-bold text-amber-600">{formatCurrency(raBillTotal - raBillPaid)}</p><p className="text-xs text-muted-foreground">Outstanding</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold">{formatCurrency(raBillTotal)}</p><p className="text-xs text-muted-foreground">Total RA Billed</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(raBillPaid)}</p><p className="text-xs text-muted-foreground">Received</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400">{formatCurrency(raBillTotal - raBillPaid)}</p><p className="text-xs text-muted-foreground">Outstanding</p></CardContent></Card>
           </div>
           {isAdmin && <Button size="sm" onClick={addRABill}><Plus className="h-3.5 w-3.5" /> Add RA Bill</Button>}
           {(form.raBills || []).map((bill) => (

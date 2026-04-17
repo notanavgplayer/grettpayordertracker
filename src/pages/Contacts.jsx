@@ -117,7 +117,7 @@ export default function Contacts() {
                       </a>
                     )}
                     {(c.whatsapp || c.phone) && (
-                      <a href={`https://wa.me/${(c.whatsapp || c.phone).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-green-600 hover:text-green-700">
+                      <a href={`https://wa.me/${(c.whatsapp || c.phone).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300">
                         <MessageCircle className="h-4 w-4" />
                       </a>
                     )}
@@ -162,7 +162,7 @@ export default function Contacts() {
                     {(selected.whatsapp || selected.phone) && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground w-24">WhatsApp</span>
-                        <a href={`https://wa.me/${(selected.whatsapp || selected.phone).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">
+                        <a href={`https://wa.me/${(selected.whatsapp || selected.phone).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:underline">
                           {selected.whatsapp || selected.phone}
                         </a>
                       </div>
