@@ -247,63 +247,129 @@ export default function PayOrders() {
           {filtered.length === 0 ? (
             <EmptyState icon={FileText} title="No pay orders found" description="Add your first pay order to get started." action={isAdmin && <Button onClick={() => openDialog()}><Plus className="h-4 w-4" /> Add Pay Order</Button>} />
           ) : (
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>PO #</TableHead>
-                    <TableHead>Bank</TableHead>
-                    <TableHead className="hidden md:table-cell">NIT/Ref</TableHead>
-                    <TableHead className="hidden lg:table-cell">Tender</TableHead>
-                    <TableHead className="hidden sm:table-cell">Agency</TableHead>
-                    <TableHead className="hidden sm:table-cell text-right">Amount</TableHead>
-                    <TableHead className="hidden md:table-cell">Issued</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="hidden lg:table-cell">Bid Result</TableHead>
-                    {isAdmin && <TableHead className="w-12"></TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-mono text-sm font-medium">{p.po || '—'}</TableCell>
-                      <TableCell className="text-sm">{p.bank || '—'}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground font-mono">{p.nit || '—'}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm max-w-[160px] truncate">{p.tender || '—'}</TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm max-w-[140px] truncate">{p.agency || '—'}</TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm font-mono tabular-nums text-right">{formatCurrency(p.amount)}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{formatDate(p.issued)}</TableCell>
-                      <TableCell><StatusBadge status={p.status} /></TableCell>
-                      <TableCell className="hidden lg:table-cell"><StatusBadge status={p.bidResult} /></TableCell>
-                      {isAdmin && (
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon-sm" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openDialog(p)}>
-                                <Pencil className="mr-2 h-4 w-4" /> Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => setDeleteId(p.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+            <>
+              {/* Mobile: card-per-row */}
+              <div className="md:hidden space-y-3">
+                {filtered.map((p) => (
+                  <Card key={p.id} className="overflow-hidden">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-mono text-sm font-semibold text-foreground truncate">{p.po || '—'}</p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{p.bank || '—'} · {formatDate(p.issued) || 'No date'}</p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <StatusBadge status={p.status} />
+                          {isAdmin && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon-sm" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Open menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openDialog(p)}>
+                                  <Pencil className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => setDeleteId(p.id)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                      </div>
+
+                      {(p.tender || p.agency) && (
+                        <div className="space-y-0.5">
+                          {p.tender && <p className="text-sm font-medium text-foreground truncate">{p.tender}</p>}
+                          {p.agency && <p className="text-xs text-muted-foreground truncate">{p.agency}</p>}
+                        </div>
                       )}
+
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs pt-2 border-t border-border">
+                        <div className="min-w-0">
+                          <p className="text-muted-foreground">Amount</p>
+                          <p className="font-mono tabular-nums font-semibold text-foreground truncate">{formatCurrency(p.amount)}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-muted-foreground">NIT/Ref</p>
+                          <p className="font-mono text-foreground truncate">{p.nit || '—'}</p>
+                        </div>
+                        <div className="col-span-2 flex items-center justify-between gap-2 pt-1">
+                          <span className="text-muted-foreground">Bid Result</span>
+                          <StatusBadge status={p.bidResult} />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop: table */}
+              <Card className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>PO #</TableHead>
+                      <TableHead>Bank</TableHead>
+                      <TableHead>NIT/Ref</TableHead>
+                      <TableHead className="hidden lg:table-cell">Tender</TableHead>
+                      <TableHead>Agency</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Issued</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="hidden lg:table-cell">Bid Result</TableHead>
+                      {isAdmin && <TableHead className="w-12"></TableHead>}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-mono text-sm font-medium">{p.po || '—'}</TableCell>
+                        <TableCell className="text-sm">{p.bank || '—'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground font-mono">{p.nit || '—'}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm max-w-[160px] truncate">{p.tender || '—'}</TableCell>
+                        <TableCell className="text-sm max-w-[140px] truncate">{p.agency || '—'}</TableCell>
+                        <TableCell className="text-sm font-mono tabular-nums text-right">{formatCurrency(p.amount)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatDate(p.issued)}</TableCell>
+                        <TableCell><StatusBadge status={p.status} /></TableCell>
+                        <TableCell className="hidden lg:table-cell"><StatusBadge status={p.bidResult} /></TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon-sm" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Open menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openDialog(p)}>
+                                  <Pencil className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => setDeleteId(p.id)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            </>
           )}
         </TabsContent>
 
