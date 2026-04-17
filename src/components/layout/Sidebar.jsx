@@ -20,7 +20,6 @@ const NAV_ITEMS = [
   { to: '/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/notes', icon: StickyNote, label: 'Notes' },
   { to: '/todo', icon: CheckSquare, label: 'To-Do' },
-  { to: '/activity', icon: Activity, label: 'Activity Log' },
 ]
 
 export default function Sidebar({ onClose }) {
@@ -85,23 +84,6 @@ export default function Sidebar({ onClose }) {
           </NavLink>
         ))}
 
-        <Separator className="my-2" />
-
-        <NavLink
-          to="/settings"
-          onClick={onClose}
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-              isActive
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-            )
-          }
-        >
-          <Settings className="h-4 w-4 flex-shrink-0" />
-          Settings
-        </NavLink>
       </nav>
 
       {/* Footer */}
@@ -115,13 +97,43 @@ export default function Sidebar({ onClose }) {
             <p className="text-[10px] text-muted-foreground capitalize">{role}</p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="grid grid-cols-4 gap-1">
+          <NavLink
+            to="/activity"
+            onClick={onClose}
+            title="Activity Log"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center justify-center h-8 rounded-md transition-colors',
+                isActive
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              )
+            }
+          >
+            <Activity className="h-4 w-4" />
+          </NavLink>
+          <NavLink
+            to="/settings"
+            onClick={onClose}
+            title="Settings"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center justify-center h-8 rounded-md transition-colors',
+                isActive
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              )
+            }
+          >
+            <Settings className="h-4 w-4" />
+          </NavLink>
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={toggleTheme}
             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="flex-1 h-8"
+            className="h-8"
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
@@ -130,7 +142,7 @@ export default function Sidebar({ onClose }) {
             size="icon-sm"
             onClick={handleLogout}
             title="Sign out"
-            className="flex-1 h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+            className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             <LogOut className="h-4 w-4" />
           </Button>

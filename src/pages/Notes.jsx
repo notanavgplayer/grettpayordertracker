@@ -16,6 +16,23 @@ import { db } from '@/lib/firebase'
 
 const PRIORITY_COLORS = { high: 'destructive', medium: 'pending', low: 'returned', none: 'secondary' }
 
+// Strip HTML tags, comments, and MS Word/Docs fragment markers so pasted
+// content renders as clean plain text in the textarea editor.
+function stripHtml(str = '') {
+  return String(str)
+    .replace(/<!--[\s\S]*?-->/g, '')        // HTML comments incl. <!--StartFragment-->
+    .replace(/<\/?[a-z][^>]*>/gi, '')       // tags
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\r\n?/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 export default function Notes() {
   const { data: notes, loading } = useCollection('notes', 'updatedAt', 'desc')
   const { add, remove } = useFirestoreCRUD('notes')
@@ -39,7 +56,7 @@ export default function Notes() {
   const selectNote = (note) => {
     setSelected(note)
     setTitle(note.title || '')
-    setBody(note.body || '')
+    setBody(stripHtml(note.body || ''))
     setPriority(note.priority || 'none')
     setSaveStatus('')
   }
@@ -100,12 +117,12 @@ export default function Notes() {
                 className={`w-full text-left px-4 py-3 hover:bg-accent transition-colors ${selected?.id === note.id ? 'bg-accent' : ''}`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium text-foreground truncate">{note.title || 'Untitled'}</p>
+                  <p className="text-sm font-medium text-foreground break-words line-clamp-2 flex-1 min-w-0">{note.title || 'Untitled'}</p>
                   {note.priority && note.priority !== 'none' && (
                     <Badge variant={PRIORITY_COLORS[note.priority]} className="text-[10px] flex-shrink-0">{note.priority}</Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{truncate(note.body?.replace(/<[^>]*>/g, '') || '', 80)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 break-words">{truncate(stripHtml(note.body || ''), 80)}</p>
                 <p className="text-[10px] text-muted-foreground mt-1">{formatDate(note.updatedAt?.toDate?.()?.toISOString?.() || '')}</p>
               </button>
             ))
@@ -147,6 +164,24 @@ export default function Notes() {
               className="flex-1 px-6 py-2 text-sm text-foreground bg-transparent border-0 outline-none resize-none placeholder:text-muted-foreground scrollbar-thin"
               value={body}
               onChange={(e) => { setBody(e.target.value); setSaveStatus('') }}
+              onPaste={(e) => {
+                const html = e.clipboardData.getData('text/html')
+                const plain = e.clipboardData.getData('text/plain')
+                const clean = html ? stripHtml(html) : stripHtml(plain)
+                if (clean !== (html || plain)) {
+                  e.preventDefault()
+                  const el = e.target
+                  const start = el.selectionStart
+                  const end = el.selectionEnd
+                  const next = body.slice(0, start) + clean + body.slice(end)
+                  setBody(next)
+                  setSaveStatus('')
+                  // restore cursor after paste
+                  requestAnimationFrame(() => {
+                    el.selectionStart = el.selectionEnd = start + clean.length
+                  })
+                }
+              }}
               placeholder="Start writing…"
               disabled={!isAdmin}
             />

@@ -59,7 +59,7 @@ export default function Home() {
   const allDeadlines = activeTenders
     .filter((t) => t.submissionDate)
     .map((t) => ({ ...t, daysLeft: daysUntil(t.submissionDate) }))
-    .filter((t) => t.daysLeft !== null)
+    .filter((t) => t.daysLeft !== null && t.daysLeft >= 0)
     .sort((a, b) => a.daysLeft - b.daysLeft)
     .slice(0, 8)
 
@@ -175,14 +175,14 @@ export default function Home() {
             ) : (
               allDeadlines.map((t) => (
                 <Link key={t.id} to={`/tenders/${t.id}`}>
-                  <div className="flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-muted transition-colors">
+                  <div className="flex items-start justify-between rounded-lg px-3 py-2.5 hover:bg-muted transition-colors gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{t.name || 'Untitled'}</p>
-                      <p className="text-xs text-muted-foreground truncate">{t.agency || '—'}</p>
+                      <p className="text-sm font-medium text-foreground break-words line-clamp-2 leading-snug">{t.name || 'Untitled'}</p>
+                      <p className="text-xs text-muted-foreground break-words line-clamp-1 mt-0.5">{t.agency || '—'}</p>
                     </div>
-                    <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
                       <StatusBadge status={t.status} />
-                      <span className={`text-xs font-semibold ${
+                      <span className={`text-xs font-semibold whitespace-nowrap ${
                         t.daysLeft <= 1 ? 'text-red-600 dark:text-red-400' :
                         t.daysLeft <= 3 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'
                       }`}>
