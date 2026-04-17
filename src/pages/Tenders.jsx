@@ -31,7 +31,7 @@ import {
 import { toast } from 'sonner'
 
 const EMPTY_TENDER = {
-  name: '', nit: '', agency: '', value: '', status: 'Bidding',
+  name: '', nit: '', agency: '', value: '', tenderFee: '', status: 'Bidding',
   submissionDate: '', openingDate: '', linkedPO: '', notes: '',
   contact: '', checklist: [], bills: [], raBills: [], statusHistory: [],
 }
@@ -39,6 +39,7 @@ const EMPTY_TENDER = {
 export default function Tenders() {
   const { data: tenders, loading } = useCollection('tenders', 'createdAt', 'desc')
   const { add, update, remove } = useFirestoreCRUD('tenders')
+  const { add: addExpense, update: updateExpense, remove: removeExpense } = useFirestoreCRUD('expenses')
   const { isAdmin } = useAuth()
 
   const [search, setSearch] = useState('')
@@ -94,14 +95,29 @@ export default function Tenders() {
 
     setSaving(true)
     try {
+      const tenderFeeNum = Number(form.tenderFee) || 0
       const data = {
         ...form,
         value: Number(form.value) || 0,
+        tenderFee: tenderFeeNum,
         checklist: form.checklist || [],
         bills: form.bills || [],
         raBills: form.raBills || [],
         statusHistory: form.statusHistory || [],
       }
+
+      // Sync tender fee as an expense
+      const buildExpense = (tenderDocId) => ({
+        description: `Tender fee — ${form.name || 'Untitled'}`,
+        category: 'Tender Fees',
+        amount: tenderFeeNum,
+        date: form.submissionDate || new Date().toISOString().slice(0, 10),
+        tenderId: form.nit || tenderDocId || '',
+        note: `Auto-generated from tender fee`,
+        source: 'tender',
+        tenderRef: tenderDocId || null,
+      })
+
       if (editItem) {
         // Record status change if different
         if (editItem.status !== form.status) {
@@ -111,10 +127,27 @@ export default function Tenders() {
             ts: Date.now(),
           }]
         }
+
+        // Handle expense sync
+        const existingExpId = editItem.tenderFeeExpenseId
+        if (tenderFeeNum > 0 && existingExpId) {
+          try { await updateExpense(existingExpId, buildExpense(editItem.id)) } catch {}
+        } else if (tenderFeeNum > 0 && !existingExpId) {
+          const expId = await addExpense(buildExpense(editItem.id))
+          data.tenderFeeExpenseId = expId
+        } else if (tenderFeeNum <= 0 && existingExpId) {
+          try { await removeExpense(existingExpId) } catch {}
+          data.tenderFeeExpenseId = null
+        }
+
         await update(editItem.id, data)
         toast.success('Tender updated')
       } else {
-        await add(data)
+        const newId = await add(data)
+        if (tenderFeeNum > 0) {
+          const expId = await addExpense(buildExpense(newId))
+          await update(newId, { tenderFeeExpenseId: expId })
+        }
         toast.success('Tender created')
       }
       setDialogOpen(false)
@@ -124,6 +157,10 @@ export default function Tenders() {
   }
 
   const handleDelete = async () => {
+    const t = tenders.find((x) => x.id === deleteId)
+    if (t?.tenderFeeExpenseId) {
+      try { await removeExpense(t.tenderFeeExpenseId) } catch {}
+    }
     await remove(deleteId)
     toast.success('Tender deleted')
     setDeleteId(null)
@@ -386,6 +423,11 @@ export default function Tenders() {
             <div className="space-y-1.5">
               <Label htmlFor="t-agency">Procuring Agency</Label>
               <Input id="t-agency" value={form.agency} onChange={setF('agency')} placeholder="e.g. PPRA, NHA" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="t-fee">Tender Fee (PKR)</Label>
+              <Input id="t-fee" type="number" value={form.tenderFee} onChange={setF('tenderFee')} placeholder="0" className="font-mono tabular-nums" />
+              <p className="text-xs text-muted-foreground">Automatically tracked as an expense under "Tender Fees".</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">

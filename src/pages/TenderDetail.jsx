@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { formatDate, formatCurrency, TENDER_STATUSES, uid } from '@/lib/utils'
@@ -55,7 +55,8 @@ export default function TenderDetail() {
   const save = async () => {
     setSaving(true)
     try {
-      const data = { ...form, value: Number(form.value) || 0 }
+      const tenderFeeNum = Number(form.tenderFee) || 0
+      const data = { ...form, value: Number(form.value) || 0, tenderFee: tenderFeeNum }
       // Record status change
       if (tender.status !== form.status) {
         data.statusHistory = [...(tender.statusHistory || []), {
@@ -64,6 +65,34 @@ export default function TenderDetail() {
           ts: Date.now(),
         }]
       }
+
+      // Sync tender fee expense
+      const existingExpId = tender.tenderFeeExpenseId
+      const expPayload = {
+        description: `Tender fee — ${form.name || 'Untitled'}`,
+        category: 'Tender Fees',
+        amount: tenderFeeNum,
+        date: form.submissionDate || new Date().toISOString().slice(0, 10),
+        tenderId: form.nit || id,
+        note: 'Auto-generated from tender fee',
+        source: 'tender',
+        tenderRef: id,
+        updatedAt: serverTimestamp(),
+      }
+      try {
+        if (tenderFeeNum > 0 && existingExpId) {
+          await updateDoc(doc(db, 'expenses', existingExpId), expPayload)
+        } else if (tenderFeeNum > 0 && !existingExpId) {
+          const ref = await addDoc(collection(db, 'expenses'), { ...expPayload, createdAt: serverTimestamp() })
+          data.tenderFeeExpenseId = ref.id
+        } else if (tenderFeeNum <= 0 && existingExpId) {
+          await deleteDoc(doc(db, 'expenses', existingExpId))
+          data.tenderFeeExpenseId = null
+        }
+      } catch (e) {
+        // non-fatal — continue with tender save
+      }
+
       await updateDoc(doc(db, 'tenders', id), { ...data, updatedAt: serverTimestamp() })
       setTender(data)
       setDirty(false)
@@ -160,6 +189,11 @@ export default function TenderDetail() {
             <div className="space-y-1.5">
               <Label>Value (PKR)</Label>
               <Input type="number" value={form.value || ''} onChange={(e) => updateForm('value', e.target.value)} disabled={!isAdmin} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tender Fee (PKR)</Label>
+              <Input type="number" value={form.tenderFee || ''} onChange={(e) => updateForm('tenderFee', e.target.value)} disabled={!isAdmin} className="font-mono tabular-nums" />
+              <p className="text-xs text-muted-foreground">Auto-tracked as expense.</p>
             </div>
             <div className="space-y-1.5">
               <Label>Procuring Agency</Label>

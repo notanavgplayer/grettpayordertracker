@@ -38,6 +38,7 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
         <div className="mt-1">
           <Row label="NIT / Ref" value={tender.nit} mono />
           <Row label="Value" value={formatCurrency(tender.value)} mono />
+          {Number(tender.tenderFee) > 0 && <Row label="Tender Fee" value={formatCurrency(tender.tenderFee)} mono />}
           <Row label="Submission" value={formatDate(tender.submissionDate)} />
           <Row label="Opening" value={formatDate(tender.openingDate)} />
           {tender.linkedPO && <Row label="Linked PO" value={tender.linkedPO} mono />}
