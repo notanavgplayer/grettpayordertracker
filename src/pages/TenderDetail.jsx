@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
-import { formatDate, formatCurrency, TENDER_STATUSES, uid } from '@/lib/utils'
+import { formatDate, formatCurrency, TENDER_STATUSES, EXPENSE_CATEGORIES, uid } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,12 +15,15 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import StatusBadge from '@/components/shared/StatusBadge'
 import PageHeader from '@/components/shared/PageHeader'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ArrowLeft, Save, Plus, Trash2, Loader2, CheckSquare, DollarSign, History, User, Receipt } from 'lucide-react'
+import { ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, DollarSign, History, User, Receipt, FileText } from 'lucide-react'
 import { toast } from 'sonner'
+
+const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', note: '' }
 
 export default function TenderDetail() {
   const { id } = useParams()
@@ -32,6 +35,13 @@ export default function TenderDetail() {
   const [form, setForm] = useState({})
   const [dirty, setDirty] = useState(false)
   const [expenses, setExpenses] = useState([])
+  const [linkedPOs, setLinkedPOs] = useState([])
+  const [expDialogOpen, setExpDialogOpen] = useState(false)
+  const [editExp, setEditExp] = useState(null)
+  const [expForm, setExpForm] = useState(EMPTY_EXP)
+  const [expSaving, setExpSaving] = useState(false)
+  const [deleteExpId, setDeleteExpId] = useState(null)
+  const [expRefresh, setExpRefresh] = useState(0)
 
   useEffect(() => {
     const load = async () => {
@@ -59,12 +69,93 @@ export default function TenderDetail() {
       } catch {}
     }
     loadExpenses()
-  }, [id, saving])
+  }, [id, saving, expRefresh])
+
+  useEffect(() => {
+    const loadPOs = async () => {
+      if (!tender) return
+      try {
+        const snap = await getDocs(collection(db, 'payOrders'))
+        const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        const nit = (tender.nit || '').trim()
+        const linkedPO = (tender.linkedPO || '').trim()
+        const name = (tender.name || '').trim()
+        const matched = all.filter((p) => {
+          const pNit = (p.nit || '').trim()
+          const pPO = (p.po || '').trim()
+          const pTender = (p.tender || '').trim()
+          return (nit && pNit && pNit === nit) ||
+                 (linkedPO && pPO && pPO === linkedPO) ||
+                 (name && pTender && pTender === name)
+        })
+        setLinkedPOs(matched)
+      } catch {}
+    }
+    loadPOs()
+  }, [tender])
 
   const expenseTotal = useMemo(
     () => expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
     [expenses]
   )
+  const poTotal = useMemo(
+    () => linkedPOs.reduce((s, p) => s + (Number(p.amount) || 0), 0),
+    [linkedPOs]
+  )
+  const combinedTotal = expenseTotal + poTotal
+
+  const openExpDialog = (item = null) => {
+    setEditExp(item)
+    setExpForm(item
+      ? { description: item.description || '', category: item.category || EXPENSE_CATEGORIES[0], amount: item.amount || '', date: item.date || '', note: item.note || '' }
+      : { ...EMPTY_EXP, date: new Date().toISOString().slice(0, 10) })
+    setExpDialogOpen(true)
+  }
+
+  const saveExpense = async () => {
+    if (!expForm.description) { toast.error('Description is required'); return }
+    setExpSaving(true)
+    try {
+      const payload = {
+        description: expForm.description,
+        category: expForm.category,
+        amount: Number(expForm.amount) || 0,
+        date: expForm.date || new Date().toISOString().slice(0, 10),
+        note: expForm.note || '',
+        tenderId: (tender?.nit || id),
+        tenderRef: id,
+        source: 'tender-detail',
+        updatedAt: serverTimestamp(),
+      }
+      if (editExp) {
+        await updateDoc(doc(db, 'expenses', editExp.id), payload)
+        toast.success('Expense updated')
+      } else {
+        await addDoc(collection(db, 'expenses'), { ...payload, createdAt: serverTimestamp() })
+        toast.success('Expense added')
+      }
+      setExpDialogOpen(false)
+      setExpRefresh((n) => n + 1)
+    } catch {
+      toast.error('Failed to save expense')
+    } finally {
+      setExpSaving(false)
+    }
+  }
+
+  const removeExpense = async () => {
+    if (!deleteExpId) return
+    try {
+      await deleteDoc(doc(db, 'expenses', deleteExpId))
+      toast.success('Expense deleted')
+      setDeleteExpId(null)
+      setExpRefresh((n) => n + 1)
+    } catch {
+      toast.error('Failed to delete')
+    }
+  }
+
+  const setExpF = (k) => (e) => setExpForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
 
   const updateForm = (key, value) => {
     setForm((p) => ({ ...p, [key]: value }))
@@ -414,18 +505,78 @@ export default function TenderDetail() {
 
         {/* Expenses tab */}
         <TabsContent value="expenses" className="mt-4 space-y-4">
+          {/* Summary */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold">{formatCurrency(expenseTotal)}</p><p className="text-xs text-muted-foreground">Expenses ({expenses.length})</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold">{formatCurrency(poTotal)}</p><p className="text-xs text-muted-foreground">Pay Orders ({linkedPOs.length})</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-primary">{formatCurrency(combinedTotal)}</p><p className="text-xs text-muted-foreground">Combined Total</p></CardContent></Card>
+          </div>
+
+          {/* Pay Orders */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <FileText className="h-4 w-4" /> Linked Pay Orders
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {linkedPOs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  No pay orders matched this tender (by NIT, PO number, or name).
+                </p>
+              ) : (
+                <>
+                  <div className="md:hidden space-y-2">
+                    {linkedPOs.map((p) => (
+                      <div key={p.id} className="rounded-lg border border-border p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium break-words">PO {p.po || '—'}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{p.bank || '—'}{p.submitted && <> · {formatDate(p.submitted)}</>}</p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="font-mono tabular-nums text-sm font-semibold whitespace-nowrap">{formatCurrency(p.amount)}</span>
+                            {p.status && <StatusBadge status={p.status} />}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Table className="hidden md:table">
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead>PO #</TableHead>
+                        <TableHead>Bank</TableHead>
+                        <TableHead>Submitted</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {linkedPOs.map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="text-sm font-medium">{p.po || '—'}</TableCell>
+                          <TableCell className="text-sm">{p.bank || '—'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{formatDate(p.submitted)}</TableCell>
+                          <TableCell>{p.status && <StatusBadge status={p.status} />}</TableCell>
+                          <TableCell className="text-right font-mono tabular-nums text-sm">{formatCurrency(p.amount)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Expenses */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-sm">
-                  <Receipt className="h-4 w-4" /> Expenses linked to this tender
+                  <Receipt className="h-4 w-4" /> Expenses
                 </CardTitle>
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Total: </span>
-                  <span className="font-mono tabular-nums font-semibold text-foreground">
-                    {formatCurrency(expenseTotal)}
-                  </span>
-                </div>
+                {isAdmin && <Button size="sm" onClick={() => openExpDialog()}><Plus className="h-3.5 w-3.5" /> Add Expense</Button>}
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -447,6 +598,12 @@ export default function TenderDetail() {
                           <span className="font-mono tabular-nums text-sm font-semibold whitespace-nowrap">{formatCurrency(e.amount)}</span>
                         </div>
                         {e.note && <p className="text-xs text-muted-foreground mt-1.5 break-words">{e.note}</p>}
+                        {isAdmin && (
+                          <div className="flex justify-end gap-1 mt-2">
+                            <Button variant="ghost" size="icon-sm" onClick={() => openExpDialog(e)}><Pencil className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeleteExpId(e.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -458,6 +615,7 @@ export default function TenderDetail() {
                         <TableHead>Description</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
+                        {isAdmin && <TableHead className="w-20"></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -469,15 +627,20 @@ export default function TenderDetail() {
                             {e.category && <Badge variant="secondary" className="text-xs">{e.category}</Badge>}
                           </TableCell>
                           <TableCell className="text-right font-mono tabular-nums text-sm">{formatCurrency(e.amount)}</TableCell>
+                          {isAdmin && (
+                            <TableCell>
+                              <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="icon-sm" onClick={() => openExpDialog(e)}><Pencil className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeleteExpId(e.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </>
               )}
-              <p className="text-xs text-muted-foreground mt-3">
-                Add or edit expenses on the <Link to="/expenses" className="underline hover:text-foreground">Expenses page</Link>.
-              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -520,6 +683,60 @@ export default function TenderDetail() {
           </Button>
         </div>
       )}
+
+      {/* Expense Sheet */}
+      <Sheet open={expDialogOpen} onOpenChange={setExpDialogOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
+          <SheetHeader className="px-6 py-4 border-b border-border">
+            <SheetTitle>{editExp ? 'Edit Expense' : 'New Expense'}</SheetTitle>
+            <SheetDescription>
+              {editExp ? 'Update expense details.' : 'Record a new expense for this tender.'}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="td-exp-desc">Description <span className="text-destructive">*</span></Label>
+              <Input id="td-exp-desc" value={expForm.description} onChange={setExpF('description')} placeholder="What was this expense for?" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Category</Label>
+                <Select value={expForm.category} onValueChange={setExpF('category')}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="td-exp-amt">Amount (PKR)</Label>
+                <Input id="td-exp-amt" type="number" value={expForm.amount} onChange={setExpF('amount')} placeholder="0" className="font-mono tabular-nums" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="td-exp-date">Date</Label>
+              <Input id="td-exp-date" type="date" value={expForm.date} onChange={setExpF('date')} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="td-exp-note">Notes</Label>
+              <Textarea id="td-exp-note" value={expForm.note} onChange={setExpF('note')} rows={3} />
+            </div>
+          </div>
+          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
+            <Button variant="outline" onClick={() => setExpDialogOpen(false)}>Cancel</Button>
+            <Button onClick={saveExpense} disabled={expSaving}>
+              {expSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {editExp ? 'Save Changes' : 'Add Expense'}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <ConfirmDelete
+        open={!!deleteExpId}
+        onOpenChange={() => setDeleteExpId(null)}
+        onConfirm={removeExpense}
+        title="Delete expense"
+        description="This will permanently remove this expense record."
+      />
     </div>
   )
 }
