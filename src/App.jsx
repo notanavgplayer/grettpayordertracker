@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Toaster } from 'sonner'
+import { Toaster } from '@/components/ui/sonner'
 import { Loader2 } from 'lucide-react'
 import { AuthProvider } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
@@ -63,7 +63,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>
         </BrowserRouter>
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="top-right" closeButton />
       </AuthProvider>
     </ThemeProvider>
   )

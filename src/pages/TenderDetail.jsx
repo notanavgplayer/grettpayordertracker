@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import StatusBadge from '@/components/shared/StatusBadge'
+import PageHeader from '@/components/shared/PageHeader'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import { ArrowLeft, Save, Plus, Trash2, Loader2, CheckSquare, DollarSign, History, User } from 'lucide-react'
 import { toast } from 'sonner'
@@ -151,21 +152,26 @@ export default function TenderDetail() {
   const raBillPaid = (form.raBills || []).filter((b) => b.status === 'Paid').reduce((s, b) => s + (Number(b.amount) || 0), 0)
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
-      {/* Back + Save */}
-      <div className="flex items-center justify-between gap-4">
-        <Link to="/tenders">
-          <Button variant="ghost" size="sm" className="gap-1.5">
-            <ArrowLeft className="h-4 w-4" /> Tenders
-          </Button>
-        </Link>
-        {isAdmin && dirty && (
-          <Button onClick={save} disabled={saving} size="sm">
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            <Save className="h-4 w-4" /> Save Changes
-          </Button>
-        )}
-      </div>
+    <div className="space-y-6">
+      <Link to="/tenders" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <ArrowLeft className="h-4 w-4" /> Back to Tenders
+      </Link>
+
+      <PageHeader
+        title={form.name || 'Untitled Tender'}
+        description={form.nit ? `NIT ${form.nit}` : null}
+        actions={
+          <div className="flex items-center gap-2">
+            {form.status && <StatusBadge status={form.status} />}
+            {isAdmin && dirty && (
+              <Button onClick={save} disabled={saving} size="sm">
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <Save className="h-4 w-4" /> Save Changes
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {/* Header info */}
       <Card>

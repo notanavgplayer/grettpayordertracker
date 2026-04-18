@@ -53,7 +53,7 @@ export default function Login() {
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-40 -left-32 h-[480px] w-[480px] rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute -bottom-40 -right-32 h-[520px] w-[520px] rounded-full bg-amber-500/20 blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,hsl(var(--background))_70%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,oklch(var(--background))_70%)]" />
       </div>
 
       {/* Subtle grid overlay */}

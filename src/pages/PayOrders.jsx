@@ -142,7 +142,7 @@ export default function PayOrders() {
   if (loading) return <PageTableSkeleton rows={8} cols={6} metrics={4} />
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <PageHeader
         title="Pay Orders"
         description="Manage all pay order entries and activity logs"

@@ -18,9 +18,9 @@ import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar as CalIcon, Exter
 import { toast } from 'sonner'
 
 const EVENT_COLORS = {
-  submission: '#e8940a',
-  opening: '#185fa5',
-  custom: '#5d3fa5',
+  submission: 'oklch(var(--chart-3))',
+  opening: 'oklch(var(--chart-2))',
+  custom: 'oklch(var(--chart-4))',
 }
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -142,7 +142,7 @@ export default function Calendar() {
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6">
       <PageHeader
         title="Calendar"
         description="Tender deadlines and custom events"

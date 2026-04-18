@@ -106,7 +106,7 @@ export default function Expenses() {
   if (loading) return <PageTableSkeleton rows={6} cols={5} metrics={3} />
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <PageHeader
         title="Expenses"
         description="Track and analyze project expenses"

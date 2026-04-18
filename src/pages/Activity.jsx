@@ -13,7 +13,7 @@ export default function ActivityPage() {
   if (loading) return <PageTableSkeleton rows={8} cols={5} metrics={0} />
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <PageHeader title="Activity Log" description="Full history of follow-up actions" />
 
       {logs.length === 0 ? (

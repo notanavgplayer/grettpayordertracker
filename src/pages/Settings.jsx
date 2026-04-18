@@ -87,7 +87,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-3xl">
       <PageHeader title="Settings" description="Manage your account and application settings" />
 
       {/* Profile */}
