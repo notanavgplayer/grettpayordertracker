@@ -10,6 +10,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
@@ -17,6 +22,7 @@ import { toast } from 'sonner'
 
 export default function Layout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [signOutOpen, setSignOutOpen] = useState(false)
   const { displayName, role, logout } = useAuth()
   const { toggleTheme, isDark } = useTheme()
   const navigate = useNavigate()
@@ -33,6 +39,13 @@ export default function Layout({ children }) {
 
   return (
     <TooltipProvider delayDuration={300}>
+    {/* Skip-to-main link — visible only on keyboard focus */}
+    <a
+      href="#main"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg"
+    >
+      Skip to main content
+    </a>
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-shrink-0">
@@ -122,7 +135,7 @@ export default function Layout({ children }) {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={handleLogout}
+                onClick={() => setSignOutOpen(true)}
                 className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
               >
                 <LogOut className="h-4 w-4" />
@@ -133,11 +146,27 @@ export default function Layout({ children }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto overscroll-contain scrollbar-thin">
+        <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto overscroll-contain scrollbar-thin outline-none">
           {children}
         </main>
       </div>
     </div>
+
+    {/* Sign-out confirmation */}
+    <AlertDialog open={signOutOpen} onOpenChange={setSignOutOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Sign out?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You will be returned to the login screen.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleLogout}>Sign out</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </TooltipProvider>
   )
 }

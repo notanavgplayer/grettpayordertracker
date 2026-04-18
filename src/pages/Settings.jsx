@@ -32,6 +32,7 @@ export default function Settings() {
   // Password form
   const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
   const [savingPw, setSavingPw] = useState(false)
 
   // Backup
@@ -57,14 +58,15 @@ export default function Settings() {
   }
 
   const changePassword = async () => {
-    if (!currentPw || !newPw) { toast.error('Fill in both password fields'); return }
-    if (newPw.length < 6) { toast.error('New password must be at least 6 characters'); return }
+    if (!currentPw || !newPw || !confirmPw) { toast.error('Fill in all password fields'); return }
+    if (newPw.length < 10) { toast.error('New password must be at least 10 characters'); return }
+    if (newPw !== confirmPw) { toast.error('Passwords do not match'); return }
     setSavingPw(true)
     try {
       const cred = EmailAuthProvider.credential(user.email, currentPw)
       await reauthenticateWithCredential(auth.currentUser, cred)
       await updatePassword(auth.currentUser, newPw)
-      setCurrentPw(''); setNewPw('')
+      setCurrentPw(''); setNewPw(''); setConfirmPw('')
       toast.success('Password changed successfully')
     } catch (e) {
       toast.error(e.code === 'auth/wrong-password' ? 'Current password is incorrect' : 'Failed to change password')
@@ -110,8 +112,14 @@ export default function Settings() {
           <div className="space-y-3">
             <div className="flex gap-3 items-end">
               <div className="flex-1 space-y-1.5">
-                <Label>Display Name</Label>
-                <Input value={newDisplayName} onChange={(e) => setNewDisplayName(e.target.value)} />
+                <Label htmlFor="display-name">Display Name</Label>
+                <Input
+                  id="display-name"
+                  name="name"
+                  autoComplete="name"
+                  value={newDisplayName}
+                  onChange={(e) => setNewDisplayName(e.target.value)}
+                />
               </div>
               <Button onClick={saveName} disabled={savingName || newDisplayName === displayName} size="sm">
                 {savingName && <Loader2 className="h-4 w-4 animate-spin" />} Save
@@ -119,8 +127,8 @@ export default function Settings() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input value={user?.email || ''} disabled />
+              <Label htmlFor="user-email">Email</Label>
+              <Input id="user-email" name="email" autoComplete="email" value={user?.email || ''} disabled />
             </div>
           </div>
         </CardContent>
@@ -133,12 +141,46 @@ export default function Settings() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
-            <Label>Current Password</Label>
-            <Input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
+            <Label htmlFor="current-password">Current Password</Label>
+            <Input
+              id="current-password"
+              name="current-password"
+              type="password"
+              autoComplete="current-password"
+              value={currentPw}
+              onChange={(e) => setCurrentPw(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
-            <Label>New Password</Label>
-            <Input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Minimum 6 characters" />
+            <Label htmlFor="new-password">New Password</Label>
+            <Input
+              id="new-password"
+              name="new-password"
+              type="password"
+              autoComplete="new-password"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              placeholder="Minimum 10 characters"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm-password">
+              Confirm New Password
+              {confirmPw && newPw && (
+                <span className={`ml-2 text-xs font-normal ${newPw === confirmPw ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+                  {newPw === confirmPw ? '✓ match' : '✗ no match'}
+                </span>
+              )}
+            </Label>
+            <Input
+              id="confirm-password"
+              name="confirm-password"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPw}
+              onChange={(e) => setConfirmPw(e.target.value)}
+              placeholder="Re-enter new password"
+            />
           </div>
           <Button onClick={changePassword} disabled={savingPw} size="sm">
             {savingPw && <Loader2 className="h-4 w-4 animate-spin" />} Update Password
