@@ -70,7 +70,7 @@ export default function Todo() {
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-3xl">
       <PageHeader title="To-Do" description="Track tasks and follow-ups" />
 
       {/* Stats */}

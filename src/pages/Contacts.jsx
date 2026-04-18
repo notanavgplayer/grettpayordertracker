@@ -63,7 +63,7 @@ export default function Contacts() {
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <PageHeader
         title="Contacts"
         description="Manage your network of agencies, consultants, and suppliers"

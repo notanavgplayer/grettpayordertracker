@@ -186,7 +186,7 @@ export default function Tenders() {
   if (loading) return <PageTableSkeleton rows={6} cols={6} metrics={5} />
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <PageHeader
         title="Tenders"
         description="Manage your tender pipeline"

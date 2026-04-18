@@ -99,7 +99,7 @@ export default function Search() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-3xl">
       <PageHeader title="Search" description="Search across tenders, pay orders, notes, tasks, and expenses" />
 
       <div className="relative">
