@@ -12,8 +12,10 @@ const STATUS_TONE_MAP = {
   Submitted: 'blue',
   Bidding: 'blue',
   Awaiting: 'blue',
+  Held: 'blue',
   // Emerald (success)
   Returned: 'emerald',
+  Released: 'emerald',
   Won: 'emerald',
   Awarded: 'emerald',
   Encashed: 'emerald',

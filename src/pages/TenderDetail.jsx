@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
-import { formatDate, formatCurrency, TENDER_STATUSES, EXPENSE_CATEGORIES, uid } from '@/lib/utils'
+import { formatDate, formatCurrency, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,6 +24,7 @@ import { ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, DollarSign
 import { toast } from 'sonner'
 
 const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', note: '' }
+const EMPTY_PO = { po: '', bank: '', amount: '', purpose: 'Bid Security', status: 'Pending', submitted: '', notes: '' }
 
 export default function TenderDetail() {
   const { id } = useParams()
@@ -42,6 +43,12 @@ export default function TenderDetail() {
   const [expSaving, setExpSaving] = useState(false)
   const [deleteExpId, setDeleteExpId] = useState(null)
   const [expRefresh, setExpRefresh] = useState(0)
+  const [poDialogOpen, setPoDialogOpen] = useState(false)
+  const [editPo, setEditPo] = useState(null)
+  const [poForm, setPoForm] = useState(EMPTY_PO)
+  const [poSaving, setPoSaving] = useState(false)
+  const [deletePoId, setDeletePoId] = useState(null)
+  const [poRefresh, setPoRefresh] = useState(0)
 
   useEffect(() => {
     const load = async () => {
@@ -75,34 +82,62 @@ export default function TenderDetail() {
     const loadPOs = async () => {
       if (!tender) return
       try {
-        const snap = await getDocs(collection(db, 'payOrders'))
-        const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        const nit = (tender.nit || '').trim()
-        const linkedPO = (tender.linkedPO || '').trim()
-        const name = (tender.name || '').trim()
-        const matched = all.filter((p) => {
-          const pNit = (p.nit || '').trim()
-          const pPO = (p.po || '').trim()
-          const pTender = (p.tender || '').trim()
-          return (nit && pNit && pNit === nit) ||
-                 (linkedPO && pPO && pPO === linkedPO) ||
-                 (name && pTender && pTender === name)
-        })
+        // Primary: exact tenderRef match
+        const snap = await getDocs(query(collection(db, 'payOrders'), where('tenderRef', '==', id)))
+        let matched = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        // Fallback: legacy data without tenderRef — match by NIT/name/linkedPO
+        if (matched.length === 0) {
+          const all = await getDocs(collection(db, 'payOrders'))
+          const nit = (tender.nit || '').trim()
+          const linkedPO = (tender.linkedPO || '').trim()
+          const name = (tender.name || '').trim()
+          matched = all.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => {
+            if (p.tenderRef) return false
+            const pNit = (p.nit || '').trim()
+            const pPO = (p.po || '').trim()
+            const pTender = (p.tender || '').trim()
+            return (nit && pNit && pNit === nit) ||
+                   (linkedPO && pPO && pPO === linkedPO) ||
+                   (name && pTender && pTender === name)
+          })
+        }
         setLinkedPOs(matched)
       } catch {}
     }
     loadPOs()
-  }, [tender])
+  }, [tender, poRefresh])
 
-  const expenseTotal = useMemo(
-    () => expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+  // Expense sub-totals (exclude Tender Fee from the "tracked total")
+  const expenseOther = useMemo(
+    () => expenses.filter((e) => e.category !== 'Tender Fees').reduce((s, e) => s + (Number(e.amount) || 0), 0),
     [expenses]
   )
-  const poTotal = useMemo(
-    () => linkedPOs.reduce((s, p) => s + (Number(p.amount) || 0), 0),
+  const expenseTotal = expenseOther // what the user asked to show as the visible total
+
+  // PO bucketing by purpose + status
+  const bidSecurityHeld = useMemo(
+    () => linkedPOs.filter((p) => p.purpose === 'Bid Security' && ['Held', 'Encashed'].includes(p.status))
+      .reduce((s, p) => s + (Number(p.amount) || 0), 0),
     [linkedPOs]
   )
-  const combinedTotal = expenseTotal + poTotal
+  const perfGuaranteeHeld = useMemo(
+    () => linkedPOs.filter((p) => p.purpose === 'Performance Guarantee' && ['Held', 'Encashed'].includes(p.status))
+      .reduce((s, p) => s + (Number(p.amount) || 0), 0),
+    [linkedPOs]
+  )
+  const bidSecurityAtRisk = useMemo(
+    () => linkedPOs.filter((p) => p.purpose === 'Bid Security' && ['Pending', 'Submitted'].includes(p.status))
+      .reduce((s, p) => s + (Number(p.amount) || 0), 0),
+    [linkedPOs]
+  )
+  const sunkCost = useMemo(
+    () => {
+      const forfeited = linkedPOs.filter((p) => p.status === 'Forfeited').reduce((s, p) => s + (Number(p.amount) || 0), 0)
+      return expenseOther + forfeited
+    },
+    [linkedPOs, expenseOther]
+  )
+  const heldByAgency = bidSecurityHeld + perfGuaranteeHeld
 
   const openExpDialog = (item = null) => {
     setEditExp(item)
@@ -157,6 +192,66 @@ export default function TenderDetail() {
 
   const setExpF = (k) => (e) => setExpForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
 
+  // --- Pay Order CRUD (writes to payOrders collection with tenderRef=id) ---
+  const openPoDialog = (item = null) => {
+    setEditPo(item)
+    setPoForm(item
+      ? { po: item.po || '', bank: item.bank || '', amount: item.amount || '', purpose: item.purpose || 'Bid Security', status: item.status || 'Pending', submitted: item.submitted || '', notes: item.notes || '' }
+      : { ...EMPTY_PO, submitted: new Date().toISOString().slice(0, 10) })
+    setPoDialogOpen(true)
+  }
+  const savePo = async () => {
+    if (!poForm.po) { toast.error('PO number is required'); return }
+    setPoSaving(true)
+    try {
+      const amountNum = Number(poForm.amount) || 0
+      const payload = {
+        po: poForm.po,
+        bank: poForm.bank || '',
+        amount: amountNum,
+        purpose: poForm.purpose || 'Other',
+        status: poForm.status || 'Pending',
+        submitted: poForm.submitted || '',
+        notes: poForm.notes || '',
+        tender: tender?.name || '',
+        nit: tender?.nit || '',
+        agency: tender?.agency || '',
+        tenderRef: id,
+        bidResult: 'N/A',
+        updatedAt: serverTimestamp(),
+      }
+      if (editPo) {
+        await updateDoc(doc(db, 'payOrders', editPo.id), payload)
+        toast.success('Pay order updated')
+      } else {
+        await addDoc(collection(db, 'payOrders'), { ...payload, createdAt: serverTimestamp() })
+        toast.success('Pay order added')
+      }
+      // Mirror bid security amount to tender doc for display
+      if (poForm.purpose === 'Bid Security' && amountNum > 0) {
+        try { await updateDoc(doc(db, 'tenders', id), { bidSecurity: amountNum, updatedAt: serverTimestamp() }) } catch {}
+      }
+      setPoDialogOpen(false)
+      setPoRefresh((n) => n + 1)
+    } catch {
+      toast.error('Failed to save pay order')
+    } finally {
+      setPoSaving(false)
+    }
+  }
+  const removePo = async () => {
+    if (!deletePoId) return
+    try {
+      await deleteDoc(doc(db, 'payOrders', deletePoId))
+      toast.success('Pay order deleted')
+      setDeletePoId(null)
+      setPoRefresh((n) => n + 1)
+    } catch {
+      toast.error('Failed to delete')
+    }
+  }
+  const setPoF = (k) => (e) => setPoForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
+
   const updateForm = (key, value) => {
     setForm((p) => ({ ...p, [key]: value }))
     setDirty(true)
@@ -204,6 +299,27 @@ export default function TenderDetail() {
       }
 
       await updateDoc(doc(db, 'tenders', id), { ...data, updatedAt: serverTimestamp() })
+
+      // Lifecycle automation: auto-update linked POs based on tender outcome
+      if (tender.status !== form.status) {
+        const transitions = {
+          Lost: { purposes: ['Bid Security', 'Performance Guarantee'], newStatus: 'Returned', from: ['Pending', 'Submitted', 'Held'] },
+          Cancelled: { purposes: ['Bid Security', 'Performance Guarantee'], newStatus: 'Returned', from: ['Pending', 'Submitted', 'Held'] },
+          Awarded: { purposes: ['Bid Security', 'Performance Guarantee'], newStatus: 'Held', from: ['Pending', 'Submitted'] },
+        }
+        const rule = transitions[form.status]
+        if (rule) {
+          const affected = linkedPOs.filter((p) => rule.purposes.includes(p.purpose) && rule.from.includes(p.status))
+          if (affected.length > 0) {
+            await Promise.all(affected.map((p) =>
+              updateDoc(doc(db, 'payOrders', p.id), { status: rule.newStatus, updatedAt: serverTimestamp() })
+            ))
+            toast.info(`${affected.length} pay order(s) marked ${rule.newStatus}`)
+            setPoRefresh((n) => n + 1)
+          }
+        }
+      }
+
       setTender(data)
       setDirty(false)
       toast.success('Tender saved')
@@ -334,6 +450,7 @@ export default function TenderDetail() {
       <Tabs defaultValue="overview">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="payorders">Pay Orders ({linkedPOs.length})</TabsTrigger>
           <TabsTrigger value="bills">Bills ({(form.bills || []).length})</TabsTrigger>
           <TabsTrigger value="rabills">RA Bills ({(form.raBills || []).length})</TabsTrigger>
           <TabsTrigger value="expenses">Expenses ({expenses.length})</TabsTrigger>
@@ -503,29 +620,25 @@ export default function TenderDetail() {
           {(form.raBills || []).length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No RA bills yet.</p>}
         </TabsContent>
 
-        {/* Expenses tab */}
-        <TabsContent value="expenses" className="mt-4 space-y-4">
-          {/* Summary */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold">{formatCurrency(expenseTotal)}</p><p className="text-xs text-muted-foreground">Expenses ({expenses.length})</p></CardContent></Card>
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold">{formatCurrency(poTotal)}</p><p className="text-xs text-muted-foreground">Pay Orders ({linkedPOs.length})</p></CardContent></Card>
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-primary">{formatCurrency(combinedTotal)}</p><p className="text-xs text-muted-foreground">Combined Total</p></CardContent></Card>
-          </div>
-
-          {/* Pay Orders */}
+        {/* Pay Orders tab */}
+        <TabsContent value="payorders" className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <FileText className="h-4 w-4" /> Linked Pay Orders
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4" /> Pay Orders for this tender
+                </CardTitle>
+                {isAdmin && <Button size="sm" onClick={() => openPoDialog()}><Plus className="h-3.5 w-3.5" /> Add Pay Order</Button>}
+              </div>
             </CardHeader>
             <CardContent className="pt-0">
               {linkedPOs.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  No pay orders matched this tender (by NIT, PO number, or name).
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No pay orders linked yet. Add one here — it will also appear in the global Pay Orders list.
                 </p>
               ) : (
                 <>
+                  {/* Mobile cards */}
                   <div className="md:hidden space-y-2">
                     {linkedPOs.map((p) => (
                       <div key={p.id} className="rounded-lg border border-border p-3">
@@ -533,33 +646,52 @@ export default function TenderDetail() {
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium break-words">PO {p.po || '—'}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">{p.bank || '—'}{p.submitted && <> · {formatDate(p.submitted)}</>}</p>
+                            {p.purpose && <Badge variant="secondary" className="text-xs mt-1.5">{p.purpose}</Badge>}
                           </div>
                           <div className="flex flex-col items-end gap-1">
                             <span className="font-mono tabular-nums text-sm font-semibold whitespace-nowrap">{formatCurrency(p.amount)}</span>
                             {p.status && <StatusBadge status={p.status} />}
                           </div>
                         </div>
+                        {isAdmin && (
+                          <div className="flex justify-end gap-1 mt-2">
+                            <Button variant="ghost" size="icon-sm" onClick={() => openPoDialog(p)}><Pencil className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeletePoId(p.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
+                  {/* Desktop table */}
                   <Table className="hidden md:table">
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
                         <TableHead>PO #</TableHead>
                         <TableHead>Bank</TableHead>
+                        <TableHead>Purpose</TableHead>
                         <TableHead>Submitted</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
+                        {isAdmin && <TableHead className="w-20"></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {linkedPOs.map((p) => (
                         <TableRow key={p.id}>
-                          <TableCell className="text-sm font-medium">{p.po || '—'}</TableCell>
+                          <TableCell className="text-sm font-medium font-mono">{p.po || '—'}</TableCell>
                           <TableCell className="text-sm">{p.bank || '—'}</TableCell>
+                          <TableCell className="text-sm">{p.purpose && <Badge variant="secondary" className="text-xs">{p.purpose}</Badge>}</TableCell>
                           <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{formatDate(p.submitted)}</TableCell>
                           <TableCell>{p.status && <StatusBadge status={p.status} />}</TableCell>
                           <TableCell className="text-right font-mono tabular-nums text-sm">{formatCurrency(p.amount)}</TableCell>
+                          {isAdmin && (
+                            <TableCell>
+                              <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="icon-sm" onClick={() => openPoDialog(p)}><Pencil className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeletePoId(p.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -568,6 +700,28 @@ export default function TenderDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Expenses tab */}
+        <TabsContent value="expenses" className="mt-4 space-y-4">
+          {/* Summary — Sunk / At Risk / Held */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card><CardContent className="p-4 text-center">
+              <p className="text-lg font-mono tabular-nums font-bold text-rose-600 dark:text-rose-400">{formatCurrency(sunkCost)}</p>
+              <p className="text-xs text-muted-foreground">Sunk cost</p>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">expenses + forfeited</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4 text-center">
+              <p className="text-lg font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400">{formatCurrency(bidSecurityAtRisk)}</p>
+              <p className="text-xs text-muted-foreground">At risk</p>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">bid security pending</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4 text-center">
+              <p className="text-lg font-mono tabular-nums font-bold text-blue-600 dark:text-blue-400">{formatCurrency(heldByAgency)}</p>
+              <p className="text-xs text-muted-foreground">Held by agency</p>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">refundable on release</p>
+            </CardContent></Card>
+          </div>
 
           {/* Expenses */}
           <Card>
@@ -575,9 +729,11 @@ export default function TenderDetail() {
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <Receipt className="h-4 w-4" /> Expenses
+                  <span className="text-muted-foreground font-normal">· total {formatCurrency(expenseTotal)}</span>
                 </CardTitle>
                 {isAdmin && <Button size="sm" onClick={() => openExpDialog()}><Plus className="h-3.5 w-3.5" /> Add Expense</Button>}
               </div>
+              <p className="text-xs text-muted-foreground mt-1">Tender fees are tracked separately and excluded from this total.</p>
             </CardHeader>
             <CardContent className="pt-0">
               {expenses.length === 0 ? (
@@ -736,6 +892,78 @@ export default function TenderDetail() {
         onConfirm={removeExpense}
         title="Delete expense"
         description="This will permanently remove this expense record."
+      />
+
+      {/* Pay Order Sheet */}
+      <Sheet open={poDialogOpen} onOpenChange={setPoDialogOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
+          <SheetHeader className="px-6 py-4 border-b border-border">
+            <SheetTitle>{editPo ? 'Edit Pay Order' : 'New Pay Order'}</SheetTitle>
+            <SheetDescription>
+              {editPo ? 'Update pay order details.' : 'Attach a pay order to this tender. It will also appear in the global Pay Orders list.'}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="td-po-num">PO Number <span className="text-destructive">*</span></Label>
+                <Input id="td-po-num" value={poForm.po} onChange={setPoF('po')} className="font-mono" placeholder="PO-2024-001" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Bank</Label>
+                <Select value={poForm.bank} onValueChange={setPoF('bank')}>
+                  <SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger>
+                  <SelectContent>{BANKS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="td-po-amt">Amount (PKR)</Label>
+                <Input id="td-po-amt" type="number" value={poForm.amount} onChange={setPoF('amount')} placeholder="0" className="font-mono tabular-nums" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="td-po-sub">Submitted</Label>
+                <Input id="td-po-sub" type="date" value={poForm.submitted} onChange={setPoF('submitted')} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Purpose</Label>
+                <Select value={poForm.purpose} onValueChange={setPoF('purpose')}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{PO_PURPOSES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={poForm.status} onValueChange={setPoF('status')}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{PO_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="td-po-notes">Notes</Label>
+              <Textarea id="td-po-notes" value={poForm.notes} onChange={setPoF('notes')} rows={3} />
+            </div>
+          </div>
+          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
+            <Button variant="outline" onClick={() => setPoDialogOpen(false)}>Cancel</Button>
+            <Button onClick={savePo} disabled={poSaving}>
+              {poSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {editPo ? 'Save Changes' : 'Add Pay Order'}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <ConfirmDelete
+        open={!!deletePoId}
+        onOpenChange={() => setDeletePoId(null)}
+        onConfirm={removePo}
+        title="Delete pay order"
+        description="This will permanently remove this pay order from the tender and the global list."
       />
     </div>
   )
