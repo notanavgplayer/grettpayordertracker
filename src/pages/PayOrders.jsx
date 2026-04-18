@@ -2,7 +2,9 @@ import { useState, useMemo } from 'react'
 import { useCollection, useFirestoreCRUD } from '@/hooks/useFirestore'
 import { useAuth } from '@/context/AuthContext'
 import { exportPayOrdersCSV, exportPayOrdersPDF } from '@/lib/export'
-import { formatCurrency, formatDate, PO_STATUSES, BID_RESULTS, BANKS } from '@/lib/utils'
+import { formatCurrency, formatDate, PO_STATUSES, PO_PURPOSES, BID_RESULTS, BANKS } from '@/lib/utils'
+import { doc as fsDoc, updateDoc, addDoc as fsAddDoc, collection as fsCollection, serverTimestamp as fsServerTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import PageHeader from '@/components/shared/PageHeader'
 import StatusBadge from '@/components/shared/StatusBadge'
 import EmptyState from '@/components/shared/EmptyState'
@@ -35,14 +37,18 @@ import {
 import { toast } from 'sonner'
 import { serverTimestamp } from 'firebase/firestore'
 
-const EMPTY_PO = { po: '', bank: '', nit: '', amount: '', tender: '', agency: '', submitted: '', status: 'Pending', bidResult: 'N/A', notes: '' }
+const EMPTY_PO = { po: '', bank: '', nit: '', amount: '', tender: '', agency: '', submitted: '', status: 'Pending', bidResult: 'N/A', notes: '', purpose: 'Tender Fee', tenderRef: '' }
 
 export default function PayOrders() {
   const { data: payOrders, loading } = useCollection('payOrders', 'createdAt', 'desc')
   const { data: activityLog } = useCollection('activityLog', 'createdAt', 'desc')
+  const { data: tenders } = useCollection('tenders', 'createdAt', 'desc')
   const { add, update, remove } = useFirestoreCRUD('payOrders')
   const { add: addLog, update: updateLog, remove: removeLog } = useFirestoreCRUD('activityLog')
   const { isAdmin } = useAuth()
+
+  const [tenderMode, setTenderMode] = useState('existing') // 'existing' | 'new' | 'none'
+  const [newTenderFields, setNewTenderFields] = useState({ name: '', nit: '', agency: '' })
 
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('All')
@@ -90,6 +96,8 @@ export default function PayOrders() {
   const openDialog = (item = null) => {
     setEditItem(item)
     setForm(item ? { ...EMPTY_PO, ...item } : { ...EMPTY_PO, submitted: new Date().toISOString().slice(0, 10) })
+    setTenderMode(item?.tenderRef ? 'existing' : 'none')
+    setNewTenderFields({ name: item?.tender || '', nit: item?.nit || '', agency: item?.agency || '' })
     setDialogOpen(true)
   }
 
@@ -97,7 +105,44 @@ export default function PayOrders() {
     if (!form.po) { toast.error('PO number is required'); return }
     setSaving(true)
     try {
-      const data = { ...form, amount: Number(form.amount) || 0 }
+      let tenderRef = form.tenderRef || ''
+      let tenderName = form.tender || ''
+      let nit = form.nit || ''
+      let agency = form.agency || ''
+      const amountNum = Number(form.amount) || 0
+
+      if (tenderMode === 'new' && newTenderFields.name.trim()) {
+        const stub = {
+          name: newTenderFields.name.trim(),
+          nit: newTenderFields.nit.trim(),
+          agency: newTenderFields.agency.trim(),
+          status: 'Bidding',
+          value: 0,
+          tenderFee: form.purpose === 'Tender Fee' ? amountNum : 0,
+          bidSecurity: form.purpose === 'Bid Security' ? amountNum : 0,
+          submissionDate: form.submitted || '',
+          createdAt: fsServerTimestamp(),
+          updatedAt: fsServerTimestamp(),
+        }
+        const ref = await fsAddDoc(fsCollection(db, 'tenders'), stub)
+        tenderRef = ref.id
+        tenderName = stub.name
+        nit = nit || stub.nit
+        agency = agency || stub.agency
+      } else if (tenderMode === 'existing' && tenderRef) {
+        const t = tenders.find((x) => x.id === tenderRef)
+        if (t) {
+          tenderName = t.name || tenderName
+          nit = nit || t.nit || ''
+          agency = agency || t.agency || ''
+          // Write bidSecurity on tender if this PO is Bid Security
+          if (form.purpose === 'Bid Security' && amountNum > 0) {
+            try { await updateDoc(fsDoc(db, 'tenders', tenderRef), { bidSecurity: amountNum, updatedAt: fsServerTimestamp() }) } catch {}
+          }
+        }
+      }
+
+      const data = { ...form, amount: amountNum, tenderRef, tender: tenderName, nit, agency }
       if (editItem) {
         await update(editItem.id, data)
         toast.success('Pay order updated')
@@ -106,6 +151,8 @@ export default function PayOrders() {
         toast.success('Pay order added')
       }
       setDialogOpen(false)
+    } catch {
+      toast.error('Failed to save')
     } finally {
       setSaving(false)
     }
@@ -463,7 +510,46 @@ export default function PayOrders() {
               <Field label="NIT / Reference" value={form.nit} onChange={setF('nit')} className="font-mono" />
               <Field label="Amount (PKR)" type="number" value={form.amount} onChange={setF('amount')} placeholder="0" className="font-mono tabular-nums" />
             </div>
-            <Field label="Tender / Project" value={form.tender} onChange={setF('tender')} />
+            <div className="space-y-1.5">
+              <Label>Purpose</Label>
+              <Select value={form.purpose || 'Tender Fee'} onValueChange={setF('purpose')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{PO_PURPOSES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 rounded-md border border-border p-3">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Attach to tender</Label>
+              <div className="flex gap-2">
+                {[['none','None'],['existing','Existing'],['new','Create new']].map(([v,l]) => (
+                  <button key={v} type="button" onClick={() => setTenderMode(v)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${tenderMode === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+              {tenderMode === 'existing' && (
+                <Select value={form.tenderRef || ''} onValueChange={setF('tenderRef')}>
+                  <SelectTrigger><SelectValue placeholder="Select tender…" /></SelectTrigger>
+                  <SelectContent>
+                    {tenders.length === 0 && <SelectItem value="__none" disabled>No tenders yet</SelectItem>}
+                    {tenders.map((t) => <SelectItem key={t.id} value={t.id}>{t.name || 'Untitled'}{t.nit ? ` — ${t.nit}` : ''}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+              {tenderMode === 'new' && (
+                <div className="space-y-2">
+                  <Field label="Tender name" value={newTenderFields.name} onChange={(e) => setNewTenderFields((p) => ({ ...p, name: e.target.value }))} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="NIT" value={newTenderFields.nit} onChange={(e) => setNewTenderFields((p) => ({ ...p, nit: e.target.value }))} className="font-mono" />
+                    <Field label="Agency" value={newTenderFields.agency} onChange={(e) => setNewTenderFields((p) => ({ ...p, agency: e.target.value }))} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">A new tender will be created with status Bidding and this amount as {form.purpose === 'Bid Security' ? 'bid security' : 'tender fee'}.</p>
+                </div>
+              )}
+              {tenderMode === 'none' && (
+                <Field label="Tender / Project (free-text)" value={form.tender} onChange={setF('tender')} />
+              )}
+            </div>
             <Field label="Agency" value={form.agency} onChange={setF('agency')} />
             <Field label="Date Submitted" type="date" value={form.submitted} onChange={setF('submitted')} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -53,7 +53,8 @@ export function toLocaleDateInputValue(dateStr) {
   return dateStr.slice(0, 10)
 }
 
-export const PO_STATUSES = ['Pending', 'Submitted', 'Returned', 'Encashed', 'Forfeited']
+export const PO_STATUSES = ['Pending', 'Submitted', 'Held', 'Returned', 'Released', 'Encashed', 'Forfeited']
+export const PO_PURPOSES = ['Tender Fee', 'Bid Security', 'Performance Guarantee', 'Other']
 export const BID_RESULTS = ['N/A', 'Awaiting', 'Won', 'Lost', 'Cancelled']
 export const TENDER_STATUSES = ['Bidding', 'Submitted', 'Awarded', 'Lost', 'Cancelled']
 export const CONTACT_CATEGORIES = ['Agency Officer', 'Consultant', 'Supplier', 'Subcontractor', 'Other']
