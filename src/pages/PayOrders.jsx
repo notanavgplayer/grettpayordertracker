@@ -171,11 +171,11 @@ export default function PayOrders() {
             <CardContent>
               <ResponsiveContainer width="100%" height={180}>
                 <BarChart data={statusChart} layout="vertical" margin={{ left: 16, right: 16 }}>
-                  <CartesianGrid horizontal={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
+                  <CartesianGrid horizontal={false} stroke="oklch(var(--border))" strokeDasharray="3 3" />
                   <XAxis type="number" tick={AXIS_TICK} axisLine={false} tickLine={false} />
                   <YAxis dataKey="status" type="category" tick={AXIS_TICK} width={70} axisLine={false} tickLine={false} />
-                  <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} content={<ChartTooltip />} />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} />
+                  <Tooltip cursor={{ fill: 'oklch(var(--muted))', opacity: 0.5 }} content={<ChartTooltip />} />
+                  <Bar dataKey="count" fill="oklch(var(--primary))" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -196,7 +196,7 @@ export default function PayOrders() {
                     paddingAngle={2}
                     label={({ name, value }) => `${name}: ${value}`}
                     labelLine={false}
-                    stroke="hsl(var(--card))"
+                    stroke="oklch(var(--card))"
                     strokeWidth={2}
                   >
                     {winData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
@@ -449,7 +449,7 @@ export default function PayOrders() {
             </SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label={<>PO Number <span className="text-destructive">*</span></>} value={form.po} onChange={setF('po')} placeholder="PO-2024-001" className="font-mono" />
               <div className="space-y-1.5">
                 <Label>Bank</Label>
@@ -459,14 +459,14 @@ export default function PayOrders() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="NIT / Reference" value={form.nit} onChange={setF('nit')} className="font-mono" />
               <Field label="Amount (PKR)" type="number" value={form.amount} onChange={setF('amount')} placeholder="0" className="font-mono tabular-nums" />
             </div>
             <Field label="Tender / Project" value={form.tender} onChange={setF('tender')} />
             <Field label="Agency" value={form.agency} onChange={setF('agency')} />
             <Field label="Date Submitted" type="date" value={form.submitted} onChange={setF('submitted')} />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={setF('status')}>
@@ -505,7 +505,7 @@ export default function PayOrders() {
             <SheetDescription>Track a follow-up action for this pay order.</SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Date" type="date" value={logForm.date} onChange={setLF('date')} />
               <Field label="PO Number" value={logForm.po} onChange={setLF('po')} className="font-mono" />
             </div>

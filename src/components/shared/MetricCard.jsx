@@ -38,9 +38,20 @@ export default function MetricCard({
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             {title}
           </p>
-          <p className="font-display mt-3 text-3xl font-semibold tabular-nums leading-none text-foreground">
-            {value}
-          </p>
+          {typeof value === 'string' && /^Rs\s/i.test(value) ? (
+            <div className="mt-3 leading-none">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Rs
+              </p>
+              <p className="font-display mt-1 text-2xl sm:text-3xl font-semibold tabular-nums text-foreground break-all">
+                {value.replace(/^Rs\s/i, '')}
+              </p>
+            </div>
+          ) : (
+            <p className="font-display mt-3 text-3xl font-semibold tabular-nums leading-none text-foreground">
+              {value}
+            </p>
+          )}
           {delta && (
             <div className={cn('mt-3 flex items-center gap-1 text-xs', deltaColor)}>
               {DeltaIcon && <DeltaIcon size={14} aria-hidden />}

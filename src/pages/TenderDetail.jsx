@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { formatDate, formatCurrency, TENDER_STATUSES, uid } from '@/lib/utils'
@@ -18,7 +18,8 @@ import { Separator } from '@/components/ui/separator'
 import StatusBadge from '@/components/shared/StatusBadge'
 import PageHeader from '@/components/shared/PageHeader'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
-import { ArrowLeft, Save, Plus, Trash2, Loader2, CheckSquare, DollarSign, History, User } from 'lucide-react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { ArrowLeft, Save, Plus, Trash2, Loader2, CheckSquare, DollarSign, History, User, Receipt } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function TenderDetail() {
@@ -30,6 +31,7 @@ export default function TenderDetail() {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({})
   const [dirty, setDirty] = useState(false)
+  const [expenses, setExpenses] = useState([])
 
   useEffect(() => {
     const load = async () => {
@@ -47,6 +49,22 @@ export default function TenderDetail() {
     }
     load()
   }, [id])
+
+  useEffect(() => {
+    const loadExpenses = async () => {
+      try {
+        const q1 = query(collection(db, 'expenses'), where('tenderRef', '==', id))
+        const snap = await getDocs(q1)
+        setExpenses(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      } catch {}
+    }
+    loadExpenses()
+  }, [id, saving])
+
+  const expenseTotal = useMemo(
+    () => expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+    [expenses]
+  )
 
   const updateForm = (key, value) => {
     setForm((p) => ({ ...p, [key]: value }))
@@ -227,6 +245,7 @@ export default function TenderDetail() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="bills">Bills ({(form.bills || []).length})</TabsTrigger>
           <TabsTrigger value="rabills">RA Bills ({(form.raBills || []).length})</TabsTrigger>
+          <TabsTrigger value="expenses">Expenses ({expenses.length})</TabsTrigger>
           <TabsTrigger value="contact">Contact</TabsTrigger>
         </TabsList>
 
@@ -391,6 +410,76 @@ export default function TenderDetail() {
             </Card>
           ))}
           {(form.raBills || []).length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No RA bills yet.</p>}
+        </TabsContent>
+
+        {/* Expenses tab */}
+        <TabsContent value="expenses" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Receipt className="h-4 w-4" /> Expenses linked to this tender
+                </CardTitle>
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Total: </span>
+                  <span className="font-mono tabular-nums font-semibold text-foreground">
+                    {formatCurrency(expenseTotal)}
+                  </span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {expenses.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No expenses linked to this tender yet.
+                </p>
+              ) : (
+                <>
+                  {/* Mobile cards */}
+                  <div className="md:hidden space-y-2">
+                    {expenses.map((e) => (
+                      <div key={e.id} className="rounded-lg border border-border p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground break-words">{e.description || '—'}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{formatDate(e.date)}{e.category && <> · {e.category}</>}</p>
+                          </div>
+                          <span className="font-mono tabular-nums text-sm font-semibold whitespace-nowrap">{formatCurrency(e.amount)}</span>
+                        </div>
+                        {e.note && <p className="text-xs text-muted-foreground mt-1.5 break-words">{e.note}</p>}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Desktop table */}
+                  <Table className="hidden md:table">
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead>Date</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {expenses.map((e) => (
+                        <TableRow key={e.id}>
+                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{formatDate(e.date)}</TableCell>
+                          <TableCell className="text-sm">{e.description || '—'}</TableCell>
+                          <TableCell className="text-sm">
+                            {e.category && <Badge variant="secondary" className="text-xs">{e.category}</Badge>}
+                          </TableCell>
+                          <TableCell className="text-right font-mono tabular-nums text-sm">{formatCurrency(e.amount)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
+              )}
+              <p className="text-xs text-muted-foreground mt-3">
+                Add or edit expenses on the <Link to="/expenses" className="underline hover:text-foreground">Expenses page</Link>.
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Contact tab */}

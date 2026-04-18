@@ -103,6 +103,15 @@
   }
 }
 
+@layer base {
+  /* Prevent iOS/Android from auto-zooming on focus by keeping input font-size >= 16px on mobile */
+  @media (max-width: 640px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+}
+
 @layer utilities {
   .animate-fade-in {
     animation: fade-in 0.2s ease-out;
