@@ -1,0 +1,17 @@
+{
+  "name": "Grett Pay Order Tracker",
+  "short_name": "Grett Tracker",
+  "description": "Manage tenders, pay orders, expenses, contacts, and project deadlines.",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f2a4a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

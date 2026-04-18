@@ -5,13 +5,38 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f2a4a" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Grett Pay Order Tracker — manage tenders, pay orders, expenses, contacts, and project deadlines in one place." />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Grett Pay Order Tracker" />
+    <meta property="og:description" content="Manage tenders, pay orders, expenses, contacts, and project deadlines in one place." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og.svg" />
+    <meta property="og:url" content="https://grettpayordertracker.netlify.app/" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Grett Pay Order Tracker" />
+    <meta name="twitter:description" content="Manage tenders, pay orders, expenses, contacts, and project deadlines in one place." />
+    <meta name="twitter:image" content="/og.svg" />
+
+    <link rel="canonical" href="https://grettpayordertracker.netlify.app/" />
+    <link rel="manifest" href="/site.webmanifest" />
+
     <title>Grett Pay Order Tracker</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Firebase preconnects -->
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://firebaseinstallations.googleapis.com" crossorigin />
     <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+    <!-- Geist font (self-hosted via Google Fonts CDN; critical weights only) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- Inline theme detection to avoid FOUC -->
     <script>
       try {
         if (localStorage.getItem('grett-theme') === 'dark')

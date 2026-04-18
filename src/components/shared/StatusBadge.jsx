@@ -18,10 +18,11 @@ const STATUS_TONE_MAP = {
   Awarded: 'emerald',
   Encashed: 'emerald',
   Paid: 'emerald',
-  // Red (failure)
+  // Red (failure / overdue)
   Forfeited: 'red',
   Lost: 'red',
   Rejected: 'red',
+  Overdue: 'red',
   // Slate (neutral / closed)
   Cancelled: 'slate',
   'N/A': 'slate',

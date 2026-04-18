@@ -165,9 +165,9 @@ export default function Calendar() {
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <Button variant="ghost" size="icon" onClick={() => goMonth(-1)}><ChevronLeft className="h-5 w-5" /></Button>
+                <Button variant="ghost" size="icon" onClick={() => goMonth(-1)} aria-label="Previous month"><ChevronLeft className="h-5 w-5" /></Button>
                 <h2 className="text-base font-semibold">{MONTHS[month]} {year}</h2>
-                <Button variant="ghost" size="icon" onClick={() => goMonth(1)}><ChevronRight className="h-5 w-5" /></Button>
+                <Button variant="ghost" size="icon" onClick={() => goMonth(1)} aria-label="Next month"><ChevronRight className="h-5 w-5" /></Button>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -184,13 +184,18 @@ export default function Calendar() {
                   const ds = dateStr(d)
                   const dayEvents = eventsByDate[ds] || []
                   const isToday = ds === todayStr
+                  const isPast = ds < todayStr
                   return (
                     <div
                       key={d}
-                      className={`bg-card min-h-[80px] p-1.5 cursor-pointer hover:bg-accent/50 transition-colors ${isToday ? 'ring-2 ring-primary ring-inset' : ''}`}
+                      className={`min-h-[80px] p-1.5 cursor-pointer hover:bg-accent/50 transition-colors ${isToday ? 'bg-primary/5 ring-2 ring-primary ring-inset' : isPast ? 'bg-muted/20' : 'bg-card'}`}
                       onClick={() => openDayView(d)}
+                      aria-label={`${d} ${MONTHS[month]} ${year}${dayEvents.length ? `, ${dayEvents.length} event${dayEvents.length > 1 ? 's' : ''}` : ''}`}
                     >
-                      <span className={`text-xs font-medium mb-1 flex h-5 w-5 items-center justify-center rounded-full ${isToday ? 'bg-primary text-primary-foreground' : 'text-foreground'}`}>
+                      <span
+                        className={`text-xs font-medium mb-1 flex h-5 w-5 items-center justify-center rounded-full ${isToday ? 'bg-primary text-primary-foreground' : isPast ? 'text-muted-foreground' : 'text-foreground'}`}
+                        {...(isToday ? { 'aria-current': 'date' } : {})}
+                      >
                         {d}
                       </span>
                       <div className="space-y-0.5">
@@ -220,11 +225,11 @@ export default function Calendar() {
         <div>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2"><CalIcon className="h-4 w-4" /> Upcoming This Month</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2"><CalIcon className="h-4 w-4" /> Remaining This Month</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
               {upcomingThisMonth.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No upcoming events</p>
+                <p className="text-sm text-muted-foreground text-center py-4">No upcoming events for the rest of the month</p>
               ) : (
                 upcomingThisMonth.map((e) => (
                   <button

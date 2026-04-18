@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useCollection, useFirestoreCRUD } from '@/hooks/useFirestore'
 import { useAuth } from '@/context/AuthContext'
-import { formatDate, formatCurrency, TENDER_STATUSES, uid } from '@/lib/utils'
+import { formatDate, formatCurrency, daysUntil, TENDER_STATUSES, uid } from '@/lib/utils'
 import { exportTendersCSV } from '@/lib/export'
 import PageHeader from '@/components/shared/PageHeader'
 import StatusBadge from '@/components/shared/StatusBadge'
@@ -30,6 +30,18 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
+const TERMINAL_STATUSES = ['Awarded', 'Lost', 'Cancelled']
+
+// Compute display status on read — adds virtual "Overdue" when a Bidding
+// tender's submission date is in the past, without touching Firestore.
+function resolveStatus(t) {
+  if (t.status === 'Bidding' && t.submissionDate) {
+    const days = daysUntil(t.submissionDate)
+    if (days !== null && days < 0) return 'Overdue'
+  }
+  return t.status
+}
+
 const EMPTY_TENDER = {
   name: '', nit: '', agency: '', value: '', tenderFee: '', status: 'Bidding',
   submissionDate: '', openingDate: '', linkedPO: '', notes: '',
@@ -51,14 +63,17 @@ export default function Tenders() {
   const [deleteId, setDeleteId] = useState(null)
   const [quickView, setQuickView] = useState(null)
 
+  // Tenders enriched with computed display status (may be 'Overdue')
+  const tendersResolved = useMemo(() => tenders.map((t) => ({ ...t, displayStatus: resolveStatus(t) })), [tenders])
+
   const filtered = useMemo(() => {
-    return tenders.filter((t) => {
-      if (filterStatus !== 'All' && t.status !== filterStatus) return false
+    return tendersResolved.filter((t) => {
+      if (filterStatus !== 'All' && t.displayStatus !== filterStatus) return false
       if (!search) return true
       const q = search.toLowerCase()
       return [t.name, t.agency, t.nit].some((v) => (v || '').toLowerCase().includes(q))
     })
-  }, [tenders, search, filterStatus])
+  }, [tendersResolved, search, filterStatus])
 
   const openDialog = (item = null) => {
     setEditItem(item)
@@ -186,19 +201,23 @@ export default function Tenders() {
       />
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-        {TENDER_STATUSES.map((s) => {
-          const count = tenders.filter((t) => t.status === s).length
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+        {[...TENDER_STATUSES, 'Overdue'].map((s) => {
+          const count = tendersResolved.filter((t) => t.displayStatus === s).length
           const active = filterStatus === s
+          const isOverdue = s === 'Overdue'
           return (
             <Card
               key={s}
-              className={`cursor-pointer transition-all hover:shadow-sm ${active ? 'ring-2 ring-primary border-primary/50' : ''}`}
+              className={`cursor-pointer transition-all hover:shadow-sm ${active ? 'ring-2 ring-primary border-primary/50' : ''} ${isOverdue && count > 0 ? 'border-red-300 dark:border-red-800' : ''}`}
               onClick={() => setFilterStatus(s === filterStatus ? 'All' : s)}
+              role="button"
+              aria-pressed={active}
+              aria-label={`Filter by ${s}: ${count} tender${count !== 1 ? 's' : ''}`}
             >
               <CardContent className="p-3 text-center">
-                <p className="text-xl font-bold font-mono tabular-nums text-foreground">{count}</p>
-                <p className="text-xs text-muted-foreground">{s}</p>
+                <p className={`text-xl font-bold font-mono tabular-nums ${isOverdue && count > 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>{count}</p>
+                <p className={`text-xs ${isOverdue && count > 0 ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'}`}>{s}</p>
               </CardContent>
             </Card>
           )
@@ -216,7 +235,7 @@ export default function Tenders() {
               <Input placeholder="Search tenders…" className="pl-9 h-9" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="flex gap-1.5 overflow-x-auto scrollbar-thin -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
-              {['All', ...TENDER_STATUSES].map((s) => (
+              {['All', ...TENDER_STATUSES, 'Overdue'].map((s) => (
                 <button
                   key={s}
                   onClick={() => setFilterStatus(s)}
@@ -241,6 +260,7 @@ export default function Tenders() {
                   const done = (t.checklist || []).filter((c) => c.done).length
                   const total = (t.checklist || []).length
                   const pct = total ? Math.round((done / total) * 100) : 0
+                  const showChecklist = total > 0 && !TERMINAL_STATUSES.includes(t.displayStatus) && t.displayStatus !== 'Overdue'
                   return (
                     <Card key={t.id} className="overflow-hidden">
                       <CardContent className="p-4 space-y-3">
@@ -254,7 +274,7 @@ export default function Tenders() {
                             {t.agency && <p className="text-xs text-muted-foreground break-words mt-0.5">{t.agency}</p>}
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
-                            <StatusBadge status={t.status} />
+                            <StatusBadge status={t.displayStatus} />
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon-sm" className="h-8 w-8">
@@ -300,7 +320,7 @@ export default function Tenders() {
                             <p className="text-muted-foreground">Submission</p>
                             <p className="text-foreground">{formatDate(t.submissionDate) || '—'}</p>
                           </div>
-                          {total > 0 && (
+                          {showChecklist && (
                             <div className="min-w-0">
                               <p className="text-muted-foreground">Checklist</p>
                               <div className="flex items-center gap-2 mt-1">
@@ -335,6 +355,7 @@ export default function Tenders() {
                     const done = (t.checklist || []).filter((c) => c.done).length
                     const total = (t.checklist || []).length
                     const pct = total ? Math.round((done / total) * 100) : 0
+                    const showChk = total > 0 && !TERMINAL_STATUSES.includes(t.displayStatus) && t.displayStatus !== 'Overdue'
                     return (
                       <TableRow key={t.id}>
                         <TableCell className="min-w-[180px] max-w-[280px]">
@@ -345,15 +366,17 @@ export default function Tenders() {
                         <TableCell className="text-xs text-muted-foreground min-w-[140px] max-w-[200px] whitespace-normal break-words">{t.agency || '—'}</TableCell>
                         <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">{t.nit || '—'}</TableCell>
                         <TableCell className="hidden lg:table-cell text-xs font-mono tabular-nums text-right whitespace-nowrap">{formatCurrency(t.value)}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(t.submissionDate)}</TableCell>
-                        <TableCell><StatusBadge status={t.status} /></TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(t.submissionDate) || '—'}</TableCell>
+                        <TableCell><StatusBadge status={t.displayStatus} /></TableCell>
                         <TableCell className="hidden lg:table-cell">
-                          {total > 0 && (
+                          {showChk ? (
                             <div className="flex items-center gap-2 min-w-[100px]">
                               <Progress value={pct} className="flex-1 h-1.5" />
                               <span className="text-xs text-muted-foreground font-mono tabular-nums">{done}/{total}</span>
                             </div>
-                          )}
+                          ) : total > 0 ? (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          ) : null}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>

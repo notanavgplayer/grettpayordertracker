@@ -47,7 +47,8 @@ export default function Home() {
 
   const activeTenders = tenders.filter((t) => !['Awarded', 'Lost', 'Cancelled'].includes(t.status))
   const awardedTenders = tenders.filter((t) => t.status === 'Awarded')
-  const atRisk = payOrders.filter((p) => p.status === 'Submitted')
+  // POs at risk: submitted POs where bid result is still awaiting (outcome unknown)
+  const atRisk = payOrders.filter((p) => p.status === 'Submitted' && p.bidResult === 'Awaiting')
   const openTodos = todos.filter((t) => !t.done)
 
   const upcomingDeadlines = activeTenders
@@ -121,6 +122,7 @@ export default function Home() {
         <div className="relative rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4">
           <button
             onClick={() => setAlertDismissed(true)}
+            aria-label="Dismiss urgent deadline alerts"
             className="absolute right-3 top-3 text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200"
           >
             <X className="h-4 w-4" />
@@ -147,10 +149,10 @@ export default function Home() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard icon={FileStack} title="Active Tenders"   value={activeTenders.length}   href="/tenders"     mono={false} />
-        <MetricCard icon={FileText}  title="POs At Risk"      value={atRisk.length}          href="/pay-orders"  mono={false} />
-        <MetricCard icon={CheckSquare} title="Open Tasks"     value={openTodos.length}       href="/todo"        mono={false} />
-        <MetricCard icon={Trophy}    title="Awarded Tenders"  value={awardedTenders.length}  href="/tenders"     mono={false} />
+        <MetricCard icon={FileStack} title="Active Tenders"  value={activeTenders.length}  href="/tenders"    mono={false} delta="Bidding or submitted" deltaPositive={null} />
+        <MetricCard icon={FileText}  title="POs At Risk"     value={atRisk.length}         href="/pay-orders" mono={false} delta="Submitted, bid pending" deltaPositive={atRisk.length === 0 ? true : null} />
+        <MetricCard icon={CheckSquare} title="Open Tasks"    value={openTodos.length}      href="/todo"       mono={false} delta={openTodos.length === 0 ? 'All tasks done!' : 'Remaining'} deltaPositive={openTodos.length === 0 ? true : null} />
+        <MetricCard icon={Trophy}    title="Awarded Tenders" value={awardedTenders.length} href="/tenders"    mono={false} delta="Won bids" deltaPositive={awardedTenders.length > 0 ? true : null} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -219,9 +221,11 @@ export default function Home() {
                 <div key={todo.id} className="flex items-start gap-3 rounded-lg px-3 py-2 hover:bg-muted transition-colors">
                   <input
                     type="checkbox"
+                    id={`home-todo-${todo.id}`}
                     checked={todo.done}
                     onChange={() => toggleTodo(todo)}
-                    className="mt-0.5 h-4 w-4 rounded border-border cursor-pointer accent-primary"
+                    aria-label={`Mark task complete: ${todo.text}`}
+                    className="mt-0.5 h-4 w-4 rounded border-border cursor-pointer accent-primary min-w-[16px]"
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground leading-tight">{todo.text}</p>
