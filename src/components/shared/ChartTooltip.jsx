@@ -63,4 +63,4 @@ export const CHART_SEMANTIC = {
 }
 
 /** Common axis tick style for Recharts */
-export const AXIS_TICK = { fontSize: 11, fill: 'hsl(var(--muted-foreground))' }
+export const AXIS_TICK = { fontSize: 11, fill: 'oklch(var(--muted-foreground))' }

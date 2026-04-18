@@ -433,7 +433,7 @@ export default function Tenders() {
               <Label htmlFor="t-name">Tender Name <span className="text-destructive">*</span></Label>
               <Input id="t-name" value={form.name} onChange={setF('name')} placeholder="e.g. Supply of Office Equipment" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="t-nit">NIT / Reference</Label>
                 <Input id="t-nit" value={form.nit} onChange={setF('nit')} placeholder="NIT-2024-001" className="font-mono" />
@@ -452,7 +452,7 @@ export default function Tenders() {
               <Input id="t-fee" type="number" value={form.tenderFee} onChange={setF('tenderFee')} placeholder="0" className="font-mono tabular-nums" />
               <p className="text-xs text-muted-foreground">Automatically tracked as an expense under "Tender Fees".</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={setF('status')}>
@@ -465,7 +465,7 @@ export default function Tenders() {
                 <Input id="t-po" value={form.linkedPO} onChange={setF('linkedPO')} placeholder="PO-2024-001" className="font-mono" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="t-sub">Submission Date</Label>
                 <Input id="t-sub" type="date" value={form.submissionDate} onChange={setF('submissionDate')} />

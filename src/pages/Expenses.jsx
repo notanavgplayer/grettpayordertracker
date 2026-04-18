@@ -261,7 +261,7 @@ export default function Expenses() {
                       paddingAngle={2}
                       label={({ name }) => name}
                       labelLine={false}
-                      stroke="hsl(var(--card))"
+                      stroke="oklch(var(--card))"
                       strokeWidth={2}
                     >
                       {catData.map((e, i) => <Cell key={i} fill={e.color} />)}
@@ -276,11 +276,11 @@ export default function Expenses() {
               <CardContent>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={monthlyData} margin={{ left: 8, right: 8, top: 8 }}>
-                    <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
+                    <CartesianGrid vertical={false} stroke="oklch(var(--border))" strokeDasharray="3 3" />
                     <XAxis dataKey="month" tick={AXIS_TICK} axisLine={false} tickLine={false} />
                     <YAxis tick={AXIS_TICK} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
-                    <Bar dataKey="total" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                    <Tooltip cursor={{ fill: 'oklch(var(--muted))', opacity: 0.5 }} content={<ChartTooltip formatter={(v) => formatCurrency(v)} />} />
+                    <Bar dataKey="total" fill="oklch(var(--primary))" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -303,7 +303,7 @@ export default function Expenses() {
               <Label htmlFor="e-desc">Description <span className="text-destructive">*</span></Label>
               <Input id="e-desc" value={form.description} onChange={setF('description')} placeholder="What was this expense for?" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Category</Label>
                 <Select value={form.category} onValueChange={setF('category')}>
@@ -316,7 +316,7 @@ export default function Expenses() {
                 <Input id="e-amt" type="number" value={form.amount} onChange={setF('amount')} placeholder="0" className="font-mono tabular-nums" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="e-date">Date</Label>
                 <Input id="e-date" type="date" value={form.date} onChange={setF('date')} />
