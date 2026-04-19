@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -191,7 +192,7 @@ export default function PayOrders() {
   const handleAddBank = async () => {
     const name = newBankName.trim()
     if (!name) { toast.error('Bank name is required'); return }
-    if (banks.some((b) => b.name.toLowerCase() === name.toLowerCase())) {
+    if (banks.some((b) => (b.name || '').toLowerCase() === name.toLowerCase())) {
       toast.error('Bank already exists')
       return
     }
@@ -201,8 +202,9 @@ export default function PayOrders() {
       setAddBankOpen(false)
       setNewBankName('')
       toast.success('Bank added')
-    } catch {
-      toast.error('Failed to add bank')
+    } catch (e) {
+      console.error('Add bank failed:', e)
+      toast.error('Failed to add bank: ' + (e?.message || 'unknown error'))
     }
   }
 
@@ -717,32 +719,30 @@ export default function PayOrders() {
         onEdit={() => { const p = quickView; setQuickView(null); openDialog(p) }}
       />
 
-      {/* Add Bank dialog (simple inline Sheet) */}
-      <Sheet open={addBankOpen} onOpenChange={(v) => { setAddBankOpen(v); if (!v) setNewBankName('') }}>
-        <SheetContent side="right" className="w-full sm:max-w-sm p-0 flex flex-col gap-0">
-          <SheetHeader className="px-6 py-4 border-b border-border">
-            <SheetTitle>Add Bank</SheetTitle>
-            <SheetDescription>Add a new bank name to choose from.</SheetDescription>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="new-bank-name">Bank name</Label>
-              <Input
-                id="new-bank-name"
-                value={newBankName}
-                onChange={(e) => setNewBankName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddBank() } }}
-                placeholder="e.g. HBL"
-                autoFocus
-              />
-            </div>
+      {/* Add Bank — Dialog stacks reliably on top of the PO Sheet */}
+      <Dialog open={addBankOpen} onOpenChange={(v) => { setAddBankOpen(v); if (!v) setNewBankName('') }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add Bank</DialogTitle>
+            <DialogDescription>Add a new bank name to choose from.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-bank-name">Bank name</Label>
+            <Input
+              id="new-bank-name"
+              value={newBankName}
+              onChange={(e) => setNewBankName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddBank() } }}
+              placeholder="e.g. HBL"
+              autoFocus
+            />
           </div>
-          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setAddBankOpen(false)}>Cancel</Button>
             <Button onClick={handleAddBank}>Add Bank</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={handleDelete} title="Delete pay order" description="This will permanently remove the pay order record." />
       <ConfirmDelete open={!!deleteLogId} onOpenChange={() => setDeleteLogId(null)} onConfirm={async () => { await removeLog(deleteLogId); toast.success('Log deleted'); setDeleteLogId(null) }} title="Delete log entry" description="This will remove this activity log entry." />
