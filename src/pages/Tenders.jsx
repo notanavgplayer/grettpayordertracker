@@ -260,84 +260,75 @@ export default function Tenders() {
             <>
               {/* Mobile: card-per-row */}
               <div className="md:hidden p-3 space-y-3 bg-muted/30">
-                {filtered.map((t) => {
-                  const done = (t.checklist || []).filter((c) => c.done).length
-                  const total = (t.checklist || []).length
-                  const pct = total ? Math.round((done / total) * 100) : 0
-                  const showChecklist = total > 0 && !TERMINAL_STATUSES.includes(t.displayStatus) && t.displayStatus !== 'Overdue'
-                  return (
-                    <Card key={t.id} className="overflow-hidden">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <button type="button" onClick={() => setQuickView(t)} className="block text-left w-full">
-                              <p className="font-semibold text-sm text-foreground hover:underline break-words">
-                                {t.name || 'Untitled'}
-                              </p>
-                            </button>
-                            {t.agency && <p className="text-xs text-muted-foreground break-words mt-0.5">{t.agency}</p>}
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <StatusBadge status={t.displayStatus} />
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon-sm" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Open menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link to={`/tenders/${t.id}`} className="cursor-pointer">
-                                    <ExternalLink className="mr-2 h-4 w-4" /> View detail
-                                  </Link>
-                                </DropdownMenuItem>
-                                {isAdmin && (
-                                  <>
-                                    <DropdownMenuItem onClick={() => openDialog(t)}>
-                                      <Pencil className="mr-2 h-4 w-4" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      className="text-destructive focus:text-destructive"
-                                      onClick={() => setDeleteId(t.id)}
-                                    >
-                                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
+                {filtered.map((t) => (
+                  <Card key={t.id} className="overflow-hidden">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <button type="button" onClick={() => setQuickView(t)} className="block text-left w-full">
+                            <p className="font-semibold text-sm text-foreground hover:underline break-words leading-snug">
+                              {t.name || 'Untitled'}
+                            </p>
+                          </button>
+                          {t.agency && <p className="text-xs text-muted-foreground break-words mt-1">{t.agency}</p>}
                         </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <StatusBadge status={t.displayStatus} />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon-sm" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link to={`/tenders/${t.id}`} className="cursor-pointer">
+                                  <ExternalLink className="mr-2 h-4 w-4" /> View detail
+                                </Link>
+                              </DropdownMenuItem>
+                              {isAdmin && (
+                                <>
+                                  <DropdownMenuItem onClick={() => openDialog(t)}>
+                                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => setDeleteId(t.id)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
 
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs pt-2 border-t border-border">
-                          <div className="min-w-0">
-                            <p className="text-muted-foreground">Value</p>
-                            <p className="font-mono tabular-nums font-semibold text-foreground truncate">{formatCurrency(t.value)}</p>
+                      <div>
+                        <p className="font-mono tabular-nums font-semibold text-sm text-foreground leading-tight">
+                          {formatCurrency(t.value)}
+                        </p>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-0.5">Contract value</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border divide-x divide-border">
+                        <div className="min-w-0 pr-3">
+                          <div className="flex items-center gap-1.5 text-foreground">
+                            <Calendar className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <span className="text-sm truncate">{formatDate(t.submissionDate) || '—'}</span>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-muted-foreground">NIT/Ref</p>
-                            <p className="font-mono text-foreground truncate">{t.nit || '—'}</p>
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-muted-foreground">Submission</p>
-                            <p className="text-foreground">{formatDate(t.submissionDate) || '—'}</p>
-                          </div>
-                          {showChecklist && (
-                            <div className="min-w-0">
-                              <p className="text-muted-foreground">Checklist</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Progress value={pct} className="flex-1 h-1.5" />
-                                <span className="text-muted-foreground font-mono tabular-nums text-[10px]">{done}/{total}</span>
-                              </div>
-                            </div>
-                          )}
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1 ml-[22px]">Submission</p>
                         </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
+                        <div className="min-w-0 pl-3">
+                          <p className="font-mono text-sm text-foreground break-all">{t.nit || '—'}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1">NIT/Ref</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
               {/* Desktop: table */}
