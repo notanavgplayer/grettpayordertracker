@@ -38,8 +38,13 @@ const QUICK_ACTIONS = [
   { to: '/todo', icon: Plus, label: 'Add To-Do', hint: 'To-Do' },
 ]
 
-export default function CommandPalette({ className }) {
-  const [open, setOpen] = useState(false)
+export default function CommandPalette({ className, open: controlledOpen, onOpenChange }) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : uncontrolledOpen
+  const setOpen = isControlled
+    ? (v) => onOpenChange?.(typeof v === 'function' ? v(open) : v)
+    : setUncontrolledOpen
   const [tenders, setTenders] = useState([])
   const [payOrders, setPayOrders] = useState([])
   const [contacts, setContacts] = useState([])
@@ -106,17 +111,6 @@ export default function CommandPalette({ className }) {
           ⌘K
         </kbd>
       </button>
-
-      {/* Mobile icon-only trigger */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setOpen(true)}
-        className="sm:hidden h-9 w-9"
-        aria-label="Search"
-      >
-        <Search size={16} />
-      </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput placeholder="Search pages, records, or actions…" />

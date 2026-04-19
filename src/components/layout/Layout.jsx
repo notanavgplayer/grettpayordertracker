@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Menu, Moon, Sun, Bell, PanelLeft } from 'lucide-react'
+import { Menu, Moon, Sun, Bell, PanelLeft, Search } from 'lucide-react'
 import Sidebar from './Sidebar'
 import CommandPalette from '@/components/shared/CommandPalette'
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet'
@@ -20,6 +20,7 @@ const SIDEBAR_STORAGE_KEY = 'grett-sidebar-collapsed'
 export default function Layout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [signOutOpen, setSignOutOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1' } catch { return false }
   })
@@ -91,10 +92,20 @@ export default function Layout({ children }) {
               <TooltipContent>{collapsed ? 'Expand' : 'Collapse'}</TooltipContent>
             </Tooltip>
 
-            {/* Centered command palette trigger (pill) */}
+            {/* Centered command palette trigger (pill) — desktop shows pill, mobile collapses to a spacer */}
             <div className="flex-1 flex justify-center px-2">
-              <CommandPalette />
+              <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
             </div>
+
+            {/* Mobile search trigger */}
+            <Button
+              variant="ghost" size="icon"
+              className="sm:hidden h-9 w-9"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search"
+            >
+              <Search size={16} />
+            </Button>
 
             {/* Theme toggle */}
             <Tooltip>
