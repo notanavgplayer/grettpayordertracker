@@ -207,19 +207,23 @@ export default function Tenders() {
           const active = filterStatus === s
           const isOverdue = s === 'Overdue'
           return (
-            <Card
+            <button
               key={s}
-              className={`cursor-pointer transition-all hover:shadow-sm ${active ? 'ring-2 ring-primary border-primary/50' : ''} ${isOverdue && count > 0 ? 'border-red-300 dark:border-red-800' : ''}`}
+              type="button"
               onClick={() => setFilterStatus(s === filterStatus ? 'All' : s)}
-              role="button"
               aria-pressed={active}
               aria-label={`Filter by ${s}: ${count} tender${count !== 1 ? 's' : ''}`}
+              className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
             >
-              <CardContent className="p-3 text-center">
-                <p className={`text-xl font-bold font-mono tabular-nums ${isOverdue && count > 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>{count}</p>
-                <p className={`text-xs ${isOverdue && count > 0 ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'}`}>{s}</p>
-              </CardContent>
-            </Card>
+              <Card
+                className={`transition-all hover:shadow-sm ${active ? 'ring-2 ring-primary border-primary/50' : ''} ${isOverdue && count > 0 ? 'border-red-300 dark:border-red-800' : ''}`}
+              >
+                <CardContent className="p-3 text-center">
+                  <p className={`text-xl font-bold font-mono tabular-nums ${isOverdue && count > 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>{count}</p>
+                  <p className={`text-xs ${isOverdue && count > 0 ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'}`}>{s}</p>
+                </CardContent>
+              </Card>
+            </button>
           )
         })}
       </div>
@@ -340,44 +344,29 @@ export default function Tenders() {
               <Table className="hidden md:table">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-xs">Tender Name</TableHead>
-                    <TableHead className="text-xs">Agency</TableHead>
-                    <TableHead className="text-xs">NIT/Ref</TableHead>
-                    <TableHead className="text-xs hidden lg:table-cell text-right">Value</TableHead>
-                    <TableHead className="text-xs">Submission</TableHead>
-                    <TableHead className="text-xs">Status</TableHead>
-                    <TableHead className="text-xs hidden lg:table-cell">Checklist</TableHead>
+                    <TableHead className="text-sm">Tender Name</TableHead>
+                    <TableHead className="text-sm">Agency</TableHead>
+                    <TableHead className="text-sm">NIT/Ref</TableHead>
+                    <TableHead className="text-sm hidden lg:table-cell text-right">Value</TableHead>
+                    <TableHead className="text-sm">Submission</TableHead>
+                    <TableHead className="text-sm">Status</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((t) => {
-                    const done = (t.checklist || []).filter((c) => c.done).length
-                    const total = (t.checklist || []).length
-                    const pct = total ? Math.round((done / total) * 100) : 0
-                    const showChk = total > 0 && !TERMINAL_STATUSES.includes(t.displayStatus) && t.displayStatus !== 'Overdue'
                     return (
                       <TableRow key={t.id}>
-                        <TableCell className="min-w-[180px] max-w-[280px]">
-                          <button type="button" onClick={() => setQuickView(t)} className="font-medium text-xs hover:underline text-foreground text-left whitespace-normal break-words">
+                        <TableCell className="min-w-[200px] max-w-[320px]">
+                          <button type="button" onClick={() => setQuickView(t)} className="font-medium text-sm hover:underline text-foreground text-left whitespace-normal break-words">
                             {t.name || 'Untitled'}
                           </button>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground min-w-[140px] max-w-[200px] whitespace-normal break-words">{t.agency || '—'}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">{t.nit || '—'}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-xs font-mono tabular-nums text-right whitespace-nowrap">{formatCurrency(t.value)}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(t.submissionDate) || '—'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground min-w-[160px] max-w-[220px] whitespace-normal break-words">{t.agency || '—'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground font-mono whitespace-nowrap">{t.nit || '—'}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm font-mono tabular-nums text-right whitespace-nowrap">{formatCurrency(t.value)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{formatDate(t.submissionDate) || '—'}</TableCell>
                         <TableCell><StatusBadge status={t.displayStatus} /></TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {showChk ? (
-                            <div className="flex items-center gap-2 min-w-[100px]">
-                              <Progress value={pct} className="flex-1 h-1.5" />
-                              <span className="text-xs text-muted-foreground font-mono tabular-nums">{done}/{total}</span>
-                            </div>
-                          ) : total > 0 ? (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          ) : null}
-                        </TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

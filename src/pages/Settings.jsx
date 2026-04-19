@@ -41,10 +41,15 @@ export default function Settings() {
   useEffect(() => {
     if (isAdmin) {
       setLoadingUsers(true)
-      getDocs(collection(db, 'users')).then((snap) => {
-        setUsers(snap.docs.filter((d) => d.id !== '__meta__').map((d) => ({ id: d.id, ...d.data() })))
-        setLoadingUsers(false)
-      })
+      getDocs(collection(db, 'users'))
+        .then((snap) => {
+          setUsers(snap.docs.filter((d) => d.id !== '__meta__').map((d) => ({ id: d.id, ...d.data() })))
+        })
+        .catch((err) => {
+          console.error('Failed to load users:', err)
+          toast.error('Failed to load users')
+        })
+        .finally(() => setLoadingUsers(false))
     }
   }, [isAdmin])
 
@@ -74,9 +79,14 @@ export default function Settings() {
   }
 
   const changeUserRole = async (uid, newRole) => {
-    await updateDoc(doc(db, 'users', uid), { role: newRole })
-    setUsers((prev) => prev.map((u) => u.id === uid ? { ...u, role: newRole } : u))
-    toast.success('Role updated')
+    try {
+      await updateDoc(doc(db, 'users', uid), { role: newRole })
+      setUsers((prev) => prev.map((u) => u.id === uid ? { ...u, role: newRole } : u))
+      toast.success('Role updated')
+    } catch (err) {
+      console.error('Failed to update role:', err)
+      toast.error('Failed to update role')
+    }
   }
 
   const doExport = async () => {
@@ -87,7 +97,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <PageHeader title="Settings" description="Manage your account and application settings" />
 
       {/* Profile */}

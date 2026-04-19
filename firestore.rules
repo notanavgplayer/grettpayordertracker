@@ -20,8 +20,8 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      // Anyone authenticated can read any user doc (needed for role checks)
-      allow read: if isAuthenticated();
+      // A user can read their own doc; admins can read all (for user management).
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
 
       // A user can CREATE their own doc (first login setup)
       allow create: if isAuthenticated() && request.auth.uid == userId;
@@ -53,6 +53,7 @@ service cloud.firestore {
     match /checklistTemplates/{d} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /tenderFees/{d}         { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /calendarEvents/{d}    { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /banks/{d}              { allow read: if isAuthenticated(); allow write: if isAdmin(); }
 
     // Deny everything else
     match /{document=**} { allow read, write: if false; }

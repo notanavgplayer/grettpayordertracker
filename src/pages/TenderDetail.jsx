@@ -73,7 +73,10 @@ export default function TenderDetail() {
         const q1 = query(collection(db, 'expenses'), where('tenderRef', '==', id))
         const snap = await getDocs(q1)
         setExpenses(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      } catch {}
+      } catch (err) {
+        console.error('Failed to load expenses:', err)
+        toast.error('Failed to load expenses')
+      }
     }
     loadExpenses()
   }, [id, saving, expRefresh])
@@ -102,10 +105,13 @@ export default function TenderDetail() {
           })
         }
         setLinkedPOs(matched)
-      } catch {}
+      } catch (err) {
+        console.error('Failed to load linked pay orders:', err)
+        toast.error('Failed to load pay orders')
+      }
     }
     loadPOs()
-  }, [tender, poRefresh])
+  }, [id, tender, poRefresh])
 
   // Expense sub-totals (exclude Tender Fee from the "tracked total")
   const expenseOther = useMemo(

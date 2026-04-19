@@ -44,9 +44,12 @@ export default function Calendar() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    getDocs(collection(db, 'tenders')).then((snap) => {
-      setTenders(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    })
+    getDocs(collection(db, 'tenders'))
+      .then((snap) => setTenders(snap.docs.map((d) => ({ id: d.id, ...d.data() }))))
+      .catch((err) => {
+        console.error('Failed to load tenders:', err)
+        toast.error('Failed to load tenders')
+      })
   }, [])
 
   // Build all events for current month
@@ -122,14 +125,22 @@ export default function Calendar() {
       if (editEvent) { await update(editEvent.id, form); toast.success('Event updated') }
       else { await add(form); toast.success('Event added') }
       setDialogOpen(false)
+    } catch (err) {
+      console.error('Failed to save event:', err)
+      toast.error('Failed to save event')
     } finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
     if (!editEvent) return
-    await remove(editEvent.id)
-    toast.success('Event deleted')
-    setDialogOpen(false)
+    try {
+      await remove(editEvent.id)
+      toast.success('Event deleted')
+      setDialogOpen(false)
+    } catch (err) {
+      console.error('Failed to delete event:', err)
+      toast.error('Failed to delete event')
+    }
   }
 
   // Upcoming events this month

@@ -22,8 +22,16 @@ export function useCollection(collectionName, orderField = 'createdAt', orderDir
         setLoading(false)
       },
       (err) => {
-        console.error(err)
-        setError(err.message)
+        console.error(`useCollection(${collectionName}):`, err)
+        const friendly = err.code === 'permission-denied'
+          ? `You don't have permission to read ${collectionName}.`
+          : err.code === 'unavailable'
+          ? 'Network error — Firestore is unreachable.'
+          : err.code === 'failed-precondition'
+          ? `Missing index for ${collectionName}. Check Firestore console.`
+          : `Failed to load ${collectionName}: ${err.message}`
+        setError(friendly)
+        toast.error(friendly)
         setLoading(false)
       }
     )

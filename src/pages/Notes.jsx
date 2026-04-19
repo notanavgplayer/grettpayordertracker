@@ -62,8 +62,13 @@ export default function Notes() {
   }
 
   const newNote = async () => {
-    const id = await add({ title: 'Untitled Note', body: '', priority: 'none' })
-    setSaveStatus('')
+    try {
+      const newDoc = { title: 'Untitled Note', body: '', priority: 'none' }
+      const id = await add(newDoc)
+      selectNote({ id, ...newDoc })
+    } catch {
+      toast.error('Failed to create note')
+    }
   }
 
   const saveNote = useCallback(async (noteId, data) => {
@@ -78,16 +83,33 @@ export default function Notes() {
     }
   }, [])
 
-  // Debounce auto-save
+  // Debounce auto-save. Track the latest pending payload in a ref so we can
+  // flush it when the user switches notes or unmounts.
+  const pendingRef = useRef(null)
   useEffect(() => {
     if (!selected) return
+    const noteId = selected.id
+    const snapshot = { title, body, priority }
+    pendingRef.current = { noteId, snapshot }
     setSaveStatus('Auto-saving…')
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
-      saveNote(selected.id, { title, body, priority })
+      saveNote(noteId, snapshot)
+      pendingRef.current = null
     }, 800)
     return () => clearTimeout(debounceRef.current)
-  }, [title, body, priority, selected?.id])
+  }, [title, body, priority, selected?.id, saveNote])
+
+  // Flush pending edits when the active note changes or on unmount.
+  useEffect(() => {
+    return () => {
+      const pending = pendingRef.current
+      if (pending) {
+        saveNote(pending.noteId, pending.snapshot)
+        pendingRef.current = null
+      }
+    }
+  }, [selected?.id, saveNote])
 
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
 

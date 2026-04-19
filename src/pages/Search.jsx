@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Search as SearchIcon, FileStack, FileText, StickyNote, CheckSquare, Receipt, Loader2, Clock, X } from 'lucide-react'
+import { toast } from 'sonner'
 
 const SCOPES = ['All', 'Tenders', 'Pay Orders', 'Notes', 'Tasks', 'Expenses']
 
@@ -60,20 +61,26 @@ export default function Search() {
     const found = []
     const cols = SCOPE_TO_COLS[sc] || Object.keys(RESULT_CONFIG)
 
-    for (const col of cols) {
-      const cfg = RESULT_CONFIG[col]
-      const snap = await getDocs(collection(db, col))
-      for (const d of snap.docs) {
-        const data = { id: d.id, ...d.data() }
-        const text = Object.values(data).filter((v) => typeof v === 'string').join(' ').toLowerCase()
-        if (text.includes(lower)) found.push({ ...data, _col: col, _cfg: cfg })
+    try {
+      for (const col of cols) {
+        const cfg = RESULT_CONFIG[col]
+        const snap = await getDocs(collection(db, col))
+        for (const d of snap.docs) {
+          const data = { id: d.id, ...d.data() }
+          const text = Object.values(data).filter((v) => typeof v === 'string').join(' ').toLowerCase()
+          if (text.includes(lower)) found.push({ ...data, _col: col, _cfg: cfg })
+        }
       }
+      setResults(found)
+      saveRecent(q.trim())
+      setRecentSearches(loadRecent())
+    } catch (err) {
+      console.error('Search failed:', err)
+      toast.error('Search failed')
+      setResults([])
+    } finally {
+      setLoading(false)
     }
-
-    setResults(found)
-    setLoading(false)
-    saveRecent(q.trim())
-    setRecentSearches(loadRecent())
   }, [])
 
   const handleChange = (e) => {
@@ -99,7 +106,7 @@ export default function Search() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <PageHeader title="Search" description="Search across tenders, pay orders, notes, tasks, and expenses" />
 
       <div className="relative">
