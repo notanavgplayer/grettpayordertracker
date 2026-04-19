@@ -193,11 +193,11 @@ export default function TenderDetail() {
   const setExpF = (k) => (e) => setExpForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
 
   // --- Pay Order CRUD (writes to payOrders collection with tenderRef=id) ---
-  const openPoDialog = (item = null) => {
+  const openPoDialog = (item = null, defaultPurpose = null) => {
     setEditPo(item)
     setPoForm(item
       ? { po: item.po || '', bank: item.bank || '', amount: item.amount || '', purpose: item.purpose || 'Bid Security', status: item.status || 'Pending', submitted: item.submitted || '', notes: item.notes || '' }
-      : { ...EMPTY_PO, submitted: new Date().toISOString().slice(0, 10) })
+      : { ...EMPTY_PO, purpose: defaultPurpose || EMPTY_PO.purpose, submitted: new Date().toISOString().slice(0, 10) })
     setPoDialogOpen(true)
   }
   const savePo = async () => {
@@ -634,7 +634,7 @@ export default function TenderDetail() {
             <CardContent className="pt-0">
               {linkedPOs.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  No pay orders linked yet. Add one here — it will also appear in the global Pay Orders list.
+                  No pay orders linked yet. Add one here, or link from the Pay Orders page.
                 </p>
               ) : (
                 <>
