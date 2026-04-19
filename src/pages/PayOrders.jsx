@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useCollection, useFirestoreCRUD } from '@/hooks/useFirestore'
 import { useAuth } from '@/context/AuthContext'
 import { exportPayOrdersCSV, exportPayOrdersPDF } from '@/lib/export'
-import { formatCurrency, formatDate, PO_STATUSES, PO_PURPOSES, BID_RESULTS, BANKS } from '@/lib/utils'
+import { formatCurrency, formatDate, PO_STATUSES, PO_PURPOSES, BID_RESULTS } from '@/lib/utils'
 import { doc as fsDoc, updateDoc, addDoc as fsAddDoc, collection as fsCollection, serverTimestamp as fsServerTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import PageHeader from '@/components/shared/PageHeader'
@@ -43,12 +43,17 @@ export default function PayOrders() {
   const { data: payOrders, loading } = useCollection('payOrders', 'createdAt', 'desc')
   const { data: activityLog } = useCollection('activityLog', 'createdAt', 'desc')
   const { data: tenders } = useCollection('tenders', 'createdAt', 'desc')
+  const { data: banks } = useCollection('banks', 'createdAt', 'asc')
   const { add, update, remove } = useFirestoreCRUD('payOrders')
   const { add: addLog, update: updateLog, remove: removeLog } = useFirestoreCRUD('activityLog')
+  const { add: addBank } = useFirestoreCRUD('banks')
   const { isAdmin } = useAuth()
 
   const [tenderMode, setTenderMode] = useState('existing') // 'existing' | 'new' | 'none'
   const [newTenderFields, setNewTenderFields] = useState({ name: '', nit: '', agency: '' })
+  const [tenderSearch, setTenderSearch] = useState('')
+  const [addBankOpen, setAddBankOpen] = useState(false)
+  const [newBankName, setNewBankName] = useState('')
 
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('All')
@@ -98,6 +103,7 @@ export default function PayOrders() {
     setForm(item ? { ...EMPTY_PO, ...item } : { ...EMPTY_PO, submitted: new Date().toISOString().slice(0, 10) })
     setTenderMode(item?.tenderRef ? 'existing' : 'none')
     setNewTenderFields({ name: item?.tender || '', nit: item?.nit || '', agency: item?.agency || '' })
+    setTenderSearch('')
     setDialogOpen(true)
   }
 
@@ -181,6 +187,24 @@ export default function PayOrders() {
       else { await addLog(logForm); toast.success('Log entry added') }
       setLogDialogOpen(false)
     } finally { setSavingLog(false) }
+  }
+
+  const handleAddBank = async () => {
+    const name = newBankName.trim()
+    if (!name) { toast.error('Bank name is required'); return }
+    if (banks.some((b) => b.name.toLowerCase() === name.toLowerCase())) {
+      toast.error('Bank already exists')
+      return
+    }
+    try {
+      await addBank({ name })
+      setForm((p) => ({ ...p, bank: name }))
+      setAddBankOpen(false)
+      setNewBankName('')
+      toast.success('Bank added')
+    } catch {
+      toast.error('Failed to add bank')
+    }
   }
 
   const setF = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
@@ -500,9 +524,22 @@ export default function PayOrders() {
               <Field label={<>PO Number <span className="text-destructive">*</span></>} value={form.po} onChange={setF('po')} placeholder="PO-2024-001" className="font-mono" />
               <div className="space-y-1.5">
                 <Label>Bank</Label>
-                <Select value={form.bank} onValueChange={setF('bank')}>
+                <Select
+                  value={form.bank}
+                  onValueChange={(v) => {
+                    if (v === '__add_bank__') { setNewBankName(''); setAddBankOpen(true); return }
+                    setForm((p) => ({ ...p, bank: v }))
+                  }}
+                >
                   <SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger>
-                  <SelectContent>{BANKS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {banks.length === 0 && (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">No banks yet — add one below.</div>
+                    )}
+                    {banks.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+                    <div className="border-t border-border my-1" />
+                    <SelectItem value="__add_bank__" className="text-primary">+ Add Bank</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
             </div>
@@ -527,15 +564,68 @@ export default function PayOrders() {
                   </button>
                 ))}
               </div>
-              {tenderMode === 'existing' && (
-                <Select value={form.tenderRef || ''} onValueChange={setF('tenderRef')}>
-                  <SelectTrigger><SelectValue placeholder="Select tender…" /></SelectTrigger>
-                  <SelectContent>
-                    {tenders.length === 0 && <SelectItem value="__none" disabled>No tenders yet</SelectItem>}
-                    {tenders.map((t) => <SelectItem key={t.id} value={t.id}>{t.name || 'Untitled'}{t.nit ? ` — ${t.nit}` : ''}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
+              {tenderMode === 'existing' && (() => {
+                const selected = tenders.find((t) => t.id === form.tenderRef)
+                const q = tenderSearch.trim().toLowerCase()
+                const matches = q
+                  ? tenders.filter((t) =>
+                      (t.name || '').toLowerCase().includes(q) ||
+                      (t.nit || '').toLowerCase().includes(q) ||
+                      (t.agency || '').toLowerCase().includes(q)
+                    ).slice(0, 8)
+                  : []
+                return (
+                  <div className="space-y-2">
+                    {selected ? (
+                      <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{selected.name || 'Untitled'}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {selected.nit || '—'}{selected.agency ? ` · ${selected.agency}` : ''}
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => { setForm((p) => ({ ...p, tenderRef: '' })); setTenderSearch('') }}>
+                          Change
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                            value={tenderSearch}
+                            onChange={(e) => setTenderSearch(e.target.value)}
+                            placeholder="Search tenders by name, NIT, or agency…"
+                            className="pl-8 h-9"
+                          />
+                        </div>
+                        {q && (
+                          <div className="rounded-md border border-border max-h-48 overflow-y-auto">
+                            {matches.length === 0 ? (
+                              <p className="text-xs text-muted-foreground text-center py-3">No matching tenders.</p>
+                            ) : matches.map((t) => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => { setForm((p) => ({ ...p, tenderRef: t.id })); setTenderSearch('') }}
+                                className="w-full text-left px-3 py-2 hover:bg-accent border-b border-border last:border-0"
+                              >
+                                <p className="text-sm font-medium truncate">{t.name || 'Untitled'}</p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {t.nit || '—'}{t.agency ? ` · ${t.agency}` : ''}
+                                </p>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {!q && tenders.length === 0 && (
+                          <p className="text-xs text-muted-foreground">No tenders yet — create one instead.</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )
+              })()}
               {tenderMode === 'new' && (
                 <div className="space-y-2">
                   <Field label="Tender name" value={newTenderFields.name} onChange={(e) => setNewTenderFields((p) => ({ ...p, name: e.target.value }))} />
@@ -617,6 +707,33 @@ export default function PayOrders() {
         canEdit={isAdmin}
         onEdit={() => { const p = quickView; setQuickView(null); openDialog(p) }}
       />
+
+      {/* Add Bank dialog (simple inline Sheet) */}
+      <Sheet open={addBankOpen} onOpenChange={(v) => { setAddBankOpen(v); if (!v) setNewBankName('') }}>
+        <SheetContent side="right" className="w-full sm:max-w-sm p-0 flex flex-col gap-0">
+          <SheetHeader className="px-6 py-4 border-b border-border">
+            <SheetTitle>Add Bank</SheetTitle>
+            <SheetDescription>Add a new bank name to choose from.</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-bank-name">Bank name</Label>
+              <Input
+                id="new-bank-name"
+                value={newBankName}
+                onChange={(e) => setNewBankName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddBank() } }}
+                placeholder="e.g. HBL"
+                autoFocus
+              />
+            </div>
+          </div>
+          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
+            <Button variant="outline" onClick={() => setAddBankOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddBank}>Add Bank</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={handleDelete} title="Delete pay order" description="This will permanently remove the pay order record." />
       <ConfirmDelete open={!!deleteLogId} onOpenChange={() => setDeleteLogId(null)} onConfirm={async () => { await removeLog(deleteLogId); toast.success('Log deleted'); setDeleteLogId(null) }} title="Delete log entry" description="This will remove this activity log entry." />
