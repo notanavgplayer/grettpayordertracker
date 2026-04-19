@@ -207,19 +207,23 @@ export default function Tenders() {
           const active = filterStatus === s
           const isOverdue = s === 'Overdue'
           return (
-            <Card
+            <button
               key={s}
-              className={`cursor-pointer transition-all hover:shadow-sm ${active ? 'ring-2 ring-primary border-primary/50' : ''} ${isOverdue && count > 0 ? 'border-red-300 dark:border-red-800' : ''}`}
+              type="button"
               onClick={() => setFilterStatus(s === filterStatus ? 'All' : s)}
-              role="button"
               aria-pressed={active}
               aria-label={`Filter by ${s}: ${count} tender${count !== 1 ? 's' : ''}`}
+              className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
             >
-              <CardContent className="p-3 text-center">
-                <p className={`text-xl font-bold font-mono tabular-nums ${isOverdue && count > 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>{count}</p>
-                <p className={`text-xs ${isOverdue && count > 0 ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'}`}>{s}</p>
-              </CardContent>
-            </Card>
+              <Card
+                className={`transition-all hover:shadow-sm ${active ? 'ring-2 ring-primary border-primary/50' : ''} ${isOverdue && count > 0 ? 'border-red-300 dark:border-red-800' : ''}`}
+              >
+                <CardContent className="p-3 text-center">
+                  <p className={`text-xl font-bold font-mono tabular-nums ${isOverdue && count > 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>{count}</p>
+                  <p className={`text-xs ${isOverdue && count > 0 ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'}`}>{s}</p>
+                </CardContent>
+              </Card>
+            </button>
           )
         })}
       </div>
@@ -256,128 +260,104 @@ export default function Tenders() {
             <>
               {/* Mobile: card-per-row */}
               <div className="md:hidden p-3 space-y-3 bg-muted/30">
-                {filtered.map((t) => {
-                  const done = (t.checklist || []).filter((c) => c.done).length
-                  const total = (t.checklist || []).length
-                  const pct = total ? Math.round((done / total) * 100) : 0
-                  const showChecklist = total > 0 && !TERMINAL_STATUSES.includes(t.displayStatus) && t.displayStatus !== 'Overdue'
-                  return (
-                    <Card key={t.id} className="overflow-hidden">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <button type="button" onClick={() => setQuickView(t)} className="block text-left w-full">
-                              <p className="font-semibold text-sm text-foreground hover:underline break-words">
-                                {t.name || 'Untitled'}
-                              </p>
-                            </button>
-                            {t.agency && <p className="text-xs text-muted-foreground break-words mt-0.5">{t.agency}</p>}
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <StatusBadge status={t.displayStatus} />
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon-sm" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Open menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link to={`/tenders/${t.id}`} className="cursor-pointer">
-                                    <ExternalLink className="mr-2 h-4 w-4" /> View detail
-                                  </Link>
-                                </DropdownMenuItem>
-                                {isAdmin && (
-                                  <>
-                                    <DropdownMenuItem onClick={() => openDialog(t)}>
-                                      <Pencil className="mr-2 h-4 w-4" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      className="text-destructive focus:text-destructive"
-                                      onClick={() => setDeleteId(t.id)}
-                                    >
-                                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
+                {filtered.map((t) => (
+                  <Card key={t.id} className="overflow-hidden">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <button type="button" onClick={() => setQuickView(t)} className="block text-left w-full">
+                            <p className="font-semibold text-sm text-foreground hover:underline break-words leading-snug">
+                              {t.name || 'Untitled'}
+                            </p>
+                          </button>
+                          {t.agency && <p className="text-xs text-muted-foreground break-words mt-1">{t.agency}</p>}
                         </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <StatusBadge status={t.displayStatus} />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon-sm" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link to={`/tenders/${t.id}`} className="cursor-pointer">
+                                  <ExternalLink className="mr-2 h-4 w-4" /> View detail
+                                </Link>
+                              </DropdownMenuItem>
+                              {isAdmin && (
+                                <>
+                                  <DropdownMenuItem onClick={() => openDialog(t)}>
+                                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => setDeleteId(t.id)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
 
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs pt-2 border-t border-border">
-                          <div className="min-w-0">
-                            <p className="text-muted-foreground">Value</p>
-                            <p className="font-mono tabular-nums font-semibold text-foreground truncate">{formatCurrency(t.value)}</p>
+                      <div>
+                        <p className="font-mono tabular-nums font-semibold text-sm text-foreground leading-tight">
+                          {formatCurrency(t.value)}
+                        </p>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-0.5">Contract value</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border divide-x divide-border">
+                        <div className="min-w-0 pr-3">
+                          <div className="flex items-center gap-1.5 text-foreground">
+                            <Calendar className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <span className="text-sm truncate">{formatDate(t.submissionDate) || '—'}</span>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-muted-foreground">NIT/Ref</p>
-                            <p className="font-mono text-foreground truncate">{t.nit || '—'}</p>
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-muted-foreground">Submission</p>
-                            <p className="text-foreground">{formatDate(t.submissionDate) || '—'}</p>
-                          </div>
-                          {showChecklist && (
-                            <div className="min-w-0">
-                              <p className="text-muted-foreground">Checklist</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Progress value={pct} className="flex-1 h-1.5" />
-                                <span className="text-muted-foreground font-mono tabular-nums text-[10px]">{done}/{total}</span>
-                              </div>
-                            </div>
-                          )}
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1 ml-[22px]">Submission</p>
                         </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
+                        <div className="min-w-0 pl-3">
+                          <p className="font-mono text-sm text-foreground break-all">{t.nit || '—'}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1">NIT/Ref</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
               {/* Desktop: table */}
               <Table className="hidden md:table">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-xs">Tender Name</TableHead>
-                    <TableHead className="text-xs">Agency</TableHead>
-                    <TableHead className="text-xs">NIT/Ref</TableHead>
-                    <TableHead className="text-xs hidden lg:table-cell text-right">Value</TableHead>
-                    <TableHead className="text-xs">Submission</TableHead>
-                    <TableHead className="text-xs">Status</TableHead>
-                    <TableHead className="text-xs hidden lg:table-cell">Checklist</TableHead>
+                    <TableHead className="text-sm">Tender Name</TableHead>
+                    <TableHead className="text-sm">Agency</TableHead>
+                    <TableHead className="text-sm">NIT/Ref</TableHead>
+                    <TableHead className="text-sm hidden lg:table-cell text-right">Value</TableHead>
+                    <TableHead className="text-sm">Submission</TableHead>
+                    <TableHead className="text-sm">Status</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((t) => {
-                    const done = (t.checklist || []).filter((c) => c.done).length
-                    const total = (t.checklist || []).length
-                    const pct = total ? Math.round((done / total) * 100) : 0
-                    const showChk = total > 0 && !TERMINAL_STATUSES.includes(t.displayStatus) && t.displayStatus !== 'Overdue'
                     return (
                       <TableRow key={t.id}>
-                        <TableCell className="min-w-[180px] max-w-[280px]">
-                          <button type="button" onClick={() => setQuickView(t)} className="font-medium text-xs hover:underline text-foreground text-left whitespace-normal break-words">
+                        <TableCell className="min-w-[200px] max-w-[320px]">
+                          <button type="button" onClick={() => setQuickView(t)} className="font-medium text-sm hover:underline text-foreground text-left whitespace-normal break-words">
                             {t.name || 'Untitled'}
                           </button>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground min-w-[140px] max-w-[200px] whitespace-normal break-words">{t.agency || '—'}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">{t.nit || '—'}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-xs font-mono tabular-nums text-right whitespace-nowrap">{formatCurrency(t.value)}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(t.submissionDate) || '—'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground min-w-[160px] max-w-[220px] whitespace-normal break-words">{t.agency || '—'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground font-mono whitespace-nowrap">{t.nit || '—'}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm font-mono tabular-nums text-right whitespace-nowrap">{formatCurrency(t.value)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{formatDate(t.submissionDate) || '—'}</TableCell>
                         <TableCell><StatusBadge status={t.displayStatus} /></TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {showChk ? (
-                            <div className="flex items-center gap-2 min-w-[100px]">
-                              <Progress value={pct} className="flex-1 h-1.5" />
-                              <span className="text-xs text-muted-foreground font-mono tabular-nums">{done}/{total}</span>
-                            </div>
-                          ) : total > 0 ? (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          ) : null}
-                        </TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

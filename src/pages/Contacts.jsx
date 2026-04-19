@@ -55,6 +55,9 @@ export default function Contacts() {
       if (editItem) { await update(editItem.id, form); toast.success('Contact updated'); setSelected({ id: editItem.id, ...form }) }
       else { await add(form); toast.success('Contact added') }
       setDialogOpen(false)
+    } catch (err) {
+      console.error('Failed to save contact:', err)
+      toast.error('Failed to save contact')
     } finally { setSaving(false) }
   }
 

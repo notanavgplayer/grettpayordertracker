@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -32,10 +33,9 @@ import {
 import ChartTooltip, { AXIS_TICK, CHART_SEMANTIC } from '@/components/shared/ChartTooltip'
 import {
   Plus, FileText, Download, Printer, Search, Pencil, Trash2,
-  Loader2, TrendingUp, DollarSign, AlertCircle, CheckCircle, MoreHorizontal,
+  Loader2, TrendingUp, DollarSign, AlertCircle, CheckCircle, MoreHorizontal, Calendar,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { serverTimestamp } from 'firebase/firestore'
 
 const EMPTY_PO = { po: '', bank: '', nit: '', amount: '', tender: '', agency: '', submitted: '', status: 'Pending', bidResult: 'N/A', notes: '', purpose: 'Tender Fee', tenderRef: '' }
 
@@ -192,7 +192,7 @@ export default function PayOrders() {
   const handleAddBank = async () => {
     const name = newBankName.trim()
     if (!name) { toast.error('Bank name is required'); return }
-    if (banks.some((b) => b.name.toLowerCase() === name.toLowerCase())) {
+    if (banks.some((b) => (b.name || '').toLowerCase() === name.toLowerCase())) {
       toast.error('Bank already exists')
       return
     }
@@ -202,8 +202,9 @@ export default function PayOrders() {
       setAddBankOpen(false)
       setNewBankName('')
       toast.success('Bank added')
-    } catch {
-      toast.error('Failed to add bank')
+    } catch (e) {
+      console.error('Add bank failed:', e)
+      toast.error('Failed to add bank: ' + (e?.message || 'unknown error'))
     }
   }
 
@@ -325,11 +326,11 @@ export default function PayOrders() {
               <div className="md:hidden space-y-3">
                 {filtered.map((p) => (
                   <Card key={p.id} className="overflow-hidden">
-                    <CardContent className="p-4 space-y-3">
+                    <CardContent className="p-4 space-y-4">
                       <div className="flex items-start justify-between gap-2">
                         <button type="button" onClick={() => setQuickView(p)} className="min-w-0 flex-1 text-left">
                           <p className="font-mono text-sm font-semibold text-foreground truncate hover:underline">{p.po || '—'}</p>
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">{p.bank || '—'}{p.submitted ? ` · ${formatDate(p.submitted)}` : ''}</p>
+                          <p className="text-xs text-muted-foreground truncate mt-1">{p.bank || '—'}</p>
                         </button>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <StatusBadge status={p.status} />
@@ -360,22 +361,32 @@ export default function PayOrders() {
 
                       {(p.tender || p.agency) && (
                         <div className="space-y-0.5">
-                          {p.tender && <p className="text-sm font-semibold text-foreground break-words">{p.tender}</p>}
-                          {p.agency && <p className="text-xs text-muted-foreground break-words">{p.agency}</p>}
+                          {p.tender && <p className="text-sm font-semibold text-foreground break-words leading-snug">{p.tender}</p>}
+                          {p.agency && <p className="text-xs text-muted-foreground break-words mt-1">{p.agency}</p>}
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs pt-2 border-t border-border">
-                        <div className="min-w-0">
-                          <p className="text-muted-foreground">Amount</p>
-                          <p className="font-mono tabular-nums font-semibold text-foreground truncate">{formatCurrency(p.amount)}</p>
+                      <div>
+                        <p className="font-mono tabular-nums font-semibold text-sm text-foreground leading-tight">
+                          {formatCurrency(p.amount)}
+                        </p>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-0.5">Pay order amount</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border divide-x divide-border">
+                        <div className="min-w-0 pr-3">
+                          <div className="flex items-center gap-1.5 text-foreground">
+                            <Calendar className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <span className="text-sm truncate">{formatDate(p.submitted) || '—'}</span>
+                          </div>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1 ml-[22px]">Submitted</p>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-muted-foreground">NIT/Ref</p>
-                          <p className="font-mono text-foreground truncate">{p.nit || '—'}</p>
+                        <div className="min-w-0 pl-3">
+                          <p className="font-mono text-sm text-foreground break-all">{p.nit || '—'}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1">NIT/Ref</p>
                         </div>
-                        <div className="col-span-2 flex items-center justify-between gap-2 pt-1">
-                          <span className="text-muted-foreground">Bid Result</span>
+                        <div className="col-span-2 flex items-center justify-between gap-2 pt-3 border-t border-border">
+                          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Bid Result</span>
                           <StatusBadge status={p.bidResult} />
                         </div>
                       </div>
@@ -708,32 +719,30 @@ export default function PayOrders() {
         onEdit={() => { const p = quickView; setQuickView(null); openDialog(p) }}
       />
 
-      {/* Add Bank dialog (simple inline Sheet) */}
-      <Sheet open={addBankOpen} onOpenChange={(v) => { setAddBankOpen(v); if (!v) setNewBankName('') }}>
-        <SheetContent side="right" className="w-full sm:max-w-sm p-0 flex flex-col gap-0">
-          <SheetHeader className="px-6 py-4 border-b border-border">
-            <SheetTitle>Add Bank</SheetTitle>
-            <SheetDescription>Add a new bank name to choose from.</SheetDescription>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="new-bank-name">Bank name</Label>
-              <Input
-                id="new-bank-name"
-                value={newBankName}
-                onChange={(e) => setNewBankName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddBank() } }}
-                placeholder="e.g. HBL"
-                autoFocus
-              />
-            </div>
+      {/* Add Bank — Dialog stacks reliably on top of the PO Sheet */}
+      <Dialog open={addBankOpen} onOpenChange={(v) => { setAddBankOpen(v); if (!v) setNewBankName('') }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add Bank</DialogTitle>
+            <DialogDescription>Add a new bank name to choose from.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-bank-name">Bank name</Label>
+            <Input
+              id="new-bank-name"
+              value={newBankName}
+              onChange={(e) => setNewBankName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddBank() } }}
+              placeholder="e.g. HBL"
+              autoFocus
+            />
           </div>
-          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setAddBankOpen(false)}>Cancel</Button>
             <Button onClick={handleAddBank}>Add Bank</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={handleDelete} title="Delete pay order" description="This will permanently remove the pay order record." />
       <ConfirmDelete open={!!deleteLogId} onOpenChange={() => setDeleteLogId(null)} onConfirm={async () => { await removeLog(deleteLogId); toast.success('Log deleted'); setDeleteLogId(null) }} title="Delete log entry" description="This will remove this activity log entry." />

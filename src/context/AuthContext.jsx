@@ -15,19 +15,24 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         setUser(firebaseUser)
         // Load or create user document
-        const ref = doc(db, 'users', firebaseUser.uid)
-        const snap = await getDoc(ref)
-        if (snap.exists()) {
-          setUserDoc(snap.data())
-        } else {
-          const newDoc = {
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-            role: 'viewer',
-            createdAt: serverTimestamp(),
+        try {
+          const ref = doc(db, 'users', firebaseUser.uid)
+          const snap = await getDoc(ref)
+          if (snap.exists()) {
+            setUserDoc(snap.data())
+          } else {
+            const newDoc = {
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              role: 'viewer',
+              createdAt: serverTimestamp(),
+            }
+            await setDoc(ref, newDoc)
+            setUserDoc(newDoc)
           }
-          await setDoc(ref, newDoc)
-          setUserDoc(newDoc)
+        } catch (err) {
+          console.error('Failed to load user document:', err)
+          setUserDoc(null)
         }
       } else {
         setUser(null)

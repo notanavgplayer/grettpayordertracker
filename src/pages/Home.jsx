@@ -125,7 +125,7 @@ export default function Home() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`${greeting}, ${displayName.split(' ')[0]}`}
+        title={`${greeting}, ${(displayName || 'there').split(' ')[0]}`}
         description="Here's what's happening with your projects today."
       />
 
