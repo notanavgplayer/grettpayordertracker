@@ -8,13 +8,24 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [userDoc, setUserDoc] = useState(null)
+  const [claimAdmin, setClaimAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser)
-        // Load or create user document
+        // Read custom claims first — admin status is mirrored from the
+        // user doc by the Cloud Function in functions/index.js.
+        try {
+          const token = await firebaseUser.getIdTokenResult()
+          setClaimAdmin(!!token.claims?.admin)
+        } catch (err) {
+          console.error('Failed to read auth claims:', err)
+          setClaimAdmin(false)
+        }
+        // Load or create user document (used for displayName + as
+        // fallback for the role during the claim-propagation window).
         try {
           const ref = doc(db, 'users', firebaseUser.uid)
           const snap = await getDoc(ref)
@@ -37,6 +48,7 @@ export function AuthProvider({ children }) {
       } else {
         setUser(null)
         setUserDoc(null)
+        setClaimAdmin(false)
       }
       setLoading(false)
     })
@@ -45,9 +57,9 @@ export function AuthProvider({ children }) {
 
   const logout = () => signOut(auth)
 
-  const isAdmin = userDoc?.role === 'admin'
+  const isAdmin = claimAdmin || userDoc?.role === 'admin'
   const displayName = userDoc?.displayName || user?.email || ''
-  const role = userDoc?.role || 'viewer'
+  const role = claimAdmin ? 'admin' : (userDoc?.role || 'viewer')
 
   return (
     <AuthContext.Provider value={{ user, userDoc, loading, logout, isAdmin, displayName, role }}>
