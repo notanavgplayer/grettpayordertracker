@@ -4,7 +4,6 @@ import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 
 import { db, auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
-import { exportAllDataJSON } from '@/lib/export'
 import PageHeader from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -90,8 +89,15 @@ export default function Settings() {
   }
 
   const doExport = async () => {
+    if (!isAdmin) { toast.error('Admin only'); return }
     setExportingBackup(true)
-    try { await exportAllDataJSON(user.email); toast.success('Backup downloaded') }
+    try {
+      // Lazy-loaded so the export entrypoint is not in a viewer's bundle —
+      // a non-admin session cannot call it from the JS console.
+      const { exportAllDataJSON } = await import('@/lib/export')
+      await exportAllDataJSON(user.email)
+      toast.success('Backup downloaded')
+    }
     catch { toast.error('Export failed') }
     finally { setExportingBackup(false) }
   }
@@ -217,19 +223,21 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Data Export */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Download className="h-4 w-4" /> Data Backup</CardTitle>
-          <CardDescription>Export all your data as a JSON backup file</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={doExport} disabled={exportingBackup} variant="outline">
-            {exportingBackup ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Export Full Backup (JSON)
-          </Button>
-        </CardContent>
-      </Card>
+      {/* Data Export — admin only */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><Download className="h-4 w-4" /> Data Backup</CardTitle>
+            <CardDescription>Export all your data as a JSON backup file</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={doExport} disabled={exportingBackup} variant="outline">
+              {exportingBackup ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Export Full Backup (JSON)
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* User Management (Admin only) */}
       {isAdmin && (

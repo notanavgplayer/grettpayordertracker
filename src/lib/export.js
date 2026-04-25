@@ -14,6 +14,15 @@ function escapeCSV(val) {
   return `"${String(val ?? '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`
 }
 
+function escapeHtml(val) {
+  return String(val ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function toCSV(headers, rows) {
   return [headers, ...rows]
     .map((row) => row.map(escapeCSV).join(','))
@@ -65,10 +74,10 @@ export function exportPayOrdersPDF(payOrders) {
   const rows = payOrders
     .map(
       (p) => `<tr>
-        <td>${p.po || ''}</td><td>${p.bank || ''}</td><td>${p.nit || ''}</td>
-        <td>${p.tender || ''}</td><td>${p.agency || ''}</td>
-        <td>${formatPKR(p.amount)}</td><td>${p.submitted || ''}</td>
-        <td>${p.status || ''}</td><td>${p.bidResult || ''}</td>
+        <td>${escapeHtml(p.po)}</td><td>${escapeHtml(p.bank)}</td><td>${escapeHtml(p.nit)}</td>
+        <td>${escapeHtml(p.tender)}</td><td>${escapeHtml(p.agency)}</td>
+        <td>${formatPKR(p.amount)}</td><td>${escapeHtml(p.submitted)}</td>
+        <td>${escapeHtml(p.status)}</td><td>${escapeHtml(p.bidResult)}</td>
       </tr>`
     )
     .join('')
