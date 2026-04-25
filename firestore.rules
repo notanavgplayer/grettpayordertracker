@@ -14,46 +14,265 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
+    // Hybrid admin check: prefers the custom claim (set by the Cloud Function
+    // in functions/index.js), but falls back to the user doc during the
+    // propagation window. Tighten to claim-only once all admin tokens have
+    // refreshed.
     function isAdmin() {
-      return isAuthenticated() && userDocExists() && getUserDoc().data.role == 'admin';
+      return isAuthenticated() && (
+        request.auth.token.admin == true
+        || (userDocExists() && getUserDoc().data.role == 'admin')
+      );
     }
 
-    // Users collection
+    // ---- helpers used by validators ---------------------------------------
+
+    function isStr(v, max) {
+      return v is string && v.size() <= max;
+    }
+
+    function optStr(d, k, max) {
+      return !(k in d) || isStr(d[k], max);
+    }
+
+    function optNum(d, k) {
+      return !(k in d) || (d[k] is number);
+    }
+
+    function optBool(d, k) {
+      return !(k in d) || (d[k] is bool);
+    }
+
+    function optList(d, k) {
+      return !(k in d) || (d[k] is list);
+    }
+
+    // ---- users ------------------------------------------------------------
+
     match /users/{userId} {
-      // A user can read their own doc; admins can read all (for user management).
+      // A user can read their own doc; admins can read all.
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
 
-      // A user can CREATE their own doc (first login setup)
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      // Self-create: must be the user's own doc, role pinned to 'viewer',
+      // and only the allowed bootstrap fields.
+      allow create: if isAuthenticated()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'viewer'
+        && request.resource.data.keys().hasOnly(['email','displayName','role','createdAt']);
 
-      // A user can UPDATE their own doc BUT cannot change their own role
-      // Only admins can update other users' docs (to change roles)
+      // Self-update: cannot touch role/email/createdAt and must stay within
+      // the allowlist of mutable user-profile fields. Admins may update freely.
       allow update: if isAuthenticated() && (
-        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
+        (request.auth.uid == userId
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role','email','createdAt'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','updatedAt'])
+        )
         || isAdmin()
       );
 
-      // Only admins can delete user docs
       allow delete: if isAdmin();
     }
 
-    // App meta doc (used to track first user)
-    match /users/_appMeta {
-      allow read, write: if isAuthenticated();
+    // ---- payOrders --------------------------------------------------------
+
+    function validPayOrder(d) {
+      return d.keys().hasOnly([
+          'po','bank','nit','amount','tender','agency','submitted',
+          'status','bidResult','notes','purpose','tenderRef',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && d.amount is number && d.amount >= 0
+        && isStr(d.po, 100)
+        && optStr(d, 'bank', 200)
+        && optStr(d, 'nit', 200)
+        && optStr(d, 'tender', 500)
+        && optStr(d, 'agency', 300)
+        && optStr(d, 'submitted', 30)
+        && optStr(d, 'notes', 5000)
+        && optStr(d, 'tenderRef', 100)
+        && (!('status' in d) || d.status in ['Pending','Submitted','Returned','Encashed'])
+        && (!('bidResult' in d) || d.bidResult in ['N/A','Awaiting','Won','Lost'])
+        && (!('purpose' in d) || d.purpose in ['Tender Fee','Bid Security','Performance Guarantee','Mobilization','Other']);
+    }
+    match /payOrders/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validPayOrder(request.resource.data);
+      allow update: if isAdmin() && validPayOrder(request.resource.data);
+      allow delete: if isAdmin();
     }
 
-    // All data collections: authenticated can read, only admins can write
-    match /payOrders/{d}          { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /activityLog/{d}        { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /notes/{d}              { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /todos/{d}              { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /tenders/{d}            { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /expenses/{d}           { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /contacts/{d}           { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /checklistTemplates/{d} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /tenderFees/{d}         { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /calendarEvents/{d}    { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /banks/{d}              { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    // ---- tenders ----------------------------------------------------------
+
+    function validTender(d) {
+      return d.keys().hasOnly([
+          'name','nit','agency','value','tenderFee','bidSecurity',
+          'status','submissionDate','openingDate','linkedPO','notes',
+          'contact','checklist','bills','raBills','statusHistory',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.name, 500)
+        && optStr(d, 'nit', 200)
+        && optStr(d, 'agency', 300)
+        && optStr(d, 'submissionDate', 30)
+        && optStr(d, 'openingDate', 30)
+        && optStr(d, 'linkedPO', 100)
+        && optStr(d, 'notes', 10000)
+        && optStr(d, 'contact', 300)
+        && optNum(d, 'value')
+        && optNum(d, 'tenderFee')
+        && optNum(d, 'bidSecurity')
+        && optList(d, 'checklist')
+        && optList(d, 'bills')
+        && optList(d, 'raBills')
+        && optList(d, 'statusHistory')
+        && (!('status' in d) || d.status is string);
+    }
+    match /tenders/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validTender(request.resource.data);
+      allow update: if isAdmin() && validTender(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- expenses ---------------------------------------------------------
+
+    function validExpense(d) {
+      return d.keys().hasOnly([
+          'description','category','amount','date','tenderId','note',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.description, 500)
+        && optStr(d, 'category', 100)
+        && optStr(d, 'date', 30)
+        && optStr(d, 'tenderId', 100)
+        && optStr(d, 'note', 5000)
+        && d.amount is number && d.amount >= 0;
+    }
+    match /expenses/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validExpense(request.resource.data);
+      allow update: if isAdmin() && validExpense(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- contacts ---------------------------------------------------------
+
+    function validContact(d) {
+      return d.keys().hasOnly([
+          'name','role','organization','category','phone','whatsapp',
+          'email','address','notes',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.name, 200)
+        && optStr(d, 'role', 200)
+        && optStr(d, 'organization', 300)
+        && optStr(d, 'category', 100)
+        && optStr(d, 'phone', 50)
+        && optStr(d, 'whatsapp', 50)
+        && optStr(d, 'email', 200)
+        && optStr(d, 'address', 500)
+        && optStr(d, 'notes', 5000);
+    }
+    match /contacts/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validContact(request.resource.data);
+      allow update: if isAdmin() && validContact(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- notes ------------------------------------------------------------
+
+    function validNote(d) {
+      return d.keys().hasOnly([
+          'title','body','priority',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && optStr(d, 'title', 500)
+        && optStr(d, 'body', 50000)
+        && (!('priority' in d) || d.priority in ['none','low','medium','high']);
+    }
+    match /notes/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validNote(request.resource.data);
+      allow update: if isAdmin() && validNote(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- todos ------------------------------------------------------------
+
+    function validTodo(d) {
+      return d.keys().hasOnly([
+          'text','priority','dueDate','done',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.text, 1000)
+        && optStr(d, 'priority', 20)
+        && optStr(d, 'dueDate', 30)
+        && optBool(d, 'done');
+    }
+    match /todos/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validTodo(request.resource.data);
+      allow update: if isAdmin() && validTodo(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- calendarEvents ---------------------------------------------------
+
+    function validCalendarEvent(d) {
+      return d.keys().hasOnly([
+          'title','date','notes','eventType',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.title, 500)
+        && optStr(d, 'date', 30)
+        && optStr(d, 'notes', 5000)
+        && optStr(d, 'eventType', 100);
+    }
+    match /calendarEvents/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validCalendarEvent(request.resource.data);
+      allow update: if isAdmin() && validCalendarEvent(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- banks ------------------------------------------------------------
+
+    function validBank(d) {
+      return d.keys().hasOnly([
+          'name','createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.name, 200);
+    }
+    match /banks/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validBank(request.resource.data);
+      allow update: if isAdmin() && validBank(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- activityLog (append-only audit trail) ----------------------------
+
+    function validActivity(d) {
+      return d.keys().hasOnly(['type','action','title','entityId','by','meta','createdAt'])
+        && optStr(d, 'type', 100)
+        && optStr(d, 'action', 100)
+        && optStr(d, 'title', 1000)
+        && optStr(d, 'by', 300);
+    }
+    match /activityLog/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validActivity(request.resource.data);
+      // Activity log is append-only — no updates from clients. Admins may
+      // delete (e.g. for retention housekeeping) via the admin UI.
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // ---- legacy / unused collections (kept admin-only without field schema) ----
+
+    match /checklistTemplates/{d} { allow read, write: if isAdmin(); }
+    match /tenderFees/{d}         { allow read, write: if isAdmin(); }
 
     // Deny everything else
     match /{document=**} { allow read, write: if false; }

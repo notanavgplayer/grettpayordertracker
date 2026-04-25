@@ -53,6 +53,32 @@ const firebaseConfig = {
 
 ---
 
+## Step 4.5 — Deploy Cloud Functions (admin claim sync)
+
+Admin authorization is enforced via a Firebase Auth custom claim
+(`admin: true`) which is mirrored from the `role` field on `users/{uid}`
+by a Cloud Function. Deploy it once:
+
+```
+npm install -g firebase-tools           # if not already
+firebase login
+cd functions && npm install && cd ..
+firebase deploy --only functions
+firebase deploy --only firestore:rules
+```
+
+The function runs whenever a user doc is created or its `role` changes
+and calls `admin.auth().setCustomUserClaims(uid, { admin: ... })`.
+Existing admin users will need to sign out and back in once for their
+ID token to pick up the new claim — the AuthContext also keeps the
+user-doc role as a propagation-window fallback.
+
+> Note: web Firebase API keys (the values in `.env.example`) are not
+> secrets — they are public project identifiers. Security comes from
+> Firestore rules and Auth, not from hiding the keys.
+
+---
+
 ## Step 5 — Deploy to Netlify
 
 1. Push this entire folder to a GitHub repository

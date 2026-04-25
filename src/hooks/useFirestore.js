@@ -41,6 +41,24 @@ export function useCollection(collectionName, orderField = 'createdAt', orderDir
   return { data, loading, error }
 }
 
+// Map Firestore error codes to short user-facing strings. Raw e.message can
+// leak schema or index details, so we surface a generic fallback for anything
+// not in the known set and keep the full error in console.error for debugging.
+function friendlyFirestoreError(e, verb) {
+  switch (e?.code) {
+    case 'permission-denied':
+      return `You don't have permission to ${verb} this.`
+    case 'unavailable':
+      return 'Network error — Firestore is unreachable.'
+    case 'failed-precondition':
+      return `Cannot ${verb} right now — please refresh and try again.`
+    case 'not-found':
+      return 'That item no longer exists.'
+    default:
+      return 'Something went wrong, please try again.'
+  }
+}
+
 export function useFirestoreCRUD(collectionName) {
   const add = useCallback(
     async (data) => {
@@ -52,7 +70,8 @@ export function useFirestoreCRUD(collectionName) {
         })
         return ref.id
       } catch (e) {
-        toast.error('Failed to save: ' + e.message)
+        console.error(`add(${collectionName}):`, e)
+        toast.error(friendlyFirestoreError(e, 'save'))
         throw e
       }
     },
@@ -67,7 +86,8 @@ export function useFirestoreCRUD(collectionName) {
           updatedAt: serverTimestamp(),
         })
       } catch (e) {
-        toast.error('Failed to update: ' + e.message)
+        console.error(`update(${collectionName}/${id}):`, e)
+        toast.error(friendlyFirestoreError(e, 'update'))
         throw e
       }
     },
@@ -79,7 +99,8 @@ export function useFirestoreCRUD(collectionName) {
       try {
         await deleteDoc(doc(db, collectionName, id))
       } catch (e) {
-        toast.error('Failed to delete: ' + e.message)
+        console.error(`remove(${collectionName}/${id}):`, e)
+        toast.error(friendlyFirestoreError(e, 'delete'))
         throw e
       }
     },

@@ -37,3 +37,9 @@ lerna-debug.log*
 
 # Claude Code workspace
 .claude/
+
+# LibreOffice / Office lock files
+.~lock.*#
+
+# Local archives — never commit zips of the repo
+*.zip
