@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Menu, Moon, Sun, Bell, PanelLeft, Search } from 'lucide-react'
+import { Menu, Moon, Sun, PanelLeft, Search } from 'lucide-react'
 import Sidebar from './Sidebar'
+import NotificationsBell from './NotificationsBell'
 import CommandPalette from '@/components/shared/CommandPalette'
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -122,15 +123,7 @@ export default function Layout({ children }) {
               <TooltipContent>{isDark ? 'Light mode' : 'Dark mode'}</TooltipContent>
             </Tooltip>
 
-            {/* Notifications bell (static) */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label="Notifications">
-                  <Bell size={16} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Notifications</TooltipContent>
-            </Tooltip>
+            <NotificationsBell />
           </header>
 
           {/* Page content */}

@@ -63,7 +63,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>
         </BrowserRouter>
-        <Toaster richColors position="top-right" closeButton />
+        <Toaster richColors position="top-center" closeButton />
       </AuthProvider>
     </ThemeProvider>
   )
