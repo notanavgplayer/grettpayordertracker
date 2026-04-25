@@ -25,7 +25,10 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
-  # script-src: 'unsafe-inline' removed (Vite emits no inline scripts).
+  # script-src: 'unsafe-inline' removed. The single inline script in
+  # index.html (theme-FOUC guard) is whitelisted by its sha256 hash.
+  # If you edit that script, update the hash in BOTH this file and
+  # ./netlify.toml (use openssl dgst -sha256 -binary | base64).
   # TODO: drop 'unsafe-inline' from style-src once Tailwind/runtime inline
   # styles are eliminated or hashed.
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com wss://*.firebaseio.com; img-src 'self' data: https:; frame-src https://*.firebaseapp.com https://*.google.com;
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-EAt0qlocE1wvReyDD3SsnFLfol8oCSww/LsMvxCT1aI=' https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com wss://*.firebaseio.com; img-src 'self' data: https:; frame-src https://*.firebaseapp.com https://*.google.com;
