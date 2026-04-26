@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Shared Recharts tooltip styled to match the app's card/popover tokens.
  * Pass as `content={<ChartTooltip />}` on any Recharts <Tooltip /> to get

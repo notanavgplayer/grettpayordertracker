@@ -112,7 +112,7 @@ service cloud.firestore {
           'name','nit','agency','value','tenderFee','bidSecurity',
           'status','submissionDate','openingDate','linkedPO','notes',
           'contact','contactPerson','checklist','bills','raBills','statusHistory',
-          'tenderFeeExpenseId',
+          'tenderFeeExpenseId','completionDate','completionRemarks','completionSnapshot',
           'createdAt','updatedAt','createdBy','updatedBy'
         ])
         && isStr(d.name, 500)
@@ -123,6 +123,9 @@ service cloud.firestore {
         && optStr(d, 'linkedPO', 100)
         && optStr(d, 'notes', 10000)
         && optStr(d, 'contact', 300)
+        && optStr(d, 'completionDate', 30)
+        && optStr(d, 'completionRemarks', 10000)
+        && (!('completionSnapshot' in d) || d.completionSnapshot == null || d.completionSnapshot is map)
         && (!('contactPerson' in d) || d.contactPerson is map)
         && optStrOrNull(d, 'tenderFeeExpenseId', 100)
         && optNum(d, 'value')

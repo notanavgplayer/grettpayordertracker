@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { formatCurrency } from '@/lib/utils'
 
 const READ_KEY = 'grett-notifications-read'
 
@@ -72,6 +73,28 @@ export function useNotifications() {
 
     // Tender submission/opening within next 7 days (or overdue up to 1 day)
     for (const t of tenders) {
+      if (t.status === 'Completed' && t.completionDate) {
+        const completedDays = daysFromToday(t.completionDate)
+        if (completedDays !== null && completedDays <= 0 && completedDays >= -7) {
+          const expectedProfit = t.completionSnapshot?.expectedProfit ?? t.completionSnapshot?.projectedProfit
+          const cashPosition = t.completionSnapshot?.cashPosition ?? t.completionSnapshot?.realizedProfit
+          const completedSubtitle = expectedProfit == null
+            ? `Tender completed — ${fmtDue(completedDays)}`
+            : cashPosition == null
+              ? `Tender completed — Expected profit ${formatCurrency(expectedProfit)}`
+              : `Tender completed — Expected profit ${formatCurrency(expectedProfit)} · Cash position ${formatCurrency(cashPosition)}`
+          out.push({
+            id: `tender:${t.id}:completed:${t.completionDate}`,
+            kind: 'tender',
+            severity: 'normal',
+            title: t.name || '(untitled tender)',
+            subtitle: completedSubtitle,
+            sortKey: -50 + completedDays,
+            to: `/tenders/${t.id}`,
+          })
+        }
+      }
+
       for (const [field, label] of [
         ['submissionDate', 'Tender submission'],
         ['openingDate', 'Tender opening'],

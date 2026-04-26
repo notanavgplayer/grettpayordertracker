@@ -46,6 +46,8 @@ export default function Expenses() {
   const [filter, setFilter] = useState('all') // 'all' | 'month'
 
   const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth()
   const thisMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
   const displayExpenses = useMemo(() => {
@@ -75,14 +77,14 @@ export default function Expenses() {
   const monthlyData = useMemo(() => {
     const result = []
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const d = new Date(currentYear, currentMonth - i, 1)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const label = d.toLocaleString('default', { month: 'short' })
       const total = expenses.filter((e) => (e.date || '').startsWith(key)).reduce((s, e) => s + (Number(e.amount) || 0), 0)
       result.push({ month: label, total })
     }
     return result
-  }, [expenses])
+  }, [currentMonth, currentYear, expenses])
 
   const openDialog = (item = null) => {
     setEditItem(item)
