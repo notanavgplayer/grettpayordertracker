@@ -77,7 +77,7 @@ export default function NotificationsBell() {
           ref={panelRef}
           role="dialog"
           aria-label="Notifications"
-          className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-1rem)] origin-top-right rounded-lg border border-border bg-popover text-popover-foreground shadow-lg sm:w-96"
+          className="absolute right-0 top-full z-50 mt-2 w-[22rem] max-w-[calc(100vw-1rem)] origin-top-right rounded-lg border border-border bg-popover text-popover-foreground shadow-lg sm:w-[32rem]"
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
             <p className="text-sm font-semibold">Notifications</p>
@@ -127,10 +127,14 @@ export default function NotificationsBell() {
                           <Icon size={14} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className={cn('truncate text-sm', !isRead ? 'font-semibold' : 'font-medium')}>
+                          <p className={cn('text-sm leading-snug break-words', !isRead ? 'font-semibold' : 'font-medium')}>
                             {item.title}
                           </p>
-                          <p className="truncate text-xs text-muted-foreground">{item.subtitle}</p>
+                          {item.subtitle && (
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground break-words">
+                              {item.subtitle}
+                            </p>
+                          )}
                         </div>
                         {!isRead && (
                           <span

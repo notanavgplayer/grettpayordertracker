@@ -57,9 +57,9 @@ export function toLocaleDateInputValue(dateStr) {
 }
 
 export const PO_STATUSES = ['Pending', 'Submitted', 'Held', 'Returned', 'Released', 'Encashed', 'Forfeited']
-export const PO_PURPOSES = ['Tender Fee', 'Bid Security', 'Performance Guarantee', 'Other']
+export const PO_PURPOSES = ['Bid Security', 'Tender Fee', 'Performance Guarantee', 'Mobilization', 'Other']
 export const BID_RESULTS = ['N/A', 'Awaiting', 'Won', 'Lost', 'Cancelled']
-export const TENDER_STATUSES = ['Bidding', 'Submitted', 'Awarded', 'Completed', 'Lost', 'Cancelled']
+export const TENDER_STATUSES = ['Bidding', 'Submitted', 'Awarded', 'In Progress', 'Completed', 'Lost', 'Cancelled']
 export const CONTACT_CATEGORIES = ['Agency Officer', 'Consultant', 'Supplier', 'Subcontractor', 'Other']
 export const EXPENSE_CATEGORIES = [
   'Fuel / Transport',

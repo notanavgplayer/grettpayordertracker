@@ -1,17 +1,14 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
-import { Loader2, ShieldAlert } from 'lucide-react'
+import { ShieldAlert } from 'lucide-react'
+import LoadState from '@/components/shared/LoadState'
 
 export default function ProtectedRoute({ children }) {
   const { user, loading, isAdmin, logout } = useAuth()
 
   if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
+    return <LoadState fullScreen title="Checking access" description="Verifying your signed-in account." homeLink={false} />
   }
 
   if (!user) return <Navigate to="/" replace />

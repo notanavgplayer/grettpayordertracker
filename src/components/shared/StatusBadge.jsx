@@ -8,16 +8,19 @@ const STATUS_TONE_MAP = {
   // Amber (pending / review)
   Pending: 'amber',
   'Under Review': 'amber',
+  Bidding: 'amber',
   // Blue (in-flight)
   Submitted: 'blue',
-  Bidding: 'blue',
   Awaiting: 'blue',
   Held: 'blue',
+  // Purple (active execution)
+  'In Progress': 'purple',
+  // Teal (won / awarded)
+  Awarded: 'teal',
   // Emerald (success)
   Returned: 'emerald',
   Released: 'emerald',
   Won: 'emerald',
-  Awarded: 'emerald',
   Completed: 'emerald',
   Encashed: 'emerald',
   Paid: 'emerald',
@@ -34,6 +37,8 @@ const STATUS_TONE_MAP = {
 const TONE_CLASSES = {
   amber: 'text-amber-700 dark:text-amber-400 border-amber-300/60 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-950/30',
   blue: 'text-blue-700 dark:text-blue-400 border-blue-300/60 dark:border-blue-800/60 bg-blue-50/50 dark:bg-blue-950/30',
+  purple: 'text-violet-700 dark:text-violet-400 border-violet-300/60 dark:border-violet-800/60 bg-violet-50/50 dark:bg-violet-950/30',
+  teal: 'text-teal-700 dark:text-teal-400 border-teal-300/60 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/30',
   emerald: 'text-emerald-700 dark:text-emerald-400 border-emerald-300/60 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/30',
   red: 'text-red-700 dark:text-red-400 border-red-300/60 dark:border-red-800/60 bg-red-50/50 dark:bg-red-950/30',
   slate: 'text-slate-600 dark:text-slate-400 border-slate-300/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-900/30',

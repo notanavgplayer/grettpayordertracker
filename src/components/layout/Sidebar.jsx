@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, FileStack, Users, Receipt,
   Calendar, StickyNote, CheckSquare, Settings, Activity,
-  LogOut,
+  LogOut, DatabaseZap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
@@ -43,7 +43,10 @@ const NAV_GROUPS = [
   },
   {
     label: 'System',
-    items: [{ to: '/settings', icon: Settings, label: 'Settings' }],
+    items: [
+      { to: '/data-health', icon: DatabaseZap, label: 'Data Health' },
+      { to: '/settings', icon: Settings, label: 'Settings' },
+    ],
   },
 ]
 
