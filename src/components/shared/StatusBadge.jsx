@@ -18,6 +18,7 @@ const STATUS_TONE_MAP = {
   Released: 'emerald',
   Won: 'emerald',
   Awarded: 'emerald',
+  Completed: 'emerald',
   Encashed: 'emerald',
   Paid: 'emerald',
   // Red (failure / overdue)
