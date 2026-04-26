@@ -136,7 +136,6 @@ export default function PayOrders() {
   const { add, update, remove } = useFirestoreCRUD("payOrders");
   const {
     add: addLog,
-    update: updateLog,
     remove: removeLog,
   } = useFirestoreCRUD("activityLog");
   const { add: addBank } = useFirestoreCRUD("banks");
@@ -163,7 +162,6 @@ export default function PayOrders() {
 
   // Activity log state
   const [logDialogOpen, setLogDialogOpen] = useState(false);
-  const [editLog, setEditLog] = useState(null);
   const [logForm, setLogForm] = useState({
     date: "",
     po: "",
@@ -336,27 +334,15 @@ export default function PayOrders() {
     setDeleteId(null);
   };
 
-  const openLogDialog = (item = null) => {
-    setEditLog(item);
-    setLogForm(
-      item
-        ? {
-            date: item.date || "",
-            po: item.po || "",
-            ref: item.ref || "",
-            action: item.action || "",
-            next: item.next || "",
-            by: item.by || "",
-          }
-        : {
-            date: new Date().toISOString().slice(0, 10),
-            po: "",
-            ref: "",
-            action: "",
-            next: "",
-            by: "",
-          },
-    );
+  const openLogDialog = () => {
+    setLogForm({
+      date: new Date().toISOString().slice(0, 10),
+      po: "",
+      ref: "",
+      action: "",
+      next: "",
+      by: displayName || "",
+    });
     setLogDialogOpen(true);
   };
 
@@ -367,13 +353,20 @@ export default function PayOrders() {
     }
     setSavingLog(true);
     try {
-      if (editLog) {
-        await updateLog(editLog.id, logForm);
-        toast.success("Log updated");
-      } else {
-        await addLog(logForm);
-        toast.success("Log entry added");
-      }
+      await addLog({
+        type: "payOrder",
+        action: logForm.action.trim(),
+        title: logForm.po.trim() || logForm.ref.trim() || logForm.action.trim(),
+        entityId: null,
+        by: logForm.by.trim() || displayName,
+        meta: {
+          date: logForm.date,
+          po: logForm.po.trim(),
+          ref: logForm.ref.trim(),
+          next: logForm.next.trim(),
+        },
+      });
+      toast.success("Log entry added");
       setLogDialogOpen(false);
     } finally {
       setSavingLog(false);
@@ -408,6 +401,27 @@ export default function PayOrders() {
     setForm((p) => ({ ...p, [k]: e.target?.value ?? e }));
   const setLF = (k) => (e) =>
     setLogForm((p) => ({ ...p, [k]: e.target?.value ?? e }));
+
+  const getActivityMeta = (entry) =>
+    entry?.meta && typeof entry.meta === "object" ? entry.meta : {};
+
+  const getActivityDate = (entry) => {
+    const value = getActivityMeta(entry).date || entry.date || entry.createdAt;
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (typeof value.toDate === "function") return value.toDate().toISOString();
+    if (value.seconds) return new Date(value.seconds * 1000).toISOString();
+    return value;
+  };
+
+  const getActivityPO = (entry) =>
+    getActivityMeta(entry).po || entry.po || (entry.type === "payOrder" ? entry.title : "");
+
+  const getActivityRef = (entry) =>
+    getActivityMeta(entry).ref || entry.ref || entry.entityId || "";
+
+  const getActivityNext = (entry) =>
+    getActivityMeta(entry).next || entry.next || getActivityMeta(entry).tender || "";
 
   if (loading) return <PageTableSkeleton rows={8} cols={6} metrics={4} />;
 
@@ -858,19 +872,19 @@ export default function PayOrders() {
                   {activityLog.map((l) => (
                     <TableRow key={l.id}>
                       <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(l.date)}
+                        {formatDate(getActivityDate(l))}
                       </TableCell>
                       <TableCell className="font-mono text-sm">
-                        {l.po || "—"}
+                        {getActivityPO(l) || "—"}
                       </TableCell>
                       <TableCell className="hidden sm:table-cell text-sm font-mono">
-                        {l.ref || "—"}
+                        {getActivityRef(l) || "—"}
                       </TableCell>
                       <TableCell className="text-sm">
                         {l.action || "—"}
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                        {l.next || "—"}
+                        {getActivityNext(l) || "—"}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-sm">
                         {l.by || "—"}
@@ -889,12 +903,6 @@ export default function PayOrders() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => openLogDialog(l)}
-                              >
-                                <Pencil className="mr-2 h-4 w-4" /> Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => setDeleteLogId(l.id)}
@@ -1251,9 +1259,7 @@ export default function PayOrders() {
           className="w-full sm:max-w-md p-0 flex flex-col gap-0"
         >
           <SheetHeader className="px-6 py-4 border-b border-border">
-            <SheetTitle>
-              {editLog ? "Edit Log Entry" : "New Log Entry"}
-            </SheetTitle>
+            <SheetTitle>New Log Entry</SheetTitle>
             <SheetDescription>
               Track a follow-up action for this pay order.
             </SheetDescription>
@@ -1308,7 +1314,7 @@ export default function PayOrders() {
             </Button>
             <Button onClick={handleSaveLog} disabled={savingLog}>
               {savingLog && <Loader2 className="h-4 w-4 animate-spin" />}
-              {editLog ? "Save Changes" : "Add Entry"}
+              Add Entry
             </Button>
           </SheetFooter>
         </SheetContent>
