@@ -35,6 +35,10 @@ service cloud.firestore {
       return !(k in d) || isStr(d[k], max);
     }
 
+    function optStrOrNull(d, k, max) {
+      return !(k in d) || d[k] == null || isStr(d[k], max);
+    }
+
     function optNum(d, k) {
       return !(k in d) || (d[k] is number);
     }
@@ -90,8 +94,8 @@ service cloud.firestore {
         && optStr(d, 'submitted', 30)
         && optStr(d, 'notes', 5000)
         && optStr(d, 'tenderRef', 100)
-        && (!('status' in d) || d.status in ['Pending','Submitted','Returned','Encashed'])
-        && (!('bidResult' in d) || d.bidResult in ['N/A','Awaiting','Won','Lost'])
+        && (!('status' in d) || d.status in ['Pending','Submitted','Held','Returned','Released','Encashed','Forfeited'])
+        && (!('bidResult' in d) || d.bidResult in ['N/A','Awaiting','Won','Lost','Cancelled'])
         && (!('purpose' in d) || d.purpose in ['Tender Fee','Bid Security','Performance Guarantee','Mobilization','Other']);
     }
     match /payOrders/{d} {
@@ -107,7 +111,8 @@ service cloud.firestore {
       return d.keys().hasOnly([
           'name','nit','agency','value','tenderFee','bidSecurity',
           'status','submissionDate','openingDate','linkedPO','notes',
-          'contact','checklist','bills','raBills','statusHistory',
+          'contact','contactPerson','checklist','bills','raBills','statusHistory',
+          'tenderFeeExpenseId',
           'createdAt','updatedAt','createdBy','updatedBy'
         ])
         && isStr(d.name, 500)
@@ -118,6 +123,8 @@ service cloud.firestore {
         && optStr(d, 'linkedPO', 100)
         && optStr(d, 'notes', 10000)
         && optStr(d, 'contact', 300)
+        && (!('contactPerson' in d) || d.contactPerson is map)
+        && optStrOrNull(d, 'tenderFeeExpenseId', 100)
         && optNum(d, 'value')
         && optNum(d, 'tenderFee')
         && optNum(d, 'bidSecurity')
@@ -138,14 +145,16 @@ service cloud.firestore {
 
     function validExpense(d) {
       return d.keys().hasOnly([
-          'description','category','amount','date','tenderId','note',
+          'description','category','amount','date','tenderId','tenderRef','note','source',
           'createdAt','updatedAt','createdBy','updatedBy'
         ])
         && isStr(d.description, 500)
         && optStr(d, 'category', 100)
         && optStr(d, 'date', 30)
         && optStr(d, 'tenderId', 100)
+        && optStr(d, 'tenderRef', 100)
         && optStr(d, 'note', 5000)
+        && optStr(d, 'source', 100)
         && d.amount is number && d.amount >= 0;
     }
     match /expenses/{d} {
