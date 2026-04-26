@@ -34,6 +34,28 @@ const STATUS_MEANINGS = {
   Cancelled: 'Tender was cancelled. No active execution.',
 }
 
+function cleanTenderPayload(form, fallbackValue, fallbackTenderFee) {
+  const { id: _id, ...payload } = form
+  const data = {
+    ...payload,
+    value: Number(fallbackValue) || 0,
+    tenderFee: Number(fallbackTenderFee) || 0,
+  }
+  return stripUndefined(data)
+}
+
+function stripUndefined(value) {
+  if (Array.isArray(value)) return value.map(stripUndefined)
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, stripUndefined(v)])
+    )
+  }
+  return value
+}
+
 export default function TenderDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -305,7 +327,7 @@ export default function TenderDetail() {
     setSaving(true)
     try {
       const tenderFeeNum = Number(form.tenderFee) || 0
-      const data = { ...form, value: Number(form.value) || 0, tenderFee: tenderFeeNum }
+      const data = cleanTenderPayload(form, form.value, tenderFeeNum)
       if (data.status !== 'Completed') {
         data.completionDate = ''
         data.completionRemarks = ''
@@ -360,20 +382,27 @@ export default function TenderDetail() {
         if (rule) {
           const affected = linkedPOs.filter((p) => rule.purposes.includes(p.purpose) && rule.from.includes(p.status))
           if (affected.length > 0) {
-            await Promise.all(affected.map((p) =>
-              updateDoc(doc(db, 'payOrders', p.id), { status: rule.newStatus, updatedAt: serverTimestamp() })
-            ))
-            toast.info(`${affected.length} pay order(s) marked ${rule.newStatus}`)
-            setPoRefresh((n) => n + 1)
+            try {
+              await Promise.all(affected.map((p) =>
+                updateDoc(doc(db, 'payOrders', p.id), { status: rule.newStatus, updatedAt: serverTimestamp() })
+              ))
+              toast.info(`${affected.length} pay order(s) marked ${rule.newStatus}`)
+              setPoRefresh((n) => n + 1)
+            } catch (err) {
+              console.error('Failed to update linked pay orders:', err)
+              toast.warning('Tender saved, but linked pay orders could not be auto-updated')
+            }
           }
         }
       }
 
       setTender(data)
+      setForm(data)
       setDirty(false)
       toast.success('Tender saved')
-    } catch {
-      toast.error('Failed to save')
+    } catch (err) {
+      console.error('Failed to save tender:', err)
+      toast.error(`Failed to save: ${err?.code || err?.message || 'Unknown error'}`)
     } finally {
       setSaving(false)
     }
@@ -403,7 +432,7 @@ export default function TenderDetail() {
             },
           ]
       const data = {
-        ...form,
+        ...cleanTenderPayload(form, form.value, tenderFeeNum),
         status: 'Completed',
         value: Number(form.value) || 0,
         tenderFee: tenderFeeNum,
@@ -452,8 +481,9 @@ export default function TenderDetail() {
       setDirty(false)
       setCompleteOpen(false)
       toast.success('Tender marked completed')
-    } catch {
-      toast.error('Failed to complete tender')
+    } catch (err) {
+      console.error('Failed to complete tender:', err)
+      toast.error(`Failed to complete tender: ${err?.code || err?.message || 'Unknown error'}`)
     } finally {
       setCompleting(false)
     }

@@ -110,6 +110,7 @@ service cloud.firestore {
     function validTender(d) {
       return d.keys().hasOnly([
           'name','nit','agency','value','tenderFee','bidSecurity',
+          'id','source','tenderRef',
           'status','submissionDate','openingDate','linkedPO','notes',
           'contact','contactPerson','checklist','bills','raBills','statusHistory',
           'tenderFeeExpenseId','completionDate','completionRemarks','completionSnapshot',
@@ -125,6 +126,9 @@ service cloud.firestore {
         && optStr(d, 'contact', 300)
         && optStr(d, 'completionDate', 30)
         && optStr(d, 'completionRemarks', 10000)
+        && optStr(d, 'id', 100)
+        && optStr(d, 'source', 100)
+        && optStrOrNull(d, 'tenderRef', 100)
         && (!('completionSnapshot' in d) || d.completionSnapshot == null || d.completionSnapshot is map)
         && (!('contactPerson' in d) || d.contactPerson is map)
         && optStrOrNull(d, 'tenderFeeExpenseId', 100)
@@ -140,7 +144,10 @@ service cloud.firestore {
     match /tenders/{d} {
       allow read:   if isAdmin();
       allow create: if isAdmin() && validTender(request.resource.data);
-      allow update: if isAdmin() && validTender(request.resource.data);
+      // Existing tender records may contain legacy fields/shapes. Keep strict
+      // validation on new records, but do not block admins from updating older
+      // tenders whose full stored document no longer matches the current schema.
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 

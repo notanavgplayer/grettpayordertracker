@@ -183,8 +183,9 @@ export default function Tenders() {
     setSaving(true);
     try {
       const tenderFeeNum = Number(form.tenderFee) || 0;
+      const { id: _formId, displayStatus: _displayStatus, ...formData } = form;
       const data = {
-        ...form,
+        ...formData,
         value: Number(form.value) || 0,
         tenderFee: tenderFeeNum,
         checklist: form.checklist || [],
