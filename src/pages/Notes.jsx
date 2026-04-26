@@ -98,7 +98,7 @@ export default function Notes() {
       pendingRef.current = null
     }, 800)
     return () => clearTimeout(debounceRef.current)
-  }, [title, body, priority, selected?.id, saveNote])
+  }, [title, body, priority, selected, selected?.id, saveNote])
 
   // Flush pending edits when the active note changes or on unmount.
   useEffect(() => {

@@ -42,9 +42,13 @@ export default function CommandPalette({ className, open: controlledOpen, onOpen
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : uncontrolledOpen
-  const setOpen = isControlled
-    ? (v) => onOpenChange?.(typeof v === 'function' ? v(open) : v)
-    : setUncontrolledOpen
+  const setOpen = useCallback((v) => {
+    if (isControlled) {
+      onOpenChange?.(typeof v === 'function' ? v(open) : v)
+      return
+    }
+    setUncontrolledOpen(v)
+  }, [isControlled, onOpenChange, open])
   const [tenders, setTenders] = useState([])
   const [payOrders, setPayOrders] = useState([])
   const [contacts, setContacts] = useState([])
@@ -62,7 +66,7 @@ export default function CommandPalette({ className, open: controlledOpen, onOpen
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [])
+  }, [setOpen])
 
   useEffect(() => {
     if (!open || loaded) return
@@ -85,7 +89,7 @@ export default function CommandPalette({ className, open: controlledOpen, onOpen
   const run = useCallback((path) => {
     setOpen(false)
     navigate(path)
-  }, [navigate])
+  }, [navigate, setOpen])
 
   const handleSignOut = async () => {
     setOpen(false)

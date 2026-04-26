@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
+import { logActivity } from '@/lib/activity'
 import { formatDate, formatCurrency, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,20 +17,27 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import StatusBadge from '@/components/shared/StatusBadge'
 import PageHeader from '@/components/shared/PageHeader'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, CheckCircle, DollarSign, History, User, Receipt, FileText } from 'lucide-react'
+import { ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, CheckCircle, DollarSign, History, User, Receipt, FileText, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 
 const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', note: '' }
 const EMPTY_PO = { po: '', bank: '', amount: '', purpose: 'Bid Security', status: 'Pending', submitted: '', notes: '' }
+const STATUS_MEANINGS = {
+  Awarded: 'Won and active. Use this while work is in progress.',
+  Completed: 'Work finished and closed. Completion date, remarks, and profit snapshot are saved.',
+  Lost: 'Bid was not won. No active execution.',
+  Cancelled: 'Tender was cancelled. No active execution.',
+}
 
 export default function TenderDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { isAdmin } = useAuth()
+  const { isAdmin, displayName } = useAuth()
   const [tender, setTender] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -49,6 +57,11 @@ export default function TenderDetail() {
   const [poSaving, setPoSaving] = useState(false)
   const [deletePoId, setDeletePoId] = useState(null)
   const [poRefresh, setPoRefresh] = useState(0)
+  const [completeOpen, setCompleteOpen] = useState(false)
+  const [completionDate, setCompletionDate] = useState('')
+  const [completionRemarks, setCompletionRemarks] = useState('')
+  const [completing, setCompleting] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -65,7 +78,7 @@ export default function TenderDetail() {
       }
     }
     load()
-  }, [id])
+  }, [id, navigate])
 
   useEffect(() => {
     const loadExpenses = async () => {
@@ -263,11 +276,41 @@ export default function TenderDetail() {
     setDirty(true)
   }
 
+  const updateTenderStatus = (status) => {
+    if (status === 'Completed' && form.status !== 'Completed') {
+      openCompleteDialog()
+      return
+    }
+    setForm((p) => ({
+      ...p,
+      status,
+      ...(status === 'Completed'
+        ? {}
+        : {
+            completionDate: '',
+            completionRemarks: '',
+            completionSnapshot: null,
+          }),
+    }))
+    setDirty(true)
+  }
+
+  const openCompleteDialog = () => {
+    setCompletionDate(form.completionDate || new Date().toISOString().slice(0, 10))
+    setCompletionRemarks(form.completionRemarks || '')
+    setCompleteOpen(true)
+  }
+
   const save = async () => {
     setSaving(true)
     try {
       const tenderFeeNum = Number(form.tenderFee) || 0
       const data = { ...form, value: Number(form.value) || 0, tenderFee: tenderFeeNum }
+      if (data.status !== 'Completed') {
+        data.completionDate = ''
+        data.completionRemarks = ''
+        data.completionSnapshot = null
+      }
       // Record status change
       if (tender.status !== form.status) {
         data.statusHistory = [...(tender.statusHistory || []), {
@@ -336,6 +379,86 @@ export default function TenderDetail() {
     }
   }
 
+  const completeTender = async () => {
+    if (!completionDate) {
+      toast.error('Completion date is required')
+      return
+    }
+    if (completionIssues.length > 0 && !completionRemarks.trim()) {
+      toast.error('Final remarks are required when unresolved items remain')
+      return
+    }
+    setCompleting(true)
+    try {
+      const tenderFeeNum = Number(form.tenderFee) || 0
+      const nextStatusHistory = tender.status === 'Completed'
+        ? (form.statusHistory || tender.statusHistory || [])
+        : [
+            ...(form.statusHistory || tender.statusHistory || []),
+            {
+              from: tender.status,
+              to: 'Completed',
+              date: completionDate,
+              ts: Date.now(),
+            },
+          ]
+      const data = {
+        ...form,
+        status: 'Completed',
+        value: Number(form.value) || 0,
+        tenderFee: tenderFeeNum,
+        completionDate,
+        completionRemarks: completionRemarks.trim(),
+        completionSnapshot: {
+          contractValue,
+          totalExpenses,
+          totalReceived,
+          receivable,
+          outstandingRevenue: receivable,
+          expectedProfit,
+          cashPosition,
+          projectedProfit: expectedProfit,
+          realizedProfit: cashPosition,
+          projectedMargin,
+          billTotal,
+          billPaid,
+          raBillTotal,
+          raBillPaid,
+          linkedPayOrders: linkedPOs.length,
+          expenses: expenses.length,
+          capturedAt: new Date().toISOString(),
+        },
+        statusHistory: nextStatusHistory,
+      }
+
+      await updateDoc(doc(db, 'tenders', id), { ...data, updatedAt: serverTimestamp() })
+      await logActivity({
+        type: 'tender',
+        action: 'completed',
+        title: data.name || 'Untitled tender',
+        entityId: id,
+        by: displayName,
+        meta: {
+          completionDate,
+          expectedProfit,
+          cashPosition,
+          receivable,
+          projectedProfit: expectedProfit,
+          realizedProfit: cashPosition,
+        },
+      })
+      setTender(data)
+      setForm(data)
+      setDirty(false)
+      setCompleteOpen(false)
+      toast.success('Tender marked completed')
+    } catch {
+      toast.error('Failed to complete tender')
+    } finally {
+      setCompleting(false)
+    }
+  }
+
   // Checklist helpers
   const addChecklistItem = () => {
     const item = { id: uid(), label: '', done: false }
@@ -381,13 +504,39 @@ export default function TenderDetail() {
   const billPaid = (form.bills || []).filter((b) => b.status === 'Paid').reduce((s, b) => s + (Number(b.amount) || 0), 0)
   const raBillTotal = (form.raBills || []).reduce((s, b) => s + (Number(b.amount) || 0), 0)
   const raBillPaid = (form.raBills || []).filter((b) => b.status === 'Paid').reduce((s, b) => s + (Number(b.amount) || 0), 0)
+  const paidBillCount = (form.bills || []).filter((b) => b.status === 'Paid').length + (form.raBills || []).filter((b) => b.status === 'Paid').length
   const contractValue = Number(form.value) || 0
   const totalExpenses = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
   const totalReceived = billPaid + raBillPaid
-  const outstandingRevenue = Math.max(contractValue - totalReceived, 0)
-  const projectedProfit = contractValue - totalExpenses
-  const realizedProfit = totalReceived - totalExpenses
-  const projectedMargin = contractValue > 0 ? Math.round((projectedProfit / contractValue) * 100) : null
+  const receivable = Math.max(contractValue - totalReceived, 0)
+  const expectedProfit = contractValue - totalExpenses
+  const cashPosition = totalReceived - totalExpenses
+  const projectedMargin = contractValue > 0 ? Math.round((expectedProfit / contractValue) * 100) : null
+  const completionIssues = [
+    expenses.length === 0 ? 'No expenses are recorded for this tender.' : null,
+    totalReceived <= 0 ? 'No payment has been recorded yet.' : null,
+    paidBillCount === 0 ? 'No final bill or RA bill is marked Paid.' : null,
+    billTotal > billPaid ? `${formatCurrency(billTotal - billPaid)} in regular bills is still outstanding.` : null,
+    raBillTotal > raBillPaid ? `${formatCurrency(raBillTotal - raBillPaid)} in RA bills is still outstanding.` : null,
+    bidSecurityAtRisk > 0 ? `${formatCurrency(bidSecurityAtRisk)} bid security is still pending/submitted.` : null,
+    heldByAgency > 0 ? `${formatCurrency(heldByAgency)} is still held by the agency.` : null,
+    linkedPOs.filter((p) => ['Pending', 'Submitted', 'Held'].includes(p.status)).length > 0
+      ? `${linkedPOs.filter((p) => ['Pending', 'Submitted', 'Held'].includes(p.status)).length} linked pay order(s) are not released/returned/encashed.`
+      : null,
+  ].filter(Boolean)
+  const hasCompletionWarnings = completionIssues.length > 0
+  const summaryRows = [
+    ['Status', form.status || '-'],
+    ['NIT / Reference', form.nit || '-'],
+    ['Agency', form.agency || '-'],
+    ['Contract Value', formatCurrency(contractValue)],
+    ['Total Expenses', formatCurrency(totalExpenses)],
+    ['Expected Profit', formatCurrency(expectedProfit)],
+    ['Cash Position', formatCurrency(cashPosition)],
+    ['Receivable', formatCurrency(receivable)],
+    ['Received From Bills/RA Bills', formatCurrency(totalReceived)],
+    ['Linked Pay Orders', String(linkedPOs.length)],
+  ]
 
   return (
     <div className="space-y-6">
@@ -401,11 +550,18 @@ export default function TenderDetail() {
         actions={
           <div className="flex items-center gap-2">
             {form.status && <StatusBadge status={form.status} />}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSummaryOpen(true)}
+            >
+              <FileText className="h-4 w-4" /> Summary
+            </Button>
             {isAdmin && form.status !== 'Completed' && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => updateForm('status', 'Completed')}
+                onClick={openCompleteDialog}
               >
                 <CheckCircle className="h-4 w-4" /> Mark Completed
               </Button>
@@ -430,10 +586,15 @@ export default function TenderDetail() {
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>
-              <Select value={form.status || ''} onValueChange={(v) => updateForm('status', v)} disabled={!isAdmin}>
+              <Select value={form.status || ''} onValueChange={updateTenderStatus} disabled={!isAdmin}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{TENDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
+              {STATUS_MEANINGS[form.status] && (
+                <p className="text-xs text-muted-foreground">
+                  {STATUS_MEANINGS[form.status]}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>NIT / Reference</Label>
@@ -491,17 +652,39 @@ export default function TenderDetail() {
               <FinancialMetric label="Contract Value" value={formatCurrency(contractValue)} />
               <FinancialMetric label="Total Expenses" value={formatCurrency(totalExpenses)} tone="expense" />
               <FinancialMetric
-                label="Projected Profit"
-                value={formatCurrency(projectedProfit)}
-                tone={projectedProfit >= 0 ? 'profit' : 'loss'}
+                label="Expected Profit"
+                value={formatCurrency(expectedProfit)}
+                tone={expectedProfit >= 0 ? 'profit' : 'loss'}
                 helper={projectedMargin !== null ? `${projectedMargin}% margin` : undefined}
               />
               <FinancialMetric
-                label="Received Profit"
-                value={formatCurrency(realizedProfit)}
-                tone={realizedProfit >= 0 ? 'profit' : 'loss'}
-                helper={`${formatCurrency(outstandingRevenue)} outstanding`}
+                label="Cash Position"
+                value={formatCurrency(cashPosition)}
+                tone={cashPosition >= 0 ? 'profit' : 'loss'}
+                helper={`${formatCurrency(totalReceived)} received from paid bills/RA bills`}
               />
+              <FinancialMetric
+                label="Receivable"
+                value={formatCurrency(receivable)}
+                tone={receivable > 0 ? 'expense' : 'profit'}
+                helper="Contract value minus received payments"
+              />
+              <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-4">
+                Received payments are calculated from Bills and RA Bills marked as Paid.
+              </p>
+              {form.status === 'Completed' && form.completionSnapshot && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200 sm:col-span-2 lg:col-span-4">
+                  <p className="font-medium">
+                    Completed {formatDate(form.completionDate)}
+                  </p>
+                  <p className="mt-1 text-xs opacity-80">
+                    Final snapshot: expected profit {formatCurrency(form.completionSnapshot.expectedProfit ?? form.completionSnapshot.projectedProfit)}, cash position {formatCurrency(form.completionSnapshot.cashPosition ?? form.completionSnapshot.realizedProfit)}, receivable {formatCurrency(form.completionSnapshot.receivable ?? form.completionSnapshot.outstandingRevenue)}.
+                  </p>
+                  {form.completionRemarks && (
+                    <p className="mt-2 text-xs opacity-80">{form.completionRemarks}</p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -885,6 +1068,130 @@ export default function TenderDetail() {
           </Button>
         </div>
       )}
+
+      <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Complete tender?</DialogTitle>
+            <DialogDescription>
+              This saves the tender as completed and captures today&apos;s financial snapshot.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {completionIssues.length > 0 ? (
+              <div className="rounded-md border border-amber-300/70 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                <p className="font-medium">Review before completing</p>
+                <p className="mt-1 text-xs">
+                  Add final remarks to confirm why this tender can be closed with these unresolved items.
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {completionIssues.map((issue) => (
+                    <li key={issue}>{issue}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="rounded-md border border-emerald-300/70 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                No unresolved bills, RA bills, expenses, or pay order warnings found.
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FinancialMetric label="Expected Profit" value={formatCurrency(expectedProfit)} tone={expectedProfit >= 0 ? 'profit' : 'loss'} />
+              <FinancialMetric label="Cash Position" value={formatCurrency(cashPosition)} tone={cashPosition >= 0 ? 'profit' : 'loss'} helper={`${formatCurrency(totalReceived)} received from paid bills/RA bills`} />
+              <FinancialMetric label="Receivable" value={formatCurrency(receivable)} tone={receivable > 0 ? 'expense' : 'profit'} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Received payments are calculated from Bills and RA Bills marked as Paid.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="completion-date">Completion Date</Label>
+              <Input
+                id="completion-date"
+                type="date"
+                value={completionDate}
+                onChange={(e) => setCompletionDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="completion-remarks">
+                Final Remarks {hasCompletionWarnings && <span className="text-destructive">*</span>}
+              </Label>
+              <Textarea
+                id="completion-remarks"
+                value={completionRemarks}
+                onChange={(e) => setCompletionRemarks(e.target.value)}
+                rows={3}
+                placeholder="Completion certificate, final payment notes, or closure remarks..."
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setCompleteOpen(false)} disabled={completing}>
+              Cancel
+            </Button>
+            <Button onClick={completeTender} disabled={completing}>
+              {completing && <Loader2 className="h-4 w-4 animate-spin" />}
+              {hasCompletionWarnings ? 'Complete Anyway & Save' : 'Mark Completed & Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Tender Summary</DialogTitle>
+            <DialogDescription>
+              Printable snapshot of status, payments, expenses, pay orders, and completion details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5">
+            <div>
+              <h3 className="text-base font-semibold">{form.name || 'Untitled Tender'}</h3>
+              <p className="text-sm text-muted-foreground">{form.nit || 'No NIT / Reference'}</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {summaryRows.map(([label, value]) => (
+                <div key={label} className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="mt-1 font-medium">{value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <FinancialMetric label="Bills Paid" value={formatCurrency(billPaid)} helper={`${formatCurrency(billTotal)} total`} />
+              <FinancialMetric label="RA Bills Paid" value={formatCurrency(raBillPaid)} helper={`${formatCurrency(raBillTotal)} total`} />
+              <FinancialMetric label="Paid Bill Entries" value={String(paidBillCount)} />
+            </div>
+            {form.status === 'Completed' && form.completionSnapshot && (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-3 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                <p className="font-medium">Completed {formatDate(form.completionDate)}</p>
+                <p className="mt-1 text-xs opacity-80">
+                  Snapshot: expected profit {formatCurrency(form.completionSnapshot.expectedProfit ?? form.completionSnapshot.projectedProfit)}, cash position {formatCurrency(form.completionSnapshot.cashPosition ?? form.completionSnapshot.realizedProfit)}, receivable {formatCurrency(form.completionSnapshot.receivable ?? form.completionSnapshot.outstandingRevenue)}.
+                </p>
+                {form.completionRemarks && <p className="mt-2 text-xs opacity-80">{form.completionRemarks}</p>}
+              </div>
+            )}
+            {completionIssues.length > 0 && (
+              <div className="rounded-md border border-amber-300/70 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                <p className="font-medium">Open items</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {completionIssues.map((issue) => <li key={issue}>{issue}</li>)}
+                </ul>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Cash Position uses payments from Bills and RA Bills marked as Paid, minus recorded expenses.
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setSummaryOpen(false)}>Close</Button>
+            <Button onClick={() => window.print()}>
+              <Printer className="h-4 w-4" /> Print / Save PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Expense Sheet */}
       <Sheet open={expDialogOpen} onOpenChange={setExpDialogOpen}>
