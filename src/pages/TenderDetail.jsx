@@ -22,13 +22,14 @@ import StatusBadge from '@/components/shared/StatusBadge'
 import PageHeader from '@/components/shared/PageHeader'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, CheckCircle, DollarSign, History, User, Receipt, FileText, Printer } from 'lucide-react'
+import { ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, CheckCircle, DollarSign, History, User, Receipt, FileText, Printer, Paperclip, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 
 const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', note: '' }
 const EMPTY_PO = { po: '', bank: '', amount: '', purpose: 'Bid Security', status: 'Pending', submitted: '', notes: '' }
 const STATUS_MEANINGS = {
-  Awarded: 'Won and active. Use this while work is in progress.',
+  Awarded: 'Won and awaiting kickoff or formal work start.',
+  'In Progress': 'Won and work is underway.',
   Completed: 'Work finished and closed. Completion date, remarks, and profit snapshot are saved.',
   Lost: 'Bid was not won. No active execution.',
   Cancelled: 'Tender was cancelled. No active execution.',
@@ -523,6 +524,19 @@ export default function TenderDetail() {
     updateForm('raBills', (form.raBills || []).filter((b) => b.id !== billId))
   }
 
+  const addDocument = () => {
+    updateForm('documents', [
+      ...(form.documents || []),
+      { id: uid(), title: '', type: 'Document', url: '', notes: '', addedAt: new Date().toISOString().slice(0, 10) },
+    ])
+  }
+  const updateDocument = (documentId, patch) => {
+    updateForm('documents', (form.documents || []).map((item) => item.id === documentId ? { ...item, ...patch } : item))
+  }
+  const removeDocument = (documentId) => {
+    updateForm('documents', (form.documents || []).filter((item) => item.id !== documentId))
+  }
+
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
   if (!tender) return null
 
@@ -586,6 +600,11 @@ export default function TenderDetail() {
               onClick={() => setSummaryOpen(true)}
             >
               <FileText className="h-4 w-4" /> Summary
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/tenders/${id}/report`}>
+                <Printer className="h-4 w-4" /> Report
+              </Link>
             </Button>
             {isAdmin && form.status !== 'Completed' && (
               <Button
@@ -667,6 +686,7 @@ export default function TenderDetail() {
           <TabsTrigger value="bills">Bills ({(form.bills || []).length})</TabsTrigger>
           <TabsTrigger value="rabills">RA Bills ({(form.raBills || []).length})</TabsTrigger>
           <TabsTrigger value="expenses">Expenses ({expenses.length})</TabsTrigger>
+          <TabsTrigger value="documents">Documents ({(form.documents || []).length})</TabsTrigger>
           <TabsTrigger value="contact">Contact</TabsTrigger>
         </TabsList>
 
@@ -1055,6 +1075,87 @@ export default function TenderDetail() {
                     </TableBody>
                   </Table>
                 </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Paperclip className="h-4 w-4" /> Documents & Links
+                </CardTitle>
+                {isAdmin && (
+                  <Button size="sm" onClick={addDocument}>
+                    <Plus className="h-3.5 w-3.5" /> Add Document
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(form.documents || []).map((item) => (
+                <div key={item.id} className="rounded-md border p-3">
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_0.8fr_1.4fr_auto] lg:items-end">
+                    <div className="space-y-1.5">
+                      <Label>Title</Label>
+                      <Input
+                        value={item.title || ''}
+                        onChange={(e) => updateDocument(item.id, { title: e.target.value })}
+                        disabled={!isAdmin}
+                        placeholder="e.g. Award letter"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Type</Label>
+                      <Input
+                        value={item.type || ''}
+                        onChange={(e) => updateDocument(item.id, { type: e.target.value })}
+                        disabled={!isAdmin}
+                        placeholder="Document"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>URL</Label>
+                      <Input
+                        value={item.url || ''}
+                        onChange={(e) => updateDocument(item.id, { url: e.target.value })}
+                        disabled={!isAdmin}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {item.url && (
+                        <Button variant="outline" size="icon" asChild>
+                          <a href={item.url} target="_blank" rel="noreferrer" aria-label={`Open ${item.title || 'document'}`}>
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeDocument(item.id)} aria-label={`Remove ${item.title || 'document'}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-1.5">
+                    <Label>Notes</Label>
+                    <Textarea
+                      value={item.notes || ''}
+                      onChange={(e) => updateDocument(item.id, { notes: e.target.value })}
+                      disabled={!isAdmin}
+                      rows={2}
+                      placeholder="Optional notes about this file or link"
+                    />
+                  </div>
+                </div>
+              ))}
+              {(form.documents || []).length === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No documents or links added yet.
+                </p>
               )}
             </CardContent>
           </Card>

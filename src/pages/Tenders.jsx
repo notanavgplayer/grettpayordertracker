@@ -69,7 +69,58 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const TERMINAL_STATUSES = ["Awarded", "Completed", "Lost", "Cancelled"];
+const TERMINAL_STATUSES = ["Completed", "Lost", "Cancelled"];
+
+const STATUS_TONES = {
+  Bidding: {
+    border: "border-amber-300/70 dark:border-amber-800/70",
+    bg: "bg-amber-50/70 dark:bg-amber-950/20",
+    text: "text-amber-700 dark:text-amber-400",
+    active: "bg-amber-600 text-white",
+  },
+  Submitted: {
+    border: "border-blue-300/70 dark:border-blue-800/70",
+    bg: "bg-blue-50/70 dark:bg-blue-950/20",
+    text: "text-blue-700 dark:text-blue-400",
+    active: "bg-blue-600 text-white",
+  },
+  Awarded: {
+    border: "border-teal-300/70 dark:border-teal-800/70",
+    bg: "bg-teal-50/70 dark:bg-teal-950/20",
+    text: "text-teal-700 dark:text-teal-400",
+    active: "bg-teal-600 text-white",
+  },
+  "In Progress": {
+    border: "border-violet-300/70 dark:border-violet-800/70",
+    bg: "bg-violet-50/70 dark:bg-violet-950/20",
+    text: "text-violet-700 dark:text-violet-400",
+    active: "bg-violet-600 text-white",
+  },
+  Completed: {
+    border: "border-emerald-300/70 dark:border-emerald-800/70",
+    bg: "bg-emerald-50/70 dark:bg-emerald-950/20",
+    text: "text-emerald-700 dark:text-emerald-400",
+    active: "bg-emerald-600 text-white",
+  },
+  Lost: {
+    border: "border-red-300/70 dark:border-red-800/70",
+    bg: "bg-red-50/70 dark:bg-red-950/20",
+    text: "text-red-700 dark:text-red-400",
+    active: "bg-red-600 text-white",
+  },
+  Cancelled: {
+    border: "border-slate-300/70 dark:border-slate-700/70",
+    bg: "bg-slate-50/70 dark:bg-slate-900/30",
+    text: "text-slate-700 dark:text-slate-400",
+    active: "bg-slate-600 text-white",
+  },
+  Overdue: {
+    border: "border-red-300/70 dark:border-red-800/70",
+    bg: "bg-red-50/70 dark:bg-red-950/20",
+    text: "text-red-700 dark:text-red-400",
+    active: "bg-red-600 text-white",
+  },
+};
 
 // Compute display status on read — adds virtual "Overdue" when a Bidding
 // tender's submission date is in the past, without touching Firestore.
@@ -96,6 +147,7 @@ const EMPTY_TENDER = {
   checklist: [],
   bills: [],
   raBills: [],
+  documents: [],
   statusHistory: [],
 };
 
@@ -191,6 +243,7 @@ export default function Tenders() {
         checklist: form.checklist || [],
         bills: form.bills || [],
         raBills: form.raBills || [],
+        documents: form.documents || [],
         statusHistory: form.statusHistory || [],
       };
 
@@ -320,7 +373,7 @@ export default function Tenders() {
             (t) => t.displayStatus === s,
           ).length;
           const active = filterStatus === s;
-          const isOverdue = s === "Overdue";
+          const tone = STATUS_TONES[s] || STATUS_TONES.Cancelled;
           return (
             <button
               key={s}
@@ -331,17 +384,13 @@ export default function Tenders() {
               className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
             >
               <Card
-                className={`transition-all hover:shadow-sm ${active ? "ring-2 ring-primary border-primary/50" : ""} ${isOverdue && count > 0 ? "border-red-300 dark:border-red-800" : ""}`}
+                className={`transition-all hover:shadow-sm ${tone.border} ${active ? `ring-2 ring-offset-1 ring-offset-background ${tone.border}` : ""} ${count > 0 ? tone.bg : ""}`}
               >
                 <CardContent className="p-3 text-center">
-                  <p
-                    className={`text-xl font-bold font-mono tabular-nums ${isOverdue && count > 0 ? "text-red-600 dark:text-red-400" : "text-foreground"}`}
-                  >
+                  <p className={`text-xl font-bold font-mono tabular-nums ${count > 0 ? tone.text : "text-foreground"}`}>
                     {count}
                   </p>
-                  <p
-                    className={`text-xs ${isOverdue && count > 0 ? "text-red-500 dark:text-red-400" : "text-muted-foreground"}`}
-                  >
+                  <p className={`text-xs ${count > 0 ? tone.text : "text-muted-foreground"}`}>
                     {s}
                   </p>
                 </CardContent>
@@ -378,19 +427,25 @@ export default function Tenders() {
               />
             </div>
             <div className="flex gap-1.5 overflow-x-auto scrollbar-thin -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
-              {["All", ...TENDER_STATUSES, "Overdue"].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setFilterStatus(s)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
-                    filterStatus === s
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-accent"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
+              {["All", ...TENDER_STATUSES, "Overdue"].map((s) => {
+                const tone = STATUS_TONES[s];
+                const active = filterStatus === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setFilterStatus(s)}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
+                      active
+                        ? tone?.active || "bg-primary text-primary-foreground border-primary"
+                        : tone
+                        ? `${tone.border} ${tone.text} ${tone.bg} hover:bg-accent`
+                        : "border-transparent bg-muted text-muted-foreground hover:bg-accent"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
             </div>
           </CardHeader>
           {filtered.length === 0 ? (

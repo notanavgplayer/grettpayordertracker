@@ -1,20 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { collection, getDocs, query, orderBy, doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
-import { daysUntil, formatDate } from '@/lib/utils'
+import { daysUntil, formatCurrency, formatDate } from '@/lib/utils'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import StatusBadge from '@/components/shared/StatusBadge'
 import PageHeader from '@/components/shared/PageHeader'
 import MetricCard from '@/components/shared/MetricCard'
+import LoadState from '@/components/shared/LoadState'
 import { MetricRowSkeleton } from '@/components/shared/LoadingSkeletons'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   FileStack, FileText, CheckSquare, Trophy, AlertTriangle,
   Clock, ChevronRight, X, Calendar as CalendarIcon,
+  Banknote, WalletCards, TrendingUp, Landmark,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer,
@@ -23,12 +25,13 @@ import {
 import { toast } from 'sonner'
 
 const TENDER_STATUS_COLORS = {
-  Bidding: 'oklch(var(--chart-2))',
-  Submitted: 'oklch(var(--chart-3))',
-  Awarded: 'oklch(var(--chart-1))',
-  Completed: 'oklch(var(--chart-1))',
-  Lost: 'oklch(var(--chart-5))',
-  Cancelled: 'oklch(var(--chart-4))',
+  Bidding: '#d97706',
+  Submitted: '#2563eb',
+  Awarded: '#0d9488',
+  'In Progress': '#7c3aed',
+  Completed: '#16a34a',
+  Lost: '#dc2626',
+  Cancelled: '#64748b',
 }
 
 const PO_STATUS_COLORS = {
@@ -45,34 +48,68 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [tenders, setTenders] = useState([])
   const [payOrders, setPayOrders] = useState([])
+  const [expenses, setExpenses] = useState([])
   const [todos, setTodos] = useState([])
   const [alertDismissed, setAlertDismissed] = useState(false)
+  const [error, setError] = useState('')
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [tSnap, pSnap, tOSnap] = await Promise.all([
-          getDocs(query(collection(db, 'tenders'), orderBy('createdAt', 'desc'))),
-          getDocs(query(collection(db, 'payOrders'), orderBy('createdAt', 'desc'))),
-          getDocs(query(collection(db, 'todos'), orderBy('createdAt', 'desc'))),
-        ])
-        setTenders(tSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
-        setPayOrders(pSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
-        setTodos(tOSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      } catch (e) {
-        toast.error('Failed to load data')
-      } finally {
-        setLoading(false)
-      }
+  const loadDashboard = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [tSnap, pSnap, eSnap, tOSnap] = await Promise.all([
+        getDocs(query(collection(db, 'tenders'), orderBy('createdAt', 'desc'))),
+        getDocs(query(collection(db, 'payOrders'), orderBy('createdAt', 'desc'))),
+        getDocs(query(collection(db, 'expenses'), orderBy('createdAt', 'desc'))),
+        getDocs(query(collection(db, 'todos'), orderBy('createdAt', 'desc'))),
+      ])
+      setTenders(tSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      setPayOrders(pSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      setExpenses(eSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      setTodos(tOSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    } catch (e) {
+      setError(e?.message || 'Failed to load dashboard data.')
+      toast.error('Failed to load data')
+    } finally {
+      setLoading(false)
     }
-    load()
   }, [])
 
-  const activeTenders = tenders.filter((t) => !['Awarded', 'Completed', 'Lost', 'Cancelled'].includes(t.status))
+  useEffect(() => {
+    loadDashboard()
+  }, [loadDashboard])
+
+  const activeTenders = tenders.filter((t) => !['Completed', 'Lost', 'Cancelled'].includes(t.status))
   const awardedTenders = tenders.filter((t) => t.status === 'Awarded')
+  const inProgressTenders = tenders.filter((t) => t.status === 'In Progress')
   const completedTenders = tenders.filter((t) => t.status === 'Completed')
+  const wonTenders = tenders.filter((t) => ['Awarded', 'In Progress', 'Completed'].includes(t.status))
   const atRisk = payOrders.filter((p) => p.status === 'Submitted' && p.bidResult === 'Awaiting')
   const openTodos = todos.filter((t) => !t.done)
+  const wonTenderIds = new Set(wonTenders.map((t) => t.id))
+  const tenderFinancials = wonTenders.reduce((totals, tender) => {
+    const contractValue = Number(tender.value) || 0
+    const billPaid = (tender.bills || [])
+      .filter((b) => b.status === 'Paid')
+      .reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
+    const raBillPaid = (tender.raBills || [])
+      .filter((b) => b.status === 'Paid')
+      .reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
+    const totalReceived = billPaid + raBillPaid
+    return {
+      contractValue: totals.contractValue + contractValue,
+      totalReceived: totals.totalReceived + totalReceived,
+    }
+  }, { contractValue: 0, totalReceived: 0 })
+  const totalExpenses = expenses
+    .filter((expense) => expense.tenderRef && wonTenderIds.has(expense.tenderRef))
+    .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0)
+  const expectedProfit = tenderFinancials.contractValue - totalExpenses
+  const cashPosition = tenderFinancials.totalReceived - totalExpenses
+  const receivable = Math.max(tenderFinancials.contractValue - tenderFinancials.totalReceived, 0)
+  const payOrdersHeld = payOrders
+    .filter((p) => ['Held', 'Submitted', 'Pending'].includes(p.status))
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
 
   const allDeadlines = activeTenders
     .filter((t) => t.submissionDate)
@@ -113,11 +150,23 @@ export default function Home() {
           <Skeleton className="h-4 w-80" />
         </div>
         <MetricRowSkeleton count={4} />
+        <MetricRowSkeleton count={4} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Card className="lg:col-span-2 h-72" />
           <Card className="h-72" />
         </div>
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <LoadState
+        title="Could not load dashboard"
+        error={error}
+        retry={loadDashboard}
+        className="min-h-[70vh]"
+      />
     )
   }
 
@@ -167,7 +216,7 @@ export default function Home() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <MetricCard
           icon={FileStack} title="Active Tenders" value={activeTenders.length}
-          href="/tenders" tone="primary" delta="Bidding or submitted" deltaPositive={null}
+          href="/tenders" tone="primary" delta="Bidding, submitted, awarded, or in progress" deltaPositive={null}
         />
         <MetricCard
           icon={FileText} title="POs At Risk" value={atRisk.length}
@@ -180,9 +229,35 @@ export default function Home() {
           deltaPositive={openTodos.length === 0 ? true : null}
         />
         <MetricCard
-          icon={Trophy} title="Won / Completed" value={awardedTenders.length + completedTenders.length}
-          href="/tenders" tone="success" delta="Won bids"
-          deltaPositive={awardedTenders.length + completedTenders.length > 0 ? true : null}
+          icon={Trophy} title="Won Tenders" value={wonTenders.length}
+          href="/tenders" tone="success" delta={`${inProgressTenders.length} in progress`}
+          deltaPositive={wonTenders.length > 0 ? true : null}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <MetricCard
+          icon={TrendingUp} title="Expected Profit" value={formatCurrency(expectedProfit)}
+          href="/tenders" tone={expectedProfit >= 0 ? 'success' : 'danger'}
+          delta="Won tenders only"
+          deltaPositive={expectedProfit >= 0}
+        />
+        <MetricCard
+          icon={WalletCards} title="Cash Position" value={formatCurrency(cashPosition)}
+          href="/tenders" tone={cashPosition >= 0 ? 'success' : 'warning'}
+          delta="Won tenders only"
+          deltaPositive={cashPosition >= 0}
+        />
+        <MetricCard
+          icon={Banknote} title="Receivable" value={formatCurrency(receivable)}
+          href="/tenders" tone="info" delta="Won tenders only"
+          deltaPositive={receivable === 0}
+        />
+        <MetricCard
+          icon={Landmark} title="PO Exposure" value={formatCurrency(payOrdersHeld)}
+          href="/pay-orders" tone={payOrdersHeld > 0 ? 'warning' : 'success'}
+          delta="Pending, submitted, or held"
+          deltaPositive={payOrdersHeld === 0}
         />
       </div>
 

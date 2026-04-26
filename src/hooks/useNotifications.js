@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore'
+import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { formatCurrency } from '@/lib/utils'
 
@@ -43,6 +43,28 @@ function fmtDue(days) {
   return `In ${days}d`
 }
 
+function timeAgo(ts) {
+  if (!ts) return ''
+  const d = ts.toDate ? ts.toDate() : new Date(ts)
+  if (isNaN(d.getTime())) return ''
+  const diffMs = Date.now() - d.getTime()
+  const mins = Math.floor(diffMs / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
+function typeLabel(type) {
+  if (type === 'payOrder') return 'Pay order'
+  if (type === 'todo') return 'Task'
+  if (type === 'tender') return 'Tender'
+  if (type === 'expense') return 'Expense'
+  if (type === 'contact') return 'Contact'
+  return 'Activity'
+}
+
 function useCollectionLive(name, orderField, orderDir = 'desc', limitN) {
   const [data, setData] = useState([])
   useEffect(() => {
@@ -69,28 +91,27 @@ export function useNotifications() {
 
   const items = useMemo(() => {
     const out = []
-    const today = startOfToday()
 
-    // Tender submission/opening within next 7 days (or overdue up to 1 day)
-    for (const t of tenders) {
-      if (t.status === 'Completed' && t.completionDate) {
-        const completedDays = daysFromToday(t.completionDate)
+    for (const tender of tenders) {
+      if (tender.status === 'Completed' && tender.completionDate) {
+        const completedDays = daysFromToday(tender.completionDate)
         if (completedDays !== null && completedDays <= 0 && completedDays >= -7) {
-          const expectedProfit = t.completionSnapshot?.expectedProfit ?? t.completionSnapshot?.projectedProfit
-          const cashPosition = t.completionSnapshot?.cashPosition ?? t.completionSnapshot?.realizedProfit
-          const completedSubtitle = expectedProfit == null
-            ? `Tender completed — ${fmtDue(completedDays)}`
+          const expectedProfit = tender.completionSnapshot?.expectedProfit ?? tender.completionSnapshot?.projectedProfit
+          const cashPosition = tender.completionSnapshot?.cashPosition ?? tender.completionSnapshot?.realizedProfit
+          const subtitle = expectedProfit == null
+            ? `Completed ${fmtDue(completedDays)}.`
             : cashPosition == null
-              ? `Tender completed — Expected profit ${formatCurrency(expectedProfit)}`
-              : `Tender completed — Expected profit ${formatCurrency(expectedProfit)} · Cash position ${formatCurrency(cashPosition)}`
+              ? `Expected profit: ${formatCurrency(expectedProfit)}.`
+              : `Expected profit: ${formatCurrency(expectedProfit)}. Cash position: ${formatCurrency(cashPosition)}.`
+
           out.push({
-            id: `tender:${t.id}:completed:${t.completionDate}`,
+            id: `tender:${tender.id}:completed:${tender.completionDate}`,
             kind: 'tender',
             severity: 'normal',
-            title: t.name || '(untitled tender)',
-            subtitle: completedSubtitle,
+            title: `Tender completed: ${tender.name || '(untitled tender)'}`,
+            subtitle,
             sortKey: -50 + completedDays,
-            to: `/tenders/${t.id}`,
+            to: `/tenders/${tender.id}`,
           })
         }
       }
@@ -99,95 +120,84 @@ export function useNotifications() {
         ['submissionDate', 'Tender submission'],
         ['openingDate', 'Tender opening'],
       ]) {
-        const days = daysFromToday(t[field])
+        const days = daysFromToday(tender[field])
         if (days === null) continue
         if (days < -1 || days > 7) continue
         out.push({
-          id: `tender:${t.id}:${field}`,
+          id: `tender:${tender.id}:${field}`,
           kind: 'tender',
           severity: days <= 1 ? 'high' : 'normal',
-          title: t.name || '(untitled tender)',
-          subtitle: `${label} — ${fmtDue(days)}`,
+          title: `${label}: ${fmtDue(days)}`,
+          subtitle: tender.name || '(untitled tender)',
           sortKey: days,
-          to: `/tenders/${t.id}`,
+          to: `/tenders/${tender.id}`,
         })
       }
     }
 
-    // Calendar events within next 7 days
-    for (const e of events) {
-      const days = daysFromToday(e.date)
+    for (const event of events) {
+      const days = daysFromToday(event.date)
       if (days === null) continue
       if (days < 0 || days > 7) continue
       out.push({
-        id: `event:${e.id}`,
+        id: `event:${event.id}`,
         kind: 'event',
         severity: days <= 1 ? 'high' : 'normal',
-        title: e.title || '(untitled event)',
-        subtitle: `${e.eventType || 'Event'} — ${fmtDue(days)}`,
+        title: `${event.eventType || 'Event'}: ${fmtDue(days)}`,
+        subtitle: event.title || '(untitled event)',
         sortKey: days,
         to: '/calendar',
       })
     }
 
-    // Open todos due within 3 days (or overdue)
-    for (const t of todos) {
-      if (t.done) continue
-      const days = daysFromToday(t.dueDate)
+    for (const todo of todos) {
+      if (todo.done) continue
+      const days = daysFromToday(todo.dueDate)
       if (days === null) continue
       if (days > 3) continue
       out.push({
-        id: `todo:${t.id}`,
+        id: `todo:${todo.id}`,
         kind: 'todo',
         severity: days <= 0 ? 'high' : 'normal',
-        title: t.text || '(untitled todo)',
-        subtitle: `Due ${fmtDue(days)}`,
+        title: `Task due: ${fmtDue(days)}`,
+        subtitle: todo.text || '(untitled todo)',
         sortKey: days,
         to: '/todo',
       })
     }
 
-    // Pay orders stuck in 'Submitted' for >14 days
-    for (const p of payOrders) {
-      if (p.status !== 'Submitted') continue
-      const days = daysFromToday(p.submitted)
+    for (const payOrder of payOrders) {
+      if (payOrder.status !== 'Submitted') continue
+      const days = daysFromToday(payOrder.submitted)
       if (days === null) continue
       const ageDays = -days
       if (ageDays < 14) continue
       out.push({
-        id: `payorder:${p.id}:stale`,
+        id: `payorder:${payOrder.id}:stale`,
         kind: 'payorder',
         severity: 'high',
-        title: p.po || '(no PO#)',
-        subtitle: `Submitted ${ageDays}d ago — still pending`,
+        title: `Pay order still pending: ${payOrder.po || '(no PO#)'}`,
+        subtitle: `${payOrder.purpose || 'Purpose not set'}${payOrder.amount ? ` for ${formatCurrency(payOrder.amount)}` : ''}. Submitted ${ageDays}d ago${payOrder.tender ? ` for ${payOrder.tender}` : ''}.`,
         sortKey: -100,
         to: '/pay-orders',
       })
     }
 
-    // Recent activity (last 5)
-    for (const a of activity) {
-      const ts = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate() : null
-      const ageMs = ts ? Date.now() - ts.getTime() : null
-      const ageHours = ageMs != null ? Math.round(ageMs / 3600000) : null
+    for (const entry of activity) {
+      const label = typeLabel(entry.type)
+      const action = entry.action || 'updated'
+      const subtitle = [timeAgo(entry.createdAt), entry.by ? `by ${entry.by}` : null].filter(Boolean).join(' - ')
       out.push({
-        id: `activity:${a.id}`,
+        id: `activity:${entry.id}`,
         kind: 'activity',
         severity: 'low',
-        title: `${a.action || 'updated'} ${a.title || ''}`.trim(),
-        subtitle: ageHours == null
-          ? (a.by || 'system')
-          : ageHours < 1
-            ? 'Just now'
-            : ageHours < 24
-              ? `${ageHours}h ago`
-              : `${Math.round(ageHours / 24)}d ago`,
+        title: `${label} ${action}: ${entry.title || '(untitled)'}`,
+        subtitle,
         sortKey: 1000,
         to: '/activity',
       })
     }
 
-    // Sort: highest priority (lowest sortKey = soonest) first
     out.sort((a, b) => a.sortKey - b.sortKey)
     return out
   }, [tenders, todos, events, payOrders, activity])
@@ -199,7 +209,7 @@ export function useNotifications() {
 
   const markAllRead = () => {
     const next = new Set(readIds)
-    for (const i of items) next.add(i.id)
+    for (const item of items) next.add(item.id)
     setReadIds(next)
     saveRead(next)
   }

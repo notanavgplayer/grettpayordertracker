@@ -116,7 +116,7 @@ const EMPTY_PO = {
   status: "Pending",
   bidResult: "N/A",
   notes: "",
-  purpose: "Tender Fee",
+  purpose: "Bid Security",
   tenderRef: "",
 };
 
@@ -1005,7 +1005,7 @@ export default function PayOrders() {
             <div className="space-y-1.5">
               <Label>Purpose</Label>
               <Select
-                value={form.purpose || "Tender Fee"}
+                value={form.purpose || "Bid Security"}
                 onValueChange={setF("purpose")}
               >
                 <SelectTrigger>
@@ -1167,12 +1167,12 @@ export default function PayOrders() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    A new tender will be created with status Bidding and this
-                    amount as{" "}
+                    A new tender will be created with status Bidding
                     {form.purpose === "Bid Security"
-                      ? "bid security"
-                      : "tender fee"}
-                    .
+                      ? " and this amount as bid security."
+                      : form.purpose === "Tender Fee"
+                      ? " and this amount as tender fee."
+                      : "."}
                   </p>
                 </div>
               )}

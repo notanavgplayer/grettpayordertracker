@@ -112,7 +112,7 @@ service cloud.firestore {
           'name','nit','agency','value','tenderFee','bidSecurity',
           'id','source','tenderRef',
           'status','submissionDate','openingDate','linkedPO','notes',
-          'contact','contactPerson','checklist','bills','raBills','statusHistory',
+          'contact','contactPerson','checklist','bills','raBills','documents','statusHistory',
           'tenderFeeExpenseId','completionDate','completionRemarks','completionSnapshot',
           'createdAt','updatedAt','createdBy','updatedBy'
         ])
@@ -138,6 +138,7 @@ service cloud.firestore {
         && optList(d, 'checklist')
         && optList(d, 'bills')
         && optList(d, 'raBills')
+        && optList(d, 'documents')
         && optList(d, 'statusHistory')
         && (!('status' in d) || d.status is string);
     }
