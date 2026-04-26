@@ -69,7 +69,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const TERMINAL_STATUSES = ["Awarded", "Lost", "Cancelled"];
+const TERMINAL_STATUSES = ["Awarded", "Completed", "Lost", "Cancelled"];
 
 // Compute display status on read — adds virtual "Overdue" when a Bidding
 // tender's submission date is in the past, without touching Firestore.

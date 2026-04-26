@@ -20,7 +20,7 @@ import StatusBadge from '@/components/shared/StatusBadge'
 import PageHeader from '@/components/shared/PageHeader'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, DollarSign, History, User, Receipt, FileText } from 'lucide-react'
+import { ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, CheckCircle, DollarSign, History, User, Receipt, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 
 const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', note: '' }
@@ -381,6 +381,13 @@ export default function TenderDetail() {
   const billPaid = (form.bills || []).filter((b) => b.status === 'Paid').reduce((s, b) => s + (Number(b.amount) || 0), 0)
   const raBillTotal = (form.raBills || []).reduce((s, b) => s + (Number(b.amount) || 0), 0)
   const raBillPaid = (form.raBills || []).filter((b) => b.status === 'Paid').reduce((s, b) => s + (Number(b.amount) || 0), 0)
+  const contractValue = Number(form.value) || 0
+  const totalExpenses = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+  const totalReceived = billPaid + raBillPaid
+  const outstandingRevenue = Math.max(contractValue - totalReceived, 0)
+  const projectedProfit = contractValue - totalExpenses
+  const realizedProfit = totalReceived - totalExpenses
+  const projectedMargin = contractValue > 0 ? Math.round((projectedProfit / contractValue) * 100) : null
 
   return (
     <div className="space-y-6">
@@ -394,6 +401,15 @@ export default function TenderDetail() {
         actions={
           <div className="flex items-center gap-2">
             {form.status && <StatusBadge status={form.status} />}
+            {isAdmin && form.status !== 'Completed' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => updateForm('status', 'Completed')}
+              >
+                <CheckCircle className="h-4 w-4" /> Mark Completed
+              </Button>
+            )}
             {isAdmin && dirty && (
               <Button onClick={save} disabled={saving} size="sm">
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -465,6 +481,30 @@ export default function TenderDetail() {
 
         {/* Overview tab: checklist + notes + history */}
         <TabsContent value="overview" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <DollarSign className="h-4 w-4" /> Profit & Expenses
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-0">
+              <FinancialMetric label="Contract Value" value={formatCurrency(contractValue)} />
+              <FinancialMetric label="Total Expenses" value={formatCurrency(totalExpenses)} tone="expense" />
+              <FinancialMetric
+                label="Projected Profit"
+                value={formatCurrency(projectedProfit)}
+                tone={projectedProfit >= 0 ? 'profit' : 'loss'}
+                helper={projectedMargin !== null ? `${projectedMargin}% margin` : undefined}
+              />
+              <FinancialMetric
+                label="Received Profit"
+                value={formatCurrency(realizedProfit)}
+                tone={realizedProfit >= 0 ? 'profit' : 'loss'}
+                helper={`${formatCurrency(outstandingRevenue)} outstanding`}
+              />
+            </CardContent>
+          </Card>
+
           {/* Checklist */}
           <Card>
             <CardHeader className="pb-3">
@@ -971,6 +1011,25 @@ export default function TenderDetail() {
         title="Delete pay order"
         description="This will permanently remove this pay order from the tender and the global list."
       />
+    </div>
+  )
+}
+
+function FinancialMetric({ label, value, tone, helper }) {
+  const toneClass =
+    tone === 'profit'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : tone === 'loss' || tone === 'expense'
+        ? 'text-rose-600 dark:text-rose-400'
+        : 'text-foreground'
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`mt-1 font-mono text-lg font-bold tabular-nums ${toneClass}`}>
+        {value}
+      </p>
+      {helper && <p className="mt-0.5 text-xs text-muted-foreground">{helper}</p>}
     </div>
   )
 }

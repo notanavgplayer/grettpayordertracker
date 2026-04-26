@@ -26,6 +26,7 @@ const TENDER_STATUS_COLORS = {
   Bidding: 'oklch(var(--chart-2))',
   Submitted: 'oklch(var(--chart-3))',
   Awarded: 'oklch(var(--chart-1))',
+  Completed: 'oklch(var(--chart-1))',
   Lost: 'oklch(var(--chart-5))',
   Cancelled: 'oklch(var(--chart-4))',
 }
@@ -67,8 +68,9 @@ export default function Home() {
     load()
   }, [])
 
-  const activeTenders = tenders.filter((t) => !['Awarded', 'Lost', 'Cancelled'].includes(t.status))
+  const activeTenders = tenders.filter((t) => !['Awarded', 'Completed', 'Lost', 'Cancelled'].includes(t.status))
   const awardedTenders = tenders.filter((t) => t.status === 'Awarded')
+  const completedTenders = tenders.filter((t) => t.status === 'Completed')
   const atRisk = payOrders.filter((p) => p.status === 'Submitted' && p.bidResult === 'Awaiting')
   const openTodos = todos.filter((t) => !t.done)
 
@@ -178,9 +180,9 @@ export default function Home() {
           deltaPositive={openTodos.length === 0 ? true : null}
         />
         <MetricCard
-          icon={Trophy} title="Awarded Tenders" value={awardedTenders.length}
+          icon={Trophy} title="Won / Completed" value={awardedTenders.length + completedTenders.length}
           href="/tenders" tone="success" delta="Won bids"
-          deltaPositive={awardedTenders.length > 0 ? true : null}
+          deltaPositive={awardedTenders.length + completedTenders.length > 0 ? true : null}
         />
       </div>
 
