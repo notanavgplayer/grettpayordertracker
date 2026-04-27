@@ -15,18 +15,23 @@ import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import StatusBadge from '@/components/shared/StatusBadge'
-import PageHeader from '@/components/shared/PageHeader'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, CheckCircle, DollarSign, History, User, Receipt, FileText, Printer, Paperclip, ExternalLink } from 'lucide-react'
+import {
+  ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, CheckCircle,
+  DollarSign, History, User, Receipt, FileText, Printer, Paperclip, ExternalLink,
+  Banknote, CalendarDays, ClipboardList, FolderOpen, Landmark, WalletCards,
+  Hash, Link as LinkIcon,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', note: '' }
 const EMPTY_PO = { po: '', bank: '', amount: '', purpose: 'Bid Security', status: 'Pending', submitted: '', notes: '' }
+const INLINE_INPUT_CLASS = 'h-8 border-transparent bg-transparent px-0 text-sm shadow-none hover:border-input focus-visible:px-3 focus-visible:ring-1 md:text-base'
+const INLINE_TEXTAREA_CLASS = 'min-h-[44px] resize-none border-transparent bg-transparent px-0 py-1 text-sm shadow-none hover:border-input focus-visible:px-3 focus-visible:ring-1 md:text-base'
 const STATUS_MEANINGS = {
   Awarded: 'Won and awaiting kickoff or formal work start.',
   'In Progress': 'Won and work is underway.',
@@ -442,6 +447,9 @@ export default function TenderDetail() {
         completionSnapshot: {
           contractValue,
           totalExpenses,
+          boqExpectedProfit,
+          boqQuotedAmount: boqTotals.quotedAmount,
+          boqActualCost: boqTotals.actualCost,
           totalReceived,
           receivable,
           outstandingRevenue: receivable,
@@ -537,6 +545,19 @@ export default function TenderDetail() {
     updateForm('documents', (form.documents || []).filter((item) => item.id !== documentId))
   }
 
+  const addBoqItem = () => {
+    updateForm('boqItems', [
+      ...(form.boqItems || []),
+      { id: uid(), description: '', qty: '', unit: 'Nos', quotedRate: '', actualCost: '' },
+    ])
+  }
+  const updateBoqItem = (itemId, patch) => {
+    updateForm('boqItems', (form.boqItems || []).map((item) => item.id === itemId ? { ...item, ...patch } : item))
+  }
+  const removeBoqItem = (itemId) => {
+    updateForm('boqItems', (form.boqItems || []).filter((item) => item.id !== itemId))
+  }
+
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
   if (!tender) return null
 
@@ -556,6 +577,18 @@ export default function TenderDetail() {
   const expectedProfit = contractValue - totalExpenses
   const cashPosition = totalReceived - totalExpenses
   const projectedMargin = contractValue > 0 ? Math.round((expectedProfit / contractValue) * 100) : null
+  const boqItems = form.boqItems || []
+  const boqTotals = boqItems.reduce((totals, item) => {
+    const quotedAmount = (Number(item.qty) || 0) * (Number(item.quotedRate) || 0)
+    const actualCost = Number(item.actualCost) || 0
+    return {
+      quotedAmount: totals.quotedAmount + quotedAmount,
+      actualCost: totals.actualCost + actualCost,
+      profitLoss: totals.profitLoss + quotedAmount - actualCost,
+    }
+  }, { quotedAmount: 0, actualCost: 0, profitLoss: 0 })
+  const boqExpectedProfit = boqItems.length > 0 ? boqTotals.profitLoss : expectedProfit
+  const dashboardProgress = checklist.length ? pct : form.status === 'Completed' ? 100 : 0
   const completionIssues = [
     expenses.length === 0 ? 'No expenses are recorded for this tender.' : null,
     totalReceived <= 0 ? 'No payment has been recorded yet.' : null,
@@ -581,117 +614,187 @@ export default function TenderDetail() {
     ['Received From Bills/RA Bills', formatCurrency(totalReceived)],
     ['Linked Pay Orders', String(linkedPOs.length)],
   ]
+  const compactTabs = [
+    ['overview', 'Overview'],
+    ['boq', 'BOQ'],
+    ['bills', `Bills (${(form.bills || []).length})`],
+    ['expenses', `Expenses (${expenses.length})`],
+    ['documents', `Documents (${(form.documents || []).length})`],
+    ['payorders', 'Pay Orders'],
+    ['rabills', 'RA Bills'],
+    ['contact', 'Contact'],
+  ]
+  const recentActivity = [
+    form.status === 'Completed' && form.completionDate ? {
+      id: 'completed',
+      icon: CheckCircle,
+      title: 'Tender marked completed',
+      date: form.completionDate,
+    } : null,
+    ...(form.statusHistory || []).map((item, index) => ({
+      id: `status-${item.ts || item.date || index}`,
+      icon: History,
+      title: `Status changed from ${item.from || 'Unknown'} to ${item.to || 'Unknown'}`,
+      date: item.date,
+    })),
+    ...(form.bills || []).map((bill) => ({
+      id: `bill-${bill.id}`,
+      icon: FileText,
+      title: `Bill ${bill.desc || bill.id || 'added'} ${bill.status ? `is ${bill.status}` : ''}`,
+      date: bill.date,
+    })),
+    ...(form.raBills || []).map((bill) => ({
+      id: `ra-${bill.id}`,
+      icon: Receipt,
+      title: `RA bill ${bill.no || bill.id || 'added'} ${bill.status ? `is ${bill.status}` : ''}`,
+      date: bill.paid || bill.submitted,
+    })),
+    ...(form.documents || []).map((document) => ({
+      id: `doc-${document.id || document.title || document.url}`,
+      icon: Paperclip,
+      title: `Document ${document.title || document.type || 'added'}`,
+      date: document.addedAt,
+    })),
+    ...(boqItems || []).map((item) => ({
+      id: `boq-${item.id}`,
+      icon: ClipboardList,
+      title: `BOQ item ${item.description || 'added'}`,
+      date: item.updatedAt || item.addedAt,
+    })),
+  ].filter(Boolean).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 6)
 
   return (
-    <div className="space-y-6">
-      <Link to="/tenders" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="h-4 w-4" /> Back to Tenders
-      </Link>
-
-      <PageHeader
-        title={form.name || 'Untitled Tender'}
-        description={form.nit ? `NIT ${form.nit}` : null}
-        actions={
-          <div className="flex items-center gap-2">
-            {form.status && <StatusBadge status={form.status} />}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSummaryOpen(true)}
-            >
-              <FileText className="h-4 w-4" /> Summary
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link to={`/tenders/${id}/report`}>
-                <Printer className="h-4 w-4" /> Report
-              </Link>
-            </Button>
-            {isAdmin && form.status !== 'Completed' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={openCompleteDialog}
-              >
-                <CheckCircle className="h-4 w-4" /> Mark Completed
-              </Button>
-            )}
-            {isAdmin && dirty && (
-              <Button onClick={save} disabled={saving} size="sm">
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                <Save className="h-4 w-4" /> Save Changes
-              </Button>
-            )}
+    <div className="mx-auto max-w-[1500px] space-y-5 pb-24 md:pb-0">
+      <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-4 md:hidden">
+        <div className="aspect-square overflow-hidden rounded-xl border bg-emerald-50 dark:bg-emerald-950/30">
+          <div className="relative h-full w-full">
+            <div className="absolute bottom-4 left-4 h-8 w-14 rounded-t-full border-t-4 border-emerald-600" />
+            <div className="absolute bottom-6 left-8 h-10 w-1.5 rounded bg-emerald-700" />
+            <div className="absolute bottom-6 right-3 h-8 w-5 rounded-full bg-emerald-500/70" />
+            <div className="absolute bottom-0 left-0 h-8 w-full rounded-t-[60%] bg-slate-300 dark:bg-slate-700" />
+            <div className="absolute bottom-2 left-2 h-1 w-20 rotate-[-20deg] rounded bg-white" />
           </div>
-        }
-      />
+        </div>
+        <div className="min-w-0 space-y-2">
+          <h1 className="text-xl font-bold leading-tight tracking-tight sm:text-2xl">
+            {form.name || 'Untitled Tender'}
+          </h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">{form.nit ? `NIT ${form.nit}` : 'No NIT / Reference'}</p>
+          {form.status && <StatusBadge status={form.status} className="px-3 py-1 text-xs sm:text-sm" />}
+        </div>
+      </div>
 
-      {/* Header info */}
-      <Card>
-        <CardContent className="p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="sm:col-span-2 lg:col-span-3 space-y-1.5">
-              <Label>Tender Name</Label>
-              <Input value={form.name || ''} onChange={(e) => updateForm('name', e.target.value)} disabled={!isAdmin} className="text-base font-semibold" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Select value={form.status || ''} onValueChange={updateTenderStatus} disabled={!isAdmin}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{TENDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-              {STATUS_MEANINGS[form.status] && (
-                <p className="text-xs text-muted-foreground">
-                  {STATUS_MEANINGS[form.status]}
-                </p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label>NIT / Reference</Label>
-              <Input value={form.nit || ''} onChange={(e) => updateForm('nit', e.target.value)} disabled={!isAdmin} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Value (PKR)</Label>
-              <Input type="number" value={form.value || ''} onChange={(e) => updateForm('value', e.target.value)} disabled={!isAdmin} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tender Fee (PKR)</Label>
-              <Input type="number" value={form.tenderFee || ''} onChange={(e) => updateForm('tenderFee', e.target.value)} disabled={!isAdmin} className="font-mono tabular-nums" />
-              <p className="text-xs text-muted-foreground">Auto-tracked as expense.</p>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Procuring Agency</Label>
-              <Input value={form.agency || ''} onChange={(e) => updateForm('agency', e.target.value)} disabled={!isAdmin} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Submission Date</Label>
-              <Input type="date" value={form.submissionDate || ''} onChange={(e) => updateForm('submissionDate', e.target.value)} disabled={!isAdmin} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Opening Date</Label>
-              <Input type="date" value={form.openingDate || ''} onChange={(e) => updateForm('openingDate', e.target.value)} disabled={!isAdmin} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Linked Pay Order</Label>
-              <Input value={form.linkedPO || ''} onChange={(e) => updateForm('linkedPO', e.target.value)} disabled={!isAdmin} />
+      <div className="hidden flex-col gap-4 md:flex lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 space-y-2">
+          <Link to="/tenders" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-4 w-4" /> Tenders
+          </Link>
+          <div className="space-y-2">
+            <h1 className="max-w-5xl text-xl font-bold tracking-tight sm:text-2xl lg:text-3xl">
+              {form.name || 'Untitled Tender'}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-mono">{form.nit || 'No NIT / Reference'}</span>
+              {form.status && <StatusBadge status={form.status} />}
+              {dirty && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">Unsaved changes</span>}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+          <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setSummaryOpen(true)}>
+            <FileText className="h-4 w-4" /> Summary
+          </Button>
+          <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
+            <Link to={`/tenders/${id}/report`}>
+              <Printer className="h-4 w-4" /> Report
+            </Link>
+          </Button>
+          {isAdmin && form.status !== 'Completed' && (
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={openCompleteDialog}>
+              <CheckCircle className="h-4 w-4" /> Mark Completed
+            </Button>
+          )}
+          {isAdmin && dirty && (
+            <Button onClick={save} disabled={saving || !dirty} size="sm" className="w-full sm:w-auto">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save Changes
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <TenderMetric icon={Banknote} label="Contract Value" value={formatCurrency(contractValue)} detail="PKR" tone="emerald" />
+        <TenderMetric icon={Receipt} label="Tender Fee" value={formatCurrency(Number(form.tenderFee) || 0)} detail="Auto expense" tone="sky" />
+        <TenderMetric icon={Landmark} label="Linked Pay Orders" value={linkedPOs.length || (form.linkedPO ? 1 : 0)} detail={form.linkedPO || 'Total'} tone="violet" />
+        <TenderMetric icon={FileText} label="Bills" value={(form.bills || []).length} detail={formatCurrency(billTotal)} tone="orange" className="hidden md:block" />
+        <TenderMetric icon={WalletCards} label="Expenses" value={expenses.length} detail={formatCurrency(totalExpenses)} tone="rose" />
+        <TenderMetric icon={CheckSquare} label="Progress" value={`${dashboardProgress}%`} detail={`${doneCount}/${checklist.length || 0} checklist`} tone="blue" className="hidden md:block" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
+        <div className="space-y-5">
+          <Tabs defaultValue="overview" className="flex flex-col gap-5">
+          <Card className="order-2 md:order-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <FileText className="h-5 w-5 text-emerald-600" /> Tender Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-x-6 md:grid-cols-2">
+                <DetailRow icon={FileText} label="Tender Name">
+                  <Textarea value={form.name || ''} onChange={(e) => updateForm('name', e.target.value)} disabled={!isAdmin} rows={3} className={`${INLINE_TEXTAREA_CLASS} min-h-[72px] overflow-hidden font-medium leading-snug`} />
+                </DetailRow>
+                <DetailRow icon={CheckCircle} label="Status" note={STATUS_MEANINGS[form.status]}>
+                  <Select value={form.status || ''} onValueChange={updateTenderStatus} disabled={!isAdmin}>
+                    <SelectTrigger className="h-8 border-transparent bg-transparent px-0 shadow-none hover:border-input focus:px-3"><SelectValue /></SelectTrigger>
+                    <SelectContent>{TENDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
+                </DetailRow>
+                <DetailRow icon={Hash} label="NIT / Reference">
+                  <Input value={form.nit || ''} onChange={(e) => updateForm('nit', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                </DetailRow>
+                <DetailRow icon={Banknote} label="Value (PKR)">
+                  <Input type="number" value={form.value || ''} onChange={(e) => updateForm('value', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                </DetailRow>
+                <DetailRow icon={Receipt} label="Tender Fee (PKR)" note="Automatically tracked as an expense.">
+                  <Input type="number" value={form.tenderFee || ''} onChange={(e) => updateForm('tenderFee', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                </DetailRow>
+                <DetailRow icon={Landmark} label="Procuring Agency">
+                  <Textarea value={form.agency || ''} onChange={(e) => updateForm('agency', e.target.value)} disabled={!isAdmin} rows={2} className={`${INLINE_TEXTAREA_CLASS} min-h-[52px] overflow-hidden leading-snug`} />
+                </DetailRow>
+                <DetailRow icon={CalendarDays} label="Submission Date">
+                  <Input type="date" value={form.submissionDate || ''} onChange={(e) => updateForm('submissionDate', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                </DetailRow>
+                <DetailRow icon={CalendarDays} label="Opening Date">
+                  <Input type="date" value={form.openingDate || ''} onChange={(e) => updateForm('openingDate', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                </DetailRow>
+                <DetailRow icon={LinkIcon} label="Linked Pay Order">
+                  <Input value={form.linkedPO || ''} onChange={(e) => updateForm('linkedPO', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                </DetailRow>
+                <DetailRow icon={CalendarDays} label="Completion Date">
+                  <Input type="date" value={form.completionDate || ''} onChange={(e) => updateForm('completionDate', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                </DetailRow>
+              </div>
+            </CardContent>
+          </Card>
 
       {/* Tabs */}
-      <Tabs defaultValue="overview">
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="payorders">Pay Orders ({linkedPOs.length})</TabsTrigger>
-          <TabsTrigger value="bills">Bills ({(form.bills || []).length})</TabsTrigger>
-          <TabsTrigger value="rabills">RA Bills ({(form.raBills || []).length})</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses ({expenses.length})</TabsTrigger>
-          <TabsTrigger value="documents">Documents ({(form.documents || []).length})</TabsTrigger>
-          <TabsTrigger value="contact">Contact</TabsTrigger>
+        <TabsList className="order-1 flex w-full justify-start gap-6 overflow-x-auto whitespace-nowrap rounded-none border-b bg-transparent px-0 pb-0 [scrollbar-width:none] md:order-2 md:gap-1 md:rounded-md md:border-b-0 md:bg-muted md:p-1 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
+          {compactTabs.map(([value, label]) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className="rounded-none border-b-2 border-transparent px-1 pb-3 pt-1 text-sm data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:text-base md:rounded-sm md:border-b-0 md:px-3 md:py-1.5 md:text-sm md:data-[state=active]:bg-background"
+            >
+              {label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         {/* Overview tab: checklist + notes + history */}
-        <TabsContent value="overview" className="mt-4 space-y-4">
+        <TabsContent value="overview" className="order-3 mt-0 space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-sm">
@@ -804,9 +907,98 @@ export default function TenderDetail() {
           )}
         </TabsContent>
 
+        <TabsContent value="boq" className="order-3 mt-0">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <CardTitle>BOQ / Profit Tracking</CardTitle>
+              {isAdmin && (
+                <Button size="sm" onClick={addBoqItem}>
+                  <Plus className="h-4 w-4" /> Add Item
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {boqItems.length === 0 ? (
+                <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">
+                  No BOQ items yet.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-md border">
+                  <Table className="w-full table-fixed">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[5%] px-2">Item</TableHead>
+                        <TableHead className="w-[22%] px-2">Description</TableHead>
+                        <TableHead className="w-[8%] px-2">Qty</TableHead>
+                        <TableHead className="w-[8%] px-2">Unit</TableHead>
+                        <TableHead className="w-[11%] px-2">Quoted Rate</TableHead>
+                        <TableHead className="w-[12%] px-2">Quoted Amount</TableHead>
+                        <TableHead className="w-[11%] px-2">Actual Cost</TableHead>
+                        <TableHead className="w-[11%] px-2">Profit / Loss</TableHead>
+                        <TableHead className="w-[8%] px-2">Status</TableHead>
+                        {isAdmin && <TableHead className="w-[4%] px-1" />}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {boqItems.map((item, index) => {
+                        const quotedAmount = (Number(item.qty) || 0) * (Number(item.quotedRate) || 0)
+                        const actualCost = Number(item.actualCost) || 0
+                        const profitLoss = quotedAmount - actualCost
+                        const hasValues = quotedAmount > 0 || actualCost > 0
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell className="px-2 text-center font-mono">{index + 1}</TableCell>
+                            <TableCell className="px-2">
+                              <Input value={item.description || ''} onChange={(e) => updateBoqItem(item.id, { description: e.target.value })} disabled={!isAdmin} placeholder="Item description" className="h-8 px-2" />
+                            </TableCell>
+                            <TableCell className="px-2">
+                              <Input type="text" inputMode="decimal" value={item.qty ?? ''} onChange={(e) => updateBoqItem(item.id, { qty: e.target.value })} disabled={!isAdmin} className="h-8 px-2" />
+                            </TableCell>
+                            <TableCell className="px-2">
+                              <Input value={item.unit || ''} onChange={(e) => updateBoqItem(item.id, { unit: e.target.value })} disabled={!isAdmin} className="h-8 px-2" />
+                            </TableCell>
+                            <TableCell className="px-2">
+                              <Input type="text" inputMode="decimal" value={item.quotedRate === 0 ? '' : item.quotedRate ?? ''} onChange={(e) => updateBoqItem(item.id, { quotedRate: e.target.value })} disabled={!isAdmin} className="h-8 px-2" />
+                            </TableCell>
+                            <TableCell className="px-2 font-mono text-sm">{formatCurrency(quotedAmount)}</TableCell>
+                            <TableCell className="px-2">
+                              <Input type="text" inputMode="decimal" value={item.actualCost === 0 ? '' : item.actualCost ?? ''} onChange={(e) => updateBoqItem(item.id, { actualCost: e.target.value })} disabled={!isAdmin} className="h-8 px-2" />
+                            </TableCell>
+                            <TableCell className={`px-2 font-mono text-sm ${profitLoss < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                              {formatCurrency(profitLoss)}
+                            </TableCell>
+                            <TableCell className="px-2">
+                              {hasValues ? <StatusBadge status={profitLoss >= 0 ? 'Profitable' : 'Loss'} /> : <span className="text-muted-foreground">-</span>}
+                            </TableCell>
+                            {isAdmin && (
+                              <TableCell className="px-1">
+                                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removeBoqItem(item.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        )
+                      })}
+                      <TableRow className="font-semibold">
+                        <TableCell colSpan={5} className="px-2 text-right">Total</TableCell>
+                        <TableCell className="px-2 font-mono">{formatCurrency(boqTotals.quotedAmount)}</TableCell>
+                        <TableCell className="px-2 font-mono">{formatCurrency(boqTotals.actualCost)}</TableCell>
+                        <TableCell className={`px-2 font-mono ${boqTotals.profitLoss < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{formatCurrency(boqTotals.profitLoss)}</TableCell>
+                        <TableCell className="px-2">-</TableCell>
+                        {isAdmin && <TableCell className="px-1" />}
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Bills tab */}
-        <TabsContent value="bills" className="mt-4 space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+        <TabsContent value="bills" className="order-3 mt-0 space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold">{formatCurrency(billTotal)}</p><p className="text-xs text-muted-foreground">Total Billed</p></CardContent></Card>
             <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(billPaid)}</p><p className="text-xs text-muted-foreground">Received</p></CardContent></Card>
             <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400">{formatCurrency(billTotal - billPaid)}</p><p className="text-xs text-muted-foreground">Outstanding</p></CardContent></Card>
@@ -851,8 +1043,8 @@ export default function TenderDetail() {
         </TabsContent>
 
         {/* RA Bills tab */}
-        <TabsContent value="rabills" className="mt-4 space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+        <TabsContent value="rabills" className="order-3 mt-0 space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold">{formatCurrency(raBillTotal)}</p><p className="text-xs text-muted-foreground">Total RA Billed</p></CardContent></Card>
             <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(raBillPaid)}</p><p className="text-xs text-muted-foreground">Received</p></CardContent></Card>
             <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400">{formatCurrency(raBillTotal - raBillPaid)}</p><p className="text-xs text-muted-foreground">Outstanding</p></CardContent></Card>
@@ -900,7 +1092,7 @@ export default function TenderDetail() {
         </TabsContent>
 
         {/* Pay Orders tab */}
-        <TabsContent value="payorders" className="mt-4 space-y-4">
+        <TabsContent value="payorders" className="order-3 mt-0 space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-2">
@@ -982,7 +1174,7 @@ export default function TenderDetail() {
         </TabsContent>
 
         {/* Expenses tab */}
-        <TabsContent value="expenses" className="mt-4 space-y-4">
+        <TabsContent value="expenses" className="order-3 mt-0 space-y-4">
           {/* Summary — Sunk / At Risk / Held */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card><CardContent className="p-4 text-center">
@@ -1080,7 +1272,7 @@ export default function TenderDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="documents" className="mt-4 space-y-4">
+        <TabsContent value="documents" className="order-3 mt-0 space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1162,7 +1354,7 @@ export default function TenderDetail() {
         </TabsContent>
 
         {/* Contact tab */}
-        <TabsContent value="contact" className="mt-4">
+        <TabsContent value="contact" className="order-3 mt-0">
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2 text-sm"><User className="h-4 w-4" /> Contact Person</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1189,10 +1381,125 @@ export default function TenderDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+        </div>
+
+        <aside className="space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <TrendingUpIcon /> Project Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 md:space-y-3">
+              <div className="grid gap-4 md:block lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-8">
+                <div className="space-y-2">
+                  <div className="flex items-end gap-3">
+                    <span className="text-3xl font-semibold text-emerald-600 dark:text-emerald-400">{dashboardProgress}%</span>
+                    <span className="pb-1 text-sm text-muted-foreground">Overall Progress</span>
+                  </div>
+                  <Progress value={dashboardProgress} className="h-2" />
+                  <p className="text-sm text-muted-foreground">
+                    {dashboardProgress >= 100 ? 'Work is complete.' : dashboardProgress > 0 ? 'Work is progressing as planned.' : 'Progress has not started.'}
+                  </p>
+                </div>
+                <div className="space-y-2 border-t pt-3 text-sm md:border-t-0 md:pt-0 lg:border-l lg:pl-8">
+                  <SnapshotRow label="Start Date" value={formatDate(form.submissionDate)} />
+                  <SnapshotRow label="Estimated Completion" value={formatDate(form.completionDate)} />
+                  <SnapshotRow label="Project Health" value={dashboardProgress >= 75 ? 'On Track' : 'Needs update'} tone={dashboardProgress >= 75 ? 'profit' : 'loss'} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Important Dates</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <SnapshotRow label="Submission Date" value={formatDate(form.submissionDate)} />
+              <SnapshotRow label="Opening Date" value={formatDate(form.openingDate)} />
+              <SnapshotRow label="Completion" value={formatDate(form.completionDate)} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Financial Snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <SnapshotRow label="Contract Value" value={formatCurrency(contractValue)} />
+              <SnapshotRow label="Total Expenses" value={formatCurrency(totalExpenses)} />
+              <SnapshotRow label="BOQ Expected Profit" value={formatCurrency(boqExpectedProfit)} tone={boqExpectedProfit >= 0 ? 'profit' : 'loss'} />
+              <SnapshotRow label="Received from bills / RA bills" value={formatCurrency(totalReceived)} tone="profit" />
+              <SnapshotRow label="Outstanding Billing" value={formatCurrency(receivable)} tone="accent" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recentActivity.length === 0 && <p className="text-sm text-muted-foreground">No activity yet.</p>}
+              {recentActivity.map((activity) => (
+                <div key={activity.id} className="flex gap-3 text-sm">
+                  <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-muted">
+                    <activity.icon className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="line-clamp-2">{activity.title}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(activity.date)}</p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
+
+      <Card className="md:hidden">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Paperclip className="h-5 w-5" /> Documents & Links
+            </CardTitle>
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={addDocument} className="text-primary">
+                <Plus className="h-4 w-4" /> Add Document
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {(form.documents || []).length === 0 ? (
+            <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">
+              <FolderOpen className="mx-auto mb-2 h-5 w-5" />
+              No documents or links added yet.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {(form.documents || []).slice(0, 3).map((item) => (
+                <div key={item.id} className="rounded-md border p-3">
+                  <p className="font-medium">{item.title || item.type || 'Document'}</p>
+                  {item.notes && <p className="mt-1 text-sm text-muted-foreground">{item.notes}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Floating save for mobile */}
       {isAdmin && dirty && (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 p-4 backdrop-blur md:hidden">
+          <Button onClick={save} disabled={saving} size="lg" className="h-14 w-full rounded-xl shadow-lg">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save Changes
+          </Button>
+        </div>
+      )}
+      {isAdmin && dirty && (
+        <div className="fixed bottom-6 right-6 z-50 hidden md:block">
           <Button onClick={save} disabled={saving} size="lg" className="shadow-lg">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save Changes
@@ -1449,6 +1756,71 @@ export default function TenderDetail() {
         title="Delete pay order"
         description="This will permanently remove this pay order from the tender and the global list."
       />
+    </div>
+  )
+}
+
+function TenderMetric({ icon: Icon, label, value, detail, tone, className = '' }) {
+  const toneClasses = {
+    emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400',
+    sky: 'bg-sky-50 text-sky-600 dark:bg-sky-950/30 dark:text-sky-400',
+    violet: 'bg-violet-50 text-violet-600 dark:bg-violet-950/30 dark:text-violet-400',
+    orange: 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400',
+    rose: 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400',
+    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400',
+  }
+  return (
+    <Card className={className}>
+      <CardContent className="flex min-h-[92px] items-center gap-3 p-3.5 sm:min-h-[96px] sm:p-4 md:gap-4">
+        <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full sm:h-14 sm:w-14 md:h-11 md:w-11 ${toneClasses[tone] || toneClasses.blue}`}>
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6 md:h-5 md:w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground sm:text-sm md:text-xs">{label}</p>
+          <p className="whitespace-nowrap text-[clamp(1.15rem,5vw,1.25rem)] font-semibold leading-6 tabular-nums sm:text-xl md:text-lg">{value}</p>
+          {detail && <p className="truncate text-[11px] text-muted-foreground sm:text-xs">{detail}</p>}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function DetailRow({ icon: Icon, label, children, note }) {
+  return (
+    <div className="grid grid-cols-[116px_minmax(0,1fr)] gap-3 border-b py-2.5 last:border-b-0 sm:grid-cols-[150px_minmax(0,1fr)] md:items-center md:py-3">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
+        <Icon className="h-3.5 w-3.5 flex-shrink-0 sm:h-4 sm:w-4" />
+        <span>{label}</span>
+      </div>
+      <div className="min-w-0">
+        {children}
+        {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
+      </div>
+    </div>
+  )
+}
+
+function TrendingUpIcon() {
+  return (
+    <span className="inline-flex h-5 w-5 items-center justify-center text-emerald-600">
+      <span className="h-3 w-3 rotate-45 border-l-2 border-t-2 border-current" />
+    </span>
+  )
+}
+
+function SnapshotRow({ label, value, tone }) {
+  const toneClass =
+    tone === 'profit'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : tone === 'loss'
+        ? 'text-rose-600 dark:text-rose-400'
+        : tone === 'accent'
+          ? 'text-blue-600 dark:text-blue-400'
+          : 'text-foreground'
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`text-right font-mono font-medium ${toneClass}`}>{value}</span>
     </div>
   )
 }

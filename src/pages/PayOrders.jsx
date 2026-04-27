@@ -120,6 +120,31 @@ const EMPTY_PO = {
   tenderRef: "",
 };
 
+const PAY_ORDER_FIELDS = [
+  "po",
+  "bank",
+  "nit",
+  "amount",
+  "tender",
+  "agency",
+  "submitted",
+  "status",
+  "bidResult",
+  "notes",
+  "purpose",
+  "tenderRef",
+  "createdAt",
+  "createdBy",
+  "updatedBy",
+];
+
+function cleanPayOrderPayload(data) {
+  return PAY_ORDER_FIELDS.reduce((payload, key) => {
+    if (data[key] !== undefined) payload[key] = data[key];
+    return payload;
+  }, {});
+}
+
 export default function PayOrders() {
   const { data: payOrders, loading } = useCollection(
     "payOrders",
@@ -281,14 +306,14 @@ export default function PayOrders() {
         }
       }
 
-      const data = {
+      const data = cleanPayOrderPayload({
         ...form,
         amount: amountNum,
         tenderRef,
         tender: tenderName,
         nit,
         agency,
-      };
+      });
       if (editItem) {
         await update(editItem.id, data);
         logActivity({
@@ -440,7 +465,7 @@ export default function PayOrders() {
       />
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           icon={DollarSign}
           title="Total Amount"
