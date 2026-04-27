@@ -15,6 +15,7 @@ const STATUS_TONE_MAP = {
   Held: 'blue',
   // Purple (active execution)
   'In Progress': 'purple',
+  'On Hold': 'amber',
   // Teal (won / awarded)
   Awarded: 'teal',
   // Emerald (success)
