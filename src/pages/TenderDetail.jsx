@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { db, storage } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
 import { formatDate, formatCurrency, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
@@ -24,7 +25,7 @@ import {
   ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, CheckCircle,
   DollarSign, History, User, Receipt, FileText, Printer, Paperclip, ExternalLink,
   Banknote, CalendarDays, ClipboardList, FolderOpen, Landmark, WalletCards,
-  Hash, Link as LinkIcon,
+  Hash, Link as LinkIcon, Upload,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -32,12 +33,25 @@ const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: ''
 const EMPTY_PO = { po: '', bank: '', amount: '', purpose: 'Bid Security', status: 'Pending', submitted: '', notes: '' }
 const INLINE_INPUT_CLASS = 'h-8 border-transparent bg-transparent px-0 text-sm shadow-none hover:border-input focus-visible:px-3 focus-visible:ring-1 md:text-base'
 const INLINE_TEXTAREA_CLASS = 'min-h-[44px] resize-none border-transparent bg-transparent px-0 py-1 text-sm shadow-none hover:border-input focus-visible:px-3 focus-visible:ring-1 md:text-base'
+const DOCUMENT_CATEGORIES = [
+  'Work Order',
+  'BOQ',
+  'Site Photos',
+  'Material Invoices',
+  'Bills',
+  'Inspection Letters',
+  'Completion Certificate',
+  'Security Refund',
+  'Other',
+]
 const STATUS_MEANINGS = {
   Awarded: 'Won and awaiting kickoff or formal work start.',
   'In Progress': 'Won and work is underway.',
   Completed: 'Work finished and closed. Completion date, remarks, and profit snapshot are saved.',
   Lost: 'Bid was not won. No active execution.',
   Cancelled: 'Tender was cancelled. No active execution.',
+  Pending: 'Work has not started.',
+  'On Hold': 'Work is paused.',
 }
 
 function cleanTenderPayload(form, fallbackValue, fallbackTenderFee) {
@@ -71,6 +85,7 @@ export default function TenderDetail() {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({})
   const [dirty, setDirty] = useState(false)
+  const [detailsEditing, setDetailsEditing] = useState(false)
   const [expenses, setExpenses] = useState([])
   const [linkedPOs, setLinkedPOs] = useState([])
   const [expDialogOpen, setExpDialogOpen] = useState(false)
@@ -90,6 +105,8 @@ export default function TenderDetail() {
   const [completionRemarks, setCompletionRemarks] = useState('')
   const [completing, setCompleting] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
+  const [uploadingDocumentId, setUploadingDocumentId] = useState(null)
+  const [checklistExpanded, setChecklistExpanded] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -535,7 +552,7 @@ export default function TenderDetail() {
   const addDocument = () => {
     updateForm('documents', [
       ...(form.documents || []),
-      { id: uid(), title: '', type: 'Document', url: '', notes: '', addedAt: new Date().toISOString().slice(0, 10) },
+      { id: uid(), title: '', type: 'Other', url: '', notes: '', addedAt: new Date().toISOString().slice(0, 10) },
     ])
   }
   const updateDocument = (documentId, patch) => {
@@ -543,6 +560,32 @@ export default function TenderDetail() {
   }
   const removeDocument = (documentId) => {
     updateForm('documents', (form.documents || []).filter((item) => item.id !== documentId))
+  }
+  const uploadDocumentFile = async (documentId, file) => {
+    if (!file) return
+    setUploadingDocumentId(documentId)
+    try {
+      const safeName = file.name.replace(/[^\w.\-]+/g, '_')
+      const storagePath = `tender-documents/${id}/${documentId}/${Date.now()}-${safeName}`
+      const storageRef = ref(storage, storagePath)
+      await uploadBytes(storageRef, file, { contentType: file.type || undefined })
+      const url = await getDownloadURL(storageRef)
+      updateDocument(documentId, {
+        title: (form.documents || []).find((item) => item.id === documentId)?.title || file.name,
+        url,
+        fileName: file.name,
+        fileType: file.type || '',
+        fileSize: file.size,
+        storagePath,
+        uploadedAt: new Date().toISOString().slice(0, 10),
+      })
+      toast.success('File attached. Save changes to keep it on this tender.')
+    } catch (err) {
+      console.error('Failed to upload document:', err)
+      toast.error(`Failed to upload file: ${err?.code || err?.message || 'Unknown error'}`)
+    } finally {
+      setUploadingDocumentId(null)
+    }
   }
 
   const addBoqItem = () => {
@@ -588,7 +631,42 @@ export default function TenderDetail() {
     }
   }, { quotedAmount: 0, actualCost: 0, profitLoss: 0 })
   const boqExpectedProfit = boqItems.length > 0 ? boqTotals.profitLoss : expectedProfit
-  const dashboardProgress = checklist.length ? pct : form.status === 'Completed' ? 100 : 0
+  const savedProgress = Number(form.progress ?? form.progressPercent ?? form.workProgress) || 0
+  const dashboardProgress = form.status === 'Completed' ? 100 : Math.max(0, Math.min(savedProgress, 99))
+  const progressMessage = {
+    Pending: 'Work has not started.',
+    'In Progress': 'Work is underway.',
+    Completed: 'Work is complete.',
+    'On Hold': 'Work is paused.',
+  }[form.status] || (dashboardProgress > 0 ? 'Work is underway.' : 'Work has not started.')
+  const projectHealth =
+    form.status === 'Completed'
+      ? 'Complete'
+      : form.status === 'On Hold'
+        ? 'Paused'
+        : dashboardProgress > 0
+          ? 'On Track'
+          : 'Needs update'
+  const projectHealthTone =
+    form.status === 'Completed' || projectHealth === 'On Track'
+      ? 'profit'
+      : form.status === 'On Hold'
+        ? 'accent'
+        : 'loss'
+  const recentExpenses = [...expenses]
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+    .slice(0, 5)
+  const bills = form.bills || []
+  const raBills = form.raBills || []
+  const paidRegularBills = bills.filter((b) => b.status === 'Paid').length
+  const paidRaBills = raBills.filter((b) => b.status === 'Paid').length
+  const documentCategoryCounts = DOCUMENT_CATEGORIES.map((category) => ({
+    category,
+    count: (form.documents || []).filter((item) => (item.type || 'Other') === category).length,
+  }))
+  const linkedPayOrderDisplay = linkedPOs.length > 0
+    ? linkedPOs.map((po) => po.po).filter(Boolean).join(', ')
+    : form.linkedPO || '-'
   const completionIssues = [
     expenses.length === 0 ? 'No expenses are recorded for this tender.' : null,
     totalReceived <= 0 ? 'No payment has been recorded yet.' : null,
@@ -616,9 +694,10 @@ export default function TenderDetail() {
   ]
   const compactTabs = [
     ['overview', 'Overview'],
-    ['boq', 'BOQ'],
+    ['boq', 'BOQ / Profit'],
     ['bills', `Bills (${(form.bills || []).length})`],
     ['expenses', `Expenses (${expenses.length})`],
+    ['site-visits', 'Site Visits'],
     ['documents', `Documents (${(form.documents || []).length})`],
     ['payorders', 'Pay Orders'],
     ['rabills', 'RA Bills'],
@@ -714,8 +793,8 @@ export default function TenderDetail() {
               <CheckCircle className="h-4 w-4" /> Mark Completed
             </Button>
           )}
-          {isAdmin && dirty && (
-            <Button onClick={save} disabled={saving || !dirty} size="sm" className="w-full sm:w-auto">
+          {isAdmin && (
+            <Button onClick={save} disabled={saving || !dirty} size="sm" className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Save Changes
             </Button>
@@ -729,64 +808,84 @@ export default function TenderDetail() {
         <TenderMetric icon={Landmark} label="Linked Pay Orders" value={linkedPOs.length || (form.linkedPO ? 1 : 0)} detail={form.linkedPO || 'Total'} tone="violet" />
         <TenderMetric icon={FileText} label="Bills" value={(form.bills || []).length} detail={formatCurrency(billTotal)} tone="orange" className="hidden md:block" />
         <TenderMetric icon={WalletCards} label="Expenses" value={expenses.length} detail={formatCurrency(totalExpenses)} tone="rose" />
-        <TenderMetric icon={CheckSquare} label="Progress" value={`${dashboardProgress}%`} detail={`${doneCount}/${checklist.length || 0} checklist`} tone="blue" className="hidden md:block" />
+        <TenderMetric icon={CheckSquare} label="Execution Progress" value={`${dashboardProgress}%`} detail={form.status === 'Completed' ? 'Completed' : 'Manual update'} tone="blue" className="hidden md:block" />
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
         <div className="space-y-5">
           <Tabs defaultValue="overview" className="flex flex-col gap-5">
-          <Card className="order-2 md:order-1">
+          <Card className="order-1">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="h-5 w-5 text-emerald-600" /> Tender Details
-              </CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FileText className="h-5 w-5 text-emerald-600" /> Tender Details
+                </CardTitle>
+                {isAdmin && (
+                  <Button variant={detailsEditing ? 'secondary' : 'outline'} size="sm" onClick={() => setDetailsEditing((value) => !value)}>
+                    <Pencil className="h-3.5 w-3.5" /> {detailsEditing ? 'Viewing' : 'Edit Details'}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-x-6 md:grid-cols-2">
-                <DetailRow icon={FileText} label="Tender Name">
-                  <Textarea value={form.name || ''} onChange={(e) => updateForm('name', e.target.value)} disabled={!isAdmin} rows={3} className={`${INLINE_TEXTAREA_CLASS} min-h-[72px] overflow-hidden font-medium leading-snug`} />
+            <CardContent className="px-4 pb-4 pt-0 md:px-5 md:pb-5">
+              <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+                <DetailRow icon={FileText} label="Tender Name" className="md:col-span-2 xl:col-span-2">
+                  {detailsEditing ? (
+                    <Textarea value={form.name || ''} onChange={(e) => updateForm('name', e.target.value)} rows={2} className={`${INLINE_TEXTAREA_CLASS} min-h-[48px] overflow-hidden font-medium leading-snug`} />
+                  ) : (
+                    <DetailValue>{form.name || '-'}</DetailValue>
+                  )}
                 </DetailRow>
                 <DetailRow icon={CheckCircle} label="Status" note={STATUS_MEANINGS[form.status]}>
-                  <Select value={form.status || ''} onValueChange={updateTenderStatus} disabled={!isAdmin}>
-                    <SelectTrigger className="h-8 border-transparent bg-transparent px-0 shadow-none hover:border-input focus:px-3"><SelectValue /></SelectTrigger>
-                    <SelectContent>{TENDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
+                  {detailsEditing ? (
+                    <Select value={form.status || ''} onValueChange={updateTenderStatus}>
+                      <SelectTrigger className="h-9 border-transparent bg-transparent px-0 shadow-none hover:border-input focus:px-3">
+                        {form.status ? <StatusBadge status={form.status} /> : <SelectValue />}
+                      </SelectTrigger>
+                      <SelectContent>{TENDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="py-1">{form.status ? <StatusBadge status={form.status} /> : <DetailValue>-</DetailValue>}</div>
+                  )}
                 </DetailRow>
                 <DetailRow icon={Hash} label="NIT / Reference">
-                  <Input value={form.nit || ''} onChange={(e) => updateForm('nit', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                  {detailsEditing ? <Input value={form.nit || ''} onChange={(e) => updateForm('nit', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.nit || '-'}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={Banknote} label="Value (PKR)">
-                  <Input type="number" value={form.value || ''} onChange={(e) => updateForm('value', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                  {detailsEditing ? <Input type="number" value={form.value || ''} onChange={(e) => updateForm('value', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.value || '-'}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={Receipt} label="Tender Fee (PKR)" note="Automatically tracked as an expense.">
-                  <Input type="number" value={form.tenderFee || ''} onChange={(e) => updateForm('tenderFee', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                  {detailsEditing ? <Input type="number" value={form.tenderFee || ''} onChange={(e) => updateForm('tenderFee', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.tenderFee || '-'}</DetailValue>}
                 </DetailRow>
-                <DetailRow icon={Landmark} label="Procuring Agency">
-                  <Textarea value={form.agency || ''} onChange={(e) => updateForm('agency', e.target.value)} disabled={!isAdmin} rows={2} className={`${INLINE_TEXTAREA_CLASS} min-h-[52px] overflow-hidden leading-snug`} />
+                <DetailRow icon={Landmark} label="Procuring Agency" className="md:col-span-2 xl:col-span-1">
+                  {detailsEditing ? <Input value={form.agency || ''} onChange={(e) => updateForm('agency', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.agency || '-'}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={CalendarDays} label="Submission Date">
-                  <Input type="date" value={form.submissionDate || ''} onChange={(e) => updateForm('submissionDate', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                  {detailsEditing ? <Input type="date" value={form.submissionDate || ''} onChange={(e) => updateForm('submissionDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{formatDate(form.submissionDate)}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={CalendarDays} label="Opening Date">
-                  <Input type="date" value={form.openingDate || ''} onChange={(e) => updateForm('openingDate', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                  {detailsEditing ? <Input type="date" value={form.openingDate || ''} onChange={(e) => updateForm('openingDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{formatDate(form.openingDate)}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={LinkIcon} label="Linked Pay Order">
-                  <Input value={form.linkedPO || ''} onChange={(e) => updateForm('linkedPO', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                  <p className="truncate text-sm font-medium leading-5 md:text-base" title={linkedPayOrderDisplay}>
+                    {linkedPayOrderDisplay}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Managed from linked Pay Orders.</p>
                 </DetailRow>
                 <DetailRow icon={CalendarDays} label="Completion Date">
-                  <Input type="date" value={form.completionDate || ''} onChange={(e) => updateForm('completionDate', e.target.value)} disabled={!isAdmin} className={INLINE_INPUT_CLASS} />
+                  {detailsEditing ? <Input type="date" value={form.completionDate || ''} onChange={(e) => updateForm('completionDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{formatDate(form.completionDate)}</DetailValue>}
                 </DetailRow>
               </div>
             </CardContent>
           </Card>
 
       {/* Tabs */}
-        <TabsList className="order-1 flex w-full justify-start gap-6 overflow-x-auto whitespace-nowrap rounded-none border-b bg-transparent px-0 pb-0 [scrollbar-width:none] md:order-2 md:gap-1 md:rounded-md md:border-b-0 md:bg-muted md:p-1 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
+        <TabsList className="order-2 flex h-auto w-full justify-start gap-2 overflow-x-auto whitespace-nowrap rounded-none border-b bg-transparent px-0 pb-0 [scrollbar-width:none] md:gap-2 md:rounded-lg md:border md:bg-muted/40 md:p-1.5 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
           {compactTabs.map(([value, label]) => (
             <TabsTrigger
               key={value}
               value={value}
-              className="rounded-none border-b-2 border-transparent px-1 pb-3 pt-1 text-sm data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:text-base md:rounded-sm md:border-b-0 md:px-3 md:py-1.5 md:text-sm md:data-[state=active]:bg-background"
+              className="h-11 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 text-sm text-muted-foreground data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-400 sm:text-base md:h-9 md:rounded-md md:border-b-0 md:px-4 md:py-2 md:text-sm md:data-[state=active]:bg-emerald-50 md:data-[state=active]:text-emerald-700 md:dark:data-[state=active]:bg-emerald-950/40"
             >
               {label}
             </TabsTrigger>
@@ -841,19 +940,106 @@ export default function TenderDetail() {
             </CardContent>
           </Card>
 
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Receipt className="h-4 w-4" /> Recent Expenses
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {recentExpenses.length === 0 ? (
+                  <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">
+                    No expenses recorded yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {recentExpenses.map((expense) => (
+                      <div key={expense.id} className="rounded-lg border bg-muted/10 p-3 transition-colors hover:bg-muted/20">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                          <div className="min-w-0 flex-1">
+                            <p className="break-words text-sm font-medium leading-5">{expense.description || '-'}</p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <span className="rounded-md bg-background px-2 py-1 text-xs text-muted-foreground ring-1 ring-border">
+                                {formatDate(expense.date)}
+                              </span>
+                              {expense.category && <Badge variant="secondary" className="text-xs">{expense.category}</Badge>}
+                            </div>
+                          </div>
+                          <div className="flex min-w-[120px] flex-col items-start justify-center border-t pt-3 text-left sm:justify-self-end sm:border-l sm:border-t-0 sm:items-end sm:pl-4 sm:pt-0 sm:text-right">
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Amount</p>
+                            <p className="mt-1 whitespace-nowrap font-mono text-base font-semibold tabular-nums text-rose-600 dark:text-rose-400">{formatCurrency(expense.amount)}</p>
+                          </div>
+                        </div>
+                        {expense.note && <p className="mt-2 break-words text-xs text-muted-foreground">{expense.note}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <WalletCards className="h-4 w-4" /> Payment Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="rounded-lg border bg-muted/10 p-3 transition-colors hover:bg-muted/20">
+                    <div className="space-y-3">
+                      <PaymentSummaryRow label="Received" value={formatCurrency(totalReceived)} tone="profit" />
+                      <PaymentSummaryRow label="Receivable" value={formatCurrency(receivable)} tone={receivable > 0 ? 'accent' : 'profit'} />
+                      <PaymentSummaryRow label="Cash Position" value={formatCurrency(cashPosition)} tone={cashPosition >= 0 ? 'profit' : 'loss'} />
+                    </div>
+                    <div className="mt-3 border-t pt-3">
+                      <Progress value={contractValue > 0 ? Math.min(Math.round((totalReceived / contractValue) * 100), 100) : 0} className="h-2" />
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {contractValue > 0 ? `${Math.min(Math.round((totalReceived / contractValue) * 100), 100)}% of contract value received.` : 'Add contract value to calculate collection progress.'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {(bills.length > 0 || raBills.length > 0) && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <FileText className="h-4 w-4" /> Bills / RA Bills Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 pt-0 text-sm">
+                    <SnapshotRow label={`Bills (${paidRegularBills}/${bills.length} paid)`} value={formatCurrency(billPaid)} tone="profit" />
+                    <SnapshotRow label="Bills Outstanding" value={formatCurrency(billTotal - billPaid)} tone={billTotal - billPaid > 0 ? 'accent' : 'profit'} />
+                    <SnapshotRow label={`RA Bills (${paidRaBills}/${raBills.length} paid)`} value={formatCurrency(raBillPaid)} tone="profit" />
+                    <SnapshotRow label="RA Outstanding" value={formatCurrency(raBillTotal - raBillPaid)} tone={raBillTotal - raBillPaid > 0 ? 'accent' : 'profit'} />
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+
           {/* Checklist */}
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <CheckSquare className="h-4 w-4" /> Checklist
                   {checklist.length > 0 && <span className="text-muted-foreground font-normal">{doneCount}/{checklist.length}</span>}
                 </CardTitle>
-                {isAdmin && <Button size="sm" variant="outline" onClick={addChecklistItem}><Plus className="h-3.5 w-3.5" /> Add Item</Button>}
+                <div className="flex items-center gap-2">
+                  {checklistExpanded && isAdmin && <Button size="sm" variant="outline" onClick={addChecklistItem}><Plus className="h-3.5 w-3.5" /> Add Item</Button>}
+                  <Button size="sm" variant="outline" onClick={() => setChecklistExpanded((value) => !value)}>
+                    {checklistExpanded ? 'Hide Checklist' : 'Show Checklist'}
+                  </Button>
+                </div>
               </div>
               {checklist.length > 0 && <Progress value={pct} className="h-1.5 mt-2" />}
             </CardHeader>
-            <CardContent className="space-y-2 pt-0">
+            {checklistExpanded && (
+              <CardContent className="space-y-2 pt-0">
               {checklist.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No checklist items yet.</p>}
               {checklist.map((item) => (
                 <div key={item.id} className="flex items-center gap-3 group">
@@ -876,7 +1062,8 @@ export default function TenderDetail() {
                   )}
                 </div>
               ))}
-            </CardContent>
+              </CardContent>
+            )}
           </Card>
 
           {/* Notes */}
@@ -923,8 +1110,8 @@ export default function TenderDetail() {
                   No BOQ items yet.
                 </p>
               ) : (
-                <div className="overflow-hidden rounded-md border">
-                  <Table className="w-full table-fixed">
+                <div className="overflow-x-auto rounded-md border">
+                  <Table className="min-w-[980px] table-fixed">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[5%] px-2">Item</TableHead>
@@ -1272,6 +1459,42 @@ export default function TenderDetail() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="site-visits" className="order-3 mt-0 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <CalendarDays className="h-4 w-4" /> Site Visits
+                  </CardTitle>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Track daily execution updates, labour, materials, issues, photos, and next-day plans.
+                  </p>
+                </div>
+                <Button size="sm" disabled={!isAdmin}>
+                  <Plus className="h-3.5 w-3.5" /> Add Site Visit
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border border-dashed p-6 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                  <ClipboardList className="h-5 w-5" />
+                </div>
+                <h3 className="mt-3 text-sm font-semibold">No site visits recorded yet.</h3>
+                <p className="mx-auto mt-1 max-w-xl text-sm text-muted-foreground">
+                  Future entries will capture visit date, visit time, location, work completed, labour used, material used, issues or delays, photos, and next-day plan.
+                </p>
+                <div className="mt-5 grid grid-cols-1 gap-2 text-left text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
+                  {['Visit date', 'Visit time', 'Location', 'Work completed', 'Labour used', 'Material used', 'Issues / delays', 'Photos', 'Next-day plan'].map((field) => (
+                    <div key={field} className="rounded-md border bg-muted/20 px-3 py-2">{field}</div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="documents" className="order-3 mt-0 space-y-4">
           <Card>
             <CardHeader className="pb-3">
@@ -1287,9 +1510,70 @@ export default function TenderDetail() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
+              {(form.documents || []).length === 0 ? (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                  {documentCategoryCounts.map(({ category, count }) => (
+                    <div key={category} className="rounded-md border bg-muted/20 p-3">
+                      <p className="text-xs font-medium text-muted-foreground">{category}</p>
+                      <p className="mt-1 font-mono text-lg font-semibold">{count}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {documentCategoryCounts.filter(({ count }) => count > 0).map(({ category, count }) => (
+                    <Badge key={category} variant="secondary" className="gap-1.5">
+                      {category}
+                      <span className="font-mono">{count}</span>
+                    </Badge>
+                  ))}
+                </div>
+              )}
               {(form.documents || []).map((item) => (
-                <div key={item.id} className="rounded-md border p-3">
-                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_0.8fr_1.4fr_auto] lg:items-end">
+                <div key={item.id} className="rounded-md border bg-muted/10 p-3">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{item.title || item.fileName || item.type || 'Untitled document'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.fileName ? `Uploaded file: ${item.fileName}` : item.url ? 'Linked document' : 'Draft document'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        id={`document-upload-${item.id}`}
+                        type="file"
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                        className="sr-only"
+                        disabled={!isAdmin || uploadingDocumentId === item.id}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0]
+                          event.target.value = ''
+                          uploadDocumentFile(item.id, file)
+                        }}
+                      />
+                      {isAdmin && (
+                        <Button variant="outline" size="sm" asChild>
+                          <label htmlFor={`document-upload-${item.id}`} className="cursor-pointer">
+                            {uploadingDocumentId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                            Upload
+                          </label>
+                        </Button>
+                      )}
+                      {item.url && (
+                        <Button variant="outline" size="icon-sm" asChild>
+                          <a href={item.url} target="_blank" rel="noreferrer" aria-label={`Open ${item.title || 'document'}`}>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removeDocument(item.id)} aria-label={`Remove ${item.title || 'document'}`}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.1fr_0.75fr_1.25fr] lg:items-end">
                     <div className="space-y-1.5">
                       <Label>Title</Label>
                       <Input
@@ -1300,13 +1584,15 @@ export default function TenderDetail() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Type</Label>
-                      <Input
-                        value={item.type || ''}
-                        onChange={(e) => updateDocument(item.id, { type: e.target.value })}
-                        disabled={!isAdmin}
-                        placeholder="Document"
-                      />
+                      <Label>Category</Label>
+                      <Select value={item.type || 'Other'} onValueChange={(value) => updateDocument(item.id, { type: value })} disabled={!isAdmin}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {DOCUMENT_CATEGORIES.map((category) => (
+                            <SelectItem key={category} value={category}>{category}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1.5">
                       <Label>URL</Label>
@@ -1316,20 +1602,6 @@ export default function TenderDetail() {
                         disabled={!isAdmin}
                         placeholder="https://..."
                       />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {item.url && (
-                        <Button variant="outline" size="icon" asChild>
-                          <a href={item.url} target="_blank" rel="noreferrer" aria-label={`Open ${item.title || 'document'}`}>
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      )}
-                      {isAdmin && (
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeDocument(item.id)} aria-label={`Remove ${item.title || 'document'}`}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
                     </div>
                   </div>
                   <div className="mt-3 space-y-1.5">
@@ -1345,9 +1617,13 @@ export default function TenderDetail() {
                 </div>
               ))}
               {(form.documents || []).length === 0 && (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  No documents or links added yet.
-                </p>
+                <div className="rounded-lg border border-dashed p-8 text-center">
+                  <FolderOpen className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="mt-3 text-sm font-medium">No documents or links added yet.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Add work orders, BOQs, site photos, material invoices, bills, inspection letters, completion certificates, security refunds, or other project files.
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1386,26 +1662,24 @@ export default function TenderDetail() {
         <aside className="space-y-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-lg">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <TrendingUpIcon /> Project Status
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 md:space-y-3">
-              <div className="grid gap-4 md:block lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-8">
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:block lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-6">
                 <div className="space-y-2">
-                  <div className="flex items-end gap-3">
+                  <div className="flex items-end justify-between gap-3">
                     <span className="text-3xl font-semibold text-emerald-600 dark:text-emerald-400">{dashboardProgress}%</span>
-                    <span className="pb-1 text-sm text-muted-foreground">Overall Progress</span>
+                    {form.status && <StatusBadge status={form.status} />}
                   </div>
                   <Progress value={dashboardProgress} className="h-2" />
-                  <p className="text-sm text-muted-foreground">
-                    {dashboardProgress >= 100 ? 'Work is complete.' : dashboardProgress > 0 ? 'Work is progressing as planned.' : 'Progress has not started.'}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{progressMessage}</p>
                 </div>
-                <div className="space-y-2 border-t pt-3 text-sm md:border-t-0 md:pt-0 lg:border-l lg:pl-8">
+                <div className="space-y-2 border-t pt-3 text-sm md:border-t-0 md:pt-0 lg:border-l lg:pl-6">
                   <SnapshotRow label="Start Date" value={formatDate(form.submissionDate)} />
                   <SnapshotRow label="Estimated Completion" value={formatDate(form.completionDate)} />
-                  <SnapshotRow label="Project Health" value={dashboardProgress >= 75 ? 'On Track' : 'Needs update'} tone={dashboardProgress >= 75 ? 'profit' : 'loss'} />
+                  <SnapshotRow label="Project Health" value={projectHealth} tone={projectHealthTone} />
                 </div>
               </div>
             </CardContent>
@@ -1457,50 +1731,10 @@ export default function TenderDetail() {
         </aside>
       </div>
 
-      <Card className="md:hidden">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Paperclip className="h-5 w-5" /> Documents & Links
-            </CardTitle>
-            {isAdmin && (
-              <Button variant="outline" size="sm" onClick={addDocument} className="text-primary">
-                <Plus className="h-4 w-4" /> Add Document
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {(form.documents || []).length === 0 ? (
-            <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">
-              <FolderOpen className="mx-auto mb-2 h-5 w-5" />
-              No documents or links added yet.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {(form.documents || []).slice(0, 3).map((item) => (
-                <div key={item.id} className="rounded-md border p-3">
-                  <p className="font-medium">{item.title || item.type || 'Document'}</p>
-                  {item.notes && <p className="mt-1 text-sm text-muted-foreground">{item.notes}</p>}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Floating save for mobile */}
-      {isAdmin && dirty && (
+      {isAdmin && (
         <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 p-4 backdrop-blur md:hidden">
-          <Button onClick={save} disabled={saving} size="lg" className="h-14 w-full rounded-xl shadow-lg">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Save Changes
-          </Button>
-        </div>
-      )}
-      {isAdmin && dirty && (
-        <div className="fixed bottom-6 right-6 z-50 hidden md:block">
-          <Button onClick={save} disabled={saving} size="lg" className="shadow-lg">
+          <Button onClick={save} disabled={saving || !dirty} size="lg" className="h-14 w-full rounded-xl bg-emerald-600 text-white shadow-lg hover:bg-emerald-700">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save Changes
           </Button>
@@ -1785,11 +2019,11 @@ function TenderMetric({ icon: Icon, label, value, detail, tone, className = '' }
   )
 }
 
-function DetailRow({ icon: Icon, label, children, note }) {
+function DetailRow({ icon: Icon, label, children, note, className = '' }) {
   return (
-    <div className="grid grid-cols-[116px_minmax(0,1fr)] gap-3 border-b py-2.5 last:border-b-0 sm:grid-cols-[150px_minmax(0,1fr)] md:items-center md:py-3">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
-        <Icon className="h-3.5 w-3.5 flex-shrink-0 sm:h-4 sm:w-4" />
+    <div className={`rounded-md border bg-background px-3 py-2 ${className}`}>
+      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-3.5 w-3.5 flex-shrink-0" />
         <span>{label}</span>
       </div>
       <div className="min-w-0">
@@ -1797,6 +2031,14 @@ function DetailRow({ icon: Icon, label, children, note }) {
         {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
       </div>
     </div>
+  )
+}
+
+function DetailValue({ children }) {
+  return (
+    <p className="whitespace-pre-wrap break-words text-sm font-medium leading-5 md:text-base">
+      {children || '-'}
+    </p>
   )
 }
 
@@ -1821,6 +2063,23 @@ function SnapshotRow({ label, value, tone }) {
     <div className="flex items-center justify-between gap-3">
       <span className="text-muted-foreground">{label}</span>
       <span className={`text-right font-mono font-medium ${toneClass}`}>{value}</span>
+    </div>
+  )
+}
+
+function PaymentSummaryRow({ label, value, tone }) {
+  const toneClass =
+    tone === 'profit'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : tone === 'loss'
+        ? 'text-rose-600 dark:text-rose-400'
+        : tone === 'accent'
+          ? 'text-blue-600 dark:text-blue-400'
+          : 'text-foreground'
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={`text-right font-mono text-base font-semibold tabular-nums ${toneClass}`}>{value}</span>
     </div>
   )
 }
