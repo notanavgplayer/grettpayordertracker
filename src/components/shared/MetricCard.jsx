@@ -33,22 +33,17 @@ export default function MetricCard({
 
   const card = (
     <Card className={cn('transition-colors', href && 'cursor-pointer hover:bg-muted/30', className)}>
-      <div className="flex items-start justify-between gap-2 p-6">
+      <div className="flex items-start justify-between gap-3 p-4 sm:p-6">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             {title}
           </p>
           {typeof value === 'string' && /^Rs\s/i.test(value) ? (
-            <div className="mt-3 leading-none">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Rs
-              </p>
-              <p className="font-display mt-1 text-2xl sm:text-3xl font-semibold tabular-nums text-foreground break-all">
-                {value.replace(/^Rs\s/i, '')}
-              </p>
-            </div>
+            <p className="mt-3 whitespace-nowrap text-[clamp(1.35rem,6vw,1.875rem)] font-semibold leading-none tabular-nums text-foreground">
+              {value}
+            </p>
           ) : (
-            <p className="font-display mt-3 text-3xl font-semibold tabular-nums leading-none text-foreground">
+            <p className="mt-3 whitespace-nowrap text-[clamp(1.35rem,6vw,1.875rem)] font-semibold leading-none tabular-nums text-foreground">
               {value}
             </p>
           )}

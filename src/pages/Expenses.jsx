@@ -121,7 +121,7 @@ export default function Expenses() {
       />
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 gap-4">
         <MetricCard icon={Calendar}   title="This Month"      value={formatCurrency(totalMonth)} delta={`${thisMonthExpenses.length} entries`} deltaPositive={null} />
         <MetricCard icon={TrendingUp} title="All Time Total"  value={formatCurrency(totalAll)}   delta={`${expenses.length} entries`} deltaPositive={null} />
         <MetricCard icon={Tag}        title="Top Category"    value={topCat} mono={false} delta="This month" deltaPositive={null} className="hidden sm:flex" />
