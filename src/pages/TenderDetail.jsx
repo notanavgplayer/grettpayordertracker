@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -25,7 +25,7 @@ import {
   ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, CheckCircle,
   DollarSign, History, User, Receipt, FileText, Printer, Paperclip, ExternalLink,
   Banknote, CalendarDays, ClipboardList, FolderOpen, Landmark, WalletCards,
-  Hash, Link as LinkIcon, Upload,
+  Hash, Link as LinkIcon, Upload, Download, ChevronDown, BarChart3, PieChart,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -107,6 +107,12 @@ export default function TenderDetail() {
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [uploadingDocumentId, setUploadingDocumentId] = useState(null)
   const [checklistExpanded, setChecklistExpanded] = useState(false)
+  const [autoSaving, setAutoSaving] = useState(false)
+  const [autoSaveError, setAutoSaveError] = useState(false)
+  const [boqEditMode, setBoqEditMode] = useState(false)
+  const [editingBoqItemId, setEditingBoqItemId] = useState(null)
+  const autoSaveTimerRef = useRef(null)
+  const autoSavePayloadRef = useRef({})
 
   useEffect(() => {
     const load = async () => {
@@ -124,6 +130,10 @@ export default function TenderDetail() {
     }
     load()
   }, [id, navigate])
+
+  useEffect(() => () => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+  }, [])
 
   useEffect(() => {
     const loadExpenses = async () => {
@@ -319,6 +329,40 @@ export default function TenderDetail() {
   const updateForm = (key, value) => {
     setForm((p) => ({ ...p, [key]: value }))
     setDirty(true)
+  }
+
+  const scheduleAutoSave = (patch) => {
+    if (!isAdmin) return
+    autoSavePayloadRef.current = {
+      ...autoSavePayloadRef.current,
+      ...stripUndefined(patch),
+    }
+    setAutoSaving(true)
+    setAutoSaveError(false)
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(async () => {
+      const payload = autoSavePayloadRef.current
+      autoSavePayloadRef.current = {}
+      try {
+        await updateDoc(doc(db, 'tenders', id), { ...payload, updatedAt: serverTimestamp() })
+        setTender((prev) => prev ? { ...prev, ...payload } : prev)
+      } catch (err) {
+        console.error('Failed to auto-save tender work item:', err)
+        setAutoSaveError(true)
+        setDirty(true)
+        toast.error('Auto-save failed. Try Save Changes before leaving.')
+      } finally {
+        setAutoSaving(false)
+      }
+    }, 700)
+  }
+
+  const updateAutosavedForm = (key, value) => {
+    setForm((prev) => {
+      const nextValue = typeof value === 'function' ? value(prev[key], prev) : value
+      scheduleAutoSave({ [key]: nextValue })
+      return { ...prev, [key]: nextValue }
+    })
   }
 
   const updateTenderStatus = (status) => {
@@ -518,48 +562,48 @@ export default function TenderDetail() {
   // Checklist helpers
   const addChecklistItem = () => {
     const item = { id: uid(), label: '', done: false }
-    updateForm('checklist', [...(form.checklist || []), item])
+    updateAutosavedForm('checklist', (items = []) => [...items, item])
   }
   const updateChecklistItem = (itemId, patch) => {
-    updateForm('checklist', (form.checklist || []).map((c) => c.id === itemId ? { ...c, ...patch } : c))
+    updateAutosavedForm('checklist', (items = []) => items.map((c) => c.id === itemId ? { ...c, ...patch } : c))
   }
   const removeChecklistItem = (itemId) => {
-    updateForm('checklist', (form.checklist || []).filter((c) => c.id !== itemId))
+    updateAutosavedForm('checklist', (items = []) => items.filter((c) => c.id !== itemId))
   }
 
   // Bills helpers
   const addBill = () => {
-    updateForm('bills', [...(form.bills || []), { id: uid(), desc: '', amount: 0, date: '', status: 'Pending' }])
+    updateAutosavedForm('bills', (items = []) => [...items, { id: uid(), desc: '', amount: 0, date: '', status: 'Pending' }])
   }
   const updateBill = (billId, patch) => {
-    updateForm('bills', (form.bills || []).map((b) => b.id === billId ? { ...b, ...patch } : b))
+    updateAutosavedForm('bills', (items = []) => items.map((b) => b.id === billId ? { ...b, ...patch } : b))
   }
   const removeBill = (billId) => {
-    updateForm('bills', (form.bills || []).filter((b) => b.id !== billId))
+    updateAutosavedForm('bills', (items = []) => items.filter((b) => b.id !== billId))
   }
 
   // RA Bills helpers
   const addRABill = () => {
-    updateForm('raBills', [...(form.raBills || []), { id: uid(), no: '', amount: 0, submitted: '', paid: '', status: 'Submitted' }])
+    updateAutosavedForm('raBills', (items = []) => [...items, { id: uid(), no: '', amount: 0, submitted: '', paid: '', status: 'Submitted' }])
   }
   const updateRABill = (billId, patch) => {
-    updateForm('raBills', (form.raBills || []).map((b) => b.id === billId ? { ...b, ...patch } : b))
+    updateAutosavedForm('raBills', (items = []) => items.map((b) => b.id === billId ? { ...b, ...patch } : b))
   }
   const removeRABill = (billId) => {
-    updateForm('raBills', (form.raBills || []).filter((b) => b.id !== billId))
+    updateAutosavedForm('raBills', (items = []) => items.filter((b) => b.id !== billId))
   }
 
   const addDocument = () => {
-    updateForm('documents', [
-      ...(form.documents || []),
+    updateAutosavedForm('documents', (items = []) => [
+      ...items,
       { id: uid(), title: '', type: 'Other', url: '', notes: '', addedAt: new Date().toISOString().slice(0, 10) },
     ])
   }
   const updateDocument = (documentId, patch) => {
-    updateForm('documents', (form.documents || []).map((item) => item.id === documentId ? { ...item, ...patch } : item))
+    updateAutosavedForm('documents', (items = []) => items.map((item) => item.id === documentId ? { ...item, ...patch } : item))
   }
   const removeDocument = (documentId) => {
-    updateForm('documents', (form.documents || []).filter((item) => item.id !== documentId))
+    updateAutosavedForm('documents', (items = []) => items.filter((item) => item.id !== documentId))
   }
   const uploadDocumentFile = async (documentId, file) => {
     if (!file) return
@@ -589,16 +633,19 @@ export default function TenderDetail() {
   }
 
   const addBoqItem = () => {
-    updateForm('boqItems', [
-      ...(form.boqItems || []),
-      { id: uid(), description: '', qty: '', unit: 'Nos', quotedRate: '', actualCost: '' },
+    const newItem = { id: uid(), description: '', qty: '', unit: 'Nos', quotedRate: '', actualCost: '' }
+    updateAutosavedForm('boqItems', (items = []) => [
+      ...items,
+      newItem,
     ])
+    setBoqEditMode(true)
+    setEditingBoqItemId(newItem.id)
   }
   const updateBoqItem = (itemId, patch) => {
-    updateForm('boqItems', (form.boqItems || []).map((item) => item.id === itemId ? { ...item, ...patch } : item))
+    updateAutosavedForm('boqItems', (items = []) => items.map((item) => item.id === itemId ? { ...item, ...patch } : item))
   }
   const removeBoqItem = (itemId) => {
-    updateForm('boqItems', (form.boqItems || []).filter((item) => item.id !== itemId))
+    updateAutosavedForm('boqItems', (items = []) => items.filter((item) => item.id !== itemId))
   }
 
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
@@ -631,6 +678,7 @@ export default function TenderDetail() {
     }
   }, { quotedAmount: 0, actualCost: 0, profitLoss: 0 })
   const boqExpectedProfit = boqItems.length > 0 ? boqTotals.profitLoss : expectedProfit
+  const boqProfitMargin = boqTotals.quotedAmount > 0 ? Math.round((boqTotals.profitLoss / boqTotals.quotedAmount) * 100) : 0
   const savedProgress = Number(form.progress ?? form.progressPercent ?? form.workProgress) || 0
   const dashboardProgress = form.status === 'Completed' ? 100 : Math.max(0, Math.min(savedProgress, 99))
   const progressMessage = {
@@ -776,6 +824,8 @@ export default function TenderDetail() {
               <span className="font-mono">{form.nit || 'No NIT / Reference'}</span>
               {form.status && <StatusBadge status={form.status} />}
               {dirty && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">Unsaved changes</span>}
+              {autoSaving && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">Auto-saving</span>}
+              {autoSaveError && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">Auto-save failed</span>}
             </div>
           </div>
         </div>
@@ -1070,7 +1120,7 @@ export default function TenderDetail() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Notes</CardTitle></CardHeader>
             <CardContent>
-              <Textarea value={form.notes || ''} onChange={(e) => updateForm('notes', e.target.value)} disabled={!isAdmin} rows={4} placeholder="Add notes about this tender…" />
+              <Textarea value={form.notes || ''} onChange={(e) => updateAutosavedForm('notes', e.target.value)} disabled={!isAdmin} rows={4} placeholder="Add notes about this tender…" />
             </CardContent>
           </Card>
 
@@ -1094,36 +1144,169 @@ export default function TenderDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="boq" className="order-3 mt-0">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-3">
-              <CardTitle>BOQ / Profit Tracking</CardTitle>
-              {isAdmin && (
-                <Button size="sm" onClick={addBoqItem}>
-                  <Plus className="h-4 w-4" /> Add Item
+        <TabsContent value="boq" className="order-3 mt-0 space-y-5">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight">BOQ / Profit Tracking</h2>
+            <div className="mt-2 h-1 w-10 rounded-full bg-emerald-600" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+            <BoqMetric icon={FileText} label="Quoted Total" value={formatCurrency(boqTotals.quotedAmount)} tone="emerald" />
+            <BoqMetric icon={WalletCards} label="Actual Cost" value={formatCurrency(boqTotals.actualCost)} tone="orange" />
+            <BoqMetric icon={BarChart3} label="Expected Profit" value={formatCurrency(boqTotals.profitLoss)} tone="blue" />
+            <BoqMetric icon={PieChart} label="Profit Margin" value={`${boqProfitMargin}%`} tone="violet" />
+          </div>
+
+          <Card className="shadow-sm">
+            <CardContent className="space-y-5 p-4 md:p-5">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-11 w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/30 sm:h-9 sm:w-auto"
+                    onClick={() => {
+                      const nextMode = !boqEditMode
+                      setBoqEditMode(nextMode)
+                      setEditingBoqItemId(null)
+                    }}
+                    disabled={boqItems.length === 0}
+                  >
+                    <Pencil className="h-4 w-4" /> {boqEditMode ? 'Done Editing' : 'Edit BOQ'}
+                  </Button>
+                )}
+                {isAdmin && (
+                  <Button size="sm" className="h-11 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:h-9 sm:w-auto" onClick={addBoqItem}>
+                    <Plus className="h-4 w-4" /> Add Item
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" className="col-span-2 h-11 w-full sm:col-span-1 sm:h-9 sm:w-auto" onClick={() => window.print()}>
+                  <Download className="h-4 w-4" /> Export <ChevronDown className="h-3.5 w-3.5" />
                 </Button>
-              )}
-            </CardHeader>
-            <CardContent>
+              </div>
+
               {boqItems.length === 0 ? (
                 <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">
                   No BOQ items yet.
                 </p>
               ) : (
-                <div className="overflow-x-auto rounded-md border">
-                  <Table className="min-w-[980px] table-fixed">
+                <>
+                <div className="space-y-3 pb-28 md:hidden">
+                  {boqItems.map((item, index) => {
+                    const quotedAmount = (Number(item.qty) || 0) * (Number(item.quotedRate) || 0)
+                    const actualCost = Number(item.actualCost) || 0
+                    const profitLoss = quotedAmount - actualCost
+                    const isEditing = editingBoqItemId === item.id
+                    return (
+                      <div key={item.id} className="rounded-lg border bg-card p-4 shadow-sm">
+                        <div className="flex items-start gap-3">
+                          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 font-mono text-base font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            {isEditing ? (
+                              <AutoResizeTextarea
+                                value={item.description || ''}
+                                onChange={(e) => updateBoqItem(item.id, { description: e.target.value })}
+                                disabled={!isAdmin}
+                                placeholder="Item description"
+                                minRows={2}
+                                className="px-2 py-1.5 leading-5"
+                              />
+                            ) : (
+                              <button
+                                type="button"
+                                className={`w-full text-left text-base leading-6 ${item.description ? '' : 'text-muted-foreground'}`}
+                                onClick={() => boqEditMode && isAdmin && setEditingBoqItemId(item.id)}
+                                disabled={!isAdmin || !boqEditMode}
+                              >
+                                {item.description || 'Add item description'}
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            {isAdmin && boqEditMode && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="h-8 w-8 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700"
+                                  onClick={() => setEditingBoqItemId(isEditing ? null : item.id)}
+                                  aria-label={`${isEditing ? 'Finish editing' : 'Edit'} BOQ item ${index + 1}`}
+                                >
+                                  {isEditing ? <CheckCircle className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="h-8 w-8 text-muted-foreground hover:bg-rose-50 hover:text-destructive"
+                                  onClick={() => removeBoqItem(item.id)}
+                                  aria-label={`Remove BOQ item ${index + 1}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            {!boqEditMode && <ChevronDown className="mt-1 h-5 w-5 text-foreground" />}
+                          </div>
+                        </div>
+                        <div className="mt-4 border-t pt-4">
+                          <div className="grid grid-cols-3 gap-x-3 gap-y-3">
+                            <MobileBoqField
+                              label="Qty"
+                              value={isEditing ? item.qty ?? '' : formatPlainNumber(item.qty)}
+                              editing={isEditing}
+                              onChange={(value) => updateBoqItem(item.id, { qty: value })}
+                              inputMode="decimal"
+                            />
+                            <MobileBoqField
+                              label="Unit"
+                              value={isEditing ? item.unit || '' : item.unit || '-'}
+                              editing={isEditing}
+                              onChange={(value) => updateBoqItem(item.id, { unit: value })}
+                            />
+                            <MobileBoqField
+                              label="Rate"
+                              value={isEditing ? item.quotedRate === 0 ? '' : item.quotedRate ?? '' : formatCurrency(Number(item.quotedRate) || 0)}
+                              editing={isEditing}
+                              onChange={(value) => updateBoqItem(item.id, { quotedRate: value })}
+                              inputMode="decimal"
+                            />
+                            <MobileBoqStat label="Quoted Amount" value={formatCurrency(quotedAmount)} />
+                            <MobileBoqField
+                              label="Actual Cost"
+                              value={isEditing ? item.actualCost === 0 ? '' : item.actualCost ?? '' : formatCurrency(actualCost)}
+                              editing={isEditing}
+                              onChange={(value) => updateBoqItem(item.id, { actualCost: value })}
+                              inputMode="decimal"
+                            />
+                            <MobileBoqStat label="Profit / Loss" value={formatCurrency(profitLoss)} tone={profitLoss < 0 ? 'loss' : 'profit'} />
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div className="sticky bottom-20 z-20 rounded-2xl border bg-background/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <MobileBoqStat label="Total Quoted Amount" value={formatCurrency(boqTotals.quotedAmount)} tone="profit" large />
+                      <MobileBoqStat label="Actual Cost" value={formatCurrency(boqTotals.actualCost)} tone="loss" large />
+                      <MobileBoqStat label="Profit / Loss" value={formatCurrency(boqTotals.profitLoss)} tone={boqTotals.profitLoss < 0 ? 'loss' : 'profit'} large />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="hidden overflow-x-auto rounded-lg border md:block">
+                  <Table className="min-w-[1080px] table-fixed">
                     <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[5%] px-2">Item</TableHead>
-                        <TableHead className="w-[22%] px-2">Description</TableHead>
-                        <TableHead className="w-[8%] px-2">Qty</TableHead>
-                        <TableHead className="w-[8%] px-2">Unit</TableHead>
-                        <TableHead className="w-[11%] px-2">Quoted Rate</TableHead>
-                        <TableHead className="w-[12%] px-2">Quoted Amount</TableHead>
-                        <TableHead className="w-[11%] px-2">Actual Cost</TableHead>
-                        <TableHead className="w-[11%] px-2">Profit / Loss</TableHead>
-                        <TableHead className="w-[8%] px-2">Status</TableHead>
-                        {isAdmin && <TableHead className="w-[4%] px-1" />}
+                      <TableRow className="border-emerald-100 bg-emerald-50/70 hover:bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/20">
+                        <TableHead className="w-[5%] px-2 font-semibold text-emerald-900 dark:text-emerald-200">Item</TableHead>
+                        <TableHead className="w-[36%] px-2 font-semibold text-emerald-900 dark:text-emerald-200">Description</TableHead>
+                        <TableHead className="w-[7%] px-2 text-right font-semibold text-emerald-900 dark:text-emerald-200">Qty</TableHead>
+                        <TableHead className="w-[7%] px-2 font-semibold text-emerald-900 dark:text-emerald-200">Unit</TableHead>
+                        <TableHead className="w-[11%] px-2 text-right font-semibold text-emerald-900 dark:text-emerald-200">Rate</TableHead>
+                        <TableHead className="w-[12%] px-2 text-right font-semibold text-emerald-900 dark:text-emerald-200">Quoted Amount</TableHead>
+                        <TableHead className="w-[11%] px-2 text-right font-semibold text-emerald-900 dark:text-emerald-200">Actual Cost</TableHead>
+                        <TableHead className="w-[11%] px-2 text-right font-semibold text-emerald-900 dark:text-emerald-200">Profit / Loss</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1131,53 +1314,112 @@ export default function TenderDetail() {
                         const quotedAmount = (Number(item.qty) || 0) * (Number(item.quotedRate) || 0)
                         const actualCost = Number(item.actualCost) || 0
                         const profitLoss = quotedAmount - actualCost
-                        const hasValues = quotedAmount > 0 || actualCost > 0
+                        const isEditing = editingBoqItemId === item.id
                         return (
-                          <TableRow key={item.id}>
-                            <TableCell className="px-2 text-center font-mono">{index + 1}</TableCell>
-                            <TableCell className="px-2">
-                              <Input value={item.description || ''} onChange={(e) => updateBoqItem(item.id, { description: e.target.value })} disabled={!isAdmin} placeholder="Item description" className="h-8 px-2" />
+                          <TableRow key={item.id} className={`group hover:bg-muted/20 ${isEditing ? 'bg-muted/20' : ''}`}>
+                            <TableCell className="!px-2 !py-2 align-middle">
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="pt-1 font-mono text-sm">{index + 1}</span>
+                                {isAdmin && boqEditMode && (
+                                  <div className="flex flex-col gap-0.5">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      className="h-6 w-6 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30"
+                                      onClick={() => setEditingBoqItemId(isEditing ? null : item.id)}
+                                      aria-label={`${isEditing ? 'Finish editing' : 'Edit'} BOQ item ${index + 1}`}
+                                      title={isEditing ? 'Done' : 'Edit item'}
+                                    >
+                                      {isEditing ? <CheckCircle className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      className="h-6 w-6 text-muted-foreground hover:bg-rose-50 hover:text-destructive dark:hover:bg-rose-950/30"
+                                      onClick={() => removeBoqItem(item.id)}
+                                      aria-label={`Remove BOQ item ${index + 1}`}
+                                      title="Remove item"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                             </TableCell>
-                            <TableCell className="px-2">
-                              <Input type="text" inputMode="decimal" value={item.qty ?? ''} onChange={(e) => updateBoqItem(item.id, { qty: e.target.value })} disabled={!isAdmin} className="h-8 px-2" />
+                            <TableCell className="!px-2 !py-2 align-top">
+                              {isEditing ? (
+                                <AutoResizeTextarea
+                                  value={item.description || ''}
+                                  onChange={(e) => updateBoqItem(item.id, { description: e.target.value })}
+                                  disabled={!isAdmin}
+                                  placeholder="Item description"
+                                  minRows={2}
+                                  className="px-2 py-1.5 leading-5"
+                                />
+                              ) : (
+                                <div
+                                  className={`rounded-md px-2 py-1 text-sm leading-5 ${boqEditMode && isAdmin ? 'cursor-pointer transition-colors hover:bg-muted/40' : ''}`}
+                                  onClick={() => boqEditMode && isAdmin && setEditingBoqItemId(item.id)}
+                                >
+                                  <span className={`block whitespace-pre-wrap break-words ${item.description ? '' : 'text-muted-foreground'}`}>
+                                    {item.description || 'Add item description'}
+                                  </span>
+                                </div>
+                              )}
                             </TableCell>
-                            <TableCell className="px-2">
-                              <Input value={item.unit || ''} onChange={(e) => updateBoqItem(item.id, { unit: e.target.value })} disabled={!isAdmin} className="h-8 px-2" />
+                            <TableCell className="!px-2 !py-2 align-middle text-right">
+                              {isEditing ? (
+                                <Input type="text" inputMode="decimal" value={item.qty ?? ''} onChange={(e) => updateBoqItem(item.id, { qty: e.target.value })} disabled={!isAdmin} className="h-8 px-2 text-right" />
+                              ) : (
+                                <button type="button" className={`w-full rounded-md px-2 py-1 text-right font-mono text-sm tabular-nums ${boqEditMode && isAdmin ? 'transition-colors hover:bg-muted/40' : ''}`} onClick={() => boqEditMode && isAdmin && setEditingBoqItemId(item.id)} disabled={!isAdmin || !boqEditMode}>
+                                  {formatPlainNumber(item.qty)}
+                                </button>
+                              )}
                             </TableCell>
-                            <TableCell className="px-2">
-                              <Input type="text" inputMode="decimal" value={item.quotedRate === 0 ? '' : item.quotedRate ?? ''} onChange={(e) => updateBoqItem(item.id, { quotedRate: e.target.value })} disabled={!isAdmin} className="h-8 px-2" />
+                            <TableCell className="!px-2 !py-2 align-middle">
+                              {isEditing ? (
+                                <Input value={item.unit || ''} onChange={(e) => updateBoqItem(item.id, { unit: e.target.value })} disabled={!isAdmin} className="h-8 px-2" />
+                              ) : (
+                                <button type="button" className={`w-full rounded-md px-2 py-1 text-left text-sm ${boqEditMode && isAdmin ? 'transition-colors hover:bg-muted/40' : ''}`} onClick={() => boqEditMode && isAdmin && setEditingBoqItemId(item.id)} disabled={!isAdmin || !boqEditMode}>
+                                  {item.unit || '-'}
+                                </button>
+                              )}
                             </TableCell>
-                            <TableCell className="px-2 font-mono text-sm">{formatCurrency(quotedAmount)}</TableCell>
-                            <TableCell className="px-2">
-                              <Input type="text" inputMode="decimal" value={item.actualCost === 0 ? '' : item.actualCost ?? ''} onChange={(e) => updateBoqItem(item.id, { actualCost: e.target.value })} disabled={!isAdmin} className="h-8 px-2" />
+                            <TableCell className="!px-2 !py-2 align-middle text-right">
+                              {isEditing ? (
+                                <Input type="text" inputMode="decimal" value={item.quotedRate === 0 ? '' : item.quotedRate ?? ''} onChange={(e) => updateBoqItem(item.id, { quotedRate: e.target.value })} disabled={!isAdmin} className="h-8 px-2 text-right" />
+                              ) : (
+                                <button type="button" className={`w-full rounded-md px-2 py-1 text-right font-mono text-sm tabular-nums ${boqEditMode && isAdmin ? 'transition-colors hover:bg-muted/40' : ''}`} onClick={() => boqEditMode && isAdmin && setEditingBoqItemId(item.id)} disabled={!isAdmin || !boqEditMode}>
+                                  {formatPlainNumber(item.quotedRate)}
+                                </button>
+                              )}
                             </TableCell>
-                            <TableCell className={`px-2 font-mono text-sm ${profitLoss < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                            <TableCell className="!px-2 !py-3 text-right align-middle font-mono text-sm tabular-nums">{formatCurrency(quotedAmount)}</TableCell>
+                            <TableCell className="!px-2 !py-2 align-middle text-right">
+                              {isEditing ? (
+                                <Input type="text" inputMode="decimal" value={item.actualCost === 0 ? '' : item.actualCost ?? ''} onChange={(e) => updateBoqItem(item.id, { actualCost: e.target.value })} disabled={!isAdmin} className="h-8 px-2 text-right" />
+                              ) : (
+                                <button type="button" className={`w-full rounded-md px-2 py-1 text-right font-mono text-sm tabular-nums ${boqEditMode && isAdmin ? 'transition-colors hover:bg-muted/40' : ''}`} onClick={() => boqEditMode && isAdmin && setEditingBoqItemId(item.id)} disabled={!isAdmin || !boqEditMode}>
+                                  {formatCurrency(actualCost)}
+                                </button>
+                              )}
+                            </TableCell>
+                            <TableCell className={`!px-2 !py-3 text-right align-middle font-mono text-sm tabular-nums ${profitLoss < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                               {formatCurrency(profitLoss)}
                             </TableCell>
-                            <TableCell className="px-2">
-                              {hasValues ? <StatusBadge status={profitLoss >= 0 ? 'Profitable' : 'Loss'} /> : <span className="text-muted-foreground">-</span>}
-                            </TableCell>
-                            {isAdmin && (
-                              <TableCell className="px-1">
-                                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removeBoqItem(item.id)}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            )}
                           </TableRow>
                         )
                       })}
-                      <TableRow className="font-semibold">
-                        <TableCell colSpan={5} className="px-2 text-right">Total</TableCell>
-                        <TableCell className="px-2 font-mono">{formatCurrency(boqTotals.quotedAmount)}</TableCell>
-                        <TableCell className="px-2 font-mono">{formatCurrency(boqTotals.actualCost)}</TableCell>
-                        <TableCell className={`px-2 font-mono ${boqTotals.profitLoss < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{formatCurrency(boqTotals.profitLoss)}</TableCell>
-                        <TableCell className="px-2">-</TableCell>
-                        {isAdmin && <TableCell className="px-1" />}
+                      <TableRow className="bg-emerald-50/60 font-semibold hover:bg-emerald-50/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/20">
+                        <TableCell colSpan={5} className="px-2 py-4 text-right">Total</TableCell>
+                        <TableCell className="px-2 py-4 text-right font-mono tabular-nums">{formatCurrency(boqTotals.quotedAmount)}</TableCell>
+                        <TableCell className="px-2 py-4 text-right font-mono tabular-nums">{formatCurrency(boqTotals.actualCost)}</TableCell>
+                        <TableCell className={`px-2 py-4 text-right font-mono tabular-nums ${boqTotals.profitLoss < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{formatCurrency(boqTotals.profitLoss)}</TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
                 </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -1639,7 +1881,7 @@ export default function TenderDetail() {
                   <Label className="capitalize">{field}</Label>
                   <Input
                     value={(form.contactPerson || {})[field] || ''}
-                    onChange={(e) => updateForm('contactPerson', { ...(form.contactPerson || {}), [field]: e.target.value })}
+                    onChange={(e) => updateAutosavedForm('contactPerson', { ...(form.contactPerson || {}), [field]: e.target.value })}
                     disabled={!isAdmin}
                   />
                 </div>
@@ -1648,7 +1890,7 @@ export default function TenderDetail() {
                 <Label>Notes</Label>
                 <Textarea
                   value={(form.contactPerson || {}).notes || ''}
-                  onChange={(e) => updateForm('contactPerson', { ...(form.contactPerson || {}), notes: e.target.value })}
+                  onChange={(e) => updateAutosavedForm('contactPerson', { ...(form.contactPerson || {}), notes: e.target.value })}
                   disabled={!isAdmin}
                   rows={3}
                 />
@@ -2019,6 +2261,82 @@ function TenderMetric({ icon: Icon, label, value, detail, tone, className = '' }
   )
 }
 
+function BoqMetric({ icon: Icon, label, value, tone }) {
+  const toneClasses = {
+    emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400',
+    orange: 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400',
+    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400',
+    violet: 'bg-violet-50 text-violet-600 dark:bg-violet-950/30 dark:text-violet-400',
+  }
+  const valueClasses = {
+    emerald: 'text-emerald-700 dark:text-emerald-300',
+    orange: 'text-orange-600 dark:text-orange-300',
+    blue: 'text-emerald-700 dark:text-emerald-300',
+    violet: 'text-violet-700 dark:text-violet-300',
+  }
+
+  return (
+    <Card className="shadow-sm">
+      <CardContent className="flex min-h-[88px] items-center gap-3 p-4">
+        <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full ${toneClasses[tone] || toneClasses.emerald}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className={`mt-0.5 whitespace-nowrap font-mono text-xl font-semibold tabular-nums ${valueClasses[tone] || valueClasses.emerald}`}>
+            {value}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function MobileBoqField({ label, value, editing, onChange, inputMode = 'text' }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      {editing ? (
+        <Input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          inputMode={inputMode}
+          className="mt-1 h-9 px-2 text-base"
+        />
+      ) : (
+        <p className="mt-1 break-words font-mono text-base leading-5 tabular-nums text-foreground">{value || '-'}</p>
+      )}
+    </div>
+  )
+}
+
+function MobileBoqStat({ label, value, tone, large = false }) {
+  const toneClass =
+    tone === 'profit'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : tone === 'loss'
+        ? 'text-orange-600 dark:text-orange-400'
+        : 'text-foreground'
+  return (
+    <div className="min-w-0">
+      <p className={`${large ? 'text-sm font-medium text-foreground' : 'text-sm text-muted-foreground'}`}>{label}</p>
+      <p className={`mt-1 break-words font-mono ${large ? 'text-lg font-semibold' : 'text-base'} leading-5 tabular-nums ${toneClass}`}>
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function formatPlainNumber(value) {
+  if (value === '' || value === null || value === undefined) return '-'
+  const numericValue = Number(value)
+  if (!Number.isFinite(numericValue)) return String(value)
+  return numericValue.toLocaleString('en-US', {
+    minimumFractionDigits: numericValue % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  })
+}
+
 function DetailRow({ icon: Icon, label, children, note, className = '' }) {
   return (
     <div className={`rounded-md border bg-background px-3 py-2 ${className}`}>
@@ -2039,6 +2357,30 @@ function DetailValue({ children }) {
     <p className="whitespace-pre-wrap break-words text-sm font-medium leading-5 md:text-base">
       {children || '-'}
     </p>
+  )
+}
+
+function AutoResizeTextarea({ value, minRows = 1, className = '', ...props }) {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+    const lineHeight = Number.parseFloat(window.getComputedStyle(node).lineHeight) || 20
+    const verticalPadding = node.offsetHeight - node.clientHeight
+    const minHeight = (lineHeight * minRows) + verticalPadding
+    node.style.height = 'auto'
+    node.style.height = `${Math.max(node.scrollHeight, minHeight)}px`
+  }, [value, minRows])
+
+  return (
+    <Textarea
+      ref={ref}
+      value={value}
+      rows={minRows}
+      className={`resize-none overflow-hidden ${className}`}
+      {...props}
+    />
   )
 }
 
