@@ -1251,7 +1251,7 @@ export default function TenderDetail() {
                           </div>
                         </div>
                         <div className="mt-4 border-t pt-4">
-                          <div className="grid grid-cols-3 gap-x-3 gap-y-3">
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-3 min-[420px]:grid-cols-3">
                             <MobileBoqField
                               label="Qty"
                               value={isEditing ? item.qty ?? '' : formatPlainNumber(item.qty)}
@@ -1286,8 +1286,8 @@ export default function TenderDetail() {
                       </div>
                     )
                   })}
-                  <div className="sticky bottom-20 z-20 rounded-2xl border bg-background/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
-                    <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="sticky bottom-20 z-20 rounded-2xl border border-emerald-200 bg-emerald-50/95 p-3 shadow-lg shadow-emerald-900/10 ring-1 ring-emerald-100 backdrop-blur supports-[backdrop-filter]:bg-emerald-50/85 dark:border-emerald-800/70 dark:bg-emerald-950/80 dark:ring-emerald-800/50 min-[420px]:p-4">
+                    <div className="grid grid-cols-3 gap-1.5 text-center min-[420px]:gap-2">
                       <MobileBoqStat label="Total Quoted Amount" value={formatCurrency(boqTotals.quotedAmount)} tone="profit" large />
                       <MobileBoqStat label="Actual Cost" value={formatCurrency(boqTotals.actualCost)} tone="loss" large />
                       <MobileBoqStat label="Profit / Loss" value={formatCurrency(boqTotals.profitLoss)} tone={boqTotals.profitLoss < 0 ? 'loss' : 'profit'} large />
@@ -2277,13 +2277,13 @@ function BoqMetric({ icon: Icon, label, value, tone }) {
 
   return (
     <Card className="shadow-sm">
-      <CardContent className="flex min-h-[88px] items-center gap-3 p-4">
-        <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full ${toneClasses[tone] || toneClasses.emerald}`}>
-          <Icon className="h-5 w-5" />
+      <CardContent className="flex min-h-[82px] items-center gap-2 p-3 sm:min-h-[88px] sm:gap-3 sm:p-4">
+        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full sm:h-11 sm:w-11 ${toneClasses[tone] || toneClasses.emerald}`}>
+          <Icon className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className={`mt-0.5 whitespace-nowrap font-mono text-xl font-semibold tabular-nums ${valueClasses[tone] || valueClasses.emerald}`}>
+          <p className="text-xs text-muted-foreground sm:text-sm">{label}</p>
+          <p className={`mt-0.5 whitespace-normal break-words font-mono text-base font-semibold leading-5 tabular-nums [overflow-wrap:anywhere] sm:text-xl sm:leading-6 ${valueClasses[tone] || valueClasses.emerald}`}>
             {value}
           </p>
         </div>
@@ -2319,8 +2319,8 @@ function MobileBoqStat({ label, value, tone, large = false }) {
         : 'text-foreground'
   return (
     <div className="min-w-0">
-      <p className={`${large ? 'text-sm font-medium text-foreground' : 'text-sm text-muted-foreground'}`}>{label}</p>
-      <p className={`mt-1 break-words font-mono ${large ? 'text-lg font-semibold' : 'text-base'} leading-5 tabular-nums ${toneClass}`}>
+      <p className={`${large ? 'text-xs font-medium text-foreground sm:text-sm' : 'text-sm text-muted-foreground'}`}>{label}</p>
+      <p className={`mt-1 break-words font-mono ${large ? 'text-sm font-semibold sm:text-lg' : 'text-base'} leading-5 tabular-nums [overflow-wrap:anywhere] ${toneClass}`}>
         {value}
       </p>
     </div>
