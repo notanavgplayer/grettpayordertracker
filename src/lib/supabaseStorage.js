@@ -2,7 +2,19 @@ function cleanEnv(value) {
   return String(value || '').trim().replace(/^["']|["']$/g, '')
 }
 
-const SUPABASE_URL = cleanEnv(import.meta.env.VITE_SUPABASE_URL).replace(/\/+$/, '')
+function normalizeSupabaseUrl(value) {
+  const cleaned = cleanEnv(value).replace(/\/+$/, '')
+  if (!cleaned) return ''
+
+  try {
+    const url = new URL(cleaned)
+    return url.hostname.endsWith('.supabase.co') ? url.origin : cleaned
+  } catch {
+    return cleaned
+  }
+}
+
+const SUPABASE_URL = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL)
 const SUPABASE_ANON_KEY = cleanEnv(import.meta.env.VITE_SUPABASE_ANON_KEY)
 const SUPABASE_BUCKET = cleanEnv(import.meta.env.VITE_SUPABASE_STORAGE_BUCKET) || 'tender-documents'
 
@@ -30,7 +42,7 @@ export function uploadTenderDocument({ tenderId, documentId, file, onProgress })
     return Promise.reject(new Error('Supabase Storage is not configured. Add VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, and VITE_SUPABASE_STORAGE_BUCKET.'))
   }
   if (!/^https:\/\/[^/]+\.supabase\.co$/.test(SUPABASE_URL)) {
-    return Promise.reject(new Error('VITE_SUPABASE_URL must look like https://your-project-ref.supabase.co. Do not include quotes in Netlify.'))
+    return Promise.reject(new Error('VITE_SUPABASE_URL must be the project URL, for example https://your-project-ref.supabase.co. Do not use the REST endpoint.'))
   }
   if (file.size > MAX_UPLOAD_SIZE) {
     return Promise.reject(new Error('File is too large. Maximum upload size is 25 MB.'))
