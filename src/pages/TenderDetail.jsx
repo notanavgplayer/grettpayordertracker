@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '@/lib/firebase'
+import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
+import { getSupabaseStorageBucket, uploadTenderDocument } from '@/lib/supabaseStorage'
 import { formatDate, formatCurrency, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -106,6 +106,7 @@ export default function TenderDetail() {
   const [completing, setCompleting] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [uploadingDocumentId, setUploadingDocumentId] = useState(null)
+  const [documentUploadProgress, setDocumentUploadProgress] = useState({})
   const [checklistExpanded, setChecklistExpanded] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
   const [autoSaveError, setAutoSaveError] = useState(false)
@@ -605,30 +606,41 @@ export default function TenderDetail() {
   const removeDocument = (documentId) => {
     updateAutosavedForm('documents', (items = []) => items.filter((item) => item.id !== documentId))
   }
+
   const uploadDocumentFile = async (documentId, file) => {
     if (!file) return
     setUploadingDocumentId(documentId)
+    setDocumentUploadProgress((prev) => ({ ...prev, [documentId]: 0 }))
     try {
-      const safeName = file.name.replace(/[^\w.\-]+/g, '_')
-      const storagePath = `tender-documents/${id}/${documentId}/${Date.now()}-${safeName}`
-      const storageRef = ref(storage, storagePath)
-      await uploadBytes(storageRef, file, { contentType: file.type || undefined })
-      const url = await getDownloadURL(storageRef)
+      const uploaded = await uploadTenderDocument({
+        tenderId: id,
+        documentId,
+        file,
+        onProgress: (progress) => setDocumentUploadProgress((prev) => ({ ...prev, [documentId]: progress })),
+      })
       updateDocument(documentId, {
         title: (form.documents || []).find((item) => item.id === documentId)?.title || file.name,
-        url,
+        url: uploaded.url,
         fileName: file.name,
         fileType: file.type || '',
         fileSize: file.size,
-        storagePath,
+        storageProvider: 'supabase',
+        storageBucket: uploaded.bucket,
+        storagePath: uploaded.path,
         uploadedAt: new Date().toISOString().slice(0, 10),
       })
-      toast.success('File attached. Save changes to keep it on this tender.')
+      toast.success('File uploaded and attached.')
     } catch (err) {
       console.error('Failed to upload document:', err)
-      toast.error(`Failed to upload file: ${err?.code || err?.message || 'Unknown error'}`)
+      const message = err?.message || err?.code || 'Unknown error'
+      toast.error(`Failed to upload file: ${message}`)
     } finally {
       setUploadingDocumentId(null)
+      setDocumentUploadProgress((prev) => {
+        const next = { ...prev }
+        delete next[documentId]
+        return next
+      })
     }
   }
 
@@ -1777,7 +1789,7 @@ export default function TenderDetail() {
                     <div className="min-w-0">
                       <p className="truncate font-medium">{item.title || item.fileName || item.type || 'Untitled document'}</p>
                       <p className="text-xs text-muted-foreground">
-                        {item.fileName ? `Uploaded file: ${item.fileName}` : item.url ? 'Linked document' : 'Draft document'}
+                        {item.fileName ? `Uploaded file: ${item.fileName}` : item.url ? 'Linked document' : `Draft document · Supabase bucket: ${getSupabaseStorageBucket()}`}
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -1797,7 +1809,9 @@ export default function TenderDetail() {
                         <Button variant="outline" size="sm" asChild>
                           <label htmlFor={`document-upload-${item.id}`} className="cursor-pointer">
                             {uploadingDocumentId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                            Upload
+                            {uploadingDocumentId === item.id
+                              ? `Uploading ${documentUploadProgress[item.id] ?? 0}%`
+                              : 'Upload'}
                           </label>
                         </Button>
                       )}
