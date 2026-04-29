@@ -131,7 +131,7 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
             </DialogClose>
           </div>
           <div className="space-y-4">
-            <DialogTitle className="break-words text-[27px] font-bold leading-[1.18] tracking-normal text-slate-950 sm:line-clamp-2 sm:text-2xl">
+            <DialogTitle className="line-clamp-3 break-words text-[22px] font-bold leading-[1.22] tracking-normal text-slate-950 sm:line-clamp-2 sm:text-2xl">
               {title}
             </DialogTitle>
             <DialogDescription className="sr-only">
