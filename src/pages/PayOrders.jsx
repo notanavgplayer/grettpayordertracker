@@ -18,11 +18,9 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { logActivity } from "@/lib/activity";
-import PageHeader from "@/components/shared/PageHeader";
 import StatusBadge from "@/components/shared/StatusBadge";
 import EmptyState from "@/components/shared/EmptyState";
 import ConfirmDelete from "@/components/shared/ConfirmDelete";
-import MetricCard from "@/components/shared/MetricCard";
 import PayOrderQuickView from "@/components/shared/PayOrderQuickView";
 import { PageTableSkeleton } from "@/components/shared/LoadingSkeletons";
 import { Button } from "@/components/ui/button";
@@ -30,7 +28,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -80,24 +77,23 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
   CartesianGrid,
+  LabelList,
 } from "recharts";
-import ChartTooltip, {
-  AXIS_TICK,
-  CHART_SEMANTIC,
-} from "@/components/shared/ChartTooltip";
+import ChartTooltip, { CHART_SEMANTIC } from "@/components/shared/ChartTooltip";
 import {
   Plus,
   FileText,
   Download,
   Printer,
   Search,
+  Filter,
   Pencil,
   Trash2,
   Loader2,
-  TrendingUp,
-  DollarSign,
+  Banknote,
+  Building2,
+  BarChart3,
   AlertCircle,
   CheckCircle,
   MoreHorizontal,
@@ -143,6 +139,57 @@ function cleanPayOrderPayload(data) {
     if (data[key] !== undefined) payload[key] = data[key];
     return payload;
   }, {});
+}
+
+const KPI_TONES = {
+  green: {
+    icon: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    helper: "text-emerald-600 dark:text-emerald-400",
+  },
+  amber: {
+    icon: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    helper: "text-emerald-600 dark:text-emerald-400",
+  },
+  blue: {
+    icon: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    helper: "text-muted-foreground",
+  },
+};
+
+const STATUS_CHART_COLORS = {
+  Pending: CHART_SEMANTIC.positive,
+  Held: CHART_SEMANTIC.warning,
+  Encashed: "#61c554",
+  Submitted: CHART_SEMANTIC.neutral,
+  Returned: CHART_SEMANTIC.negative,
+  Released: CHART_SEMANTIC.positive,
+  Forfeited: CHART_SEMANTIC.negative,
+};
+
+function PayOrderKpiCard({ icon: Icon, label, value, helper, tone = "green" }) {
+  const styles = KPI_TONES[tone] || KPI_TONES.green;
+  return (
+    <Card className="rounded-xl border bg-card shadow-sm">
+      <CardContent className="flex min-h-[110px] items-center gap-3 p-3 sm:min-h-[118px] sm:gap-4 sm:p-5">
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:h-14 sm:w-14 ${styles.icon}`}>
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-muted-foreground sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-[0.08em]">
+            {label}
+          </p>
+          <p className="mt-1 text-lg font-semibold leading-tight tracking-tight text-foreground sm:mt-2 sm:truncate sm:text-2xl">
+            {value}
+          </p>
+          {helper && (
+            <p className={`mt-1 hidden text-xs font-medium sm:mt-2 sm:block ${styles.helper}`}>
+              {helper}
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function PayOrders() {
@@ -228,15 +275,15 @@ export default function PayOrders() {
       color: CHART_SEMANTIC.positive,
     },
     {
-      name: "Lost",
-      value: payOrders.filter((p) => p.bidResult === "Lost").length,
-      color: CHART_SEMANTIC.negative,
-    },
-    {
       name: "Active",
       value: payOrders.filter((p) => ["N/A", "Awaiting"].includes(p.bidResult))
         .length,
       color: CHART_SEMANTIC.neutral,
+    },
+    {
+      name: "Lost",
+      value: payOrders.filter((p) => p.bidResult === "Lost").length,
+      color: CHART_SEMANTIC.negative,
     },
   ].filter((d) => d.value > 0);
 
@@ -452,68 +499,73 @@ export default function PayOrders() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Pay Orders"
-        description="Manage all pay order entries and activity logs"
-        actions={
-          isAdmin && (
-            <Button onClick={() => openDialog()} className="gap-2">
-              <Plus className="h-4 w-4" /> Add Pay Order
-            </Button>
-          )
-        }
-      />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">
+            Pay Orders
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage pay order entries and activity logs
+          </p>
+        </div>
+        {isAdmin && (
+          <Button
+            onClick={() => openDialog()}
+            className="h-11 shrink-0 gap-2 rounded-lg bg-emerald-600 px-3 text-white shadow-sm hover:bg-emerald-700 sm:px-5"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden min-[390px]:inline">Add Pay Order</span>
+            <span className="min-[390px]:hidden">Add</span>
+          </Button>
+        )}
+      </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          icon={DollarSign}
-          title="Total Amount"
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <PayOrderKpiCard
+          icon={Banknote}
+          label="Total Amount"
           value={formatCurrency(total)}
+          tone="green"
         />
-        <MetricCard
+        <PayOrderKpiCard
           icon={FileText}
-          title="Total Entries"
+          label="Total Entries"
           value={payOrders.length}
-          mono={false}
-          delta={`${returned} returned`}
-          deltaPositive={null}
+          helper={`${returned} returned`}
+          tone="blue"
         />
-        <MetricCard
+        <PayOrderKpiCard
           icon={AlertCircle}
-          title="At Risk"
+          label="At Risk"
           value={atRisk}
-          mono={false}
-          delta={atRisk > 0 ? "Submitted, awaiting result" : "All clear"}
-          deltaPositive={atRisk === 0}
+          helper={atRisk > 0 ? "Submitted, awaiting result" : "All clear"}
+          tone="amber"
         />
-        <MetricCard
+        <PayOrderKpiCard
           icon={CheckCircle}
-          title="Encashed"
+          label="Encashed"
           value={encashed}
-          mono={false}
-          delta={
-            encashed > 0
-              ? `${Math.round((encashed / (payOrders.length || 1)) * 100)}% of total`
-              : undefined
-          }
-          deltaPositive={null}
+          helper={`${Math.round((encashed / (payOrders.length || 1)) * 100)}% of total`}
+          tone="green"
         />
       </div>
 
       {/* Charts */}
       {payOrders.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <Card className="rounded-xl border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Status Distribution</CardTitle>
+              <CardTitle className="flex items-center justify-between gap-2 text-base">
+                <span>Status Distribution</span>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={180}>
+              <ResponsiveContainer width="100%" height={200}>
                 <BarChart
                   data={statusChart}
                   layout="vertical"
-                  margin={{ left: 16, right: 16 }}
+                  margin={{ left: 12, right: 34, top: 8, bottom: 8 }}
                 >
                   <CartesianGrid
                     horizontal={false}
@@ -522,15 +574,16 @@ export default function PayOrders() {
                   />
                   <XAxis
                     type="number"
-                    tick={AXIS_TICK}
+                    tick={{ fontSize: 12, fill: "oklch(var(--muted-foreground))" }}
                     axisLine={false}
                     tickLine={false}
+                    allowDecimals={false}
                   />
                   <YAxis
                     dataKey="status"
                     type="category"
-                    tick={AXIS_TICK}
-                    width={70}
+                    tick={{ fontSize: 13, fill: "oklch(var(--muted-foreground))" }}
+                    width={78}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -542,107 +595,168 @@ export default function PayOrders() {
                     dataKey="count"
                     fill="oklch(var(--primary))"
                     radius={[0, 6, 6, 0]}
-                  />
+                    barSize={22}
+                  >
+                    {statusChart.map((entry) => (
+                      <Cell
+                        key={entry.status}
+                        fill={STATUS_CHART_COLORS[entry.status] || CHART_SEMANTIC.neutral}
+                      />
+                    ))}
+                    <LabelList dataKey="count" position="right" className="fill-foreground" fontSize={13} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="rounded-xl border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Bid Results</CardTitle>
+              <CardTitle className="flex items-center justify-between gap-2 text-base">
+                <span>Bid Results</span>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              </CardTitle>
             </CardHeader>
-            <CardContent className="flex items-center justify-center">
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie
-                    data={winData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={70}
-                    paddingAngle={2}
-                    label={({ name, value }) => `${name}: ${value}`}
-                    labelLine={false}
-                    stroke="oklch(var(--card))"
-                    strokeWidth={2}
-                  >
-                    {winData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
+            <CardContent>
+              <div className="grid min-h-[190px] grid-cols-[0.9fr_1fr] items-center gap-3 sm:min-h-[220px] sm:gap-4">
+                <ResponsiveContainer width="100%" height={170}>
+                  <PieChart>
+                    <Pie
+                      data={winData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={42}
+                      outerRadius={66}
+                      paddingAngle={2}
+                      stroke="oklch(var(--card))"
+                      strokeWidth={2}
+                    >
+                      {winData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <text
+                      x="50%"
+                      y="47%"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="fill-foreground text-lg font-semibold"
+                    >
+                      {payOrders.length}
+                    </text>
+                    <text
+                      x="50%"
+                      y="59%"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="fill-muted-foreground text-[10px]"
+                    >
+                      Total
+                    </text>
+                    <Tooltip content={<ChartTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="space-y-2.5">
+                  {winData.map((entry) => (
+                    <div key={entry.name} className="flex items-center gap-3 text-sm">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
+                      <span className="text-muted-foreground">{entry.name}</span>
+                      <span className="ml-auto font-semibold tabular-nums text-foreground">{entry.value}</span>
+                    </div>
+                  ))}
+                  <div className="flex border-t border-border pt-3 text-sm font-semibold">
+                    <span>Total</span>
+                    <span className="ml-auto tabular-nums">{payOrders.length}</span>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Tabs: Pay Orders | Activity Log */}
       <Tabs defaultValue="payorders">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <TabsList>
-            <TabsTrigger value="payorders">Pay Orders</TabsTrigger>
-            <TabsTrigger value="activity">Activity Log</TabsTrigger>
+        <div className="flex flex-col gap-4 border-b border-border pb-0 lg:flex-row lg:items-end">
+          <TabsList className="h-11 w-full justify-start rounded-none border-b bg-transparent p-0 lg:w-auto lg:border-b-0">
+            <TabsTrigger
+              value="payorders"
+              className="h-11 rounded-none border-b-2 border-transparent bg-transparent px-0 pr-8 text-base text-muted-foreground shadow-none data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none"
+            >
+              Pay Orders
+            </TabsTrigger>
+            <TabsTrigger
+              value="activity"
+              className="h-11 rounded-none border-b-2 border-transparent bg-transparent px-0 text-base text-muted-foreground shadow-none data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none"
+            >
+              Activity Log
+            </TabsTrigger>
           </TabsList>
-          <div className="flex items-center gap-2 flex-1 sm:ml-auto">
-            <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="flex items-start gap-2 pb-2 lg:ml-auto">
+            <div className="relative min-w-0 flex-1 sm:w-[360px] sm:flex-none">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search…"
-                className="pl-9"
+                placeholder="Search pay orders..."
+                className="h-11 rounded-lg pl-10"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Button
-              variant="outline"
-              size="icon"
-              title="Export CSV"
-              onClick={() => {
-                if (!exportPayOrdersCSV(filtered))
-                  toast.error("Nothing to export");
-              }}
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              title="Export PDF"
-              onClick={() => {
-                if (!exportPayOrdersPDF(filtered))
-                  toast.error("Nothing to export");
-              }}
-            >
-              <Printer className="h-4 w-4" />
-            </Button>
+            <div className="flex shrink-0 gap-2">
+              <Button variant="outline" size="icon" className="h-11 w-11 rounded-lg" aria-label="Filter pay orders">
+                <Filter className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-11 w-11 rounded-lg"
+                title="Export CSV"
+                aria-label="Export CSV"
+                onClick={() => {
+                  if (!exportPayOrdersCSV(filtered))
+                    toast.error("Nothing to export");
+                }}
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-11 w-11 rounded-lg"
+                title="Export PDF"
+                aria-label="Export PDF"
+                onClick={() => {
+                  if (!exportPayOrdersPDF(filtered))
+                    toast.error("Nothing to export");
+                }}
+              >
+                <Printer className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
 
         <TabsContent value="payorders" className="mt-4">
-          {/* Filter chips */}
-          <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-thin -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
-            {["All", ...PO_STATUSES].map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilterStatus(s)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
-                  filterStatus === s
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-accent"
-                }`}
-              >
-                {s}{" "}
-                {s !== "All" && (
-                  <span className="font-mono tabular-nums">
-                    ({payOrders.filter((p) => p.status === s).length})
-                  </span>
-                )}
-              </button>
-            ))}
+          <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 scrollbar-thin sm:mx-0 sm:flex-wrap sm:px-0">
+            {["All", ...PO_STATUSES].map((s) => {
+              const count = s === "All" ? payOrders.length : payOrders.filter((p) => p.status === s).length;
+              return (
+                <button
+                  key={s}
+                  onClick={() => setFilterStatus(s)}
+                  className={`h-9 shrink-0 rounded-lg border px-4 text-sm font-medium transition-colors ${
+                    filterStatus === s
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+                  }`}
+                >
+                  {s}
+                  {s !== "All" && (
+                    <span className="ml-1 tabular-nums">({count})</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {filtered.length === 0 ? (
@@ -661,35 +775,40 @@ export default function PayOrders() {
           ) : (
             <>
               {/* Mobile: card-per-row */}
-              <div className="md:hidden space-y-3">
+              <div className="space-y-3 md:hidden">
                 {filtered.map((p) => (
-                  <Card key={p.id} className="overflow-hidden">
-                    <CardContent className="p-4 space-y-4">
-                      <div className="flex items-start justify-between gap-2">
+                  <Card key={p.id} className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                    <CardContent className="space-y-3 p-3.5">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+                          <FileText className="h-6 w-6" aria-hidden="true" />
+                        </div>
                         <button
                           type="button"
                           onClick={() => setQuickView(p)}
                           className="min-w-0 flex-1 text-left"
                         >
-                          <p className="font-mono text-sm font-semibold text-foreground truncate hover:underline">
-                            {p.po || "—"}
+                          <p className="truncate text-base font-semibold leading-tight text-foreground hover:underline">
+                            PO #{p.po || "-"}
                           </p>
-                          <p className="text-xs text-muted-foreground truncate mt-1">
-                            {p.bank || "—"}
+                          <p className="mt-1 truncate font-mono text-sm text-foreground">
+                            {p.nit || "-"}
+                          </p>
+                          <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
+                            {p.agency || "No agency"}
                           </p>
                         </button>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <StatusBadge status={p.status} />
+                        <div className="flex shrink-0 items-start">
                           {isAdmin && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  className="h-8 w-8"
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-11 w-11 rounded-lg"
+                                  aria-label="Open pay order actions"
                                 >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Open menu</span>
+                                  <MoreHorizontal className="h-5 w-5" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
@@ -709,55 +828,41 @@ export default function PayOrders() {
                         </div>
                       </div>
 
-                      {(p.tender || p.agency) && (
-                        <div className="space-y-0.5">
-                          {p.tender && (
-                            <p className="text-sm font-semibold text-foreground break-words leading-snug">
-                              {p.tender}
-                            </p>
-                          )}
-                          {p.agency && (
-                            <p className="text-xs text-muted-foreground break-words mt-1">
-                              {p.agency}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      <div>
-                        <p className="font-mono tabular-nums font-semibold text-sm text-foreground leading-tight">
-                          {formatCurrency(p.amount)}
-                        </p>
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-0.5">
-                          Pay order amount
-                        </p>
+                      <div className="flex flex-wrap items-center gap-2 pl-[60px]">
+                        <StatusBadge status={p.status} />
+                        <StatusBadge status={p.bidResult && p.bidResult !== "N/A" ? p.bidResult : "Awaiting"} />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border divide-x divide-border">
-                        <div className="min-w-0 pr-3">
-                          <div className="flex items-center gap-1.5 text-foreground">
-                            <Calendar className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                            <span className="text-sm truncate">
-                              {formatDate(p.submitted) || "—"}
-                            </span>
-                          </div>
-                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1 ml-[22px]">
-                            Submitted
-                          </p>
-                        </div>
-                        <div className="min-w-0 pl-3">
-                          <p className="font-mono text-sm text-foreground break-all">
-                            {p.nit || "—"}
-                          </p>
-                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1">
-                            NIT/Ref
-                          </p>
-                        </div>
-                        <div className="col-span-2 flex items-center justify-between gap-2 pt-3 border-t border-border">
-                          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                            Bid Result
+                      {p.tender && (
+                        <button
+                          type="button"
+                          onClick={() => setQuickView(p)}
+                          className="block w-full rounded-lg bg-muted/30 px-3 py-2 text-left text-[15px] font-semibold leading-snug text-foreground"
+                        >
+                          {p.tender}
+                        </button>
+                      )}
+
+                      <div className="grid gap-2 border-t border-border pt-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          <span className="min-w-0 truncate text-foreground">
+                            {p.bank || "No bank"}
                           </span>
-                          <StatusBadge status={p.bidResult} />
+                          <span className="mx-1 h-4 w-px bg-border" />
+                          <span className="shrink-0">NIT/Ref:</span>
+                          <span className="min-w-0 truncate font-mono text-foreground">
+                            {p.nit || "-"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          <span>
+                            Submitted: {formatDate(p.submitted) || "-"}
+                          </span>
+                          <span className="ml-auto shrink-0 font-mono text-base font-semibold tabular-nums text-emerald-700">
+                            {formatCurrency(p.amount)}
+                          </span>
                         </div>
                       </div>
                     </CardContent>
@@ -765,33 +870,33 @@ export default function PayOrders() {
                 ))}
               </div>
 
-              {/* Desktop: table */}
-              <Card className="hidden md:block">
+              <Card className="hidden overflow-hidden rounded-xl border bg-card shadow-sm md:block">
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs">PO #</TableHead>
-                      <TableHead className="text-xs">Bank</TableHead>
-                      <TableHead className="text-xs">NIT/Ref</TableHead>
-                      <TableHead className="text-xs hidden lg:table-cell">
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead className="whitespace-nowrap text-xs font-semibold">PO #</TableHead>
+                      <TableHead className="whitespace-nowrap text-xs font-semibold">Bank</TableHead>
+                      <TableHead className="whitespace-nowrap text-xs font-semibold">NIT/Ref</TableHead>
+                      <TableHead className="min-w-[260px] text-xs font-semibold">
                         Tender
                       </TableHead>
-                      <TableHead className="text-xs">Agency</TableHead>
-                      <TableHead className="text-xs text-right">
+                      <TableHead className="min-w-[210px] text-xs font-semibold">Agency</TableHead>
+                      <TableHead className="whitespace-nowrap text-right text-xs font-semibold">
                         Amount
                       </TableHead>
-                      <TableHead className="text-xs">Submitted</TableHead>
-                      <TableHead className="text-xs">Status</TableHead>
-                      <TableHead className="text-xs hidden lg:table-cell">
+                      <TableHead className="whitespace-nowrap text-xs font-semibold">Submitted</TableHead>
+                      <TableHead className="whitespace-nowrap text-xs font-semibold">Status</TableHead>
+                      <TableHead className="whitespace-nowrap text-xs font-semibold">
                         Bid Result
                       </TableHead>
-                      {isAdmin && <TableHead className="w-12"></TableHead>}
+                      {isAdmin && <TableHead className="w-14 text-xs font-semibold">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-mono text-xs font-medium">
+                      <TableRow key={p.id} className="h-[72px] hover:bg-muted/30">
+                        <TableCell className="font-mono text-sm font-semibold">
                           <button
                             type="button"
                             onClick={() => setQuickView(p)}
@@ -800,28 +905,28 @@ export default function PayOrders() {
                             {p.po || "—"}
                           </button>
                         </TableCell>
-                        <TableCell className="text-xs">
+                        <TableCell className="text-sm">
                           {p.bank || "—"}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground font-mono">
+                        <TableCell className="font-mono text-xs text-muted-foreground">
                           {p.nit || "—"}
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell text-xs font-semibold text-foreground min-w-[160px] max-w-[220px] whitespace-normal break-words">
+                        <TableCell className="max-w-[320px] whitespace-normal text-sm font-semibold leading-5 text-foreground">
                           {p.tender || "—"}
                         </TableCell>
-                        <TableCell className="text-xs min-w-[140px] max-w-[200px] whitespace-normal break-words">
+                        <TableCell className="max-w-[260px] whitespace-normal text-sm leading-5 text-muted-foreground">
                           {p.agency || "—"}
                         </TableCell>
-                        <TableCell className="text-xs font-mono tabular-nums text-right whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap text-right font-mono text-sm tabular-nums">
                           {formatCurrency(p.amount)}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                           {formatDate(p.submitted)}
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={p.status} />
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell">
+                        <TableCell>
                           <StatusBadge status={p.bidResult} />
                         </TableCell>
                         {isAdmin && (
@@ -856,6 +961,18 @@ export default function PayOrders() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
+                <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                  <span>
+                    Showing 1 to {filtered.length} of {filtered.length} entries
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" disabled>Previous</Button>
+                    <Button variant="outline" size="sm" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">1</Button>
+                    <Button variant="outline" size="sm" disabled>Next</Button>
+                    <span className="ml-2 hidden sm:inline">Rows per page: 10</span>
+                  </div>
+                </div>
               </Card>
             </>
           )}
@@ -1110,7 +1227,7 @@ export default function PayOrders() {
                             <Input
                               value={tenderSearch}
                               onChange={(e) => setTenderSearch(e.target.value)}
-                              placeholder="Search tenders by name, NIT, or agency…"
+                              placeholder="Search tenders by name, NIT, or agency..."
                               className="pl-8 h-9"
                             />
                           </div>

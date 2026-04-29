@@ -5,6 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 import {
   formatDate,
   formatCurrency,
+  formatCurrencyPrecise,
+  calculateTenderFinancials,
   daysUntil,
   TENDER_STATUSES,
   uid,
@@ -137,6 +139,8 @@ const EMPTY_TENDER = {
   nit: "",
   agency: "",
   value: "",
+  estimatedCost: "",
+  quotedAmount: "",
   tenderFee: "",
   status: "Bidding",
   submissionDate: "",
@@ -239,6 +243,8 @@ export default function Tenders() {
       const data = {
         ...formData,
         value: Number(form.value) || 0,
+        estimatedCost: form.estimatedCost === "" ? null : Number(form.estimatedCost) || 0,
+        quotedAmount: form.quotedAmount === "" ? null : Number(form.quotedAmount) || 0,
         tenderFee: tenderFeeNum,
         checklist: form.checklist || [],
         bills: form.bills || [],
@@ -340,6 +346,42 @@ export default function Tenders() {
 
   const setF = (k) => (e) =>
     setForm((p) => ({ ...p, [k]: e.target?.value ?? e }));
+
+  const tenderFinancials = calculateTenderFinancials(form);
+  const financialDirectionText =
+    tenderFinancials.direction === "below"
+      ? "Below"
+      : tenderFinancials.direction === "above"
+        ? "Above"
+        : tenderFinancials.direction === "at"
+          ? "At Estimate"
+          : "";
+  const financialTone =
+    tenderFinancials.direction === "above"
+      ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
+      : tenderFinancials.direction === "at"
+        ? "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200"
+        : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200";
+
+  const getTenderFinancialLine = (tender) => {
+    const financials = calculateTenderFinancials(tender);
+    if (financials.estimatedCost === null && financials.quotedAmount === null) {
+      return null;
+    }
+    const directionText =
+      financials.direction === "below"
+        ? "Below"
+        : financials.direction === "above"
+          ? "Above"
+          : financials.direction === "at"
+            ? "At Estimate"
+            : "";
+    const percentText =
+      financials.percentage === null
+        ? "—"
+        : `${financials.percentage.toFixed(2)}% ${directionText}`;
+    return `Estimate: ${formatCurrencyPrecise(financials.estimatedCost)} · Quoted: ${formatCurrencyPrecise(financials.quotedAmount)} · ${percentText}`;
+  };
 
   if (loading) return <PageTableSkeleton rows={6} cols={6} metrics={5} />;
 
@@ -473,6 +515,11 @@ export default function Tenders() {
                           {t.agency && (
                             <p className="text-xs text-muted-foreground break-words mt-1">
                               {t.agency}
+                            </p>
+                          )}
+                          {getTenderFinancialLine(t) && (
+                            <p className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/60 px-2 py-1.5 text-xs font-medium leading-5 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                              {getTenderFinancialLine(t)}
                             </p>
                           )}
                         </div>
@@ -720,6 +767,68 @@ export default function Tenders() {
               <p className="text-xs text-muted-foreground">
                 Automatically tracked as an expense under "Tender Fees".
               </p>
+            </div>
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Financial Details
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Compare the official estimate with the submitted quote.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="t-estimated-cost">Estimated Cost</Label>
+                  <Input
+                    id="t-estimated-cost"
+                    type="number"
+                    value={form.estimatedCost ?? ""}
+                    onChange={setF("estimatedCost")}
+                    placeholder="2500000"
+                    className="font-mono tabular-nums"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Official department / NIT estimate
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="t-quoted-amount">Quoted Amount</Label>
+                  <Input
+                    id="t-quoted-amount"
+                    type="number"
+                    value={form.quotedAmount ?? ""}
+                    onChange={setF("quotedAmount")}
+                    placeholder="2400000"
+                    className="font-mono tabular-nums"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Submitted financial bid amount
+                  </p>
+                </div>
+              </div>
+              <div className={`mt-4 grid gap-2 rounded-lg border p-3 text-xs sm:grid-cols-3 ${financialTone}`}>
+                <div>
+                  <p className="font-medium opacity-75">Difference</p>
+                  <p className="mt-1 font-semibold">
+                    {tenderFinancials.difference === null
+                      ? "—"
+                      : `${formatCurrencyPrecise(tenderFinancials.difference)} ${financialDirectionText}`}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-medium opacity-75">Quoted %</p>
+                  <p className="mt-1 font-semibold">
+                    {tenderFinancials.percentage === null
+                      ? "—"
+                      : `${tenderFinancials.percentage.toFixed(2)}% ${financialDirectionText}`}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-medium opacity-75">Status</p>
+                  <p className="mt-1 font-semibold">{tenderFinancials.positionLabel}</p>
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
