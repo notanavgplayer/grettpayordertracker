@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
-import { Menu, Moon, Sun, PanelLeft, Search, Home, BriefcaseBusiness, FileText, Settings } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Menu, Moon, Sun, PanelLeft, Search } from 'lucide-react'
 import Sidebar from './Sidebar'
 import NotificationsBell from './NotificationsBell'
 import CommandPalette from '@/components/shared/CommandPalette'
@@ -17,12 +17,6 @@ import { useTheme } from '@/context/ThemeContext'
 import { toast } from 'sonner'
 
 const SIDEBAR_STORAGE_KEY = 'grett-sidebar-collapsed'
-const MOBILE_NAV_ITEMS = [
-  { to: '/home', label: 'Home', icon: Home },
-  { to: '/tenders', label: 'Tenders', icon: BriefcaseBusiness },
-  { to: '/pay-orders', label: 'Pay Orders', icon: FileText },
-  { to: '/settings', label: 'Settings', icon: Settings },
-]
 
 export default function Layout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -149,34 +143,10 @@ export default function Layout({ children }) {
             id="main" tabIndex={-1}
             className="flex-1 overflow-y-auto overscroll-contain scrollbar-thin outline-none"
           >
-            <div className="mx-auto w-full px-4 pb-24 pt-4 lg:px-6 lg:py-6">
+            <div className="mx-auto w-full px-4 py-4 lg:px-6 lg:py-6">
               {children}
             </div>
           </main>
-
-          <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 px-6 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur-md lg:hidden">
-            <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-              {MOBILE_NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) =>
-                    `flex min-w-0 flex-col items-center gap-1 rounded-md px-1 py-1.5 text-xs transition-colors ${
-                      isActive ? 'text-emerald-600' : 'text-muted-foreground hover:text-foreground'
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <Icon className="h-6 w-6" strokeWidth={isActive ? 2.2 : 1.8} />
-                      <span className="truncate">{label}</span>
-                      <span className={`h-1 w-8 rounded-full ${isActive ? 'bg-emerald-600' : 'bg-transparent'}`} />
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-          </nav>
         </div>
       </div>
 
