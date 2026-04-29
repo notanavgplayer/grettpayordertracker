@@ -21,6 +21,60 @@ export function formatCurrency(amount) {
   }).format(amount)
 }
 
+export function formatCurrencyPrecise(amount) {
+  if (amount === null || amount === undefined || amount === '') return '—'
+  const numeric = Number(amount)
+  if (Number.isNaN(numeric)) return amount
+  const decimalPart = String(amount).includes('.') ? String(amount).split('.')[1] : ''
+  const fractionDigits = decimalPart.length
+
+  return `Rs ${new Intl.NumberFormat('en-PK', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(numeric)}`
+}
+
+export function calculateTenderFinancials(tender = {}) {
+  const estimatedCost = tender.estimatedCost === '' || tender.estimatedCost === null || tender.estimatedCost === undefined
+    ? null
+    : Number(tender.estimatedCost)
+  const quotedAmount = tender.quotedAmount === '' || tender.quotedAmount === null || tender.quotedAmount === undefined
+    ? null
+    : Number(tender.quotedAmount)
+  const hasEstimate = Number.isFinite(estimatedCost)
+  const hasQuote = Number.isFinite(quotedAmount)
+  const canCompare = hasEstimate && hasQuote
+
+  if (!canCompare) {
+    return {
+      estimatedCost: hasEstimate ? estimatedCost : null,
+      quotedAmount: hasQuote ? quotedAmount : null,
+      difference: null,
+      percentage: null,
+      positionLabel: '—',
+      direction: 'none',
+    }
+  }
+
+  const rawDifference = estimatedCost - quotedAmount
+  const direction = rawDifference > 0 ? 'below' : rawDifference < 0 ? 'above' : 'at'
+  const positionLabel = direction === 'below'
+    ? 'Below Estimate'
+    : direction === 'above'
+      ? 'Above Estimate'
+      : 'At Estimate'
+  const percentage = estimatedCost !== 0 ? (Math.abs(rawDifference) / Math.abs(estimatedCost)) * 100 : null
+
+  return {
+    estimatedCost,
+    quotedAmount,
+    difference: Math.abs(rawDifference),
+    percentage,
+    positionLabel,
+    direction,
+  }
+}
+
 export function formatDate(dateStr) {
   if (!dateStr) return '—'
   const d = new Date(dateStr)

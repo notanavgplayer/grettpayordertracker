@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
+import { calculateTenderFinancials, formatCurrencyPrecise } from '@/lib/utils'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import {
   Building2,
+  Calculator,
   CalendarCheck,
   CalendarDays,
   ClipboardCheck,
@@ -49,15 +51,102 @@ function formatQuickDate(dateStr) {
 
 function SummaryCard({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-xl border border-emerald-100 bg-emerald-50/45 p-4 shadow-sm shadow-emerald-950/[0.02]">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-          <Icon className="h-4 w-4" />
+    <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3.5 shadow-sm shadow-emerald-950/[0.02] sm:p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+          <Icon className="h-[18px] w-[18px]" />
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <p className="mt-1 break-words text-base font-semibold leading-tight text-emerald-700">
+          <p className="text-sm font-medium text-slate-600">{label}</p>
+          <p className="mt-1 break-words text-lg font-bold leading-tight text-emerald-700 sm:text-base">
             {valueOrFallback(value)}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FinancialSnapshot({ tender }) {
+  const financials = calculateTenderFinancials(tender)
+  const directionText = financials.direction === 'below'
+    ? 'Below'
+    : financials.direction === 'above'
+      ? 'Above'
+      : financials.direction === 'at'
+        ? 'At Estimate'
+        : ''
+  const tone = financials.direction === 'above'
+    ? 'border-amber-200 bg-amber-50 text-amber-800'
+    : financials.direction === 'at'
+      ? 'border-blue-200 bg-blue-50 text-blue-800'
+      : financials.direction === 'below'
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+        : 'border-slate-200 bg-slate-50 text-slate-600'
+  const valueTone = financials.direction === 'above'
+    ? 'text-amber-700'
+    : financials.direction === 'at'
+      ? 'text-blue-700'
+      : financials.direction === 'below'
+        ? 'text-emerald-700'
+        : 'text-slate-700'
+
+  return (
+    <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/40 p-4 sm:p-4">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-lg font-bold leading-none text-slate-950 sm:text-sm sm:font-semibold sm:leading-5">Financial Snapshot</p>
+          <p className="mt-1 text-sm text-slate-500 sm:text-xs">Estimate versus submitted quote</p>
+        </div>
+        <span className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold sm:px-2.5 sm:py-1 sm:text-xs ${tone}`}>
+          {financials.positionLabel}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <FinancialAmountCard
+          icon={Calculator}
+          label="Estimated Cost"
+          value={formatCurrencyPrecise(financials.estimatedCost)}
+        />
+        <FinancialAmountCard
+          icon={FileText}
+          label="Quoted Amount"
+          value={formatCurrencyPrecise(financials.quotedAmount)}
+        />
+      </div>
+      <div className="mt-3 grid grid-cols-3 rounded-xl border border-slate-200 bg-white p-3 text-center text-sm">
+        <div className="border-r border-slate-200 px-2">
+          <p className="font-medium text-slate-500">Difference</p>
+          <p className={`mt-2 text-base font-bold ${valueTone}`}>
+            {financials.difference === null ? FALLBACK : `${formatCurrencyPrecise(financials.difference)} ${directionText}`}
+          </p>
+        </div>
+        <div className="border-r border-slate-200 px-2">
+          <p className="font-medium text-slate-500">Quoted %</p>
+          <p className={`mt-2 text-base font-bold ${valueTone}`}>
+            {financials.percentage === null ? FALLBACK : `${financials.percentage.toFixed(2)}% ${directionText}`}
+          </p>
+        </div>
+        <div className="px-2">
+          <p className="font-medium text-slate-500">Status</p>
+          <p className={`mt-2 text-base font-bold ${valueTone}`}>{financials.positionLabel}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FinancialAmountCard({ icon: Icon, label, value }) {
+  return (
+    <div className="rounded-xl border border-emerald-100 bg-white p-3 shadow-sm shadow-emerald-950/[0.02] sm:p-4">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-600 sm:text-xs">{label}</p>
+          <p className="mt-1 break-words text-lg font-bold leading-tight text-slate-950 sm:text-xl">
+            {value}
           </p>
         </div>
       </div>
@@ -67,28 +156,14 @@ function SummaryCard({ icon: Icon, label, value }) {
 
 function DetailRow({ icon: Icon, label, value, children }) {
   return (
-    <div className="grid gap-3 border-b border-border/70 px-4 py-4 last:border-b-0 sm:grid-cols-[180px_1fr] sm:items-center sm:px-5">
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(130px,1fr)] items-center gap-3 border-b border-border/70 px-4 py-4 last:border-b-0 sm:grid-cols-[180px_1fr] sm:px-5">
       <div className="flex items-center gap-3 text-muted-foreground">
-        <Icon className="h-4 w-4 shrink-0" />
-        <span className="text-sm font-medium">{label}</span>
+        <Icon className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+        <span className="text-base font-medium sm:text-sm">{label}</span>
       </div>
-      <div className="min-w-0 text-sm font-medium text-foreground sm:text-right">
+      <div className="min-w-0 text-right text-base font-medium text-foreground sm:text-sm">
         {children || valueOrFallback(value)}
       </div>
-    </div>
-  )
-}
-
-function MobileDetailRow({ icon: Icon, label, value }) {
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(115px,auto)] items-center gap-3 border-b border-slate-200/80 px-4 py-3.5 last:border-b-0">
-      <div className="flex min-w-0 items-center gap-3 text-slate-500">
-        <Icon className="h-[18px] w-[18px] shrink-0" />
-        <span className="truncate text-sm font-medium">{label}</span>
-      </div>
-      <p className="min-w-0 break-words text-right text-sm font-semibold leading-5 text-slate-950">
-        {valueOrFallback(value)}
-      </p>
     </div>
   )
 }
@@ -112,7 +187,7 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bottom-0 left-0 top-auto max-h-[92vh] w-full translate-x-0 translate-y-0 gap-0 overflow-y-auto rounded-b-none rounded-t-[28px] border-border/80 bg-white px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4 shadow-2xl shadow-slate-950/30 sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:max-h-[90vh] sm:max-w-[820px] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:p-8 [&>button]:hidden">
+      <DialogContent className="bottom-0 left-0 top-auto max-h-[92vh] w-full translate-x-0 translate-y-0 gap-0 overflow-y-auto rounded-b-none rounded-t-[28px] border-border/80 bg-white px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 shadow-2xl shadow-slate-950/30 sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:max-h-[90vh] sm:max-w-[860px] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:p-8 [&>button]:hidden">
         <div className="mx-auto mb-5 h-1.5 w-16 rounded-full bg-slate-200 sm:hidden" />
 
         <DialogHeader className="space-y-5 text-left sm:pr-12">
@@ -131,7 +206,7 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
             </DialogClose>
           </div>
           <div className="space-y-4">
-            <DialogTitle className="line-clamp-3 break-words text-xl font-bold leading-[1.18] tracking-normal text-slate-950 sm:line-clamp-2 sm:text-2xl">
+            <DialogTitle className="line-clamp-4 break-words text-2xl font-bold leading-[1.2] tracking-normal text-slate-950 sm:line-clamp-2 sm:text-2xl">
               {title}
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -153,47 +228,21 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
           </div>
         </DialogHeader>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <FinancialSnapshot tender={tender} />
+
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-6 sm:grid-cols-4">
           <SummaryCard icon={WalletCards} label="Value" value={formatRs(tender.value)} />
           <SummaryCard icon={CalendarCheck} label="Submission" value={formatQuickDate(tender.submissionDate)} />
-          <div className="hidden sm:block">
-            <SummaryCard icon={Tag} label="Tender Fee" value={formatRs(tender.tenderFee)} />
-          </div>
-          <div className="hidden sm:block">
-            <SummaryCard icon={LinkIcon} label="Linked PO" value={linkedPayOrder} />
-          </div>
+          <SummaryCard icon={Tag} label="Tender Fee" value={formatRs(tender.tenderFee)} />
+          <SummaryCard icon={LinkIcon} label="Linked PO" value={linkedPayOrder} />
         </div>
 
-        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white sm:hidden">
-          <MobileDetailRow icon={FileText} label="NIT / Ref" value={nitRef} />
-          <MobileDetailRow icon={Tag} label="Tender Fee" value={formatRs(tender.tenderFee)} />
-          <MobileDetailRow icon={CalendarDays} label="Opening" value={formatQuickDate(tender.openingDate)} />
-          <MobileDetailRow icon={LinkIcon} label="Linked PO" value={linkedPayOrder} />
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 sm:hidden">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              <ClipboardCheck className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-base font-semibold text-slate-700">Checklist</p>
-                <p className="text-sm font-semibold text-slate-700">
-                  {done}/{total}
-                </p>
-              </div>
-              <Progress value={pct} className="mt-3 h-2 bg-slate-200 [&>div]:bg-emerald-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-5 hidden overflow-hidden rounded-xl border border-border bg-white sm:block">
+        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white sm:rounded-xl">
           <DetailRow icon={FileText} label="NIT / Ref" value={nitRef} />
-          <DetailRow icon={Tag} label="Opening" value={formatQuickDate(tender.openingDate)} />
+          <DetailRow icon={CalendarDays} label="Opening" value={formatQuickDate(tender.openingDate)} />
           <DetailRow icon={ClipboardCheck} label="Checklist">
             <div className="flex items-center gap-4">
-              <span className="shrink-0 text-sm font-semibold text-foreground">
+              <span className="shrink-0 text-sm font-semibold text-slate-950">
                 {done}/{total}
               </span>
               <Progress value={pct} className="h-2 flex-1 bg-slate-200 [&>div]:bg-emerald-600" />
@@ -215,14 +264,6 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
         )}
 
         <DialogFooter className="mt-6 flex-col gap-3 sm:hidden sm:space-x-0">
-          {canEdit && (
-            <Button
-              onClick={onEdit}
-              className="h-14 w-full rounded-xl bg-emerald-700 px-5 text-base font-semibold text-white shadow-sm hover:bg-emerald-800"
-            >
-              <Pencil className="h-5 w-5" /> Edit Tender
-            </Button>
-          )}
           <Button
             variant="outline"
             asChild
@@ -232,6 +273,14 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
               <ExternalLink className="h-5 w-5" /> View Full Details
             </Link>
           </Button>
+          {canEdit && (
+            <Button
+              onClick={onEdit}
+              className="h-14 w-full rounded-xl bg-emerald-700 px-5 text-base font-semibold text-white shadow-sm hover:bg-emerald-800"
+            >
+              <Pencil className="h-5 w-5" /> Edit Tender
+            </Button>
+          )}
         </DialogFooter>
 
         <DialogFooter className="mt-6 hidden gap-3 sm:flex sm:justify-end sm:space-x-0">

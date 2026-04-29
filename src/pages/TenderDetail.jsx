@@ -5,7 +5,7 @@ import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
 import { getSupabaseStorageBucket, uploadTenderDocument } from '@/lib/supabaseStorage'
-import { formatDate, formatCurrency, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
+import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinancials, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -59,6 +59,8 @@ function cleanTenderPayload(form, fallbackValue, fallbackTenderFee) {
   const data = {
     ...payload,
     value: Number(fallbackValue) || 0,
+    estimatedCost: payload.estimatedCost === '' || payload.estimatedCost === undefined ? null : Number(payload.estimatedCost) || 0,
+    quotedAmount: payload.quotedAmount === '' || payload.quotedAmount === undefined ? null : Number(payload.quotedAmount) || 0,
     tenderFee: Number(fallbackTenderFee) || 0,
   }
   return stripUndefined(data)
@@ -679,6 +681,21 @@ export default function TenderDetail() {
   const expectedProfit = contractValue - totalExpenses
   const cashPosition = totalReceived - totalExpenses
   const projectedMargin = contractValue > 0 ? Math.round((expectedProfit / contractValue) * 100) : null
+  const tenderFinancials = calculateTenderFinancials(form)
+  const tenderFinancialDirectionText =
+    tenderFinancials.direction === 'below'
+      ? 'Below'
+      : tenderFinancials.direction === 'above'
+        ? 'Above'
+        : tenderFinancials.direction === 'at'
+          ? 'At Estimate'
+          : ''
+  const tenderFinancialTone =
+    tenderFinancials.direction === 'above'
+      ? 'expense'
+      : tenderFinancials.direction === 'at'
+        ? 'accent'
+        : 'profit'
   const boqItems = form.boqItems || []
   const boqTotals = boqItems.reduce((totals, item) => {
     const quotedAmount = (Number(item.qty) || 0) * (Number(item.quotedRate) || 0)
@@ -916,6 +933,12 @@ export default function TenderDetail() {
                 <DetailRow icon={Banknote} label="Value (PKR)">
                   {detailsEditing ? <Input type="number" value={form.value || ''} onChange={(e) => updateForm('value', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.value || '-'}</DetailValue>}
                 </DetailRow>
+                <DetailRow icon={Banknote} label="Estimated Cost (PKR)" note="Official department / NIT estimate.">
+                  {detailsEditing ? <Input type="number" value={form.estimatedCost ?? ''} onChange={(e) => updateForm('estimatedCost', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.estimatedCost || '-'}</DetailValue>}
+                </DetailRow>
+                <DetailRow icon={WalletCards} label="Quoted Amount (PKR)" note="Submitted financial bid amount.">
+                  {detailsEditing ? <Input type="number" value={form.quotedAmount ?? ''} onChange={(e) => updateForm('quotedAmount', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.quotedAmount || '-'}</DetailValue>}
+                </DetailRow>
                 <DetailRow icon={Receipt} label="Tender Fee (PKR)" note="Automatically tracked as an expense.">
                   {detailsEditing ? <Input type="number" value={form.tenderFee || ''} onChange={(e) => updateForm('tenderFee', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.tenderFee || '-'}</DetailValue>}
                 </DetailRow>
@@ -956,6 +979,43 @@ export default function TenderDetail() {
 
         {/* Overview tab: checklist + notes + history */}
         <TabsContent value="overview" className="order-3 mt-0 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Banknote className="h-4 w-4" /> Financial Details
+                </CardTitle>
+                {tenderFinancials.direction !== 'none' && (
+                  <StatusBadge status={tenderFinancials.positionLabel} />
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-4 pt-0 sm:grid-cols-2 lg:grid-cols-4">
+              <FinancialMetric
+                label="Estimated Cost"
+                value={formatCurrencyPrecise(tenderFinancials.estimatedCost)}
+                tone="accent"
+              />
+              <FinancialMetric
+                label="Quoted Amount"
+                value={formatCurrencyPrecise(tenderFinancials.quotedAmount)}
+                tone="accent"
+              />
+              <FinancialMetric
+                label="Difference"
+                value={tenderFinancials.difference === null ? '—' : formatCurrencyPrecise(tenderFinancials.difference)}
+                tone={tenderFinancialTone}
+                helper={tenderFinancials.difference === null ? undefined : tenderFinancialDirectionText}
+              />
+              <FinancialMetric
+                label="Quoted %"
+                value={tenderFinancials.percentage === null ? '—' : `${tenderFinancials.percentage.toFixed(2)}%`}
+                tone={tenderFinancialTone}
+                helper={tenderFinancials.percentage === null ? undefined : tenderFinancialDirectionText}
+              />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-sm">

@@ -25,6 +25,9 @@ const STATUS_TONE_MAP = {
   Completed: 'emerald',
   Encashed: 'emerald',
   Paid: 'emerald',
+  'Below Estimate': 'emerald',
+  'At Estimate': 'blue',
+  'Above Estimate': 'amber',
   // Red (failure / overdue)
   Forfeited: 'red',
   Lost: 'red',
