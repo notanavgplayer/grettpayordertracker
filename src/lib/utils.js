@@ -21,12 +21,14 @@ export function formatCurrency(amount) {
   }).format(amount)
 }
 
-export function formatCurrencyPrecise(amount) {
+export function formatCurrencyPrecise(amount, maxDecimals) {
   if (amount === null || amount === undefined || amount === '') return '—'
   const numeric = Number(amount)
   if (Number.isNaN(numeric)) return amount
   const decimalPart = String(amount).includes('.') ? String(amount).split('.')[1] : ''
-  const fractionDigits = decimalPart.length
+  const fractionDigits = maxDecimals === undefined
+    ? decimalPart.length
+    : Math.min(decimalPart.length, maxDecimals)
 
   return `Rs ${new Intl.NumberFormat('en-PK', {
     minimumFractionDigits: fractionDigits,
