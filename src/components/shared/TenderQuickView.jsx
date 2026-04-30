@@ -51,14 +51,14 @@ function formatQuickDate(dateStr) {
 
 function SummaryCard({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3.5 shadow-sm shadow-emerald-950/[0.02] sm:p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-          <Icon className="h-[18px] w-[18px]" />
+    <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-2.5 shadow-sm shadow-emerald-950/[0.02] sm:p-4">
+      <div className="flex items-center gap-2.5 sm:gap-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 sm:h-10 sm:w-10">
+          <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-600">{label}</p>
-          <p className="mt-1 break-words text-lg font-bold leading-tight text-emerald-700 sm:text-base">
+          <p className="text-xs font-medium text-slate-600 sm:text-sm">{label}</p>
+          <p className="mt-1 break-words text-sm font-bold leading-tight text-emerald-700 min-[390px]:text-base sm:text-base">
             {valueOrFallback(value)}
           </p>
         </div>
@@ -92,13 +92,13 @@ function FinancialSnapshot({ tender }) {
         : 'text-slate-700'
 
   return (
-    <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/40 p-4 sm:p-4">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/40 p-3 sm:mt-6 sm:p-4">
+      <div className="mb-3 flex items-start justify-between gap-3 sm:mb-4">
         <div>
-          <p className="text-lg font-bold leading-none text-slate-950 sm:text-sm sm:font-semibold sm:leading-5">Financial Snapshot</p>
-          <p className="mt-1 text-sm text-slate-500 sm:text-xs">Estimate versus submitted quote</p>
+          <p className="text-base font-bold leading-none text-slate-950 sm:text-sm sm:font-semibold sm:leading-5">Financial Snapshot</p>
+          <p className="mt-1 text-xs text-slate-500">Estimate versus submitted quote</p>
         </div>
-        <span className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold sm:px-2.5 sm:py-1 sm:text-xs ${tone}`}>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${tone}`}>
           {financials.positionLabel}
         </span>
       </div>
@@ -107,46 +107,54 @@ function FinancialSnapshot({ tender }) {
           icon={Calculator}
           label="Estimated Cost"
           value={formatCurrencyPrecise(financials.estimatedCost)}
+          mobileValue={formatRs(financials.estimatedCost)}
         />
         <FinancialAmountCard
           icon={FileText}
           label="Quoted Amount"
           value={formatCurrencyPrecise(financials.quotedAmount)}
+          mobileValue={formatRs(financials.quotedAmount)}
         />
       </div>
-      <div className="mt-3 grid grid-cols-3 rounded-xl border border-slate-200 bg-white p-3 text-center text-sm">
-        <div className="border-r border-slate-200 px-2">
+      <div className="mt-3 grid grid-cols-3 rounded-xl border border-slate-200 bg-white p-2.5 text-center text-[11px] sm:p-3 sm:text-sm">
+        <div className="border-r border-slate-200 px-1.5 sm:px-2">
           <p className="font-medium text-slate-500">Difference</p>
-          <p className={`mt-2 text-base font-bold ${valueTone}`}>
-            {financials.difference === null ? FALLBACK : `${formatCurrencyPrecise(financials.difference)} ${directionText}`}
+          <p className={`mt-1.5 break-words text-[12px] font-bold leading-tight min-[390px]:text-[13px] sm:mt-2 sm:text-base ${valueTone}`}>
+            {financials.difference === null ? FALLBACK : (
+              <>
+                <span className="sm:hidden">{formatRs(financials.difference)} {directionText}</span>
+                <span className="hidden sm:inline">{formatCurrencyPrecise(financials.difference, 2)} {directionText}</span>
+              </>
+            )}
           </p>
         </div>
-        <div className="border-r border-slate-200 px-2">
+        <div className="border-r border-slate-200 px-1.5 sm:px-2">
           <p className="font-medium text-slate-500">Quoted %</p>
-          <p className={`mt-2 text-base font-bold ${valueTone}`}>
+          <p className={`mt-1.5 break-words text-[12px] font-bold leading-tight min-[390px]:text-[13px] sm:mt-2 sm:text-base ${valueTone}`}>
             {financials.percentage === null ? FALLBACK : `${financials.percentage.toFixed(2)}% ${directionText}`}
           </p>
         </div>
-        <div className="px-2">
+        <div className="px-1.5 sm:px-2">
           <p className="font-medium text-slate-500">Status</p>
-          <p className={`mt-2 text-base font-bold ${valueTone}`}>{financials.positionLabel}</p>
+          <p className={`mt-1.5 break-words text-[12px] font-bold leading-tight min-[390px]:text-[13px] sm:mt-2 sm:text-base ${valueTone}`}>{financials.positionLabel}</p>
         </div>
       </div>
     </div>
   )
 }
 
-function FinancialAmountCard({ icon: Icon, label, value }) {
+function FinancialAmountCard({ icon: Icon, label, value, mobileValue }) {
   return (
-    <div className="rounded-xl border border-emerald-100 bg-white p-3 shadow-sm shadow-emerald-950/[0.02] sm:p-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-          <Icon className="h-5 w-5" />
+    <div className="rounded-xl border border-emerald-100 bg-white p-2.5 shadow-sm shadow-emerald-950/[0.02] sm:p-4">
+      <div className="flex items-center gap-2.5 sm:gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 sm:h-10 sm:w-10">
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
         </span>
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-600 sm:text-xs">{label}</p>
-          <p className="mt-1 break-words text-lg font-bold leading-tight text-slate-950 sm:text-xl">
-            {value}
+          <p className="text-xs font-medium text-slate-600">{label}</p>
+          <p className="mt-1 break-words text-sm font-bold leading-tight text-slate-950 min-[390px]:text-base sm:text-xl">
+            <span className="sm:hidden">{mobileValue || value}</span>
+            <span className="hidden sm:inline">{value}</span>
           </p>
         </div>
       </div>
@@ -156,12 +164,12 @@ function FinancialAmountCard({ icon: Icon, label, value }) {
 
 function DetailRow({ icon: Icon, label, value, children }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(130px,1fr)] items-center gap-3 border-b border-border/70 px-4 py-4 last:border-b-0 sm:grid-cols-[180px_1fr] sm:px-5">
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,1fr)] items-center gap-3 border-b border-border/70 px-4 py-3.5 last:border-b-0 sm:grid-cols-[180px_1fr] sm:px-5 sm:py-4">
       <div className="flex items-center gap-3 text-muted-foreground">
-        <Icon className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
-        <span className="text-base font-medium sm:text-sm">{label}</span>
+        <Icon className="h-[18px] w-[18px] shrink-0 sm:h-4 sm:w-4" />
+        <span className="text-sm font-medium sm:text-sm">{label}</span>
       </div>
-      <div className="min-w-0 text-right text-base font-medium text-foreground sm:text-sm">
+      <div className="min-w-0 break-words text-right text-sm font-medium text-foreground sm:text-sm">
         {children || valueOrFallback(value)}
       </div>
     </div>
@@ -187,10 +195,10 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bottom-0 left-0 top-auto max-h-[92vh] w-full translate-x-0 translate-y-0 gap-0 overflow-y-auto rounded-b-none rounded-t-[28px] border-border/80 bg-white px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 shadow-2xl shadow-slate-950/30 sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:max-h-[90vh] sm:max-w-[860px] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:p-8 [&>button]:hidden">
-        <div className="mx-auto mb-5 h-1.5 w-16 rounded-full bg-slate-200 sm:hidden" />
+      <DialogContent className="bottom-0 left-0 top-auto max-h-[calc(100dvh-72px)] w-full translate-x-0 translate-y-0 gap-0 overflow-y-auto overscroll-contain rounded-b-none rounded-t-[28px] border-border/80 bg-white px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3 shadow-2xl shadow-slate-950/30 sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:max-h-[90vh] sm:max-w-[840px] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:p-8 [&>button]:hidden">
+        <div className="mx-auto mb-4 h-1.5 w-16 rounded-full bg-slate-200 sm:hidden" />
 
-        <DialogHeader className="space-y-5 text-left sm:pr-12">
+        <DialogHeader className="space-y-4 text-left sm:space-y-5 sm:pr-12">
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
@@ -200,29 +208,29 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
             </div>
             <DialogClose
               aria-label="Close tender quick view"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+              className="mr-1 mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 sm:mr-0 sm:mt-0"
             >
               <X className="h-5 w-5" />
             </DialogClose>
           </div>
-          <div className="space-y-4">
-            <DialogTitle className="line-clamp-4 break-words text-2xl font-bold leading-[1.2] tracking-normal text-slate-950 sm:line-clamp-2 sm:text-2xl">
+          <div className="space-y-3 sm:space-y-4">
+            <DialogTitle className="line-clamp-4 break-words text-2xl font-bold leading-[1.15] tracking-normal text-slate-950 sm:line-clamp-2 sm:text-[26px] sm:leading-[1.2]">
               {title}
             </DialogTitle>
             <DialogDescription className="sr-only">
               Quick summary and actions for the selected tender.
             </DialogDescription>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-semibold text-violet-700">
+            <div className="flex min-w-0 items-center gap-2 sm:flex-wrap sm:gap-3">
+              <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-semibold text-violet-700">
                 <span className="h-1.5 w-1.5 rounded-full bg-violet-600" />
                 {status}
               </span>
-              <span className="h-5 w-px bg-border" />
-              <span className="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-50 text-slate-500 sm:bg-slate-100">
+              <span className="hidden h-5 w-px bg-border sm:block" />
+              <span className="inline-flex min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground sm:flex-none">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-50 text-slate-500 sm:h-8 sm:w-8 sm:bg-slate-100">
                   <Building2 className="h-4 w-4" />
                 </span>
-                <span className="break-words">{agency}</span>
+                <span className="min-w-0 truncate">{agency}</span>
               </span>
             </div>
           </div>
@@ -230,14 +238,14 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
 
         <FinancialSnapshot tender={tender} />
 
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-6 sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-6 sm:grid-cols-4">
           <SummaryCard icon={WalletCards} label="Value" value={formatRs(tender.value)} />
           <SummaryCard icon={CalendarCheck} label="Submission" value={formatQuickDate(tender.submissionDate)} />
           <SummaryCard icon={Tag} label="Tender Fee" value={formatRs(tender.tenderFee)} />
           <SummaryCard icon={LinkIcon} label="Linked PO" value={linkedPayOrder} />
         </div>
 
-        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white sm:rounded-xl">
+        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white sm:mt-5 sm:rounded-xl">
           <DetailRow icon={FileText} label="NIT / Ref" value={nitRef} />
           <DetailRow icon={CalendarDays} label="Opening" value={formatQuickDate(tender.openingDate)} />
           <DetailRow icon={ClipboardCheck} label="Checklist">

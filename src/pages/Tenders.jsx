@@ -363,7 +363,7 @@ export default function Tenders() {
         ? "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200"
         : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200";
 
-  const getTenderFinancialLine = (tender) => {
+  const getTenderFinancialSummary = (tender) => {
     const financials = calculateTenderFinancials(tender);
     if (financials.estimatedCost === null && financials.quotedAmount === null) {
       return null;
@@ -380,7 +380,17 @@ export default function Tenders() {
       financials.percentage === null
         ? "—"
         : `${financials.percentage.toFixed(2)}% ${directionText}`;
-    return `Estimate: ${formatCurrencyPrecise(financials.estimatedCost)} · Quoted: ${formatCurrencyPrecise(financials.quotedAmount)} · ${percentText}`;
+    return {
+      estimate: formatCurrency(financials.estimatedCost),
+      quoted: formatCurrency(financials.quotedAmount),
+      percentText,
+      direction: financials.direction,
+    };
+  };
+
+  const formatMobileNitRef = (value) => {
+    if (value === null || value === undefined || value === "") return "—";
+    return String(value).replace(/\s+/g, " ").trim() || "—";
   };
 
   if (loading) return <PageTableSkeleton rows={6} cols={6} metrics={5} />;
@@ -498,7 +508,16 @@ export default function Tenders() {
             <>
               {/* Mobile: card-per-row */}
               <div className="md:hidden p-3 space-y-3 bg-muted/30">
-                {filtered.map((t) => (
+                {filtered.map((t) => {
+                  const financialSummary = getTenderFinancialSummary(t);
+                  const summaryTone =
+                    financialSummary?.direction === "above"
+                      ? "border-amber-200 bg-amber-50/70 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+                      : financialSummary?.direction === "at"
+                        ? "border-blue-200 bg-blue-50/70 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100"
+                        : "border-emerald-200 bg-emerald-50/70 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100";
+
+                  return (
                   <Card key={t.id} className="overflow-hidden">
                     <CardContent className="p-4 space-y-4">
                       <div className="flex items-start justify-between gap-2">
@@ -517,14 +536,40 @@ export default function Tenders() {
                               {t.agency}
                             </p>
                           )}
-                          {getTenderFinancialLine(t) && (
-                            <p className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/60 px-2 py-1.5 text-xs font-medium leading-5 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
-                              {getTenderFinancialLine(t)}
-                            </p>
+                          <div className="mt-2">
+                            <StatusBadge status={t.displayStatus} />
+                          </div>
+                          {financialSummary && (
+                            <div
+                              className={`mt-3 rounded-xl border px-3 py-2.5 text-xs ${summaryTone}`}
+                            >
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="min-w-0">
+                                  <p className="font-medium opacity-75">
+                                    Estimate
+                                  </p>
+                                  <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-foreground">
+                                    {financialSummary.estimate}
+                                  </p>
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-medium opacity-75">
+                                    Quoted
+                                  </p>
+                                  <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-foreground">
+                                    {financialSummary.quoted}
+                                  </p>
+                                </div>
+                              </div>
+                              {financialSummary.percentText !== "—" && (
+                                <span className="mt-3 inline-flex rounded-full border border-current/20 bg-white/70 px-2.5 py-1 text-xs font-semibold dark:bg-background/40">
+                                  {financialSummary.percentText}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <StatusBadge status={t.displayStatus} />
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -589,8 +634,8 @@ export default function Tenders() {
                           </p>
                         </div>
                         <div className="min-w-0 pl-3">
-                          <p className="font-mono text-sm text-foreground break-all">
-                            {t.nit || "—"}
+                          <p className="font-mono text-sm text-foreground whitespace-normal break-words">
+                            {formatMobileNitRef(t.nit)}
                           </p>
                           <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1">
                             NIT/Ref
@@ -599,7 +644,8 @@ export default function Tenders() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Desktop: table */}
@@ -813,7 +859,7 @@ export default function Tenders() {
                   <p className="mt-1 font-semibold">
                     {tenderFinancials.difference === null
                       ? "—"
-                      : `${formatCurrencyPrecise(tenderFinancials.difference)} ${financialDirectionText}`}
+                      : `${formatCurrencyPrecise(tenderFinancials.difference, 2)} ${financialDirectionText}`}
                   </p>
                 </div>
                 <div>

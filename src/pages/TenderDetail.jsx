@@ -1003,7 +1003,7 @@ export default function TenderDetail() {
               />
               <FinancialMetric
                 label="Difference"
-                value={tenderFinancials.difference === null ? '—' : formatCurrencyPrecise(tenderFinancials.difference)}
+                value={tenderFinancials.difference === null ? '—' : formatCurrencyPrecise(tenderFinancials.difference, 2)}
                 tone={tenderFinancialTone}
                 helper={tenderFinancials.difference === null ? undefined : tenderFinancialDirectionText}
               />
