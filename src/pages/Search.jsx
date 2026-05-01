@@ -1,33 +1,83 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { truncate } from '@/lib/utils'
+import { truncate, formatDate } from '@/lib/utils'
 import PageHeader from '@/components/shared/PageHeader'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Search as SearchIcon, FileStack, FileText, StickyNote, CheckSquare, Receipt, Loader2, Clock, X } from 'lucide-react'
+import { Search as SearchIcon, FileStack, FileText, StickyNote, CheckSquare, Receipt, Loader2, Clock, X, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
 
-const SCOPES = ['All', 'Tenders', 'Pay Orders', 'Notes', 'Tasks', 'Expenses']
+const SCOPES = ['All', 'Tenders', 'Pay Orders', 'Tasks', 'Documents', 'Notes']
+const COLLECTIONS = ['tenders', 'payOrders', 'todos', 'notes', 'expenses']
 
 const RESULT_CONFIG = {
-  tenders:   { icon: FileStack,    label: 'Tender',    scope: 'Tenders',    href: (r) => `/tenders/${r.id}`, text: (r) => r.name,        sub: (r) => r.agency },
-  payOrders: { icon: FileText,     label: 'Pay Order', scope: 'Pay Orders', href: () => '/pay-orders',       text: (r) => r.po,          sub: (r) => r.tender },
-  notes:     { icon: StickyNote,   label: 'Note',      scope: 'Notes',      href: () => '/notes',            text: (r) => r.title,       sub: (r) => truncate(r.body?.replace(/<[^>]*>/g, '') || '', 80) },
-  todos:     { icon: CheckSquare,  label: 'Task',      scope: 'Tasks',      href: () => '/todo',             text: (r) => r.text,        sub: () => '' },
-  expenses:  { icon: Receipt,      label: 'Expense',   scope: 'Expenses',   href: () => '/expenses',         text: (r) => r.description, sub: (r) => r.category },
+  tenders: {
+    icon: FileStack,
+    label: 'Tender',
+    scope: 'Tenders',
+    href: (r) => `/tenders/${r.id}`,
+    title: (r) => r.name || 'Untitled tender',
+    sub: (r) => [r.agency, r.nit].filter(Boolean).join(' · '),
+    date: (r) => r.submissionDate || r.createdAt,
+  },
+  payOrders: {
+    icon: FileText,
+    label: 'Pay Order',
+    scope: 'Pay Orders',
+    href: () => '/pay-orders',
+    title: (r) => r.po ? `PO #${r.po}` : 'Pay order',
+    sub: (r) => [r.tender, r.bank, r.status].filter(Boolean).join(' · '),
+    date: (r) => r.submitted || r.createdAt,
+  },
+  todos: {
+    icon: CheckSquare,
+    label: 'Task',
+    scope: 'Tasks',
+    href: () => '/todo',
+    title: (r) => r.text || r.title || 'Task',
+    sub: (r) => [r.category, r.priority].filter(Boolean).join(' · '),
+    date: (r) => r.dueDate || r.createdAt,
+  },
+  documents: {
+    icon: FolderOpen,
+    label: 'Document',
+    scope: 'Documents',
+    href: (r) => r.tenderId ? `/tenders/${r.tenderId}` : '/tenders',
+    title: (r) => r.title || r.fileName || r.type || 'Document',
+    sub: (r) => [r.tenderName, r.type, r.fileName].filter(Boolean).join(' · '),
+    date: (r) => r.uploadedAt || r.addedAt,
+  },
+  notes: {
+    icon: StickyNote,
+    label: 'Note',
+    scope: 'Notes',
+    href: () => '/notes',
+    title: (r) => r.title || 'Note',
+    sub: (r) => truncate(r.body?.replace(/<[^>]*>/g, '') || '', 110),
+    date: (r) => r.updatedAt || r.createdAt,
+  },
+  expenses: {
+    icon: Receipt,
+    label: 'Expense',
+    scope: 'Expenses',
+    href: () => '/expenses',
+    title: (r) => r.description || 'Expense',
+    sub: (r) => [r.category, r.tenderName].filter(Boolean).join(' · '),
+    date: (r) => r.date || r.createdAt,
+  },
 }
 
-const SCOPE_TO_COLS = {
-  'All':       Object.keys(RESULT_CONFIG),
-  'Tenders':   ['tenders'],
-  'Pay Orders':['payOrders'],
-  'Notes':     ['notes'],
-  'Tasks':     ['todos'],
-  'Expenses':  ['expenses'],
+const SCOPE_TO_TYPES = {
+  All: Object.keys(RESULT_CONFIG),
+  Tenders: ['tenders'],
+  'Pay Orders': ['payOrders'],
+  Tasks: ['todos'],
+  Documents: ['documents'],
+  Notes: ['notes'],
 }
 
 const MAX_RECENT = 8
@@ -35,44 +85,106 @@ const MAX_RECENT = 8
 function loadRecent() {
   try { return JSON.parse(localStorage.getItem('grett-recent-searches') || '[]') } catch { return [] }
 }
+
 function saveRecent(query) {
   const prev = loadRecent().filter((q) => q !== query)
   const next = [query, ...prev].slice(0, MAX_RECENT)
   try { localStorage.setItem('grett-recent-searches', JSON.stringify(next)) } catch {}
 }
+
 function clearRecent() {
   try { localStorage.removeItem('grett-recent-searches') } catch {}
 }
 
+function flattenSearchText(value) {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) return value.map(flattenSearchText).join(' ')
+  if (typeof value === 'object') {
+    if (typeof value.toDate === 'function') return value.toDate().toISOString()
+    return Object.values(value).map(flattenSearchText).join(' ')
+  }
+  return ''
+}
+
+function buildDocumentResults(tenders = []) {
+  return tenders.flatMap((tender) => (
+    (tender.documents || []).map((document, index) => ({
+      ...document,
+      id: `${tender.id}-${document.id || document.fileName || index}`,
+      tenderId: tender.id,
+      tenderName: tender.name,
+      tenderAgency: tender.agency,
+      _type: 'documents',
+      _searchText: flattenSearchText({ ...document, tenderName: tender.name, agency: tender.agency, nit: tender.nit }).toLowerCase(),
+    }))
+  ))
+}
+
+function decorateRecords(collectionName, records = []) {
+  return records.map((record) => ({
+    ...record,
+    _type: collectionName,
+    _searchText: flattenSearchText(record).toLowerCase(),
+  }))
+}
+
 export default function Search() {
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [scope, setScope] = useState('All')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [recentSearches, setRecentSearches] = useState(loadRecent)
   const debounceRef = useRef(null)
+  const cacheRef = useRef(null)
+
+  const loadSearchData = useCallback(async () => {
+    if (cacheRef.current) return cacheRef.current
+
+    const snapshots = await Promise.all(COLLECTIONS.map(async (name) => {
+      const snap = await getDocs(collection(db, name))
+      return [name, snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))]
+    }))
+
+    const data = Object.fromEntries(snapshots)
+    const indexed = {
+      tenders: decorateRecords('tenders', data.tenders || []),
+      payOrders: decorateRecords('payOrders', data.payOrders || []),
+      todos: decorateRecords('todos', data.todos || []),
+      notes: decorateRecords('notes', data.notes || []),
+      expenses: decorateRecords('expenses', data.expenses || []),
+      documents: buildDocumentResults(data.tenders || []),
+    }
+
+    cacheRef.current = indexed
+    return indexed
+  }, [])
 
   const doSearch = useCallback(async (q, sc) => {
-    if (q.trim().length < 2) { setResults([]); setSearched(false); return }
+    const trimmed = q.trim()
+    if (trimmed.length < 2) {
+      setResults([])
+      setSearched(false)
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setSearched(true)
-    const lower = q.toLowerCase()
-    const found = []
-    const cols = SCOPE_TO_COLS[sc] || Object.keys(RESULT_CONFIG)
 
     try {
-      for (const col of cols) {
-        const cfg = RESULT_CONFIG[col]
-        const snap = await getDocs(collection(db, col))
-        for (const d of snap.docs) {
-          const data = { id: d.id, ...d.data() }
-          const text = Object.values(data).filter((v) => typeof v === 'string').join(' ').toLowerCase()
-          if (text.includes(lower)) found.push({ ...data, _col: col, _cfg: cfg })
-        }
-      }
+      const indexed = await loadSearchData()
+      const lower = trimmed.toLowerCase()
+      const types = SCOPE_TO_TYPES[sc] || SCOPE_TO_TYPES.All
+      const found = types
+        .flatMap((type) => indexed[type] || [])
+        .filter((record) => record._searchText.includes(lower))
+        .map((record) => ({ ...record, _cfg: RESULT_CONFIG[record._type] }))
+
       setResults(found)
-      saveRecent(q.trim())
+      saveRecent(trimmed)
       setRecentSearches(loadRecent())
     } catch (err) {
       console.error('Search failed:', err)
@@ -81,23 +193,26 @@ export default function Search() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [loadSearchData])
 
-  const handleChange = (e) => {
-    const q = e.target.value
-    setQuery(q)
+  useEffect(() => {
+    doSearch(debouncedQuery, scope)
+  }, [debouncedQuery, scope, doSearch])
+
+  const handleChange = (event) => {
+    const value = event.target.value
+    setQuery(value)
     clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => doSearch(q, scope), 300)
+    debounceRef.current = setTimeout(() => setDebouncedQuery(value), 300)
   }
 
-  const handleScopeChange = (sc) => {
-    setScope(sc)
-    if (query.trim().length >= 2) doSearch(query, sc)
+  const handleScopeChange = (nextScope) => {
+    setScope(nextScope)
   }
 
-  const runRecent = (q) => {
-    setQuery(q)
-    doSearch(q, scope)
+  const runRecent = (recentQuery) => {
+    setQuery(recentQuery)
+    setDebouncedQuery(recentQuery)
   }
 
   const handleClearRecent = () => {
@@ -105,108 +220,163 @@ export default function Search() {
     setRecentSearches([])
   }
 
+  const clearSearch = () => {
+    setQuery('')
+    setDebouncedQuery('')
+    setResults([])
+    setSearched(false)
+  }
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <PageHeader title="Search" description="Search across tenders, pay orders, notes, tasks, and expenses" />
+    <div className="mx-auto max-w-5xl space-y-6">
+      <PageHeader title="Search" description="Search across tenders, pay orders, tasks, documents, and notes" />
 
-      <div className="relative">
-        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" aria-hidden="true" />
-        <Input
-          type="search"
-          autoFocus
-          placeholder="Type to search…"
-          className="pl-10 h-11 text-base"
-          value={query}
-          onChange={handleChange}
-          aria-label="Search"
-        />
-      </div>
+      <Card className="rounded-xl border-border/80 shadow-sm">
+        <CardContent className="space-y-4 p-4">
+          <div className="relative">
+            <SearchIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
+              type="search"
+              autoFocus
+              placeholder="Search tenders, pay orders, tasks, documents..."
+              className="h-12 pl-10 pr-10 text-base"
+              value={query}
+              onChange={handleChange}
+              aria-label="Search"
+            />
+            {query && (
+              <button type="button" onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Clear search">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
 
-      {/* Scope filter */}
-      <div className="flex gap-1.5 flex-wrap" role="group" aria-label="Search scope">
-        {SCOPES.map((s) => (
-          <button
-            key={s}
-            onClick={() => handleScopeChange(s)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              scope === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'
-            }`}
-            aria-pressed={scope === s}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin" role="group" aria-label="Search scope">
+            {SCOPES.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => handleScopeChange(item)}
+                className={`h-9 flex-shrink-0 rounded-full border px-3 text-sm font-medium transition-colors ${
+                  scope === item
+                    ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                    : 'border-border bg-background text-muted-foreground hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
+                }`}
+                aria-pressed={scope === item}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {loading && (
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Searching…
+        <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-card p-4 text-sm text-muted-foreground shadow-sm">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Searching...
         </div>
       )}
 
       {searched && !loading && (
         <p className="text-sm text-muted-foreground" aria-live="polite">
-          {results.length} result{results.length !== 1 ? 's' : ''} for &ldquo;{query}&rdquo;
+          {results.length} result{results.length !== 1 ? 's' : ''} for "{debouncedQuery.trim()}"
           {scope !== 'All' && ` in ${scope}`}
         </p>
       )}
 
-      {/* Results */}
-      <div className="space-y-2" aria-live="polite">
-        {results.map((r) => {
-          const cfg = r._cfg
-          const Icon = cfg.icon
-          return (
-            <Link key={`${r._col}-${r.id}`} to={cfg.href(r)}>
-              <Card className="hover:shadow-sm transition-shadow cursor-pointer">
-                <CardContent className="p-4 flex items-start gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted flex-shrink-0" aria-hidden="true">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-foreground truncate">{cfg.text(r)}</p>
-                      <Badge variant="secondary" className="text-[10px] flex-shrink-0">{cfg.label}</Badge>
-                    </div>
-                    {cfg.sub(r) && <p className="text-xs text-muted-foreground truncate mt-0.5">{cfg.sub(r)}</p>}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          )
-        })}
+      <div className="space-y-3" aria-live="polite">
+        {results.map((result) => (
+          <SearchResultCard key={`${result._type}-${result.id}`} result={result} />
+        ))}
       </div>
 
-      {searched && !loading && results.length === 0 && (
-        <div className="text-center py-12">
-          <SearchIcon className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">No results found for &ldquo;{query}&rdquo;</p>
-        </div>
+      {!query.trim() && !searched && (
+        <SearchEmptyState
+          icon={SearchIcon}
+          title="Search across tenders, pay orders, tasks, and documents."
+          description="Type at least 2 characters to find records across your workspace."
+        />
       )}
 
-      {/* Recent searches — shown before user types */}
+      {query.trim().length === 1 && !searched && (
+        <SearchEmptyState
+          icon={SearchIcon}
+          title="Keep typing to search."
+          description="Enter at least 2 characters to start searching."
+        />
+      )}
+
+      {searched && !loading && results.length === 0 && (
+        <SearchEmptyState
+          icon={SearchIcon}
+          title="No results found."
+          description="Try another keyword or check spelling."
+        />
+      )}
+
       {!searched && recentSearches.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent searches</p>
-            <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground" onClick={handleClearRecent}>
-              <X className="h-3 w-3 mr-1" aria-hidden="true" /> Clear
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recent searches</p>
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground" onClick={handleClearRecent}>
+              <X className="mr-1 h-3 w-3" aria-hidden="true" /> Clear
             </Button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {recentSearches.map((q) => (
+            {recentSearches.map((item) => (
               <button
-                key={q}
-                onClick={() => runRecent(q)}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs text-foreground hover:bg-muted transition-colors"
+                key={item}
+                type="button"
+                onClick={() => runRecent(item)}
+                className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground shadow-sm transition-colors hover:bg-muted"
               >
                 <Clock className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
-                {q}
+                {item}
               </button>
             ))}
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function SearchResultCard({ result }) {
+  const cfg = result._cfg
+  const Icon = cfg.icon
+  const title = cfg.title(result)
+  const subtitle = cfg.sub(result)
+  const date = cfg.date(result)
+
+  return (
+    <Link to={cfg.href(result)} className="block">
+      <Card className="rounded-xl border-border/80 shadow-sm transition hover:border-emerald-200 hover:shadow-md">
+        <CardContent className="flex items-start gap-4 p-4">
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700" aria-hidden="true">
+            <Icon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 text-xs text-emerald-700">{cfg.label}</Badge>
+              {date && <span className="text-xs text-muted-foreground">{formatDate(date)}</span>}
+            </div>
+            <p className="mt-2 line-clamp-2 text-sm font-semibold text-foreground">{title}</p>
+            {subtitle && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{subtitle}</p>}
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
+function SearchEmptyState({ icon: Icon, title, description }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center shadow-sm">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+        <Icon className="h-7 w-7" aria-hidden="true" />
+      </div>
+      <p className="mt-4 text-sm font-semibold text-foreground">{title}</p>
+      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
     </div>
   )
 }

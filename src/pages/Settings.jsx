@@ -92,7 +92,7 @@ export default function Settings() {
     if (!isAdmin) { toast.error('Admin only'); return }
     setExportingBackup(true)
     try {
-      // Lazy-loaded so the export entrypoint is not in a viewer's bundle —
+      // Lazy-loaded so the export entrypoint is not in a viewer's bundle;
       // a non-admin session cannot call it from the JS console.
       const { exportAllDataJSON } = await import('@/lib/export')
       await exportAllDataJSON(user.email)
@@ -103,30 +103,30 @@ export default function Settings() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <PageHeader title="Settings" description="Manage your account and application settings" />
+    <div className="mx-auto max-w-5xl space-y-6">
+      <PageHeader title="Settings" description="Manage account, preferences, users, and app configuration" />
 
-      {/* Profile */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4" /> Account</CardTitle>
+      <Card className="rounded-xl border-border/80 bg-card shadow-sm">
+        <CardHeader className="space-y-1.5 pb-4">
+          <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4 text-emerald-600" /> Account</CardTitle>
+          <CardDescription>Update your profile details and account identity.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-12 w-12">
-              <AvatarFallback className="bg-primary/10 text-primary font-semibold">{getInitials(displayName)}</AvatarFallback>
+        <CardContent className="space-y-5">
+          <div className="flex items-center gap-4 rounded-xl border border-border/70 bg-muted/20 p-4">
+            <Avatar className="h-12 w-12 flex-shrink-0">
+              <AvatarFallback className="bg-emerald-100 font-semibold text-emerald-700">{getInitials(displayName)}</AvatarFallback>
             </Avatar>
-            <div>
-              <p className="text-sm font-medium text-foreground">{displayName}</p>
-              <p className="text-xs text-muted-foreground">{user?.email}</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
+              <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
               <Badge variant={isAdmin ? 'default' : 'secondary'} className="mt-1 text-xs capitalize">{role}</Badge>
             </div>
           </div>
 
           <Separator />
 
-          <div className="space-y-3">
-            <div className="flex gap-3 items-end">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex-1 space-y-1.5">
                 <Label htmlFor="display-name">Display Name</Label>
                 <Input
@@ -135,27 +135,28 @@ export default function Settings() {
                   autoComplete="name"
                   value={newDisplayName}
                   onChange={(e) => setNewDisplayName(e.target.value)}
+                  className="h-11"
                 />
               </div>
-              <Button onClick={saveName} disabled={savingName || newDisplayName === displayName} size="sm">
+              <Button onClick={saveName} disabled={savingName || newDisplayName === displayName} className="h-11 w-full sm:w-auto">
                 {savingName && <Loader2 className="h-4 w-4 animate-spin" />} Save
               </Button>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="user-email">Email</Label>
-              <Input id="user-email" name="email" autoComplete="email" value={user?.email || ''} disabled />
+              <Input id="user-email" name="email" autoComplete="email" value={user?.email || ''} disabled className="h-11" />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Password */}
-      <Card>
-        <CardHeader>
+      <Card className="rounded-xl border-border/80 bg-card shadow-sm">
+        <CardHeader className="space-y-1.5 pb-4">
           <CardTitle className="text-base">Change Password</CardTitle>
+          <CardDescription>Keep your account secure with a strong password.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="current-password">Current Password</Label>
             <Input
@@ -165,6 +166,7 @@ export default function Settings() {
               autoComplete="current-password"
               value={currentPw}
               onChange={(e) => setCurrentPw(e.target.value)}
+              className="h-11"
             />
           </div>
           <div className="space-y-1.5">
@@ -177,6 +179,7 @@ export default function Settings() {
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
               placeholder="Minimum 10 characters"
+              className="h-11"
             />
           </div>
           <div className="space-y-1.5">
@@ -184,7 +187,7 @@ export default function Settings() {
               Confirm New Password
               {confirmPw && newPw && (
                 <span className={`ml-2 text-xs font-normal ${newPw === confirmPw ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
-                  {newPw === confirmPw ? '✓ match' : '✗ no match'}
+                  {newPw === confirmPw ? 'match' : 'no match'}
                 </span>
               )}
             </Label>
@@ -196,24 +199,27 @@ export default function Settings() {
               value={confirmPw}
               onChange={(e) => setConfirmPw(e.target.value)}
               placeholder="Re-enter new password"
+              className="h-11"
             />
           </div>
-          <Button onClick={changePassword} disabled={savingPw} size="sm">
+          <Button onClick={changePassword} disabled={savingPw} className="h-11 w-full sm:w-auto">
             {savingPw && <Loader2 className="h-4 w-4 animate-spin" />} Update Password
           </Button>
         </CardContent>
       </Card>
 
-      {/* Appearance */}
-      <Card>
-        <CardHeader>
+      <Card className="rounded-xl border-border/80 bg-card shadow-sm">
+        <CardHeader className="space-y-1.5 pb-4">
           <CardTitle className="text-base">Appearance</CardTitle>
+          <CardDescription>Choose the visual theme for your workspace.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {isDark ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-muted-foreground" />}
-              <div>
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-muted/20 p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+              </div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium">Dark Mode</p>
                 <p className="text-xs text-muted-foreground">Toggle between light and dark theme</p>
               </div>
@@ -223,15 +229,14 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Data Export — admin only */}
       {isAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2"><Download className="h-4 w-4" /> Data Backup</CardTitle>
+        <Card className="rounded-xl border-border/80 bg-card shadow-sm">
+          <CardHeader className="space-y-1.5 pb-4">
+            <CardTitle className="flex items-center gap-2 text-base"><Download className="h-4 w-4 text-emerald-600" /> Data Backup</CardTitle>
             <CardDescription>Export all your data as a JSON backup file</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={doExport} disabled={exportingBackup} variant="outline">
+            <Button onClick={doExport} disabled={exportingBackup} variant="outline" className="h-11 w-full sm:w-auto">
               {exportingBackup ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               Export Full Backup (JSON)
             </Button>
@@ -239,38 +244,46 @@ export default function Settings() {
         </Card>
       )}
 
-      {/* User Management (Admin only) */}
       {isAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> User Management</CardTitle>
+        <Card className="rounded-xl border-border/80 bg-card shadow-sm">
+          <CardHeader className="space-y-1.5 pb-4">
+            <CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-emerald-600" /> User Management</CardTitle>
             <CardDescription>Manage roles for all users in the system</CardDescription>
           </CardHeader>
           <CardContent>
             {loadingUsers ? (
-              <div className="flex items-center gap-2 text-muted-foreground text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading users…</div>
+              <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading users...</div>
             ) : (
               <div className="space-y-3">
                 {users.map((u) => (
-                  <div key={u.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
-                    <Avatar className="h-8 w-8 flex-shrink-0">
-                      <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials(u.displayName || u.email || '')}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{u.displayName || u.email}</p>
-                      <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                  <div key={u.id} className="rounded-xl border border-border/80 bg-background p-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-10 w-10 flex-shrink-0">
+                        <AvatarFallback className="bg-emerald-100 text-xs font-semibold text-emerald-700">{getInitials(u.displayName || u.email || '')}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">{u.displayName || u.email}</p>
+                        <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                      </div>
                     </div>
-                    {u.id === user.uid ? (
-                      <Badge variant="default" className="text-xs flex-shrink-0">You (Admin)</Badge>
-                    ) : (
-                      <Select value={u.role || 'viewer'} onValueChange={(v) => changeUserRole(u.id, v)}>
-                        <SelectTrigger className="w-24 h-7 text-xs flex-shrink-0"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="viewer">Viewer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
+
+                    <div className="mt-4 flex flex-col gap-3 border-t border-border/70 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Shield className="h-4 w-4" />
+                        <span>Role</span>
+                      </div>
+                      {u.id === user.uid ? (
+                        <Badge variant="default" className="w-fit text-xs">You (Admin)</Badge>
+                      ) : (
+                        <Select value={u.role || 'viewer'} onValueChange={(v) => changeUserRole(u.id, v)}>
+                          <SelectTrigger className="h-10 w-full text-sm sm:w-36"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="viewer">Viewer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

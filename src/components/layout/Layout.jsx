@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Menu, Moon, Sun, PanelLeft, Search } from 'lucide-react'
 import Sidebar from './Sidebar'
 import NotificationsBell from './NotificationsBell'
+import Breadcrumbs from '@/components/shared/Breadcrumbs'
 import CommandPalette from '@/components/shared/CommandPalette'
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,26 @@ import { toast } from 'sonner'
 
 const SIDEBAR_STORAGE_KEY = 'grett-sidebar-collapsed'
 
+const PAGE_BREADCRUMBS = {
+  '/home': [{ label: 'Home' }],
+  '/tenders': [{ label: 'Home', href: '/home' }, { label: 'Tenders' }],
+  '/pay-orders': [{ label: 'Home', href: '/home' }, { label: 'Pay Orders' }],
+  '/expenses': [{ label: 'Home', href: '/home' }, { label: 'Expenses' }],
+  '/calendar': [{ label: 'Home', href: '/home' }, { label: 'Calendar' }],
+  '/todo': [{ label: 'Home', href: '/home' }, { label: 'To-Do' }],
+  '/contacts': [{ label: 'Home', href: '/home' }, { label: 'Contacts' }],
+  '/notes': [{ label: 'Home', href: '/home' }, { label: 'Notes' }],
+  '/activity': [{ label: 'Home', href: '/home' }, { label: 'Activity' }],
+  '/search': [{ label: 'Home', href: '/home' }, { label: 'Search' }],
+  '/settings': [{ label: 'Home', href: '/home' }, { label: 'Settings' }],
+  '/data-health': [{ label: 'Home', href: '/home' }, { label: 'Data Health' }],
+}
+
+function getPageBreadcrumbs(pathname) {
+  if (pathname.startsWith('/tenders/')) return null
+  return PAGE_BREADCRUMBS[pathname] || null
+}
+
 export default function Layout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [signOutOpen, setSignOutOpen] = useState(false)
@@ -28,6 +49,8 @@ export default function Layout({ children }) {
   const { logout } = useAuth()
   const { toggleTheme, isDark } = useTheme()
   const navigate = useNavigate()
+  const location = useLocation()
+  const breadcrumbs = getPageBreadcrumbs(location.pathname)
 
   useEffect(() => {
     try { localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0') } catch {}
@@ -56,7 +79,7 @@ export default function Layout({ children }) {
 
         {/* Mobile sidebar via Sheet */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="left" className="p-0 w-[280px]">
+          <SheetContent side="left" className="w-[300px] max-w-[86vw] p-0">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             <SheetDescription className="sr-only">Main application navigation menu</SheetDescription>
             <Sidebar
@@ -69,13 +92,13 @@ export default function Layout({ children }) {
         {/* Main column */}
         <div className="flex flex-1 flex-col overflow-hidden min-w-0">
           {/* Top bar */}
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-background/80 backdrop-blur-md px-4 lg:px-6 flex-shrink-0">
+          <header className="sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-2 border-b border-border/80 bg-background/90 px-3 shadow-sm backdrop-blur-md sm:px-4 lg:px-6">
             {/* Mobile hamburger */}
             <Button
-              variant="ghost" size="icon" className="lg:hidden h-9 w-9"
+              variant="ghost" size="icon" className="h-10 w-10 rounded-xl lg:hidden"
               onClick={() => setMobileOpen(true)} aria-label="Open menu"
             >
-              <Menu size={18} />
+              <Menu size={19} />
             </Button>
 
             {/* Desktop collapse toggle */}
@@ -83,7 +106,7 @@ export default function Layout({ children }) {
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost" size="icon"
-                  className="hidden lg:inline-flex h-9 w-9"
+                  className="hidden h-10 w-10 rounded-xl lg:inline-flex"
                   onClick={() => setCollapsed((v) => !v)}
                   aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                 >
@@ -94,8 +117,8 @@ export default function Layout({ children }) {
             </Tooltip>
 
             {/* Centered command palette trigger (pill) — desktop shows pill, mobile collapses to a spacer */}
-            <div className="flex flex-1 items-center justify-center gap-2 sm:hidden">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-2 sm:hidden">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
                 <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
                   <path d="M12 2L3 8v2h2v10h4v-5h6v5h4V10h2V8L12 2z" fill="currentColor" />
                 </svg>
@@ -113,7 +136,7 @@ export default function Layout({ children }) {
             {/* Mobile search trigger */}
             <Button
               variant="ghost" size="icon"
-              className="sm:hidden h-9 w-9"
+              className="h-10 w-10 rounded-xl sm:hidden"
               onClick={() => setSearchOpen(true)}
               aria-label="Search"
             >
@@ -127,7 +150,7 @@ export default function Layout({ children }) {
                   variant="ghost" size="icon"
                   onClick={toggleTheme}
                   aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                  className="h-9 w-9"
+                  className="h-10 w-10 rounded-xl"
                 >
                   {isDark ? <Sun size={16} /> : <Moon size={16} />}
                 </Button>
@@ -144,6 +167,7 @@ export default function Layout({ children }) {
             className="flex-1 overflow-y-auto overscroll-contain scrollbar-thin outline-none"
           >
             <div className="mx-auto w-full px-4 py-4 lg:px-6 lg:py-6">
+              {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
               {children}
             </div>
           </main>

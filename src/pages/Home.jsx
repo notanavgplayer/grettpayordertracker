@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { collection, doc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore'
+import { collection, doc, getDocs, updateDoc } from 'firebase/firestore'
 import {
   AlertTriangle,
   ArrowDown,
@@ -42,7 +42,17 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAuth } from '@/context/AuthContext'
 import { db } from '@/lib/firebase'
-import { cn, daysUntil, formatCurrency, formatDate } from '@/lib/utils'
+import {
+  cn,
+  daysUntil,
+  formatCurrency,
+  formatDate,
+  getTenderDisplayStatus,
+  isActionableTenderStatus,
+  isTaskDone,
+  shouldShowTaskOverdue,
+  sortByField,
+} from '@/lib/utils'
 
 const TENDER_STATUS_COLORS = {
   Bidding: '#d97706',
@@ -150,15 +160,15 @@ export default function Home() {
     setError('')
     try {
       const [tSnap, pSnap, eSnap, tOSnap] = await Promise.all([
-        getDocs(query(collection(db, 'tenders'), orderBy('createdAt', 'desc'))),
-        getDocs(query(collection(db, 'payOrders'), orderBy('createdAt', 'desc'))),
-        getDocs(query(collection(db, 'expenses'), orderBy('createdAt', 'desc'))),
-        getDocs(query(collection(db, 'todos'), orderBy('createdAt', 'desc'))),
+        getDocs(collection(db, 'tenders')),
+        getDocs(collection(db, 'payOrders')),
+        getDocs(collection(db, 'expenses')),
+        getDocs(collection(db, 'todos')),
       ])
-      setTenders(tSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      setPayOrders(pSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      setExpenses(eSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      setTodos(tOSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      setTenders(sortByField(tSnap.docs.map((d) => ({ id: d.id, ...d.data() })), 'createdAt', 'desc'))
+      setPayOrders(sortByField(pSnap.docs.map((d) => ({ id: d.id, ...d.data() })), 'createdAt', 'desc'))
+      setExpenses(sortByField(eSnap.docs.map((d) => ({ id: d.id, ...d.data() })), 'createdAt', 'desc'))
+      setTodos(sortByField(tOSnap.docs.map((d) => ({ id: d.id, ...d.data() })), 'createdAt', 'desc'))
     } catch (e) {
       setError(e?.message || 'Failed to load dashboard data.')
       toast.error('Failed to load data')
@@ -175,7 +185,7 @@ export default function Home() {
   const inProgressTenders = tenders.filter((t) => t.status === 'In Progress')
   const wonTenders = tenders.filter((t) => ['Awarded', 'In Progress', 'Completed'].includes(t.status))
   const atRisk = payOrders.filter((p) => p.status === 'Submitted' && p.bidResult === 'Awaiting')
-  const openTodos = todos.filter((t) => !t.done)
+  const openTodos = todos.filter((t) => !isTaskDone(t))
   const wonTenderIds = new Set(wonTenders.map((t) => t.id))
 
   const tenderFinancials = wonTenders.reduce((totals, tender) => {
@@ -202,19 +212,33 @@ export default function Home() {
   const payOrdersHeld = payOrders
     .filter((p) => ['Held', 'Submitted', 'Pending'].includes(p.status))
     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+  const actionableTenderDeadlines = tenders.filter((t) => isActionableTenderStatus(t.status))
 
-  const allDeadlines = activeTenders
+  const allDeadlines = actionableTenderDeadlines
     .filter((t) => t.submissionDate)
     .map((t) => ({ ...t, daysLeft: daysUntil(t.submissionDate) }))
     .filter((t) => t.daysLeft !== null && t.daysLeft >= 0)
     .sort((a, b) => a.daysLeft - b.daysLeft)
     .slice(0, 6)
 
-  const urgentAlerts = activeTenders
+  const urgentAlerts = actionableTenderDeadlines
     .filter((t) => t.submissionDate)
     .map((t) => ({ ...t, daysLeft: daysUntil(t.submissionDate) }))
-    .filter((t) => t.daysLeft !== null && t.daysLeft >= 0 && t.daysLeft <= 2)
+    .filter((t) => t.daysLeft !== null && t.daysLeft >= -1 && t.daysLeft <= 2)
     .sort((a, b) => a.daysLeft - b.daysLeft)
+
+  const urgentDeadlineLabel = (daysLeft) => {
+    if (daysLeft < 0) return 'Overdue'
+    if (daysLeft === 0) return 'Due Today'
+    if (daysLeft === 1) return 'Due Tomorrow'
+    return `Due in ${daysLeft} days`
+  }
+
+  const urgentHeading = urgentAlerts.some((t) => t.daysLeft < 0)
+    ? `${urgentAlerts.length} urgent deadline${urgentAlerts.length > 1 ? 's' : ''} need attention`
+    : urgentAlerts.every((t) => t.daysLeft === 0)
+    ? `${urgentAlerts.length} urgent deadline${urgentAlerts.length > 1 ? 's' : ''} today`
+    : `${urgentAlerts.length} upcoming deadline${urgentAlerts.length > 1 ? 's' : ''}`
 
   const tenderStatusData = Object.keys(TENDER_STATUS_COLORS).map((status) => ({
     status,
@@ -226,9 +250,10 @@ export default function Home() {
     .filter((d) => d.value > 0)
 
   const toggleTodo = async (todo) => {
+    const nextDone = !isTaskDone(todo)
     try {
-      await updateDoc(doc(db, 'todos', todo.id), { done: !todo.done })
-      setTodos((prev) => prev.map((t) => (t.id === todo.id ? { ...t, done: !t.done } : t)))
+      await updateDoc(doc(db, 'todos', todo.id), { done: nextDone })
+      setTodos((prev) => prev.map((t) => (t.id === todo.id ? { ...t, done: nextDone } : t)))
     } catch {
       toast.error('Failed to update task')
     }
@@ -306,10 +331,10 @@ export default function Home() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-lg font-semibold leading-tight text-amber-950 dark:text-amber-100 sm:text-base">
-                    {urgentAlerts.length} urgent deadline{urgentAlerts.length > 1 ? 's' : ''} today
+                    {urgentHeading}
                   </p>
                   <p className="mt-1 text-sm leading-5 text-amber-900/75 dark:text-amber-100/75">
-                    These tenders are due today. Take action to stay on track.
+                    These tenders are due soon. Take action to stay on track.
                   </p>
                 </div>
               </div>
@@ -346,7 +371,7 @@ export default function Home() {
                     <span className="ml-auto flex shrink-0 items-center gap-2">
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                         <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                        {t.daysLeft === 0 ? 'Due Today' : t.daysLeft === 1 ? 'Due Tomorrow' : `Due in ${t.daysLeft} days`}
+                        {urgentDeadlineLabel(t.daysLeft)}
                       </span>
                       <ChevronRight className="hidden h-4 w-4 text-muted-foreground sm:block" aria-hidden="true" />
                     </span>
@@ -491,7 +516,7 @@ export default function Home() {
                         </div>
                       </TableCell>
                       <TableCell className="hidden max-w-[220px] truncate text-muted-foreground md:table-cell">{t.agency || '-'}</TableCell>
-                      <TableCell><StatusBadge status={t.status} /></TableCell>
+                      <TableCell><StatusBadge status={getTenderDisplayStatus(t)} /></TableCell>
                       <TableCell className="text-right tabular-nums">
                         <span className={t.daysLeft <= 1 ? 'font-semibold text-rose-600 dark:text-rose-400' : t.daysLeft <= 3 ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}>
                           {t.daysLeft === 0 ? 'Today' : t.daysLeft === 1 ? 'Tomorrow' : `${t.daysLeft}d`}
@@ -526,7 +551,7 @@ export default function Home() {
             ) : (
               <ul className="divide-y divide-border">
                 {openTodos.slice(0, 7).map((todo) => {
-                  const overdue = todo.dueDate && daysUntil(todo.dueDate) < 0
+                  const overdue = shouldShowTaskOverdue(todo)
                   const iconTone = overdue
                     ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                     : todo.priority === 'high'
@@ -546,7 +571,7 @@ export default function Home() {
                       <input
                         type="checkbox"
                         id={`home-todo-${todo.id}`}
-                        checked={todo.done}
+                        checked={isTaskDone(todo)}
                         onChange={() => toggleTodo(todo)}
                         aria-label={`Mark task complete: ${todo.text}`}
                         className="h-4 w-4 shrink-0 cursor-pointer rounded border-border accent-primary"
