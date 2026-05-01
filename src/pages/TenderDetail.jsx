@@ -5,7 +5,7 @@ import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
 import { getSupabaseStorageBucket, uploadTenderDocument } from '@/lib/supabaseStorage'
-import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinancials, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
+import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinancials, getTenderDisplayStatus, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import Breadcrumbs from '@/components/shared/Breadcrumbs'
 import StatusBadge from '@/components/shared/StatusBadge'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -26,6 +27,7 @@ import {
   DollarSign, History, User, Receipt, FileText, Printer, Paperclip, ExternalLink,
   Banknote, CalendarDays, ClipboardList, FolderOpen, Landmark, WalletCards,
   Hash, Link as LinkIcon, Upload, Download, ChevronDown, BarChart3, PieChart,
+  Search, Image as ImageIcon, FileSpreadsheet, FileType2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -44,6 +46,9 @@ const DOCUMENT_CATEGORIES = [
   'Security Refund',
   'Other',
 ]
+const BILL_STATUSES = ['Draft', 'Submitted', 'Approved', 'Paid', 'Partially Paid', 'Rejected']
+const BILL_STATUS_OPTIONS = ['Pending', 'Under Review', ...BILL_STATUSES]
+const BILL_TYPES = ['Running Bill', 'Final Bill', 'Invoice']
 const STATUS_MEANINGS = {
   Awarded: 'Won and awaiting kickoff or formal work start.',
   'In Progress': 'Won and work is underway.',
@@ -52,6 +57,57 @@ const STATUS_MEANINGS = {
   Cancelled: 'Tender was cancelled. No active execution.',
   Pending: 'Work has not started.',
   'On Hold': 'Work is paused.',
+}
+
+const DOCUMENT_TYPE_FILTERS = ['All', 'PDF', 'Image', 'Excel', 'Word', 'Other']
+
+function getDocumentKind(document = {}) {
+  const text = `${document.fileType || ''} ${document.fileName || ''} ${document.title || ''} ${document.type || ''} ${document.url || ''}`.toLowerCase()
+  if (text.includes('pdf') || text.endsWith('.pdf')) return 'PDF'
+  if (text.includes('image') || /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/.test(text)) return 'Image'
+  if (text.includes('spreadsheet') || text.includes('excel') || /\.(xls|xlsx|csv)(\?|$)/.test(text)) return 'Excel'
+  if (text.includes('word') || /\.(doc|docx)(\?|$)/.test(text)) return 'Word'
+  return 'Other'
+}
+
+function getDocumentTypeClasses(kind) {
+  const tones = {
+    PDF: 'border-red-200 bg-red-50 text-red-700',
+    Image: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    Excel: 'border-green-200 bg-green-50 text-green-700',
+    Word: 'border-blue-200 bg-blue-50 text-blue-700',
+    Other: 'border-slate-200 bg-slate-100 text-slate-700',
+  }
+  return tones[kind] || tones.Other
+}
+
+function getDocumentIcon(kind) {
+  const icons = {
+    Image: ImageIcon,
+    Excel: FileSpreadsheet,
+    Word: FileType2,
+    PDF: FileText,
+    Other: Paperclip,
+  }
+  return icons[kind] || Paperclip
+}
+
+function formatFileSize(bytes) {
+  const value = Number(bytes)
+  if (!Number.isFinite(value) || value <= 0) return '-'
+  if (value < 1024) return `${value} B`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function daysSince(dateValue) {
+  if (!dateValue) return Infinity
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return Infinity
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  date.setHours(0, 0, 0, 0)
+  return Math.floor((today - date) / (1000 * 60 * 60 * 24))
 }
 
 function cleanTenderPayload(form, fallbackValue, fallbackTenderFee) {
@@ -76,6 +132,42 @@ function stripUndefined(value) {
     )
   }
   return value
+}
+
+function toBillNumber(value) {
+  if (value === '' || value === null || value === undefined) return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function getBillAmounts(bill = {}) {
+  const submitted = toBillNumber(bill.submittedAmount ?? bill.amount) ?? 0
+  const approved = toBillNumber(bill.approvedAmount) ?? submitted
+  const received = toBillNumber(bill.receivedAmount) ?? (bill.status === 'Paid' ? approved : 0)
+  const deductions = toBillNumber(bill.deductions) ?? Math.max(submitted - approved, 0)
+  const balance = Math.max(approved - received, 0)
+  return { submitted, approved, received, deductions, balance }
+}
+
+function getBillDate(bill = {}) {
+  return bill.date || bill.submitted || bill.paid || ''
+}
+
+function getBillTitle(bill = {}, fallback = 'Bill') {
+  return bill.no || bill.billNo || bill.desc || fallback
+}
+
+function getBillSummary(bills = []) {
+  return bills.reduce((summary, bill) => {
+    const amounts = getBillAmounts(bill)
+    return {
+      submitted: summary.submitted + amounts.submitted,
+      approved: summary.approved + amounts.approved,
+      received: summary.received + amounts.received,
+      deductions: summary.deductions + amounts.deductions,
+      balance: summary.balance + amounts.balance,
+    }
+  }, { submitted: 0, approved: 0, received: 0, deductions: 0, balance: 0 })
 }
 
 export default function TenderDetail() {
@@ -107,6 +199,8 @@ export default function TenderDetail() {
   const [completionRemarks, setCompletionRemarks] = useState('')
   const [completing, setCompleting] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
+  const [documentSearch, setDocumentSearch] = useState('')
+  const [documentTypeFilter, setDocumentTypeFilter] = useState('All')
   const [uploadingDocumentId, setUploadingDocumentId] = useState(null)
   const [documentUploadProgress, setDocumentUploadProgress] = useState({})
   const [checklistExpanded, setChecklistExpanded] = useState(false)
@@ -576,7 +670,22 @@ export default function TenderDetail() {
 
   // Bills helpers
   const addBill = () => {
-    updateAutosavedForm('bills', (items = []) => [...items, { id: uid(), desc: '', amount: 0, date: '', status: 'Pending' }])
+    updateAutosavedForm('bills', (items = []) => [
+      ...items,
+      {
+        id: uid(),
+        no: '',
+        desc: '',
+        type: 'Running Bill',
+        amount: 0,
+        approvedAmount: '',
+        receivedAmount: '',
+        deductions: '',
+        date: '',
+        status: 'Draft',
+        remarks: '',
+      },
+    ])
   }
   const updateBill = (billId, patch) => {
     updateAutosavedForm('bills', (items = []) => items.map((b) => b.id === billId ? { ...b, ...patch } : b))
@@ -587,7 +696,22 @@ export default function TenderDetail() {
 
   // RA Bills helpers
   const addRABill = () => {
-    updateAutosavedForm('raBills', (items = []) => [...items, { id: uid(), no: '', amount: 0, submitted: '', paid: '', status: 'Submitted' }])
+    updateAutosavedForm('raBills', (items = []) => [
+      ...items,
+      {
+        id: uid(),
+        no: '',
+        type: 'Running Bill',
+        amount: 0,
+        approvedAmount: '',
+        receivedAmount: '',
+        deductions: '',
+        submitted: '',
+        paid: '',
+        status: 'Submitted',
+        remarks: '',
+      },
+    ])
   }
   const updateRABill = (billId, patch) => {
     updateAutosavedForm('raBills', (items = []) => items.map((b) => b.id === billId ? { ...b, ...patch } : b))
@@ -682,6 +806,7 @@ export default function TenderDetail() {
   const cashPosition = totalReceived - totalExpenses
   const projectedMargin = contractValue > 0 ? Math.round((expectedProfit / contractValue) * 100) : null
   const tenderFinancials = calculateTenderFinancials(form)
+  const displayTenderStatus = getTenderDisplayStatus(form)
   const tenderFinancialDirectionText =
     tenderFinancials.direction === 'below'
       ? 'Below'
@@ -735,12 +860,39 @@ export default function TenderDetail() {
     .slice(0, 5)
   const bills = form.bills || []
   const raBills = form.raBills || []
+  const billSummary = getBillSummary(bills)
+  const raBillSummary = getBillSummary(raBills)
   const paidRegularBills = bills.filter((b) => b.status === 'Paid').length
   const paidRaBills = raBills.filter((b) => b.status === 'Paid').length
+  const documents = form.documents || []
+  const documentStats = DOCUMENT_TYPE_FILTERS.filter((type) => type !== 'All').reduce((summary, type) => ({
+    ...summary,
+    [type]: documents.filter((item) => getDocumentKind(item) === type).length,
+  }), {})
   const documentCategoryCounts = DOCUMENT_CATEGORIES.map((category) => ({
     category,
-    count: (form.documents || []).filter((item) => (item.type || 'Other') === category).length,
+    count: documents.filter((item) => (item.type || 'Other') === category).length,
   }))
+  const linkedTenderDocumentCount = documents.filter((item) => item.tenderRef || item.linkedTender || item.linkedProject || item.url || item.fileName).length
+  const recentUploadCount = documents.filter((item) => daysSince(item.uploadedAt || item.addedAt) <= 30).length
+  const filteredDocuments = documents.filter((item) => {
+    const kind = getDocumentKind(item)
+    if (documentTypeFilter !== 'All' && kind !== documentTypeFilter) return false
+    if (!documentSearch) return true
+    const queryText = documentSearch.toLowerCase()
+    return [item.title, item.fileName, item.type, item.url, item.notes, form.name, form.nit]
+      .some((value) => String(value || '').toLowerCase().includes(queryText))
+  })
+  const pendingChecklist = checklist.filter((item) => !item.done).slice(0, 4)
+  const recentDocuments = [...(form.documents || [])]
+    .sort((a, b) => new Date(b.addedAt || b.uploadedAt || 0) - new Date(a.addedAt || a.uploadedAt || 0))
+    .slice(0, 4)
+  const recentSiteVisits = [...(form.siteVisits || form.visits || [])]
+    .sort((a, b) => new Date(b.date || b.visitDate || 0) - new Date(a.date || a.visitDate || 0))
+    .slice(0, 4)
+  const recentBills = [...bills, ...raBills.map((bill) => ({ ...bill, isRaBill: true }))]
+    .sort((a, b) => new Date((b.paid || b.submitted || b.date) || 0) - new Date((a.paid || a.submitted || a.date) || 0))
+    .slice(0, 4)
   const linkedPayOrderDisplay = linkedPOs.length > 0
     ? linkedPOs.map((po) => po.po).filter(Boolean).join(', ')
     : form.linkedPO || '-'
@@ -758,7 +910,7 @@ export default function TenderDetail() {
   ].filter(Boolean)
   const hasCompletionWarnings = completionIssues.length > 0
   const summaryRows = [
-    ['Status', form.status || '-'],
+    ['Status', displayTenderStatus || '-'],
     ['NIT / Reference', form.nit || '-'],
     ['Agency', form.agency || '-'],
     ['Contract Value', formatCurrency(contractValue)],
@@ -820,9 +972,24 @@ export default function TenderDetail() {
   ].filter(Boolean).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 6)
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-5 pb-24 md:pb-0">
-      <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-4 md:hidden">
-        <div className="aspect-square overflow-hidden rounded-xl border bg-emerald-50 dark:bg-emerald-950/30">
+    <div className="mx-auto max-w-[1500px] space-y-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:space-y-5 md:pb-0">
+      <Breadcrumbs
+        items={[
+          { label: 'Home', href: '/home' },
+          { label: 'Tenders', href: '/tenders' },
+          { label: form.name || 'Tender Detail' },
+        ]}
+        className="hidden sm:block"
+      />
+      <Breadcrumbs
+        items={[
+          { label: 'Tenders', href: '/tenders' },
+          { label: 'Details' },
+        ]}
+        className="mb-2 sm:hidden"
+      />
+      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-xl border bg-card p-3 shadow-sm md:hidden">
+        <div className="aspect-square overflow-hidden rounded-lg border bg-emerald-50 dark:bg-emerald-950/30">
           <div className="relative h-full w-full">
             <div className="absolute bottom-4 left-4 h-8 w-14 rounded-t-full border-t-4 border-emerald-600" />
             <div className="absolute bottom-6 left-8 h-10 w-1.5 rounded bg-emerald-700" />
@@ -831,12 +998,15 @@ export default function TenderDetail() {
             <div className="absolute bottom-2 left-2 h-1 w-20 rotate-[-20deg] rounded bg-white" />
           </div>
         </div>
-        <div className="min-w-0 space-y-2">
-          <h1 className="text-xl font-bold leading-tight tracking-tight sm:text-2xl">
+        <div className="min-w-0 space-y-1.5">
+          <h1 className="text-lg font-bold leading-snug tracking-tight sm:text-2xl">
             {form.name || 'Untitled Tender'}
           </h1>
-          <p className="text-xs text-muted-foreground sm:text-sm">{form.nit ? `NIT ${form.nit}` : 'No NIT / Reference'}</p>
-          {form.status && <StatusBadge status={form.status} className="px-3 py-1 text-xs sm:text-sm" />}
+          <p className="break-words text-xs text-muted-foreground sm:text-sm">{form.nit ? `NIT ${form.nit}` : 'No NIT / Reference'}</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {displayTenderStatus && <StatusBadge status={displayTenderStatus} className="px-2.5 py-1 text-xs" />}
+            {form.agency && <span className="max-w-full truncate text-xs text-muted-foreground">{form.agency}</span>}
+          </div>
         </div>
       </div>
 
@@ -851,7 +1021,7 @@ export default function TenderDetail() {
             </h1>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span className="font-mono">{form.nit || 'No NIT / Reference'}</span>
-              {form.status && <StatusBadge status={form.status} />}
+              {displayTenderStatus && <StatusBadge status={displayTenderStatus} />}
               {dirty && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">Unsaved changes</span>}
               {autoSaving && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">Auto-saving</span>}
               {autoSaveError && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">Auto-save failed</span>}
@@ -881,7 +1051,7 @@ export default function TenderDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <TenderMetric icon={Banknote} label="Contract Value" value={formatCurrency(contractValue)} detail="PKR" tone="emerald" />
         <TenderMetric icon={Receipt} label="Tender Fee" value={formatCurrency(Number(form.tenderFee) || 0)} detail="Auto expense" tone="sky" />
         <TenderMetric icon={Landmark} label="Linked Pay Orders" value={linkedPOs.length || (form.linkedPO ? 1 : 0)} detail={form.linkedPO || 'Total'} tone="violet" />
@@ -892,15 +1062,15 @@ export default function TenderDetail() {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
         <div className="space-y-5">
-          <Tabs defaultValue="overview" className="flex flex-col gap-5">
+          <Tabs defaultValue="overview" className="flex min-w-0 flex-col gap-4 md:gap-5">
           <Card className="order-1">
-            <CardHeader className="pb-2">
+            <CardHeader className="p-4 pb-2 md:p-6 md:pb-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <FileText className="h-5 w-5 text-emerald-600" /> Tender Details
                 </CardTitle>
                 {isAdmin && (
-                  <Button variant={detailsEditing ? 'secondary' : 'outline'} size="sm" onClick={() => setDetailsEditing((value) => !value)}>
+                  <Button variant={detailsEditing ? 'secondary' : 'outline'} size="sm" className="h-10 md:h-9" onClick={() => setDetailsEditing((value) => !value)}>
                     <Pencil className="h-3.5 w-3.5" /> {detailsEditing ? 'Viewing' : 'Edit Details'}
                   </Button>
                 )}
@@ -919,12 +1089,12 @@ export default function TenderDetail() {
                   {detailsEditing ? (
                     <Select value={form.status || ''} onValueChange={updateTenderStatus}>
                       <SelectTrigger className="h-9 border-transparent bg-transparent px-0 shadow-none hover:border-input focus:px-3">
-                        {form.status ? <StatusBadge status={form.status} /> : <SelectValue />}
+                        {displayTenderStatus ? <StatusBadge status={displayTenderStatus} /> : <SelectValue />}
                       </SelectTrigger>
                       <SelectContent>{TENDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                     </Select>
                   ) : (
-                    <div className="py-1">{form.status ? <StatusBadge status={form.status} /> : <DetailValue>-</DetailValue>}</div>
+                    <div className="py-1">{displayTenderStatus ? <StatusBadge status={displayTenderStatus} /> : <DetailValue>-</DetailValue>}</div>
                   )}
                 </DetailRow>
                 <DetailRow icon={Hash} label="NIT / Reference">
@@ -965,45 +1135,80 @@ export default function TenderDetail() {
           </Card>
 
       {/* Tabs */}
-        <TabsList className="order-2 flex h-auto w-full justify-start gap-2 overflow-x-auto whitespace-nowrap rounded-none border-b bg-transparent px-0 pb-0 [scrollbar-width:none] md:gap-2 md:rounded-lg md:border md:bg-muted/40 md:p-1.5 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
+        <TabsList className="order-2 -mx-1 flex h-auto max-w-full justify-start gap-1.5 overflow-x-auto whitespace-nowrap rounded-none border-b bg-transparent px-1 pb-0 [scrollbar-width:none] md:mx-0 md:gap-2 md:rounded-lg md:border md:bg-muted/40 md:p-1.5 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
           {compactTabs.map(([value, label]) => (
             <TabsTrigger
               key={value}
               value={value}
-              className="h-11 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 text-sm text-muted-foreground data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-400 sm:text-base md:h-9 md:rounded-md md:border-b-0 md:px-4 md:py-2 md:text-sm md:data-[state=active]:bg-emerald-50 md:data-[state=active]:text-emerald-700 md:dark:data-[state=active]:bg-emerald-950/40"
+              className="h-11 flex-shrink-0 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 text-sm text-muted-foreground data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-400 sm:text-base md:h-9 md:rounded-md md:border-b-0 md:px-4 md:py-2 md:text-sm md:data-[state=active]:bg-emerald-50 md:data-[state=active]:text-emerald-700 md:dark:data-[state=active]:bg-emerald-950/40"
             >
               {label}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        {/* Overview tab: checklist + notes + history */}
-        <TabsContent value="overview" className="order-3 mt-0 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
+        {/* Overview tab: tender control dashboard */}
+        <TabsContent value="overview" className="order-3 mt-0 space-y-5">
+          <Card className="overflow-hidden border-emerald-100 shadow-sm dark:border-emerald-900/40">
+            <CardContent className="p-3.5 md:p-5">
+              <div className="grid gap-4 md:gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="min-w-0 space-y-3 md:space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {displayTenderStatus && <StatusBadge status={displayTenderStatus} />}
+                    {dirty && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">Unsaved changes</span>}
+                    {autoSaving && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">Auto-saving</span>}
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold leading-snug tracking-tight md:text-2xl">
+                      {form.name || 'Untitled Tender'}
+                    </h2>
+                    <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">
+                      {form.agency || 'No agency recorded'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <OverviewInfo icon={Hash} label="NIT / Ref" value={form.nit || '—'} />
+                    <OverviewInfo icon={CalendarDays} label="Submission" value={formatDate(form.submissionDate) || '—'} />
+                    <OverviewInfo icon={CalendarDays} label="Opening" value={formatDate(form.openingDate) || '—'} />
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-muted/20 p-3.5 md:p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Execution Progress</p>
+                  <div className="mt-3 flex items-end justify-between gap-3">
+                    <div>
+                      <p className="text-3xl font-semibold tracking-tight">{dashboardProgress}%</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{progressMessage}</p>
+                    </div>
+                    <Badge variant="outline" className="rounded-full">{projectHealth}</Badge>
+                  </div>
+                  <Progress value={dashboardProgress} className="mt-4 h-2" />
+                  <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-4 text-sm">
+                    <SnapshotRow label="Checklist" value={`${doneCount}/${checklist.length}`} tone={pct === 100 ? 'profit' : 'accent'} />
+                    <SnapshotRow label="Linked POs" value={String(linkedPOs.length || (form.linkedPO ? 1 : 0))} tone="accent" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm">
+            <CardHeader className="p-4 pb-3 md:p-6 md:pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <Banknote className="h-4 w-4" /> Financial Details
-                </CardTitle>
-                {tenderFinancials.direction !== 'none' && (
-                  <StatusBadge status={tenderFinancials.positionLabel} />
-                )}
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Banknote className="h-4 w-4 text-emerald-600" /> Financial Snapshot
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">Estimate, quote, award value, and security position.</p>
+                </div>
+                {tenderFinancials.direction !== 'none' && <StatusBadge status={tenderFinancials.positionLabel} />}
               </div>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-4 pt-0 sm:grid-cols-2 lg:grid-cols-4">
-              <FinancialMetric
-                label="Estimated Cost"
-                value={formatCurrencyPrecise(tenderFinancials.estimatedCost)}
-                tone="accent"
-              />
-              <FinancialMetric
-                label="Quoted Amount"
-                value={formatCurrencyPrecise(tenderFinancials.quotedAmount)}
-                tone="accent"
-              />
+            <CardContent className="grid grid-cols-2 gap-2.5 p-4 pt-0 sm:gap-3 md:p-6 md:pt-0 xl:grid-cols-4">
+              <FinancialMetric label="Estimated Cost" value={formatCurrencyPrecise(tenderFinancials.estimatedCost, 0)} tone="accent" />
+              <FinancialMetric label="Quoted Amount" value={formatCurrencyPrecise(tenderFinancials.quotedAmount, 0)} tone="accent" />
               <FinancialMetric
                 label="Difference"
-                value={tenderFinancials.difference === null ? '—' : formatCurrencyPrecise(tenderFinancials.difference, 2)}
+                value={tenderFinancials.difference === null ? '—' : formatCurrencyPrecise(tenderFinancials.difference, 0)}
                 tone={tenderFinancialTone}
                 helper={tenderFinancials.difference === null ? undefined : tenderFinancialDirectionText}
               />
@@ -1013,87 +1218,89 @@ export default function TenderDetail() {
                 tone={tenderFinancialTone}
                 helper={tenderFinancials.percentage === null ? undefined : tenderFinancialDirectionText}
               />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <DollarSign className="h-4 w-4" /> Profit & Expenses
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-0">
               <FinancialMetric label="Contract Value" value={formatCurrency(contractValue)} />
+              <FinancialMetric label="Tender Fee" value={formatCurrency(Number(form.tenderFee) || 0)} tone="expense" helper="Auto expense" />
+              <FinancialMetric label="Bid Security / Linked PO" value={linkedPOs.length ? formatCurrency(linkedPOs.reduce((sum, po) => sum + (Number(po.amount) || 0), 0)) : (form.linkedPO || '—')} tone="accent" helper={linkedPOs.length ? `${linkedPOs.length} pay order${linkedPOs.length === 1 ? '' : 's'}` : 'Managed from Pay Orders'} />
+              <FinancialMetric label="Expected Profit" value={formatCurrency(expectedProfit)} tone={expectedProfit >= 0 ? 'profit' : 'loss'} helper={projectedMargin !== null ? `${projectedMargin}% margin` : undefined} />
               <FinancialMetric label="Total Expenses" value={formatCurrency(totalExpenses)} tone="expense" />
-              <FinancialMetric
-                label="Expected Profit"
-                value={formatCurrency(expectedProfit)}
-                tone={expectedProfit >= 0 ? 'profit' : 'loss'}
-                helper={projectedMargin !== null ? `${projectedMargin}% margin` : undefined}
-              />
-              <FinancialMetric
-                label="Cash Position"
-                value={formatCurrency(cashPosition)}
-                tone={cashPosition >= 0 ? 'profit' : 'loss'}
-                helper={`${formatCurrency(totalReceived)} received from paid bills/RA bills`}
-              />
-              <FinancialMetric
-                label="Receivable"
-                value={formatCurrency(receivable)}
-                tone={receivable > 0 ? 'expense' : 'profit'}
-                helper="Contract value minus received payments"
-              />
-              <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-4">
+              <FinancialMetric label="Received" value={formatCurrency(totalReceived)} tone="profit" helper="Bills / RA bills marked paid" />
+              <FinancialMetric label="Receivable" value={formatCurrency(receivable)} tone={receivable > 0 ? 'expense' : 'profit'} />
+              <FinancialMetric label="Cash Position" value={formatCurrency(cashPosition)} tone={cashPosition >= 0 ? 'profit' : 'loss'} />
+              <p className="col-span-2 text-xs text-muted-foreground xl:col-span-4">
                 Received payments are calculated from Bills and RA Bills marked as Paid.
               </p>
               {form.status === 'Completed' && form.completionSnapshot && (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200 sm:col-span-2 lg:col-span-4">
-                  <p className="font-medium">
-                    Completed {formatDate(form.completionDate)}
-                  </p>
+                <div className="col-span-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200 xl:col-span-4">
+                  <p className="font-medium">Completed {formatDate(form.completionDate)}</p>
                   <p className="mt-1 text-xs opacity-80">
                     Final snapshot: expected profit {formatCurrency(form.completionSnapshot.expectedProfit ?? form.completionSnapshot.projectedProfit)}, cash position {formatCurrency(form.completionSnapshot.cashPosition ?? form.completionSnapshot.realizedProfit)}, receivable {formatCurrency(form.completionSnapshot.receivable ?? form.completionSnapshot.outstandingRevenue)}.
                   </p>
-                  {form.completionRemarks && (
-                    <p className="mt-2 text-xs opacity-80">{form.completionRemarks}</p>
-                  )}
+                  {form.completionRemarks && <p className="mt-2 text-xs opacity-80">{form.completionRemarks}</p>}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <Receipt className="h-4 w-4" /> Recent Expenses
-                </CardTitle>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <Card className="shadow-sm">
+              <CardHeader className="p-4 pb-3 md:p-6 md:pb-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <CheckSquare className="h-4 w-4 text-emerald-600" /> Checklist Progress
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    {checklistExpanded && isAdmin && <Button size="sm" variant="outline" className="h-10 flex-1 sm:h-9 sm:flex-none" onClick={addChecklistItem}><Plus className="h-3.5 w-3.5" /> Add Item</Button>}
+                    <Button size="sm" variant="outline" className="h-10 flex-1 sm:h-9 sm:flex-none" onClick={() => setChecklistExpanded((value) => !value)}>
+                      {checklistExpanded ? 'Hide Checklist' : 'Show Checklist'}
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="pt-0">
-                {recentExpenses.length === 0 ? (
-                  <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">
-                    No expenses recorded yet.
-                  </p>
-                ) : (
+              <CardContent className="space-y-4 p-4 pt-0 md:p-6 md:pt-0">
+                <div className="rounded-xl border bg-muted/10 p-4">
+                  <div className="flex items-end justify-between gap-4">
+                    <div>
+                      <p className="text-2xl font-semibold tracking-tight">{doneCount}/{checklist.length}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Checklist items complete</p>
+                    </div>
+                    <p className="font-mono text-lg font-semibold text-emerald-700 dark:text-emerald-300">{pct}%</p>
+                  </div>
+                  <Progress value={pct} className="mt-4 h-2" />
+                </div>
+                {!checklistExpanded && (
                   <div className="space-y-2">
-                    {recentExpenses.map((expense) => (
-                      <div key={expense.id} className="rounded-lg border bg-muted/10 p-3 transition-colors hover:bg-muted/20">
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                          <div className="min-w-0 flex-1">
-                            <p className="break-words text-sm font-medium leading-5">{expense.description || '-'}</p>
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <span className="rounded-md bg-background px-2 py-1 text-xs text-muted-foreground ring-1 ring-border">
-                                {formatDate(expense.date)}
-                              </span>
-                              {expense.category && <Badge variant="secondary" className="text-xs">{expense.category}</Badge>}
-                            </div>
-                          </div>
-                          <div className="flex min-w-[120px] flex-col items-start justify-center border-t pt-3 text-left sm:justify-self-end sm:border-l sm:border-t-0 sm:items-end sm:pl-4 sm:pt-0 sm:text-right">
-                            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Amount</p>
-                            <p className="mt-1 whitespace-nowrap font-mono text-base font-semibold tabular-nums text-rose-600 dark:text-rose-400">{formatCurrency(expense.amount)}</p>
-                          </div>
+                    {pendingChecklist.length === 0 ? (
+                      <p className="rounded-lg border border-dashed py-5 text-center text-sm text-muted-foreground">
+                        {checklist.length === 0 ? 'No checklist items yet.' : 'All checklist items are complete.'}
+                      </p>
+                    ) : (
+                      pendingChecklist.map((item) => (
+                        <div key={item.id} className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm">
+                          <span className="h-2 w-2 rounded-full bg-amber-500" />
+                          <span className="line-clamp-1">{item.label || 'Untitled checklist item'}</span>
                         </div>
-                        {expense.note && <p className="mt-2 break-words text-xs text-muted-foreground">{expense.note}</p>}
+                      ))
+                    )}
+                  </div>
+                )}
+                {checklistExpanded && (
+                  <div className="space-y-2">
+                    {checklist.length === 0 && <p className="text-center text-sm text-muted-foreground py-4">No checklist items yet.</p>}
+                    {checklist.map((item) => (
+                      <div key={item.id} className="flex items-center gap-3 group">
+                        <Checkbox checked={item.done} onCheckedChange={(v) => updateChecklistItem(item.id, { done: v })} disabled={!isAdmin} />
+                        <Input
+                          value={item.label}
+                          onChange={(e) => updateChecklistItem(item.id, { label: e.target.value })}
+                          disabled={!isAdmin}
+                          className={`flex-1 border-0 shadow-none focus-visible:ring-0 p-0 h-auto bg-transparent ${item.done ? 'line-through text-muted-foreground' : ''}`}
+                          placeholder="Checklist item…"
+                        />
+                        {isAdmin && (
+                          <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100 text-destructive" onClick={() => removeChecklistItem(item.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1101,94 +1308,131 @@ export default function TenderDetail() {
               </CardContent>
             </Card>
 
-            <div className="space-y-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <WalletCards className="h-4 w-4" /> Payment Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="rounded-lg border bg-muted/10 p-3 transition-colors hover:bg-muted/20">
-                    <div className="space-y-3">
-                      <PaymentSummaryRow label="Received" value={formatCurrency(totalReceived)} tone="profit" />
-                      <PaymentSummaryRow label="Receivable" value={formatCurrency(receivable)} tone={receivable > 0 ? 'accent' : 'profit'} />
-                      <PaymentSummaryRow label="Cash Position" value={formatCurrency(cashPosition)} tone={cashPosition >= 0 ? 'profit' : 'loss'} />
-                    </div>
-                    <div className="mt-3 border-t pt-3">
-                      <Progress value={contractValue > 0 ? Math.min(Math.round((totalReceived / contractValue) * 100), 100) : 0} className="h-2" />
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {contractValue > 0 ? `${Math.min(Math.round((totalReceived / contractValue) * 100), 100)}% of contract value received.` : 'Add contract value to calculate collection progress.'}
-                      </p>
-                    </div>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <WalletCards className="h-4 w-4 text-emerald-600" /> Payment Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-0">
+                <div className="space-y-3 rounded-xl border bg-muted/10 p-4">
+                  <PaymentSummaryRow label="Received" value={formatCurrency(totalReceived)} tone="profit" />
+                  <PaymentSummaryRow label="Receivable" value={formatCurrency(receivable)} tone={receivable > 0 ? 'accent' : 'profit'} />
+                  <PaymentSummaryRow label="Cash Position" value={formatCurrency(cashPosition)} tone={cashPosition >= 0 ? 'profit' : 'loss'} />
+                  <div className="border-t pt-3">
+                    <Progress value={contractValue > 0 ? Math.min(Math.round((totalReceived / contractValue) * 100), 100) : 0} className="h-2" />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {contractValue > 0 ? `${Math.min(Math.round((totalReceived / contractValue) * 100), 100)}% of contract value received.` : 'Add contract value to calculate collection progress.'}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-
-              {(bills.length > 0 || raBills.length > 0) && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-sm">
-                      <FileText className="h-4 w-4" /> Bills / RA Bills Summary
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 pt-0 text-sm">
+                </div>
+                {(bills.length > 0 || raBills.length > 0) && (
+                  <div className="space-y-3 text-sm">
                     <SnapshotRow label={`Bills (${paidRegularBills}/${bills.length} paid)`} value={formatCurrency(billPaid)} tone="profit" />
                     <SnapshotRow label="Bills Outstanding" value={formatCurrency(billTotal - billPaid)} tone={billTotal - billPaid > 0 ? 'accent' : 'profit'} />
                     <SnapshotRow label={`RA Bills (${paidRaBills}/${raBills.length} paid)`} value={formatCurrency(raBillPaid)} tone="profit" />
                     <SnapshotRow label="RA Outstanding" value={formatCurrency(raBillTotal - raBillPaid)} tone={raBillTotal - raBillPaid > 0 ? 'accent' : 'profit'} />
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Checklist */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <CheckSquare className="h-4 w-4" /> Checklist
-                  {checklist.length > 0 && <span className="text-muted-foreground font-normal">{doneCount}/{checklist.length}</span>}
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <OverviewListCard
+              icon={Landmark}
+              title="Linked Pay Orders"
+              empty="No linked pay orders."
+              items={linkedPOs.slice(0, 4)}
+              renderItem={(po) => (
+                <OverviewListItem
+                  key={po.id}
+                  title={po.po || 'Pay order'}
+                  meta={`${po.bank || 'No bank'}${po.submitted ? ` · ${formatDate(po.submitted)}` : ''}`}
+                  value={formatCurrency(po.amount)}
+                  badge={po.status}
+                />
+              )}
+            />
+            <OverviewListCard
+              icon={Receipt}
+              title="Recent Expenses"
+              empty="No expenses recorded yet."
+              items={recentExpenses.slice(0, 4)}
+              renderItem={(expense) => (
+                <OverviewListItem
+                  key={expense.id}
+                  title={expense.description || 'Expense'}
+                  meta={`${formatDate(expense.date) || 'No date'}${expense.category ? ` · ${expense.category}` : ''}`}
+                  value={formatCurrency(expense.amount)}
+                  tone="expense"
+                />
+              )}
+            />
+            <OverviewListCard
+              icon={Paperclip}
+              title="Recent Documents"
+              empty="No documents uploaded yet."
+              items={recentDocuments}
+              renderItem={(document) => (
+                <OverviewListItem
+                  key={document.id || document.title || document.url}
+                  title={document.title || document.type || 'Document'}
+                  meta={`${document.type || 'Other'}${document.addedAt ? ` · ${formatDate(document.addedAt)}` : ''}`}
+                />
+              )}
+            />
+            <OverviewListCard
+              icon={CalendarDays}
+              title="Recent Site Visits"
+              empty="No site visits recorded yet."
+              items={recentSiteVisits}
+              renderItem={(visit) => (
+                <OverviewListItem
+                  key={visit.id || visit.date || visit.visitDate}
+                  title={visit.location || visit.workCompleted || 'Site visit'}
+                  meta={formatDate(visit.date || visit.visitDate) || 'No date'}
+                />
+              )}
+            />
+            <OverviewListCard
+              icon={FileText}
+              title="Bills / RA Bills"
+              empty="No bills or RA bills yet."
+              items={recentBills}
+              renderItem={(bill) => (
+                <OverviewListItem
+                  key={`${bill.isRaBill ? 'ra' : 'bill'}-${bill.id || bill.no || bill.desc}`}
+                  title={bill.isRaBill ? `RA bill ${bill.no || ''}`.trim() : (bill.desc || 'Bill')}
+                  meta={`${bill.status || 'No status'}${(bill.paid || bill.submitted || bill.date) ? ` · ${formatDate(bill.paid || bill.submitted || bill.date)}` : ''}`}
+                  value={formatCurrency(bill.amount)}
+                  badge={bill.status}
+                />
+              )}
+            />
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <History className="h-4 w-4 text-emerald-600" /> Tender Timeline
                 </CardTitle>
-                <div className="flex items-center gap-2">
-                  {checklistExpanded && isAdmin && <Button size="sm" variant="outline" onClick={addChecklistItem}><Plus className="h-3.5 w-3.5" /> Add Item</Button>}
-                  <Button size="sm" variant="outline" onClick={() => setChecklistExpanded((value) => !value)}>
-                    {checklistExpanded ? 'Hide Checklist' : 'Show Checklist'}
-                  </Button>
-                </div>
-              </div>
-              {checklist.length > 0 && <Progress value={pct} className="h-1.5 mt-2" />}
-            </CardHeader>
-            {checklistExpanded && (
-              <CardContent className="space-y-2 pt-0">
-              {checklist.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No checklist items yet.</p>}
-              {checklist.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 group">
-                  <Checkbox
-                    checked={item.done}
-                    onCheckedChange={(v) => updateChecklistItem(item.id, { done: v })}
-                    disabled={!isAdmin}
-                  />
-                  <Input
-                    value={item.label}
-                    onChange={(e) => updateChecklistItem(item.id, { label: e.target.value })}
-                    disabled={!isAdmin}
-                    className={`flex-1 border-0 shadow-none focus-visible:ring-0 p-0 h-auto bg-transparent ${item.done ? 'line-through text-muted-foreground' : ''}`}
-                    placeholder="Checklist item…"
-                  />
-                  {isAdmin && (
-                    <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100 text-destructive" onClick={() => removeChecklistItem(item.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+              </CardHeader>
+              <CardContent className="space-y-3 pt-0">
+                {recentActivity.length === 0 && <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">No activity yet.</p>}
+                {recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex gap-3 rounded-lg border bg-muted/10 p-3 text-sm">
+                    <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+                      <activity.icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="line-clamp-2 font-medium">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(activity.date) || 'No date'}</p>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
-            )}
-          </Card>
+            </Card>
+          </div>
 
-          {/* Notes */}
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Notes</CardTitle></CardHeader>
             <CardContent>
@@ -1196,7 +1440,6 @@ export default function TenderDetail() {
             </CardContent>
           </Card>
 
-          {/* Status History */}
           {(form.statusHistory || []).length > 0 && (
             <Card>
               <CardHeader className="pb-2">
@@ -1204,7 +1447,7 @@ export default function TenderDetail() {
               </CardHeader>
               <CardContent className="space-y-2 pt-0">
                 {(form.statusHistory || []).map((h, i) => (
-                  <div key={i} className="flex items-center gap-3 text-sm">
+                  <div key={i} className="flex flex-wrap items-center gap-3 text-sm">
                     <span className="text-muted-foreground">{formatDate(h.date)}</span>
                     <StatusBadge status={h.from} />
                     <span className="text-muted-foreground">→</span>
@@ -1218,11 +1461,11 @@ export default function TenderDetail() {
 
         <TabsContent value="boq" className="order-3 mt-0 space-y-5">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">BOQ / Profit Tracking</h2>
+            <h2 className="text-xl font-semibold tracking-tight md:text-2xl">BOQ / Profit Tracking</h2>
             <div className="mt-2 h-1 w-10 rounded-full bg-emerald-600" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
             <BoqMetric icon={FileText} label="Quoted Total" value={formatCurrency(boqTotals.quotedAmount)} tone="emerald" />
             <BoqMetric icon={WalletCards} label="Actual Cost" value={formatCurrency(boqTotals.actualCost)} tone="orange" />
             <BoqMetric icon={BarChart3} label="Expected Profit" value={formatCurrency(boqTotals.profitLoss)} tone="blue" />
@@ -1263,14 +1506,14 @@ export default function TenderDetail() {
                 </p>
               ) : (
                 <>
-                <div className="space-y-3 pb-28 md:hidden">
+                <div className="space-y-3 pb-24 md:hidden">
                   {boqItems.map((item, index) => {
                     const quotedAmount = (Number(item.qty) || 0) * (Number(item.quotedRate) || 0)
                     const actualCost = Number(item.actualCost) || 0
                     const profitLoss = quotedAmount - actualCost
                     const isEditing = editingBoqItemId === item.id
                     return (
-                      <div key={item.id} className="rounded-lg border bg-card p-4 shadow-sm">
+                      <div key={item.id} className="rounded-xl border bg-card p-3.5 shadow-sm">
                         <div className="flex items-start gap-3">
                           <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 font-mono text-base font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
                             {index + 1}
@@ -1322,8 +1565,8 @@ export default function TenderDetail() {
                             {!boqEditMode && <ChevronDown className="mt-1 h-5 w-5 text-foreground" />}
                           </div>
                         </div>
-                        <div className="mt-4 border-t pt-4">
-                          <div className="grid grid-cols-2 gap-x-3 gap-y-3 min-[420px]:grid-cols-3">
+                        <div className="mt-3 border-t pt-3">
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-3 min-[430px]:grid-cols-3">
                             <MobileBoqField
                               label="Qty"
                               value={isEditing ? item.qty ?? '' : formatPlainNumber(item.qty)}
@@ -1358,7 +1601,7 @@ export default function TenderDetail() {
                       </div>
                     )
                   })}
-                  <div className="sticky bottom-20 z-20 rounded-2xl border border-emerald-200 bg-emerald-50/95 p-3 shadow-lg shadow-emerald-900/10 ring-1 ring-emerald-100 backdrop-blur supports-[backdrop-filter]:bg-emerald-50/85 dark:border-emerald-800/70 dark:bg-emerald-950/80 dark:ring-emerald-800/50 min-[420px]:p-4">
+                  <div className="sticky bottom-20 z-20 rounded-2xl border border-emerald-200 bg-emerald-50/95 p-3 shadow-lg shadow-emerald-900/10 ring-1 ring-emerald-100 backdrop-blur supports-[backdrop-filter]:bg-emerald-50/85 dark:border-emerald-800/70 dark:bg-emerald-950/80 dark:ring-emerald-800/50 min-[430px]:p-4">
                     <div className="grid grid-cols-3 gap-1.5 text-center min-[420px]:gap-2">
                       <MobileBoqStat label="Total Quoted Amount" value={formatCurrency(boqTotals.quotedAmount)} tone="profit" large />
                       <MobileBoqStat label="Actual Cost" value={formatCurrency(boqTotals.actualCost)} tone="loss" large />
@@ -1499,97 +1742,37 @@ export default function TenderDetail() {
 
         {/* Bills tab */}
         <TabsContent value="bills" className="order-3 mt-0 space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold">{formatCurrency(billTotal)}</p><p className="text-xs text-muted-foreground">Total Billed</p></CardContent></Card>
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(billPaid)}</p><p className="text-xs text-muted-foreground">Received</p></CardContent></Card>
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400">{formatCurrency(billTotal - billPaid)}</p><p className="text-xs text-muted-foreground">Outstanding</p></CardContent></Card>
-          </div>
-          {isAdmin && <Button size="sm" onClick={addBill}><Plus className="h-3.5 w-3.5" /> Add Bill</Button>}
-          {(form.bills || []).map((bill) => (
-            <Card key={bill.id}>
-              <CardContent className="p-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
-                  <div className="sm:col-span-2 space-y-1">
-                    <Label className="text-xs">Description</Label>
-                    <Input value={bill.desc} onChange={(e) => updateBill(bill.id, { desc: e.target.value })} disabled={!isAdmin} placeholder="Bill description" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Amount (PKR)</Label>
-                    <Input type="number" value={bill.amount} onChange={(e) => updateBill(bill.id, { amount: Number(e.target.value) })} disabled={!isAdmin} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Date</Label>
-                    <Input type="date" value={bill.date} onChange={(e) => updateBill(bill.id, { date: e.target.value })} disabled={!isAdmin} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Status</Label>
-                    <Select value={bill.status} onValueChange={(v) => updateBill(bill.id, { status: v })} disabled={!isAdmin}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Pending">Pending</SelectItem>
-                        <SelectItem value="Paid">Paid</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {isAdmin && (
-                    <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removeBill(bill.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {(form.bills || []).length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No bills added yet.</p>}
+          <BillFinanceSection
+            title="Bills / Invoices"
+            description="Track submitted, approved, received, deductions, and receivable amounts."
+            bills={bills}
+            summary={billSummary}
+            isAdmin={isAdmin}
+            onAdd={addBill}
+            onUpdate={updateBill}
+            onRemove={removeBill}
+            addLabel="Add Bill / RA Bill"
+            emptyTitle="No bills or RA bills added yet."
+            dateKey="date"
+          />
         </TabsContent>
 
         {/* RA Bills tab */}
         <TabsContent value="rabills" className="order-3 mt-0 space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold">{formatCurrency(raBillTotal)}</p><p className="text-xs text-muted-foreground">Total RA Billed</p></CardContent></Card>
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(raBillPaid)}</p><p className="text-xs text-muted-foreground">Received</p></CardContent></Card>
-            <Card><CardContent className="p-4 text-center"><p className="text-lg font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400">{formatCurrency(raBillTotal - raBillPaid)}</p><p className="text-xs text-muted-foreground">Outstanding</p></CardContent></Card>
-          </div>
-          {isAdmin && <Button size="sm" onClick={addRABill}><Plus className="h-3.5 w-3.5" /> Add RA Bill</Button>}
-          {(form.raBills || []).map((bill) => (
-            <Card key={bill.id}>
-              <CardContent className="p-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Bill No.</Label>
-                    <Input value={bill.no} onChange={(e) => updateRABill(bill.id, { no: e.target.value })} disabled={!isAdmin} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Amount (PKR)</Label>
-                    <Input type="number" value={bill.amount} onChange={(e) => updateRABill(bill.id, { amount: Number(e.target.value) })} disabled={!isAdmin} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Submitted</Label>
-                    <Input type="date" value={bill.submitted} onChange={(e) => updateRABill(bill.id, { submitted: e.target.value })} disabled={!isAdmin} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Paid Date</Label>
-                    <Input type="date" value={bill.paid} onChange={(e) => updateRABill(bill.id, { paid: e.target.value })} disabled={!isAdmin} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Status</Label>
-                    <Select value={bill.status} onValueChange={(v) => updateRABill(bill.id, { status: v })} disabled={!isAdmin}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {['Submitted', 'Under Review', 'Paid', 'Rejected'].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {isAdmin && (
-                    <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removeRABill(bill.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {(form.raBills || []).length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No RA bills yet.</p>}
+          <BillFinanceSection
+            title="RA Bills"
+            description="Track running account bills, approvals, payments, and outstanding receivables."
+            bills={raBills}
+            summary={raBillSummary}
+            isAdmin={isAdmin}
+            onAdd={addRABill}
+            onUpdate={updateRABill}
+            onRemove={removeRABill}
+            addLabel="Add Bill / RA Bill"
+            emptyTitle="No bills or RA bills added yet."
+            dateKey="submitted"
+            paidDateKey="paid"
+          />
         </TabsContent>
 
         {/* Pay Orders tab */}
@@ -1677,7 +1860,7 @@ export default function TenderDetail() {
         {/* Expenses tab */}
         <TabsContent value="expenses" className="order-3 mt-0 space-y-4">
           {/* Summary — Sunk / At Risk / Held */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
             <Card><CardContent className="p-4 text-center">
               <p className="text-lg font-mono tabular-nums font-bold text-rose-600 dark:text-rose-400">{formatCurrency(sunkCost)}</p>
               <p className="text-xs text-muted-foreground">Sunk cost</p>
@@ -1697,17 +1880,17 @@ export default function TenderDetail() {
 
           {/* Expenses */}
           <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between gap-2">
+            <CardHeader className="p-4 pb-3 md:p-6 md:pb-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <Receipt className="h-4 w-4" /> Expenses
                   <span className="text-muted-foreground font-normal">· total {formatCurrency(expenseTotal)}</span>
                 </CardTitle>
-                {isAdmin && <Button size="sm" onClick={() => openExpDialog()}><Plus className="h-3.5 w-3.5" /> Add Expense</Button>}
+                {isAdmin && <Button size="sm" className="h-10 w-full sm:h-9 sm:w-auto" onClick={() => openExpDialog()}><Plus className="h-3.5 w-3.5" /> Add Expense</Button>}
               </div>
               <p className="text-xs text-muted-foreground mt-1">Tender fees are tracked separately and excluded from this total.</p>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
               {expenses.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
                   No expenses linked to this tender yet.
@@ -1715,21 +1898,21 @@ export default function TenderDetail() {
               ) : (
                 <>
                   {/* Mobile cards */}
-                  <div className="md:hidden space-y-2">
+                  <div className="space-y-3 md:hidden">
                     {expenses.map((e) => (
-                      <div key={e.id} className="rounded-lg border border-border p-3">
-                        <div className="flex items-start justify-between gap-2">
+                      <div key={e.id} className="rounded-xl border border-border bg-card p-3.5 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-foreground break-words">{e.description || '—'}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">{formatDate(e.date)}{e.category && <> · {e.category}</>}</p>
                           </div>
-                          <span className="font-mono tabular-nums text-sm font-semibold whitespace-nowrap">{formatCurrency(e.amount)}</span>
+                          <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-rose-600 dark:text-rose-400">{formatCurrency(e.amount)}</span>
                         </div>
                         {e.note && <p className="text-xs text-muted-foreground mt-1.5 break-words">{e.note}</p>}
                         {isAdmin && (
-                          <div className="flex justify-end gap-1 mt-2">
-                            <Button variant="ghost" size="icon-sm" onClick={() => openExpDialog(e)}><Pencil className="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeleteExpId(e.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          <div className="mt-3 grid grid-cols-2 gap-2 border-t pt-3">
+                            <Button variant="outline" size="sm" className="h-10" onClick={() => openExpDialog(e)}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
+                            <Button variant="ghost" size="sm" className="h-10 text-destructive" onClick={() => setDeleteExpId(e.id)}><Trash2 className="h-3.5 w-3.5" /> Delete</Button>
                           </div>
                         )}
                       </div>
@@ -1810,6 +1993,26 @@ export default function TenderDetail() {
         </TabsContent>
 
         <TabsContent value="documents" className="order-3 mt-0 space-y-4">
+          <DocumentsManager
+            documents={documents}
+            filteredDocuments={filteredDocuments}
+            documentStats={documentStats}
+            linkedTenderDocumentCount={linkedTenderDocumentCount}
+            recentUploadCount={recentUploadCount}
+            documentSearch={documentSearch}
+            setDocumentSearch={setDocumentSearch}
+            documentTypeFilter={documentTypeFilter}
+            setDocumentTypeFilter={setDocumentTypeFilter}
+            addDocument={addDocument}
+            uploadDocumentFile={uploadDocumentFile}
+            updateDocument={updateDocument}
+            removeDocument={removeDocument}
+            uploadingDocumentId={uploadingDocumentId}
+            documentUploadProgress={documentUploadProgress}
+            tenderName={form.name}
+            isAdmin={isAdmin}
+          />
+          {false && (
           <Card>
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1943,6 +2146,7 @@ export default function TenderDetail() {
               )}
             </CardContent>
           </Card>
+          )}
         </TabsContent>
 
         {/* Contact tab */}
@@ -1987,7 +2191,7 @@ export default function TenderDetail() {
                 <div className="space-y-2">
                   <div className="flex items-end justify-between gap-3">
                     <span className="text-3xl font-semibold text-emerald-600 dark:text-emerald-400">{dashboardProgress}%</span>
-                    {form.status && <StatusBadge status={form.status} />}
+                    {displayTenderStatus && <StatusBadge status={displayTenderStatus} />}
                   </div>
                   <Progress value={dashboardProgress} className="h-2" />
                   <p className="text-sm text-muted-foreground">{progressMessage}</p>
@@ -2321,13 +2525,13 @@ function TenderMetric({ icon: Icon, label, value, detail, tone, className = '' }
   }
   return (
     <Card className={className}>
-      <CardContent className="flex min-h-[92px] items-center gap-3 p-3.5 sm:min-h-[96px] sm:p-4 md:gap-4">
-        <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full sm:h-14 sm:w-14 md:h-11 md:w-11 ${toneClasses[tone] || toneClasses.blue}`}>
-          <Icon className="h-5 w-5 sm:h-6 sm:w-6 md:h-5 md:w-5" />
+      <CardContent className="flex min-h-[86px] items-center gap-2.5 p-3 sm:min-h-[96px] sm:gap-3 sm:p-4 md:gap-4">
+        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full sm:h-14 sm:w-14 md:h-11 md:w-11 ${toneClasses[tone] || toneClasses.blue}`}>
+          <Icon className="h-[18px] w-[18px] sm:h-6 sm:w-6 md:h-5 md:w-5" />
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium text-muted-foreground sm:text-sm md:text-xs">{label}</p>
-          <p className="whitespace-nowrap text-[clamp(1.15rem,5vw,1.25rem)] font-semibold leading-6 tabular-nums sm:text-xl md:text-lg">{value}</p>
+          <p className="break-words text-[clamp(0.95rem,4.2vw,1.15rem)] font-semibold leading-5 tabular-nums [overflow-wrap:anywhere] sm:text-xl sm:leading-6 md:text-lg">{value}</p>
           {detail && <p className="truncate text-[11px] text-muted-foreground sm:text-xs">{detail}</p>}
         </div>
       </CardContent>
@@ -2351,13 +2555,13 @@ function BoqMetric({ icon: Icon, label, value, tone }) {
 
   return (
     <Card className="shadow-sm">
-      <CardContent className="flex min-h-[82px] items-center gap-2 p-3 sm:min-h-[88px] sm:gap-3 sm:p-4">
-        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full sm:h-11 sm:w-11 ${toneClasses[tone] || toneClasses.emerald}`}>
-          <Icon className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
+      <CardContent className="flex min-h-[78px] items-center gap-2 p-2.5 sm:min-h-[88px] sm:gap-3 sm:p-4">
+        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full sm:h-11 sm:w-11 ${toneClasses[tone] || toneClasses.emerald}`}>
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground sm:text-sm">{label}</p>
-          <p className={`mt-0.5 whitespace-normal break-words font-mono text-base font-semibold leading-5 tabular-nums [overflow-wrap:anywhere] sm:text-xl sm:leading-6 ${valueClasses[tone] || valueClasses.emerald}`}>
+          <p className={`mt-0.5 whitespace-normal break-words font-mono text-sm font-semibold leading-5 tabular-nums [overflow-wrap:anywhere] sm:text-xl sm:leading-6 ${valueClasses[tone] || valueClasses.emerald}`}>
             {value}
           </p>
         </div>
@@ -2369,16 +2573,16 @@ function BoqMetric({ icon: Icon, label, value, tone }) {
 function MobileBoqField({ label, value, editing, onChange, inputMode = 'text' }) {
   return (
     <div className="min-w-0">
-      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       {editing ? (
         <Input
           value={value}
           onChange={(event) => onChange(event.target.value)}
           inputMode={inputMode}
-          className="mt-1 h-9 px-2 text-base"
+          className="mt-1 h-9 px-2 text-sm"
         />
       ) : (
-        <p className="mt-1 break-words font-mono text-base leading-5 tabular-nums text-foreground">{value || '-'}</p>
+        <p className="mt-1 break-words font-mono text-sm font-semibold leading-5 tabular-nums text-foreground [overflow-wrap:anywhere]">{value || '-'}</p>
       )}
     </div>
   )
@@ -2413,7 +2617,7 @@ function formatPlainNumber(value) {
 
 function DetailRow({ icon: Icon, label, children, note, className = '' }) {
   return (
-    <div className={`rounded-md border bg-background px-3 py-2 ${className}`}>
+    <div className={`rounded-lg border bg-background px-3 py-2.5 ${className}`}>
       <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         <Icon className="h-3.5 w-3.5 flex-shrink-0" />
         <span>{label}</span>
@@ -2428,7 +2632,7 @@ function DetailRow({ icon: Icon, label, children, note, className = '' }) {
 
 function DetailValue({ children }) {
   return (
-    <p className="whitespace-pre-wrap break-words text-sm font-medium leading-5 md:text-base">
+    <p className="whitespace-pre-wrap break-words text-sm font-medium leading-5 [overflow-wrap:anywhere] md:text-base">
       {children || '-'}
     </p>
   )
@@ -2500,6 +2704,607 @@ function PaymentSummaryRow({ label, value, tone }) {
   )
 }
 
+function OverviewInfo({ icon: Icon, label, value }) {
+  return (
+    <div className="rounded-xl border bg-background/80 p-3">
+      <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        <span>{label}</span>
+      </div>
+      <p className="mt-2 truncate text-sm font-semibold text-foreground" title={String(value || '—')}>
+        {value || '—'}
+      </p>
+    </div>
+  )
+}
+
+function OverviewListCard({ icon: Icon, title, empty, items, renderItem }) {
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Icon className="h-4 w-4 text-emerald-600" /> {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 pt-0">
+        {items.length === 0 ? (
+          <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">
+            {empty}
+          </p>
+        ) : (
+          items.map(renderItem)
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function OverviewListItem({ title, meta, value, tone, badge }) {
+  const valueClass =
+    tone === 'expense'
+      ? 'text-rose-600 dark:text-rose-400'
+      : 'text-emerald-700 dark:text-emerald-300'
+
+  return (
+    <div className="rounded-lg border bg-muted/10 p-3 transition-colors hover:bg-muted/20">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="line-clamp-2 text-sm font-medium leading-5">{title || '—'}</p>
+          {meta && <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{meta}</p>}
+          {badge && <div className="mt-2"><StatusBadge status={badge} /></div>}
+        </div>
+        {value && (
+          <p className={`shrink-0 whitespace-nowrap font-mono text-sm font-semibold tabular-nums ${valueClass}`}>
+            {value}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function BillFinanceSection({
+  title,
+  description,
+  bills,
+  summary,
+  isAdmin,
+  onAdd,
+  onUpdate,
+  onRemove,
+  addLabel,
+  emptyTitle,
+  dateKey,
+  paidDateKey,
+}) {
+  const summaryCards = [
+    { label: 'Total Billed', value: summary.submitted, tone: 'text-foreground', helper: 'Submitted amount' },
+    { label: 'Approved Amount', value: summary.approved, tone: 'text-blue-700 dark:text-blue-300', helper: 'Approved or submitted fallback' },
+    { label: 'Received Amount', value: summary.received, tone: 'text-emerald-700 dark:text-emerald-300', helper: 'Payments received' },
+    { label: 'Balance / Receivable', value: summary.balance, tone: 'text-amber-700 dark:text-amber-300', helper: 'Approved minus received' },
+    { label: 'Deductions', value: summary.deductions, tone: 'text-rose-700 dark:text-rose-300', helper: 'Recorded deductions' },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
+        </div>
+        {isAdmin && (
+          <Button className="h-11 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:h-10 sm:w-auto" onClick={onAdd}>
+            <Plus className="h-4 w-4" /> {addLabel}
+          </Button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-5">
+        {summaryCards.map((card) => (
+          <Card key={card.label} className="rounded-xl shadow-sm">
+            <CardContent className="p-3.5">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{card.label}</p>
+              <p className={`mt-2 font-mono text-base font-semibold tabular-nums sm:text-lg ${card.tone}`}>
+                {formatCurrency(card.value)}
+              </p>
+              <p className="mt-1 hidden text-xs text-muted-foreground sm:block">{card.helper}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {bills.length === 0 ? (
+        <Card className="rounded-xl border-dashed">
+          <CardContent className="flex flex-col items-center justify-center px-4 py-10 text-center">
+            <Receipt className="h-9 w-9 text-muted-foreground/70" />
+            <p className="mt-3 text-sm font-medium text-foreground">{emptyTitle}</p>
+            <p className="mt-1 text-sm text-muted-foreground">Add billing records to track approvals, receipts, deductions, and balance.</p>
+            {isAdmin && (
+              <Button className="mt-4 bg-emerald-600 text-white hover:bg-emerald-700" onClick={onAdd}>
+                <Plus className="h-4 w-4" /> Add first bill
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="space-y-3 md:hidden">
+            {bills.map((bill) => (
+              <MobileBillCard
+                key={bill.id}
+                bill={bill}
+                isAdmin={isAdmin}
+                onUpdate={onUpdate}
+                onRemove={onRemove}
+                dateKey={dateKey}
+                paidDateKey={paidDateKey}
+              />
+            ))}
+          </div>
+
+          <Card className="hidden overflow-hidden rounded-xl shadow-sm md:block">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="min-w-[190px]">Bill No.</TableHead>
+                    <TableHead className="min-w-[150px]">Type</TableHead>
+                    <TableHead className="min-w-[150px]">Date</TableHead>
+                    <TableHead className="min-w-[130px] text-right">Submitted</TableHead>
+                    <TableHead className="min-w-[130px] text-right">Approved</TableHead>
+                    <TableHead className="min-w-[130px] text-right">Received</TableHead>
+                    <TableHead className="min-w-[130px] text-right">Deductions</TableHead>
+                    <TableHead className="min-w-[120px] text-right">Balance</TableHead>
+                    <TableHead className="min-w-[150px]">Status</TableHead>
+                    {isAdmin && <TableHead className="w-16">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bills.map((bill) => {
+                    const amounts = getBillAmounts(bill)
+                    return (
+                      <TableRow key={bill.id} className="align-top">
+                        <TableCell>
+                          <div className="space-y-2">
+                            <Input value={bill.no || bill.billNo || ''} onChange={(e) => onUpdate(bill.id, { no: e.target.value })} disabled={!isAdmin} placeholder="Bill no." className="h-9 font-mono" />
+                            <Input value={bill.desc || bill.remarks || ''} onChange={(e) => onUpdate(bill.id, { desc: e.target.value, remarks: e.target.value })} disabled={!isAdmin} placeholder="Remarks / notes" className="h-9" />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Select value={bill.type || 'Running Bill'} onValueChange={(value) => onUpdate(bill.id, { type: value })} disabled={!isAdmin}>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {BILL_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-2">
+                            <Input type="date" value={bill[dateKey] || ''} onChange={(e) => onUpdate(bill.id, { [dateKey]: e.target.value })} disabled={!isAdmin} className="h-9" />
+                            {paidDateKey && (
+                              <Input type="date" value={bill[paidDateKey] || ''} onChange={(e) => onUpdate(bill.id, { [paidDateKey]: e.target.value })} disabled={!isAdmin} className="h-9" aria-label="Paid date" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell><BillAmountField value={bill.amount} onChange={(value) => onUpdate(bill.id, { amount: value })} disabled={!isAdmin} /></TableCell>
+                        <TableCell><BillAmountField value={bill.approvedAmount} onChange={(value) => onUpdate(bill.id, { approvedAmount: value })} disabled={!isAdmin} /></TableCell>
+                        <TableCell><BillAmountField value={bill.receivedAmount} onChange={(value) => onUpdate(bill.id, { receivedAmount: value })} disabled={!isAdmin} /></TableCell>
+                        <TableCell><BillAmountField value={bill.deductions} onChange={(value) => onUpdate(bill.id, { deductions: value })} disabled={!isAdmin} /></TableCell>
+                        <TableCell className="text-right font-mono text-sm font-semibold tabular-nums">{formatCurrency(amounts.balance)}</TableCell>
+                        <TableCell>
+                          <div className="mb-2">
+                            <BillStatusBadge status={bill.status || 'Draft'} />
+                          </div>
+                          <Select value={bill.status || 'Draft'} onValueChange={(value) => onUpdate(bill.id, { status: value })} disabled={!isAdmin}>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {Array.from(new Set([bill.status, ...BILL_STATUS_OPTIONS].filter(Boolean))).map((status) => (
+                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => onRemove(bill.id)} aria-label="Delete bill">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        </>
+      )}
+    </div>
+  )
+}
+
+function MobileBillCard({ bill, isAdmin, onUpdate, onRemove, dateKey, paidDateKey }) {
+  const amounts = getBillAmounts(bill)
+  return (
+    <Card className="rounded-xl shadow-sm">
+      <CardContent className="space-y-3 p-3.5 md:p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bill No.</p>
+            <Input value={bill.no || bill.billNo || ''} onChange={(e) => onUpdate(bill.id, { no: e.target.value })} disabled={!isAdmin} placeholder="Bill no." className="mt-1 h-9 font-mono" />
+          </div>
+          <BillStatusBadge status={bill.status || 'Draft'} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Type</Label>
+            <Select value={bill.type || 'Running Bill'} onValueChange={(value) => onUpdate(bill.id, { type: value })} disabled={!isAdmin}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>{BILL_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Status</Label>
+            <Select value={bill.status || 'Draft'} onValueChange={(value) => onUpdate(bill.id, { status: value })} disabled={!isAdmin}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Array.from(new Set([bill.status, ...BILL_STATUS_OPTIONS].filter(Boolean))).map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/30 p-3">
+          <MobileBillAmount label="Submitted" value={amounts.submitted} />
+          <MobileBillAmount label="Received" value={amounts.received} tone="profit" />
+          <MobileBillAmount label="Approved" value={amounts.approved} />
+          <MobileBillAmount label="Balance" value={amounts.balance} tone={amounts.balance > 0 ? 'accent' : 'profit'} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <BillField label="Submitted" type="number" value={bill.amount ?? ''} onChange={(value) => onUpdate(bill.id, { amount: value })} disabled={!isAdmin} />
+          <BillField label="Approved" type="number" value={bill.approvedAmount ?? ''} onChange={(value) => onUpdate(bill.id, { approvedAmount: value })} disabled={!isAdmin} />
+          <BillField label="Received" type="number" value={bill.receivedAmount ?? ''} onChange={(value) => onUpdate(bill.id, { receivedAmount: value })} disabled={!isAdmin} />
+          <BillField label="Deductions" type="number" value={bill.deductions ?? ''} onChange={(value) => onUpdate(bill.id, { deductions: value })} disabled={!isAdmin} />
+          <BillField label="Bill date" type="date" value={bill[dateKey] || ''} onChange={(value) => onUpdate(bill.id, { [dateKey]: value })} disabled={!isAdmin} />
+          {paidDateKey && <BillField label="Paid date" type="date" value={bill[paidDateKey] || ''} onChange={(value) => onUpdate(bill.id, { [paidDateKey]: value })} disabled={!isAdmin} />}
+        </div>
+
+        <BillField label="Remarks / notes" value={bill.desc || bill.remarks || ''} onChange={(value) => onUpdate(bill.id, { desc: value, remarks: value })} disabled={!isAdmin} placeholder="Add remarks" />
+
+        {isAdmin && (
+          <div className="flex justify-end border-t pt-2">
+            <Button variant="ghost" size="sm" className="h-10 w-full text-destructive sm:w-auto" onClick={() => onRemove(bill.id)}>
+              <Trash2 className="h-3.5 w-3.5" /> Delete
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function DocumentsManager({
+  documents,
+  filteredDocuments,
+  documentStats,
+  linkedTenderDocumentCount,
+  recentUploadCount,
+  documentSearch,
+  setDocumentSearch,
+  documentTypeFilter,
+  setDocumentTypeFilter,
+  addDocument,
+  uploadDocumentFile,
+  updateDocument,
+  removeDocument,
+  uploadingDocumentId,
+  documentUploadProgress,
+  tenderName,
+  isAdmin,
+}) {
+  return (
+    <Card className="rounded-xl border-border/80 shadow-sm">
+      <CardHeader className="p-4 pb-4 md:p-6 md:pb-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Paperclip className="h-5 w-5 text-emerald-600" /> Documents
+            </CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manage tender files, images, BOQs, work orders, and supporting records
+            </p>
+          </div>
+          {isAdmin && (
+            <Button onClick={addDocument} className="h-11 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 md:h-10 md:w-auto">
+              <Plus className="h-4 w-4" /> Upload Document
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4 p-4 pt-0 md:space-y-5 md:p-6 md:pt-0">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-5">
+          <DocumentStat icon={FolderOpen} label="Total Documents" value={documents.length} tone="emerald" />
+          <DocumentStat icon={ImageIcon} label="Images" value={documentStats.Image || 0} tone="green" />
+          <DocumentStat icon={FileText} label="PDFs" value={documentStats.PDF || 0} tone="red" />
+          <DocumentStat icon={LinkIcon} label="Linked Tenders" value={linkedTenderDocumentCount} tone="blue" />
+          <DocumentStat icon={Upload} label="Recent Uploads" value={recentUploadCount} tone="amber" className="col-span-2 lg:col-span-1" />
+        </div>
+
+        <div className="rounded-xl border border-border/80 bg-muted/15 p-3 md:p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder="Search documents..." className="h-11 bg-background pl-9" />
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin lg:pb-0">
+              {DOCUMENT_TYPE_FILTERS.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setDocumentTypeFilter(type)}
+                  className={`h-9 flex-shrink-0 rounded-full border px-3 text-sm font-medium transition-colors ${
+                    documentTypeFilter === type
+                      ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                      : 'border-border bg-background text-muted-foreground hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {documents.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-muted/10 p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+              <FolderOpen className="h-7 w-7" />
+            </div>
+            <p className="mt-4 text-base font-semibold text-foreground">No documents uploaded yet.</p>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+              Upload tender documents, site photos, BOQs, and work orders to keep records organized.
+            </p>
+            {isAdmin && (
+              <Button onClick={addDocument} className="mt-5 bg-emerald-600 text-white hover:bg-emerald-700">
+                <Plus className="h-4 w-4" /> Upload first document
+              </Button>
+            )}
+          </div>
+        ) : filteredDocuments.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-muted/10 p-8 text-center">
+            <FolderOpen className="mx-auto h-8 w-8 text-muted-foreground" />
+            <p className="mt-3 text-sm font-medium">No documents match these filters.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Try a different search term or file type.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredDocuments.map((item) => (
+              <DocumentCard
+                key={item.id}
+                item={item}
+                isAdmin={isAdmin}
+                uploadingDocumentId={uploadingDocumentId}
+                documentUploadProgress={documentUploadProgress}
+                uploadDocumentFile={uploadDocumentFile}
+                updateDocument={updateDocument}
+                removeDocument={removeDocument}
+                tenderName={tenderName}
+              />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function DocumentStat({ icon: Icon, label, value, tone, className = '' }) {
+  const tones = {
+    emerald: 'bg-emerald-50 text-emerald-700',
+    green: 'bg-green-50 text-green-700',
+    red: 'bg-red-50 text-red-700',
+    blue: 'bg-blue-50 text-blue-700',
+    amber: 'bg-amber-50 text-amber-700',
+  }
+  return (
+    <div className={`rounded-xl border border-border/80 bg-background p-3 shadow-sm md:p-4 ${className}`}>
+      <div className="flex items-center gap-2.5 md:gap-3">
+        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl md:h-10 md:w-10 ${tones[tone] || tones.emerald}`}>
+          <Icon className="h-4 w-4 md:h-5 md:w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+          <p className="text-2xl font-bold text-foreground">{value}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DocumentCard({ item, isAdmin, uploadingDocumentId, documentUploadProgress, uploadDocumentFile, updateDocument, removeDocument, tenderName }) {
+  const kind = getDocumentKind(item)
+  const Icon = getDocumentIcon(kind)
+  const isImage = kind === 'Image' && item.url
+  const title = item.title || item.fileName || item.type || 'Untitled document'
+  const date = item.uploadedAt || item.addedAt
+  const uploadId = `document-upload-${item.id}`
+
+  return (
+    <Card className="overflow-hidden rounded-xl border-border/80 shadow-sm transition hover:shadow-md">
+      <CardContent className="space-y-3.5 p-3.5 md:space-y-4 md:p-4">
+        <div className="aspect-[16/10] overflow-hidden rounded-xl border border-border/80 bg-muted/30">
+          {isImage ? (
+            <img src={item.url} alt={title} className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-background shadow-sm">
+                <Icon className="h-7 w-7" />
+              </div>
+              <DocumentKindBadge kind={kind} />
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground" title={title}>{title}</p>
+              <p className="mt-1 truncate text-xs text-muted-foreground">
+                {tenderName || 'Linked tender'}{item.fileName ? ` - ${item.fileName}` : ''}
+              </p>
+            </div>
+            <DocumentKindBadge kind={kind} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+            <div className="rounded-lg bg-muted/35 p-2">
+              <p className="font-medium text-foreground">Uploaded</p>
+              <p className="mt-0.5">{date ? formatDate(date) : '-'}</p>
+            </div>
+            <div className="rounded-lg bg-muted/35 p-2">
+              <p className="font-medium text-foreground">Size</p>
+              <p className="mt-0.5">{formatFileSize(item.fileSize)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <input
+            id={uploadId}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+            className="sr-only"
+            disabled={!isAdmin || uploadingDocumentId === item.id}
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              uploadDocumentFile(item.id, file)
+            }}
+          />
+          {isAdmin && (
+            <Button variant="outline" size="sm" className="h-10 sm:h-9" asChild>
+              <label htmlFor={uploadId} className="cursor-pointer">
+                {uploadingDocumentId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                {uploadingDocumentId === item.id ? `${documentUploadProgress[item.id] ?? 0}%` : 'Upload'}
+              </label>
+            </Button>
+          )}
+          {item.url && (
+            <>
+              <Button variant="outline" size="sm" className="h-10 sm:h-9" asChild>
+                <a href={item.url} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-3.5 w-3.5" /> Preview
+                </a>
+              </Button>
+              <Button variant="outline" size="sm" className="h-10 sm:h-9" asChild>
+                <a href={item.url} download={item.fileName || title}>
+                  <Download className="h-3.5 w-3.5" /> Download
+                </a>
+              </Button>
+            </>
+          )}
+          {isAdmin && (
+            <Button variant="ghost" size="sm" className="h-10 text-destructive sm:h-9" onClick={() => removeDocument(item.id)}>
+              <Trash2 className="h-3.5 w-3.5" /> Delete
+            </Button>
+          )}
+        </div>
+
+        <div className="space-y-3 border-t border-border/70 pt-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Title</Label>
+              <Input value={item.title || ''} onChange={(e) => updateDocument(item.id, { title: e.target.value })} disabled={!isAdmin} placeholder="e.g. Award letter" className="h-9" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Category</Label>
+              <Select value={item.type || 'Other'} onValueChange={(value) => updateDocument(item.id, { type: value })} disabled={!isAdmin}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DOCUMENT_CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">URL</Label>
+            <Input value={item.url || ''} onChange={(e) => updateDocument(item.id, { url: e.target.value })} disabled={!isAdmin} placeholder="https://..." className="h-9" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Notes</Label>
+            <Textarea value={item.notes || ''} onChange={(e) => updateDocument(item.id, { notes: e.target.value })} disabled={!isAdmin} rows={2} placeholder="Optional notes about this file or link" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function DocumentKindBadge({ kind }) {
+  return (
+    <Badge variant="outline" className={`shrink-0 rounded-full text-xs ${getDocumentTypeClasses(kind)}`}>
+      {kind}
+    </Badge>
+  )
+}
+
+function BillAmountField({ value, onChange, disabled }) {
+  return (
+    <Input
+      type="number"
+      value={value ?? ''}
+      onChange={(event) => onChange(event.target.value)}
+      disabled={disabled}
+      className="h-9 text-right font-mono tabular-nums"
+      placeholder="0"
+    />
+  )
+}
+
+function BillField({ label, value, onChange, disabled, type = 'text', placeholder }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <Input type={type} value={value ?? ''} onChange={(event) => onChange(event.target.value)} disabled={disabled} placeholder={placeholder} className={type === 'number' ? 'font-mono tabular-nums' : ''} />
+    </div>
+  )
+}
+
+function MobileBillAmount({ label, value, tone }) {
+  const toneClass =
+    tone === 'profit'
+      ? 'text-emerald-700 dark:text-emerald-300'
+      : tone === 'accent'
+        ? 'text-amber-700 dark:text-amber-300'
+        : 'text-foreground'
+  return (
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`mt-1 font-mono text-sm font-semibold tabular-nums ${toneClass}`}>{formatCurrency(value)}</p>
+    </div>
+  )
+}
+
+function BillStatusBadge({ status }) {
+  const normalized = status || 'Draft'
+  const className =
+    ['Paid', 'Approved'].includes(normalized)
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
+      : normalized === 'Partially Paid'
+        ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300'
+        : normalized === 'Rejected'
+          ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300'
+          : ['Submitted', 'Under Review'].includes(normalized)
+            ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300'
+            : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300'
+  return <Badge variant="outline" className={`shrink-0 rounded-full ${className}`}>{normalized}</Badge>
+}
+
 function FinancialMetric({ label, value, tone, helper }) {
   const toneClass =
     tone === 'profit'
@@ -2509,9 +3314,9 @@ function FinancialMetric({ label, value, tone, helper }) {
         : 'text-foreground'
 
   return (
-    <div className="rounded-lg border border-border bg-muted/20 p-4">
+    <div className="min-w-0 rounded-lg border border-border bg-muted/20 p-3 md:p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`mt-1 font-mono text-lg font-bold tabular-nums ${toneClass}`}>
+      <p className={`mt-1 break-words font-mono text-sm font-bold leading-5 tabular-nums [overflow-wrap:anywhere] sm:text-base md:text-lg ${toneClass}`}>
         {value}
       </p>
       {helper && <p className="mt-0.5 text-xs text-muted-foreground">{helper}</p>}

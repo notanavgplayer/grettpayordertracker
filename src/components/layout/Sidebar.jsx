@@ -59,31 +59,29 @@ export default function Sidebar({ onClose, collapsed = false, onSignOut }) {
   return (
     <div
       className={cn(
-        'flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200',
+        'flex h-full flex-col border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground transition-[width] duration-200',
         collapsed ? 'w-16' : 'w-[280px]'
       )}
     >
-      {/* Logo / wordmark — 64px tall */}
-      <div className={cn('flex h-16 items-center gap-2.5 border-b border-sidebar-border', collapsed ? 'justify-center px-2' : 'px-5')}>
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground flex-shrink-0">
+      <div className={cn('flex h-16 items-center gap-3 border-b border-sidebar-border/80', collapsed ? 'justify-center px-2' : 'px-5')}>
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm shadow-emerald-600/15">
           <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
             <path d="M12 2L3 8v2h2v10h4v-5h6v5h4V10h2V8L12 2z" fill="currentColor" />
           </svg>
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="font-display text-sm font-semibold leading-tight truncate">Grett Engineering</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Pay Order Tracker</p>
+            <p className="truncate font-display text-sm font-semibold leading-tight">Grett Engineering</p>
+            <p className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Pay Order Tracker</p>
           </div>
         )}
       </div>
 
-      {/* Nav groups */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 scrollbar-thin">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin">
         {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="mb-4 last:mb-0">
+          <div key={group.label} className="mb-5 last:mb-0">
             {!collapsed && (
-              <p className="px-3 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
                 {group.label}
               </p>
             )}
@@ -96,20 +94,20 @@ export default function Sidebar({ onClose, collapsed = false, onSignOut }) {
                       onClick={onClose}
                       className={({ isActive }) =>
                         cn(
-                          'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                          'relative flex min-h-10 items-center gap-3 rounded-xl border-0 px-3 py-2.5 text-sm font-medium outline-none ring-0 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500/30',
                           collapsed && 'justify-center px-2',
                           isActive
-                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                            : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/35 dark:text-emerald-300'
+                            : 'bg-transparent text-slate-600 shadow-none hover:bg-slate-50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900/60 dark:hover:text-slate-100'
                         )
                       }
                     >
                       {({ isActive }) => (
                         <>
                           {isActive && (
-                            <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary" aria-hidden />
+                            <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-emerald-600" aria-hidden />
                           )}
-                          <Icon className={cn('flex-shrink-0', isActive && 'text-primary')} size={18} />
+                          <Icon className={cn('flex-shrink-0', isActive && 'text-emerald-600 dark:text-emerald-300')} size={18} />
                           {!collapsed && <span className="truncate">{label}</span>}
                         </>
                       )}
@@ -125,24 +123,23 @@ export default function Sidebar({ onClose, collapsed = false, onSignOut }) {
         ))}
       </nav>
 
-      {/* User card with dropdown */}
-      <div className="border-t border-sidebar-border p-2">
+      <div className="border-t border-sidebar-border/80 p-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               className={cn(
-                'flex w-full items-center gap-2.5 rounded-md p-2 text-left transition-colors hover:bg-sidebar-accent/60',
+                'flex min-h-12 w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20',
                 collapsed && 'justify-center'
               )}
               aria-label="User menu"
             >
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{initials}</AvatarFallback>
+              <Avatar className="h-9 w-9 flex-shrink-0">
+                <AvatarFallback className="bg-emerald-100 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">{initials}</AvatarFallback>
               </Avatar>
               {!collapsed && (
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-sidebar-foreground truncate">{displayName}</p>
-                  <p className="text-[11px] text-muted-foreground capitalize truncate">{role}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-sidebar-foreground">{displayName}</p>
+                  <p className="truncate text-[11px] capitalize text-muted-foreground">{role}</p>
                 </div>
               )}
             </button>
@@ -151,12 +148,12 @@ export default function Sidebar({ onClose, collapsed = false, onSignOut }) {
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-0.5">
                 <p className="text-sm font-medium">{displayName}</p>
-                <p className="text-xs text-muted-foreground capitalize">{role}</p>
+                <p className="text-xs capitalize text-muted-foreground">{role}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <NavLink to="/settings" onClick={onClose} className="flex items-center gap-2 cursor-pointer">
+              <NavLink to="/settings" onClick={onClose} className="flex cursor-pointer items-center gap-2">
                 <Settings size={16} />
                 Settings
               </NavLink>
@@ -164,7 +161,7 @@ export default function Sidebar({ onClose, collapsed = false, onSignOut }) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={onSignOut}
-              className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+              className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
             >
               <LogOut size={16} />
               Sign out

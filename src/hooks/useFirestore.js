@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   collection, doc, getDocs, addDoc, updateDoc, deleteDoc,
-  query, orderBy, serverTimestamp, onSnapshot,
+  serverTimestamp, onSnapshot,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { sortByField } from '@/lib/utils'
 import { toast } from 'sonner'
 
 export function useCollection(collectionName, orderField = 'createdAt', orderDir = 'desc') {
@@ -14,11 +15,12 @@ export function useCollection(collectionName, orderField = 'createdAt', orderDir
   useEffect(() => {
     if (!collectionName) return
     setLoading(true)
-    const q = query(collection(db, collectionName), orderBy(orderField, orderDir))
+    const collectionRef = collection(db, collectionName)
     const unsub = onSnapshot(
-      q,
+      collectionRef,
       (snap) => {
-        setData(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+        const records = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        setData(sortByField(records, orderField, orderDir))
         setLoading(false)
       },
       (err) => {

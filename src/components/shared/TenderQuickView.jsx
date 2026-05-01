@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { calculateTenderFinancials, formatCurrencyPrecise } from '@/lib/utils'
+import { calculateTenderFinancials, formatCurrencyPrecise, getTenderDisplayStatus } from '@/lib/utils'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -107,13 +107,11 @@ function FinancialSnapshot({ tender }) {
           icon={Calculator}
           label="Estimated Cost"
           value={formatCurrencyPrecise(financials.estimatedCost)}
-          mobileValue={formatRs(financials.estimatedCost)}
         />
         <FinancialAmountCard
           icon={FileText}
           label="Quoted Amount"
           value={formatCurrencyPrecise(financials.quotedAmount)}
-          mobileValue={formatRs(financials.quotedAmount)}
         />
       </div>
       <div className="mt-3 grid grid-cols-3 rounded-xl border border-slate-200 bg-white p-2.5 text-center text-[11px] sm:p-3 sm:text-sm">
@@ -122,8 +120,7 @@ function FinancialSnapshot({ tender }) {
           <p className={`mt-1.5 break-words text-[12px] font-bold leading-tight min-[390px]:text-[13px] sm:mt-2 sm:text-base ${valueTone}`}>
             {financials.difference === null ? FALLBACK : (
               <>
-                <span className="sm:hidden">{formatRs(financials.difference)} {directionText}</span>
-                <span className="hidden sm:inline">{formatCurrencyPrecise(financials.difference, 2)} {directionText}</span>
+                <span>{formatCurrencyPrecise(financials.difference, 2)} {directionText}</span>
               </>
             )}
           </p>
@@ -143,7 +140,7 @@ function FinancialSnapshot({ tender }) {
   )
 }
 
-function FinancialAmountCard({ icon: Icon, label, value, mobileValue }) {
+function FinancialAmountCard({ icon: Icon, label, value }) {
   return (
     <div className="rounded-xl border border-emerald-100 bg-white p-2.5 shadow-sm shadow-emerald-950/[0.02] sm:p-4">
       <div className="flex items-center gap-2.5 sm:gap-3">
@@ -153,8 +150,7 @@ function FinancialAmountCard({ icon: Icon, label, value, mobileValue }) {
         <div className="min-w-0">
           <p className="text-xs font-medium text-slate-600">{label}</p>
           <p className="mt-1 break-words text-sm font-bold leading-tight text-slate-950 min-[390px]:text-base sm:text-xl">
-            <span className="sm:hidden">{mobileValue || value}</span>
-            <span className="hidden sm:inline">{value}</span>
+            {value}
           </p>
         </div>
       </div>
@@ -188,7 +184,7 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
     : checklist.length
   const pct = total ? Math.round((done / total) * 100) : 0
   const title = tender.title || tender.name || 'Untitled tender'
-  const status = tender.displayStatus || tender.status || FALLBACK
+  const status = getTenderDisplayStatus(tender) || FALLBACK
   const agency = tender.agency || tender.client || tender.department || FALLBACK
   const nitRef = tender.nitRef || tender.nit
   const linkedPayOrder = tender.linkedPayOrder || tender.linkedPO

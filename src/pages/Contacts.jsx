@@ -14,10 +14,72 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Plus, Search, Pencil, Trash2, Loader2, Users, Phone, Mail, MessageCircle } from 'lucide-react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Loader2,
+  Users,
+  Phone,
+  Mail,
+  MessageCircle,
+  Building2,
+  Briefcase,
+  Landmark,
+  UserRound,
+  Folder,
+  X,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 const EMPTY = { name: '', role: '', organization: '', category: 'Agency Officer', phone: '', whatsapp: '', email: '', address: '', notes: '' }
+const TYPE_FILTERS = ['All', 'Agency', 'Vendor', 'Bank', 'Officer', 'Contractor']
+
+function getContactType(contact = {}) {
+  const text = `${contact.category || ''} ${contact.organization || ''} ${contact.name || ''} ${contact.role || ''}`.toLowerCase()
+  if (text.includes('bank')) return 'Bank'
+  if (text.includes('vendor') || text.includes('supplier')) return 'Vendor'
+  if (text.includes('subcontractor') || text.includes('contractor')) return 'Contractor'
+  if (text.includes('officer')) return 'Officer'
+  if (text.includes('agency') || text.includes('department') || text.includes('authority')) return 'Agency'
+  return contact.category || 'Other'
+}
+
+function getLinkedProject(contact = {}) {
+  return contact.linkedTender || contact.linkedProject || contact.tender || contact.project || contact.projectName || ''
+}
+
+function getContactTimestamp(contact = {}) {
+  const value = contact.updatedAt || contact.createdAt
+  if (!value) return null
+  if (typeof value?.toDate === 'function') return value.toDate().getTime()
+  const time = new Date(value).getTime()
+  return Number.isNaN(time) ? null : time
+}
+
+function getTypeClasses(type) {
+  const tones = {
+    Agency: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    Vendor: 'border-blue-200 bg-blue-50 text-blue-700',
+    Bank: 'border-amber-200 bg-amber-50 text-amber-700',
+    Officer: 'border-purple-200 bg-purple-50 text-purple-700',
+    Contractor: 'border-slate-200 bg-slate-100 text-slate-700',
+  }
+  return tones[type] || 'border-slate-200 bg-slate-50 text-slate-700'
+}
+
+function getTypeIcon(type) {
+  const icons = {
+    Agency: Building2,
+    Vendor: Briefcase,
+    Bank: Landmark,
+    Officer: UserRound,
+    Contractor: Users,
+  }
+  return icons[type] || Users
+}
 
 export default function Contacts() {
   const { data: contacts, loading } = useCollection('contacts', 'name', 'asc')
@@ -25,7 +87,7 @@ export default function Contacts() {
   const { isAdmin } = useAuth()
 
   const [search, setSearch] = useState('')
-  const [filterCat, setFilterCat] = useState('All')
+  const [typeFilter, setTypeFilter] = useState('All')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editItem, setEditItem] = useState(null)
   const [form, setForm] = useState(EMPTY)
@@ -33,14 +95,33 @@ export default function Contacts() {
   const [deleteId, setDeleteId] = useState(null)
   const [selected, setSelected] = useState(null)
 
+  const stats = useMemo(() => {
+    const now = Date.now()
+    const recentWindow = 1000 * 60 * 60 * 24 * 30
+    return {
+      total: contacts.length,
+      agencies: contacts.filter((c) => getContactType(c) === 'Agency').length,
+      vendors: contacts.filter((c) => getContactType(c) === 'Vendor').length,
+      banks: contacts.filter((c) => getContactType(c) === 'Bank').length,
+      recent: contacts.filter((c) => {
+        const time = getContactTimestamp(c)
+        return time && now - time <= recentWindow
+      }).length,
+    }
+  }, [contacts])
+
   const filtered = useMemo(() => {
     return contacts.filter((c) => {
-      if (filterCat !== 'All' && c.category !== filterCat) return false
+      const type = getContactType(c)
+      if (typeFilter !== 'All' && type !== typeFilter) return false
       if (!search) return true
       const q = search.toLowerCase()
-      return [c.name, c.role, c.organization, c.phone, c.email].some((v) => (v || '').toLowerCase().includes(q))
+      return [c.name, c.role, c.organization, c.phone, c.email, c.category, c.notes, getLinkedProject(c)]
+        .some((v) => (v || '').toLowerCase().includes(q))
     })
-  }, [contacts, search, filterCat])
+  }, [contacts, search, typeFilter])
+
+  const hasFilters = search || typeFilter !== 'All'
 
   const openDialog = (item = null) => {
     setEditItem(item)
@@ -69,118 +150,144 @@ export default function Contacts() {
     <div className="space-y-6">
       <PageHeader
         title="Contacts"
-        description="Manage your network of agencies, consultants, and suppliers"
-        actions={isAdmin && <Button onClick={() => openDialog()}><Plus className="h-4 w-4" /> Add Contact</Button>}
+        description="Manage agencies, vendors, banks, and project contacts"
+        actions={isAdmin && (
+          <Button onClick={() => openDialog()} className="bg-emerald-600 text-white shadow-sm hover:bg-emerald-700">
+            <Plus className="h-4 w-4" /> Add Contact
+          </Button>
+        )}
       />
 
-      {/* Filter + Search */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search contacts…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <div className="flex gap-2 overflow-x-auto scrollbar-thin -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
-          {['All', ...CONTACT_CATEGORIES].map((c) => (
-            <button
-              key={c}
-              onClick={() => setFilterCat(c)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${filterCat === c ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <SummaryCard icon={Users} label="Total Contacts" value={stats.total} tone="emerald" />
+        <SummaryCard icon={Building2} label="Agencies" value={stats.agencies} tone="green" />
+        <SummaryCard icon={Briefcase} label="Vendors" value={stats.vendors} tone="blue" />
+        <SummaryCard icon={Landmark} label="Banks" value={stats.banks} tone="amber" />
+        <SummaryCard icon={UserRound} label="Recent Contacts" value={stats.recent} tone="purple" className="col-span-2 lg:col-span-1" />
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState icon={Users} title="No contacts found" description="Build your network by adding contacts." action={isAdmin && <Button onClick={() => openDialog()}><Plus className="h-4 w-4" /> Add Contact</Button>} />
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Contact list */}
-          <div className="lg:col-span-2 space-y-2">
-            {filtered.map((c) => (
-              <Card
-                key={c.id}
-                className={`cursor-pointer hover:shadow-sm transition-all ${selected?.id === c.id ? 'ring-2 ring-primary' : ''}`}
-                onClick={() => setSelected(c)}
+      <Card className="border-border/80 shadow-sm">
+        <CardContent className="space-y-4 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search contacts..."
+                className="h-11 pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            {hasFilters && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 justify-center gap-2"
+                onClick={() => { setSearch(''); setTypeFilter('All') }}
               >
-                <CardContent className="p-4 flex items-center gap-4">
-                  <Avatar className="h-10 w-10 flex-shrink-0">
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm">{getInitials(c.name)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground">{c.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{c.role}{c.organization ? ` — ${c.organization}` : ''}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-xs hidden sm:inline-flex">{c.category}</Badge>
-                    {c.phone && (
-                      <a href={`tel:${c.phone}`} onClick={(e) => e.stopPropagation()} className="text-muted-foreground hover:text-foreground">
-                        <Phone className="h-4 w-4" />
-                      </a>
-                    )}
-                    {(c.whatsapp || c.phone) && (
-                      <a href={`https://wa.me/${(c.whatsapp || c.phone).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300">
-                        <MessageCircle className="h-4 w-4" />
-                      </a>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                <X className="h-4 w-4" /> Clear filters
+              </Button>
+            )}
           </div>
 
-          {/* Contact detail */}
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin sm:flex-wrap">
+            {TYPE_FILTERS.map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setTypeFilter(type)}
+                className={`h-9 flex-shrink-0 rounded-full border px-3 text-sm font-medium transition-colors ${
+                  typeFilter === type
+                    ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                    : 'border-border bg-background text-muted-foreground hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No contacts added yet."
+          description="Add agencies, vendors, and officers to keep project communication organized."
+          action={isAdmin && <Button onClick={() => openDialog()}><Plus className="h-4 w-4" /> Add first contact</Button>}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <ContactTable
+              contacts={filtered}
+              selected={selected}
+              isAdmin={isAdmin}
+              onSelect={setSelected}
+              onEdit={openDialog}
+              onDelete={setDeleteId}
+            />
+            <MobileContactCards
+              contacts={filtered}
+              selected={selected}
+              isAdmin={isAdmin}
+              onSelect={setSelected}
+              onEdit={openDialog}
+              onDelete={setDeleteId}
+            />
+          </div>
+
           {selected && (
             <div className="lg:col-span-1">
-              <Card className="sticky top-4">
+              <Card className="sticky top-4 border-border/80 shadow-sm">
                 <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-12 w-12">
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">{getInitials(selected.name)}</AvatarFallback>
+                  <div className="mb-5 flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar className="h-12 w-12 flex-shrink-0">
+                        <AvatarFallback className="bg-emerald-100 text-sm font-semibold text-emerald-700">{getInitials(selected.name)}</AvatarFallback>
                       </Avatar>
-                      <div>
-                        <p className="font-semibold text-foreground">{selected.name}</p>
-                        <p className="text-xs text-muted-foreground">{selected.role}</p>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-foreground">{selected.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">{selected.role || selected.organization || 'Contact'}</p>
                       </div>
                     </div>
                     {isAdmin && (
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon-sm" onClick={() => openDialog(contacts.find((c) => c.id === selected.id))}><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeleteId(selected.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      <div className="flex flex-shrink-0 gap-1">
+                        <Button variant="ghost" size="icon-sm" aria-label="Edit contact" onClick={() => openDialog(contacts.find((c) => c.id === selected.id))}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon-sm" aria-label="Delete contact" className="text-destructive" onClick={() => setDeleteId(selected.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     )}
                   </div>
 
                   <div className="space-y-3 text-sm">
+                    <DetailRow label="Type" value={<TypeBadge contact={selected} />} />
                     {selected.organization && <DetailRow label="Organization" value={selected.organization} />}
-                    <DetailRow label="Category" value={<Badge variant="secondary">{selected.category}</Badge>} />
+                    {getLinkedProject(selected) && <DetailRow label="Linked Project" value={getLinkedProject(selected)} />}
                     {selected.phone && (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground w-24">Phone</span>
-                        <a href={`tel:${selected.phone}`} className="text-primary hover:underline">{selected.phone}</a>
+                        <span className="w-24 flex-shrink-0 text-xs text-muted-foreground">Phone</span>
+                        <a href={`tel:${selected.phone}`} className="truncate text-primary hover:underline">{selected.phone}</a>
                       </div>
                     )}
                     {(selected.whatsapp || selected.phone) && (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground w-24">WhatsApp</span>
-                        <a href={`https://wa.me/${(selected.whatsapp || selected.phone).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:underline">
+                        <span className="w-24 flex-shrink-0 text-xs text-muted-foreground">WhatsApp</span>
+                        <a href={`https://wa.me/${(selected.whatsapp || selected.phone).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="truncate text-emerald-600 hover:underline">
                           {selected.whatsapp || selected.phone}
                         </a>
                       </div>
                     )}
                     {selected.email && (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground w-24">Email</span>
-                        <a href={`mailto:${selected.email}`} className="text-primary hover:underline truncate">{selected.email}</a>
+                        <span className="w-24 flex-shrink-0 text-xs text-muted-foreground">Email</span>
+                        <a href={`mailto:${selected.email}`} className="truncate text-primary hover:underline">{selected.email}</a>
                       </div>
                     )}
                     {selected.address && <DetailRow label="Address" value={selected.address} />}
                     {selected.notes && (
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Notes</p>
-                        <p className="text-sm text-foreground bg-muted rounded-md p-2">{selected.notes}</p>
+                        <p className="mb-1 text-xs text-muted-foreground">Notes</p>
+                        <p className="rounded-lg border border-border/70 bg-muted/40 p-3 text-sm leading-relaxed text-foreground">{selected.notes}</p>
                       </div>
                     )}
                   </div>
@@ -191,11 +298,10 @@ export default function Contacts() {
         </div>
       )}
 
-      {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editItem ? 'Edit Contact' : 'New Contact'}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+          <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
               <Label>Full Name *</Label>
               <Input value={form.name} onChange={setF('name')} placeholder="e.g. Ahmed Khan" />
@@ -251,11 +357,188 @@ export default function Contacts() {
   )
 }
 
+function SummaryCard({ icon: Icon, label, value, tone, className = '' }) {
+  const tones = {
+    emerald: 'bg-emerald-50 text-emerald-700',
+    green: 'bg-green-50 text-green-700',
+    blue: 'bg-blue-50 text-blue-700',
+    amber: 'bg-amber-50 text-amber-700',
+    purple: 'bg-purple-50 text-purple-700',
+  }
+
+  return (
+    <Card className={`border-border/80 shadow-sm ${className}`}>
+      <CardContent className="flex items-center gap-3 p-4">
+        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${tones[tone] || tones.emerald}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+          <p className="text-2xl font-bold text-foreground">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function TypeBadge({ contact }) {
+  const type = getContactType(contact)
+  const Icon = getTypeIcon(type)
+  return (
+    <Badge variant="outline" className={`gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${getTypeClasses(type)}`}>
+      <Icon className="h-3 w-3" />
+      {type}
+    </Badge>
+  )
+}
+
+function ContactTable({ contacts, selected, isAdmin, onSelect, onEdit, onDelete }) {
+  return (
+    <Card className="hidden overflow-hidden border-border/80 shadow-sm md:block">
+      <Table>
+        <TableHeader className="bg-muted/40">
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Organization</TableHead>
+            <TableHead>Phone</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Linked Tender/Project</TableHead>
+            <TableHead>Notes</TableHead>
+            <TableHead className="w-[96px] text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {contacts.map((contact) => (
+            <TableRow
+              key={contact.id}
+              tabIndex={0}
+              onClick={() => onSelect(contact)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onSelect(contact)
+                }
+              }}
+              className={`cursor-pointer hover:bg-muted/35 ${selected?.id === contact.id ? 'bg-emerald-50/70' : ''}`}
+            >
+              <TableCell>
+                <div className="flex min-w-[180px] items-center gap-3">
+                  <Avatar className="h-9 w-9 flex-shrink-0">
+                    <AvatarFallback className="bg-emerald-100 text-xs font-semibold text-emerald-700">{getInitials(contact.name)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{contact.name || 'Untitled Contact'}</p>
+                    <p className="truncate text-xs text-muted-foreground">{contact.role || 'Contact person'}</p>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell><TypeBadge contact={contact} /></TableCell>
+              <TableCell className="max-w-[190px] truncate text-sm text-muted-foreground">{contact.organization || '-'}</TableCell>
+              <TableCell className="whitespace-nowrap text-sm">{contact.phone || '-'}</TableCell>
+              <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{contact.email || '-'}</TableCell>
+              <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{getLinkedProject(contact) || '-'}</TableCell>
+              <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{contact.notes || '-'}</TableCell>
+              <TableCell>
+                {isAdmin && (
+                  <div className="flex justify-end gap-1" onClick={(event) => event.stopPropagation()}>
+                    <Button variant="ghost" size="icon-sm" aria-label="Edit contact" onClick={() => onEdit(contact)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon-sm" aria-label="Delete contact" className="text-destructive" onClick={() => onDelete(contact.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </div>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  )
+}
+
+function MobileContactCards({ contacts, selected, isAdmin, onSelect, onEdit, onDelete }) {
+  return (
+    <div className="space-y-3 md:hidden">
+      {contacts.map((contact) => (
+        <Card
+          key={contact.id}
+          role="button"
+          tabIndex={0}
+          className={`border-border/80 shadow-sm transition hover:shadow-md ${selected?.id === contact.id ? 'ring-2 ring-emerald-500' : ''}`}
+          onClick={() => onSelect(contact)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              onSelect(contact)
+            }
+          }}
+        >
+          <CardContent className="space-y-4 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <Avatar className="h-11 w-11 flex-shrink-0">
+                  <AvatarFallback className="bg-emerald-100 text-sm font-semibold text-emerald-700">{getInitials(contact.name)}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="text-base font-semibold leading-snug text-foreground">{contact.name || 'Untitled Contact'}</p>
+                  <div className="mt-1"><TypeBadge contact={contact} /></div>
+                </div>
+              </div>
+              {isAdmin && (
+                <div className="flex flex-shrink-0 gap-1" onClick={(event) => event.stopPropagation()}>
+                  <Button variant="ghost" size="icon-sm" aria-label="Edit contact" onClick={() => onEdit(contact)}><Pencil className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon-sm" aria-label="Delete contact" className="text-destructive" onClick={() => onDelete(contact.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-border/70 bg-muted/25 p-3 text-sm">
+              {contact.organization && (
+                <InfoRow icon={Building2} label="Organization" value={contact.organization} />
+              )}
+              {contact.phone && (
+                <InfoRow icon={Phone} label="Phone" value={<a href={`tel:${contact.phone}`} onClick={(event) => event.stopPropagation()} className="text-primary hover:underline">{contact.phone}</a>} />
+              )}
+              {contact.email && (
+                <InfoRow icon={Mail} label="Email" value={<a href={`mailto:${contact.email}`} onClick={(event) => event.stopPropagation()} className="break-all text-primary hover:underline">{contact.email}</a>} />
+              )}
+              {getLinkedProject(contact) && (
+                <InfoRow icon={Folder} label="Linked" value={getLinkedProject(contact)} />
+              )}
+            </div>
+
+            {(contact.whatsapp || contact.phone) && (
+              <a
+                href={`https://wa.me/${(contact.whatsapp || contact.phone).replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => event.stopPropagation()}
+                className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700"
+              >
+                <MessageCircle className="h-4 w-4" /> WhatsApp
+              </a>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
+function InfoRow({ icon: Icon, label, value }) {
+  return (
+    <div className="grid grid-cols-[18px_86px_minmax(0,1fr)] items-start gap-2">
+      <Icon className="mt-0.5 h-4 w-4 text-muted-foreground" />
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="min-w-0 break-words text-sm text-foreground">{value}</span>
+    </div>
+  )
+}
+
 function DetailRow({ label, value }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-muted-foreground w-24 flex-shrink-0">{label}</span>
-      <span className="text-sm text-foreground">{value}</span>
+    <div className="flex items-start gap-2">
+      <span className="w-24 flex-shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span className="min-w-0 break-words text-sm text-foreground">{value}</span>
     </div>
   )
 }

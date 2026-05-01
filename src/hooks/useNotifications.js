@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { formatCurrency } from '@/lib/utils'
+import { daysUntil, formatCurrency, isActionableTenderStatus, isTaskDone, sortByField } from '@/lib/utils'
 
 const READ_KEY = 'grett-notifications-read'
 
@@ -21,26 +21,17 @@ function saveRead(set) {
   } catch {}
 }
 
-function startOfToday() {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-function daysFromToday(dateStr) {
-  if (!dateStr) return null
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return null
-  d.setHours(0, 0, 0, 0)
-  const ms = d.getTime() - startOfToday().getTime()
-  return Math.round(ms / (1000 * 60 * 60 * 24))
-}
-
 function fmtDue(days) {
   if (days < 0) return `${Math.abs(days)}d overdue`
   if (days === 0) return 'Today'
   if (days === 1) return 'Tomorrow'
   return `In ${days}d`
+}
+
+function fmtCompleted(days) {
+  if (days === 0) return 'Completed today.'
+  if (days < 0) return `Completed ${Math.abs(days)}d ago.`
+  return `Completes in ${days}d.`
 }
 
 function timeAgo(ts) {
@@ -65,14 +56,48 @@ function typeLabel(type) {
   return 'Activity'
 }
 
+function groupActivityEntries(entries) {
+  const groups = new Map()
+
+  for (const entry of entries) {
+    const label = typeLabel(entry.type)
+    const action = entry.action || 'updated'
+    const title = entry.title || '(untitled)'
+    const entityKey = entry.entityId || title
+    const key = `${entry.type || 'activity'}:${action}:${entityKey}`
+    const existing = groups.get(key)
+
+    if (existing) {
+      existing.count += 1
+      continue
+    }
+
+    groups.set(key, {
+      ...entry,
+      label,
+      action,
+      title,
+      count: 1,
+    })
+  }
+
+  return Array.from(groups.values())
+}
+
 function useCollectionLive(name, orderField, orderDir = 'desc', limitN) {
   const [data, setData] = useState([])
   useEffect(() => {
-    let q = query(collection(db, name), orderBy(orderField, orderDir))
-    if (limitN) q = query(collection(db, name), orderBy(orderField, orderDir), limit(limitN))
+    const collectionRef = collection(db, name)
     const unsub = onSnapshot(
-      q,
-      (snap) => setData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      collectionRef,
+      (snap) => {
+        const records = sortByField(
+          snap.docs.map((d) => ({ id: d.id, ...d.data() })),
+          orderField,
+          orderDir,
+        )
+        setData(limitN ? records.slice(0, limitN) : records)
+      },
       () => setData([]),
     )
     return unsub
@@ -94,15 +119,16 @@ export function useNotifications() {
 
     for (const tender of tenders) {
       if (tender.status === 'Completed' && tender.completionDate) {
-        const completedDays = daysFromToday(tender.completionDate)
+        const completedDays = daysUntil(tender.completionDate)
         if (completedDays !== null && completedDays <= 0 && completedDays >= -7) {
           const expectedProfit = tender.completionSnapshot?.expectedProfit ?? tender.completionSnapshot?.projectedProfit
           const cashPosition = tender.completionSnapshot?.cashPosition ?? tender.completionSnapshot?.realizedProfit
+          const completedText = fmtCompleted(completedDays)
           const subtitle = expectedProfit == null
-            ? `Completed ${fmtDue(completedDays)}.`
+            ? completedText
             : cashPosition == null
-              ? `Expected profit: ${formatCurrency(expectedProfit)}.`
-              : `Expected profit: ${formatCurrency(expectedProfit)}. Cash position: ${formatCurrency(cashPosition)}.`
+              ? `${completedText} Expected profit: ${formatCurrency(expectedProfit)}.`
+              : `${completedText} Expected profit: ${formatCurrency(expectedProfit)}. Cash position: ${formatCurrency(cashPosition)}.`
 
           out.push({
             id: `tender:${tender.id}:completed:${tender.completionDate}`,
@@ -116,27 +142,29 @@ export function useNotifications() {
         }
       }
 
-      for (const [field, label] of [
-        ['submissionDate', 'Tender submission'],
-        ['openingDate', 'Tender opening'],
-      ]) {
-        const days = daysFromToday(tender[field])
-        if (days === null) continue
-        if (days < -1 || days > 7) continue
-        out.push({
-          id: `tender:${tender.id}:${field}`,
-          kind: 'tender',
-          severity: days <= 1 ? 'high' : 'normal',
-          title: `${label}: ${fmtDue(days)}`,
-          subtitle: tender.name || '(untitled tender)',
-          sortKey: days,
-          to: `/tenders/${tender.id}`,
-        })
+      if (isActionableTenderStatus(tender.status)) {
+        for (const [field, label] of [
+          ['submissionDate', 'Tender submission'],
+          ['openingDate', 'Tender opening'],
+        ]) {
+          const days = daysUntil(tender[field])
+          if (days === null) continue
+          if (days < -1 || days > 7) continue
+          out.push({
+            id: `tender:${tender.id}:${field}`,
+            kind: 'tender',
+            severity: days <= 1 ? 'high' : 'normal',
+            title: `${label}: ${fmtDue(days)}`,
+            subtitle: tender.name || '(untitled tender)',
+            sortKey: days,
+            to: `/tenders/${tender.id}`,
+          })
+        }
       }
     }
 
     for (const event of events) {
-      const days = daysFromToday(event.date)
+      const days = daysUntil(event.date)
       if (days === null) continue
       if (days < 0 || days > 7) continue
       out.push({
@@ -151,8 +179,8 @@ export function useNotifications() {
     }
 
     for (const todo of todos) {
-      if (todo.done) continue
-      const days = daysFromToday(todo.dueDate)
+      if (isTaskDone(todo)) continue
+      const days = daysUntil(todo.dueDate || todo.due)
       if (days === null) continue
       if (days > 3) continue
       out.push({
@@ -168,7 +196,7 @@ export function useNotifications() {
 
     for (const payOrder of payOrders) {
       if (payOrder.status !== 'Submitted') continue
-      const days = daysFromToday(payOrder.submitted)
+      const days = daysUntil(payOrder.submitted)
       if (days === null) continue
       const ageDays = -days
       if (ageDays < 14) continue
@@ -183,15 +211,16 @@ export function useNotifications() {
       })
     }
 
-    for (const entry of activity) {
-      const label = typeLabel(entry.type)
-      const action = entry.action || 'updated'
+    for (const entry of groupActivityEntries(activity)) {
       const subtitle = [timeAgo(entry.createdAt), entry.by ? `by ${entry.by}` : null].filter(Boolean).join(' - ')
+      const title = entry.count > 1
+        ? `${entry.label} ${entry.title} ${entry.action} ${entry.count} times`
+        : `${entry.label} ${entry.action}: ${entry.title}`
       out.push({
-        id: `activity:${entry.id}`,
+        id: entry.count > 1 ? `activity-group:${entry.type || 'activity'}:${entry.action}:${entry.entityId || entry.title}` : `activity:${entry.id}`,
         kind: 'activity',
         severity: 'low',
-        title: `${label} ${action}: ${entry.title || '(untitled)'}`,
+        title,
         subtitle,
         sortKey: 1000,
         to: '/activity',

@@ -25,7 +25,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCollection, useFirestoreCRUD } from "@/hooks/useFirestore";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/firebase";
-import { cn, daysUntil } from "@/lib/utils";
+import { cn, daysUntil, isTaskDone, shouldShowTaskOverdue } from "@/lib/utils";
 
 const PRIORITY_STYLES = {
   high: { dot: "bg-red-500", text: "text-red-700 dark:text-red-300", label: "High" },
@@ -49,10 +49,6 @@ function getTaskDueDate(todo) {
   return todo.dueDate || todo.due || "";
 }
 
-function isTaskDone(todo) {
-  return Boolean(todo.done ?? todo.completed ?? todo.status === "done");
-}
-
 function shortDate(dateStr) {
   if (!dateStr) return "No due date";
   const date = new Date(dateStr);
@@ -71,8 +67,6 @@ export default function Todo() {
   const [filter, setFilter] = useState("Open");
   const [deleteId, setDeleteId] = useState(null);
   const [adding, setAdding] = useState(false);
-
-  const today = new Date().toISOString().slice(0, 10);
 
   const handleAdd = async () => {
     if (!text.trim()) return;
@@ -104,14 +98,19 @@ export default function Todo() {
 
   const toggleDone = async (todo) => {
     const nextDone = !isTaskDone(todo);
-    await updateDoc(doc(db, "todos", todo.id), { done: nextDone });
-    logActivity({
-      type: "todo",
-      action: nextDone ? "completed" : "reopened",
-      title: getTaskTitle(todo),
-      entityId: todo.id,
-      by: displayName,
-    });
+    try {
+      await updateDoc(doc(db, "todos", todo.id), { done: nextDone });
+      logActivity({
+        type: "todo",
+        action: nextDone ? "completed" : "reopened",
+        title: getTaskTitle(todo),
+        entityId: todo.id,
+        by: displayName,
+      });
+    } catch (error) {
+      console.error("Failed to update todo", error);
+      toast.error("Could not update task. Please check your permissions.");
+    }
   };
 
   const filtered = useMemo(() => {
@@ -128,21 +127,20 @@ export default function Todo() {
         case "High Priority":
           return !done && taskPriority === "high";
         case "Overdue":
-          return !done && due && due < today;
+          return shouldShowTaskOverdue(todo);
         case "Today":
-          return !done && due === today;
+          return !done && daysUntil(due) === 0;
         default:
           return true;
       }
     });
-  }, [todos, filter, today]);
+  }, [todos, filter]);
 
   const open = todos.filter((todo) => !isTaskDone(todo)).length;
   const done = todos.filter((todo) => isTaskDone(todo)).length;
   const highPriority = todos.filter((todo) => !isTaskDone(todo) && normalizePriority(todo.priority) === "high").length;
   const overdue = todos.filter((todo) => {
-    const due = getTaskDueDate(todo);
-    return !isTaskDone(todo) && due && due < today;
+    return shouldShowTaskOverdue(todo);
   }).length;
 
   const stats = [
@@ -333,7 +331,7 @@ export default function Todo() {
               const taskDone = isTaskDone(todo);
               const due = getTaskDueDate(todo);
               const days = due ? daysUntil(due) : null;
-              const isOverdue = days !== null && days < 0;
+              const isOverdue = shouldShowTaskOverdue(todo);
               const taskPriority = normalizePriority(todo.priority);
               const priorityStyle = PRIORITY_STYLES[taskPriority] || PRIORITY_STYLES.none;
               const title = getTaskTitle(todo);
@@ -403,16 +401,21 @@ export default function Todo() {
         onOpenChange={() => setDeleteId(null)}
         onConfirm={async () => {
           const task = todos.find((todo) => todo.id === deleteId);
-          await remove(deleteId);
-          logActivity({
-            type: "todo",
-            action: "deleted",
-            title: task ? getTaskTitle(task) : "(unknown)",
-            entityId: deleteId,
-            by: displayName,
-          });
-          toast.success("Task deleted");
-          setDeleteId(null);
+          try {
+            await remove(deleteId);
+            logActivity({
+              type: "todo",
+              action: "deleted",
+              title: task ? getTaskTitle(task) : "(unknown)",
+              entityId: deleteId,
+              by: displayName,
+            });
+            toast.success("Task deleted");
+            setDeleteId(null);
+          } catch (error) {
+            console.error("Failed to delete todo", error);
+            toast.error("Could not delete task. Please check your permissions.");
+          }
         }}
         title="Delete task"
         description="This task will be permanently deleted."

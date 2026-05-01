@@ -113,6 +113,10 @@ export function exportPayOrdersPDF(payOrders) {
   </body></html>`
 
   const win = window.open('', '_blank')
+  if (!win) {
+    console.error('PDF export popup was blocked.')
+    return 'popup-blocked'
+  }
   win.document.write(html)
   win.document.close()
   win.focus()

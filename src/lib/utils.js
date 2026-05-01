@@ -86,11 +86,108 @@ export function formatDate(dateStr) {
 
 export function daysUntil(dateStr) {
   if (!dateStr) return null
-  const target = new Date(dateStr)
+  const target = parseDateAtStartOfDay(dateStr)
+  if (!target) return null
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  target.setHours(0, 0, 0, 0)
   return Math.round((target - today) / (1000 * 60 * 60 * 24))
+}
+
+export function isTaskDone(task = {}) {
+  const status = String(task.status || '').toLowerCase()
+  return task.done === true || task.completed === true || status === 'done' || status === 'completed'
+}
+
+const ACTIONABLE_TENDER_STATUSES = new Set(['draft', 'bidding', 'pending'])
+const CLOSED_TENDER_STATUSES = new Set([
+  'in progress',
+  'submitted',
+  'completed',
+  'won',
+  'lost',
+  'cancelled',
+  'canceled',
+  'rejected',
+  'closed',
+  'awarded',
+])
+
+export function isActionableTenderStatus(status) {
+  return ACTIONABLE_TENDER_STATUSES.has(String(status || '').trim().toLowerCase())
+}
+
+export function isClosedTenderStatus(status) {
+  return CLOSED_TENDER_STATUSES.has(String(status || '').trim().toLowerCase())
+}
+
+export function shouldShowTenderOverdue(tender = {}) {
+  if (!isActionableTenderStatus(tender.status) || isClosedTenderStatus(tender.status)) return false
+  const days = daysUntil(tender.submissionDate)
+  return days !== null && days < 0
+}
+
+export function getTenderDisplayStatus(tender = {}) {
+  if (shouldShowTenderOverdue(tender)) return 'Overdue'
+  const status = String(tender.status || '').trim()
+  if (status.toLowerCase() === 'overdue') {
+    return tender.actualStatus || tender.baseStatus || tender.previousStatus || 'Bidding'
+  }
+  return status || 'Bidding'
+}
+
+export function shouldShowTaskOverdue(task = {}) {
+  if (isTaskDone(task)) return false
+  const days = daysUntil(task.dueDate || task.due)
+  return days !== null && days < 0
+}
+
+function parseDateAtStartOfDay(value) {
+  if (!value) return null
+  if (typeof value?.toDate === 'function') {
+    const d = value.toDate()
+    d.setHours(0, 0, 0, 0)
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+  if (typeof value === 'string') {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+      return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    }
+  }
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function normalizeSortValue(value) {
+  if (value === null || value === undefined || value === '') return null
+  if (typeof value?.toMillis === 'function') return value.toMillis()
+  if (typeof value?.toDate === 'function') return value.toDate().getTime()
+  if (typeof value === 'number') return value
+
+  const text = String(value)
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    const time = Date.parse(text)
+    if (!Number.isNaN(time)) return time
+  }
+
+  return text.toLowerCase()
+}
+
+export function sortByField(records = [], field = 'createdAt', dir = 'desc') {
+  const direction = dir === 'asc' ? 1 : -1
+  return [...records].sort((a, b) => {
+    const left = normalizeSortValue(a?.[field])
+    const right = normalizeSortValue(b?.[field])
+
+    if (left === null && right === null) return 0
+    if (left === null) return 1
+    if (right === null) return -1
+    if (left > right) return direction
+    if (left < right) return -direction
+    return 0
+  })
 }
 
 export function getInitials(name) {

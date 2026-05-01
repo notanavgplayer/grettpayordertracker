@@ -7,7 +7,7 @@ import {
   formatCurrency,
   formatCurrencyPrecise,
   calculateTenderFinancials,
-  daysUntil,
+  getTenderDisplayStatus,
   TENDER_STATUSES,
   uid,
 } from "@/lib/utils";
@@ -124,14 +124,9 @@ const STATUS_TONES = {
   },
 };
 
-// Compute display status on read — adds virtual "Overdue" when a Bidding
-// tender's submission date is in the past, without touching Firestore.
+// Compute display status on read without touching Firestore.
 function resolveStatus(t) {
-  if (t.status === "Bidding" && t.submissionDate) {
-    const days = daysUntil(t.submissionDate);
-    if (days !== null && days < 0) return "Overdue";
-  }
-  return t.status;
+  return getTenderDisplayStatus(t);
 }
 
 const EMPTY_TENDER = {
@@ -381,8 +376,8 @@ export default function Tenders() {
         ? "—"
         : `${financials.percentage.toFixed(2)}% ${directionText}`;
     return {
-      estimate: formatCurrency(financials.estimatedCost),
-      quoted: formatCurrency(financials.quotedAmount),
+      estimate: formatCurrencyPrecise(financials.estimatedCost, 0),
+      quoted: formatCurrencyPrecise(financials.quotedAmount, 0),
       percentText,
       direction: financials.direction,
     };
@@ -390,7 +385,7 @@ export default function Tenders() {
 
   const formatMobileNitRef = (value) => {
     if (value === null || value === undefined || value === "") return "—";
-    return String(value).replace(/\s+/g, " ").trim() || "—";
+    return String(value).replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim() || "—";
   };
 
   if (loading) return <PageTableSkeleton rows={6} cols={6} metrics={5} />;
@@ -518,51 +513,51 @@ export default function Tenders() {
                         : "border-emerald-200 bg-emerald-50/70 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100";
 
                   return (
-                  <Card key={t.id} className="overflow-hidden">
-                    <CardContent className="p-4 space-y-4">
-                      <div className="flex items-start justify-between gap-2">
+                  <Card key={t.id} className="overflow-hidden rounded-xl border-border shadow-sm">
+                    <CardContent className="space-y-3.5 p-4">
+                      <div className="flex items-start justify-between gap-2.5">
                         <div className="min-w-0 flex-1">
                           <button
                             type="button"
                             onClick={() => setQuickView(t)}
                             className="block text-left w-full"
                           >
-                            <p className="font-semibold text-sm text-foreground hover:underline break-words leading-snug">
+                            <p className="text-sm font-semibold leading-snug text-foreground hover:underline">
                               {t.name || "Untitled"}
                             </p>
                           </button>
+                          <div className="mt-2 flex">
+                            <StatusBadge status={t.displayStatus} />
+                          </div>
                           {t.agency && (
-                            <p className="text-xs text-muted-foreground break-words mt-1">
+                            <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                               {t.agency}
                             </p>
                           )}
-                          <div className="mt-2">
-                            <StatusBadge status={t.displayStatus} />
-                          </div>
                           {financialSummary && (
                             <div
                               className={`mt-3 rounded-xl border px-3 py-2.5 text-xs ${summaryTone}`}
                             >
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="min-w-0">
-                                  <p className="font-medium opacity-75">
+                              <div className="grid grid-cols-2 gap-2.5">
+                                <div className="min-w-0 rounded-lg bg-white/60 px-2.5 py-2 dark:bg-background/30">
+                                  <p className="text-[11px] font-medium uppercase tracking-wide opacity-75">
                                     Estimate
                                   </p>
-                                  <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-foreground">
+                                  <p className="mt-1 truncate font-mono text-[13px] font-semibold tabular-nums text-foreground">
                                     {financialSummary.estimate}
                                   </p>
                                 </div>
-                                <div className="min-w-0">
-                                  <p className="font-medium opacity-75">
+                                <div className="min-w-0 rounded-lg bg-white/60 px-2.5 py-2 dark:bg-background/30">
+                                  <p className="text-[11px] font-medium uppercase tracking-wide opacity-75">
                                     Quoted
                                   </p>
-                                  <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-foreground">
+                                  <p className="mt-1 truncate font-mono text-[13px] font-semibold tabular-nums text-foreground">
                                     {financialSummary.quoted}
                                   </p>
                                 </div>
                               </div>
                               {financialSummary.percentText !== "—" && (
-                                <span className="mt-3 inline-flex rounded-full border border-current/20 bg-white/70 px-2.5 py-1 text-xs font-semibold dark:bg-background/40">
+                                <span className="mt-2.5 inline-flex rounded-full border border-current/20 bg-white/75 px-2.5 py-1 text-[11px] font-semibold leading-none dark:bg-background/40">
                                   {financialSummary.percentText}
                                 </span>
                               )}
@@ -612,17 +607,17 @@ export default function Tenders() {
                         </div>
                       </div>
 
-                      <div>
-                        <p className="font-mono tabular-nums font-semibold text-sm text-foreground leading-tight">
-                          {formatCurrency(t.value)}
-                        </p>
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-0.5">
+                      <div className="rounded-lg bg-muted/40 px-3 py-2">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                           Contract value
+                        </p>
+                        <p className="mt-1 font-mono text-base font-semibold leading-none tabular-nums text-foreground">
+                          {formatCurrencyPrecise(t.value, 0)}
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border divide-x divide-border">
-                        <div className="min-w-0 pr-3">
+                      <div className="grid grid-cols-2 gap-3 border-t border-border pt-3">
+                        <div className="min-w-0">
                           <div className="flex items-center gap-1.5 text-foreground">
                             <Calendar className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                             <span className="text-sm truncate">
@@ -633,8 +628,11 @@ export default function Tenders() {
                             Submission
                           </p>
                         </div>
-                        <div className="min-w-0 pl-3">
-                          <p className="font-mono text-sm text-foreground whitespace-normal break-words">
+                        <div className="min-w-0 border-l border-border pl-3">
+                          <p
+                            className="truncate font-mono text-sm text-foreground"
+                            title={formatMobileNitRef(t.nit)}
+                          >
                             {formatMobileNitRef(t.nit)}
                           </p>
                           <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1">

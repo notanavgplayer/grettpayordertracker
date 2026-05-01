@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useCollection, useFirestoreCRUD } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
 import { exportPayOrdersCSV, exportPayOrdersPDF } from "@/lib/export";
@@ -134,6 +134,16 @@ const PAY_ORDER_FIELDS = [
   "updatedBy",
 ];
 
+const EMPTY_FILTERS = {
+  bank: "all",
+  status: "all",
+  bidResult: "all",
+  submittedFrom: "",
+  submittedTo: "",
+  amountMin: "",
+  amountMax: "",
+};
+
 function cleanPayOrderPayload(data) {
   return PAY_ORDER_FIELDS.reduce((payload, key) => {
     if (data[key] !== undefined) payload[key] = data[key];
@@ -231,6 +241,11 @@ export default function PayOrders() {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [quickView, setQuickView] = useState(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState(EMPTY_FILTERS);
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState("10");
 
   // Activity log state
   const [logDialogOpen, setLogDialogOpen] = useState(false);
@@ -248,13 +263,64 @@ export default function PayOrders() {
   const filtered = useMemo(() => {
     return payOrders.filter((p) => {
       if (filterStatus !== "All" && p.status !== filterStatus) return false;
-      if (!search) return true;
-      const q = search.toLowerCase();
-      return [p.po, p.tender, p.agency, p.nit, p.bank].some((v) =>
-        (v || "").toLowerCase().includes(q),
-      );
+      if (search) {
+        const q = search.toLowerCase();
+        if (
+          ![p.po, p.tender, p.agency, p.nit, p.bank].some((v) =>
+            (v || "").toLowerCase().includes(q),
+          )
+        ) {
+          return false;
+        }
+      }
+      if (appliedFilters.bank !== "all" && (p.bank || "") !== appliedFilters.bank) return false;
+      if (appliedFilters.status !== "all" && (p.status || "") !== appliedFilters.status) return false;
+      if (appliedFilters.bidResult !== "all" && (p.bidResult || "N/A") !== appliedFilters.bidResult) return false;
+      if (appliedFilters.submittedFrom && (!p.submitted || p.submitted < appliedFilters.submittedFrom)) return false;
+      if (appliedFilters.submittedTo && (!p.submitted || p.submitted > appliedFilters.submittedTo)) return false;
+      const amount = Number(p.amount) || 0;
+      if (appliedFilters.amountMin !== "" && amount < Number(appliedFilters.amountMin)) return false;
+      if (appliedFilters.amountMax !== "" && amount > Number(appliedFilters.amountMax)) return false;
+      return true;
     });
-  }, [payOrders, search, filterStatus]);
+  }, [payOrders, search, filterStatus, appliedFilters]);
+
+  const bankOptions = useMemo(() => {
+    const names = [
+      ...banks.map((b) => b.name),
+      ...payOrders.map((p) => p.bank),
+    ].filter(Boolean);
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+  }, [banks, payOrders]);
+
+  const hasPanelFilters = useMemo(
+    () => Object.values(appliedFilters).some((value) => value !== "" && value !== "all"),
+    [appliedFilters],
+  );
+
+  const numericRowsPerPage = rowsPerPage === "all" ? filtered.length || 1 : Number(rowsPerPage);
+  const pageCount = rowsPerPage === "all" ? 1 : Math.max(1, Math.ceil(filtered.length / numericRowsPerPage));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = rowsPerPage === "all" ? 0 : (currentPage - 1) * numericRowsPerPage;
+  const pageEnd = rowsPerPage === "all" ? filtered.length : pageStart + numericRowsPerPage;
+  const paginatedPayOrders = filtered.slice(pageStart, pageEnd);
+  const displayStart = filtered.length === 0 ? 0 : pageStart + 1;
+  const displayEnd = Math.min(pageEnd, filtered.length);
+  const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1)
+    .filter((pageNumber) => pageCount <= 5 || Math.abs(pageNumber - currentPage) <= 2);
+  const paginationText = filtered.length === 0
+    ? "Showing 0 entries"
+    : rowsPerPage === "all" || filtered.length <= numericRowsPerPage
+    ? `Showing all ${filtered.length} ${filtered.length === 1 ? "entry" : "entries"}`
+    : `Showing ${displayStart} to ${displayEnd} of ${filtered.length} entries`;
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterStatus, appliedFilters, rowsPerPage]);
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
 
   // Summary stats
   const total = payOrders.reduce((s, p) => s + (Number(p.amount) || 0), 0);
@@ -703,9 +769,139 @@ export default function PayOrders() {
               />
             </div>
             <div className="flex shrink-0 gap-2">
-              <Button variant="outline" size="icon" className="h-11 w-11 rounded-lg" aria-label="Filter pay orders">
-                <Filter className="h-4 w-4" />
-              </Button>
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className={`h-11 w-11 rounded-lg ${hasPanelFilters ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : ""}`}
+                  aria-label="Filter pay orders"
+                  aria-expanded={filterOpen}
+                  onClick={() => setFilterOpen((open) => !open)}
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
+                {filterOpen && (
+                  <div className="absolute right-0 top-12 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-xl">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold">Filter pay orders</p>
+                      {hasPanelFilters && (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Bank</Label>
+                        <Select
+                          value={draftFilters.bank}
+                          onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, bank: value }))}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="All banks" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All banks</SelectItem>
+                            {bankOptions.map((bank) => (
+                              <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Status</Label>
+                          <Select
+                            value={draftFilters.status}
+                            onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, status: value }))}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All statuses</SelectItem>
+                              {PO_STATUSES.map((status) => (
+                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Bid Result</Label>
+                          <Select
+                            value={draftFilters.bidResult}
+                            onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, bidResult: value }))}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All results</SelectItem>
+                              {BID_RESULTS.map((result) => (
+                                <SelectItem key={result} value={result}>{result}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field
+                          label="Submitted from"
+                          type="date"
+                          value={draftFilters.submittedFrom}
+                          onChange={(event) => setDraftFilters((filters) => ({ ...filters, submittedFrom: event.target.value }))}
+                        />
+                        <Field
+                          label="Submitted to"
+                          type="date"
+                          value={draftFilters.submittedTo}
+                          onChange={(event) => setDraftFilters((filters) => ({ ...filters, submittedTo: event.target.value }))}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field
+                          label="Min amount"
+                          type="number"
+                          value={draftFilters.amountMin}
+                          onChange={(event) => setDraftFilters((filters) => ({ ...filters, amountMin: event.target.value }))}
+                          placeholder="0"
+                        />
+                        <Field
+                          label="Max amount"
+                          type="number"
+                          value={draftFilters.amountMax}
+                          onChange={(event) => setDraftFilters((filters) => ({ ...filters, amountMax: event.target.value }))}
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setDraftFilters(EMPTY_FILTERS);
+                          setAppliedFilters(EMPTY_FILTERS);
+                          setFilterOpen(false);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          setAppliedFilters(draftFilters);
+                          setFilterOpen(false);
+                        }}
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <Button
                 variant="outline"
                 size="icon"
@@ -726,7 +922,10 @@ export default function PayOrders() {
                 title="Export PDF"
                 aria-label="Export PDF"
                 onClick={() => {
-                  if (!exportPayOrdersPDF(filtered))
+                  const result = exportPayOrdersPDF(filtered);
+                  if (result === "popup-blocked")
+                    toast.error("Popup blocked. Please allow popups to export PDF.");
+                  else if (!result)
                     toast.error("Nothing to export");
                 }}
               >
@@ -776,7 +975,7 @@ export default function PayOrders() {
             <>
               {/* Mobile: card-per-row */}
               <div className="space-y-3 md:hidden">
-                {filtered.map((p) => (
+                {paginatedPayOrders.map((p) => (
                   <Card key={p.id} className="overflow-hidden rounded-xl border bg-card shadow-sm">
                     <CardContent className="space-y-3 p-3.5">
                       <div className="flex items-start gap-3">
@@ -894,7 +1093,7 @@ export default function PayOrders() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((p) => (
+                    {paginatedPayOrders.map((p) => (
                       <TableRow key={p.id} className="h-[72px] hover:bg-muted/30">
                         <TableCell className="font-mono text-sm font-semibold">
                           <button
@@ -962,18 +1161,58 @@ export default function PayOrders() {
                   </TableBody>
                 </Table>
                 </div>
-                <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                  <span>
-                    Showing 1 to {filtered.length} of {filtered.length} entries
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" disabled>Previous</Button>
-                    <Button variant="outline" size="sm" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">1</Button>
-                    <Button variant="outline" size="sm" disabled>Next</Button>
-                    <span className="ml-2 hidden sm:inline">Rows per page: 10</span>
-                  </div>
-                </div>
               </Card>
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-3 py-3 text-sm text-muted-foreground shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-4">
+                <span>{paginationText}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage <= 1 || filtered.length === 0}
+                    onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  >
+                    Previous
+                  </Button>
+                  {pageNumbers[0] > 1 && <span className="px-1">...</span>}
+                  {pageNumbers.map((pageNumber) => (
+                    <Button
+                      key={pageNumber}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(pageNumber)}
+                      className={
+                        pageNumber === currentPage
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          : ""
+                      }
+                    >
+                      {pageNumber}
+                    </Button>
+                  ))}
+                  {pageNumbers[pageNumbers.length - 1] < pageCount && (
+                    <span className="px-1">...</span>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage >= pageCount || filtered.length === 0}
+                    onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
+                  >
+                    Next
+                  </Button>
+                  <Select value={rowsPerPage} onValueChange={setRowsPerPage}>
+                    <SelectTrigger className="h-9 w-[132px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10 rows</SelectItem>
+                      <SelectItem value="25">25 rows</SelectItem>
+                      <SelectItem value="50">50 rows</SelectItem>
+                      <SelectItem value="all">All rows</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </>
           )}
         </TabsContent>
