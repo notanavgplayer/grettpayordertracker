@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, FileStack, Users, Receipt,
   Calendar, StickyNote, CheckSquare, Settings, Activity,
-  LogOut, DatabaseZap,
+  LogOut, DatabaseZap, FolderOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
@@ -28,6 +28,7 @@ const NAV_GROUPS = [
       { to: '/pay-orders', icon: FileText, label: 'Pay Orders' },
       { to: '/calendar', icon: Calendar, label: 'Calendar' },
       { to: '/todo', icon: CheckSquare, label: 'To-Do' },
+      { to: '/documents', icon: FolderOpen, label: 'Documents' },
     ],
   },
   {
