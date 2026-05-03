@@ -33,6 +33,19 @@ import { toast } from 'sonner'
 
 const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', note: '' }
 const EMPTY_PO = { po: '', bank: '', amount: '', purpose: 'Bid Security', status: 'Pending', submitted: '', notes: '' }
+const SITE_VISIT_STATUSES = ['Completed', 'Partial', 'Issue']
+const EMPTY_SITE_VISIT = {
+  visitDate: '',
+  visitTime: '',
+  location: '',
+  workCompleted: '',
+  labourUsed: '',
+  materialUsed: '',
+  issues: '',
+  nextDayPlan: '',
+  notes: '',
+  status: 'Completed',
+}
 const INLINE_INPUT_CLASS = 'h-8 border-transparent bg-transparent px-0 text-sm shadow-none hover:border-input focus-visible:px-3 focus-visible:ring-1 md:text-base'
 const INLINE_TEXTAREA_CLASS = 'min-h-[44px] resize-none border-transparent bg-transparent px-0 py-1 text-sm shadow-none hover:border-input focus-visible:px-3 focus-visible:ring-1 md:text-base'
 const DOCUMENT_CATEGORIES = [
@@ -194,6 +207,10 @@ export default function TenderDetail() {
   const [poSaving, setPoSaving] = useState(false)
   const [deletePoId, setDeletePoId] = useState(null)
   const [poRefresh, setPoRefresh] = useState(0)
+  const [siteVisitDialogOpen, setSiteVisitDialogOpen] = useState(false)
+  const [editSiteVisit, setEditSiteVisit] = useState(null)
+  const [siteVisitForm, setSiteVisitForm] = useState(EMPTY_SITE_VISIT)
+  const [deleteSiteVisitId, setDeleteSiteVisitId] = useState(null)
   const [completeOpen, setCompleteOpen] = useState(false)
   const [completionDate, setCompletionDate] = useState('')
   const [completionRemarks, setCompletionRemarks] = useState('')
@@ -785,6 +802,48 @@ export default function TenderDetail() {
   const removeBoqItem = (itemId) => {
     updateAutosavedForm('boqItems', (items = []) => items.filter((item) => item.id !== itemId))
   }
+
+  // Site Visits — stored on the tender doc under `siteVisits`. Autosaved.
+  const openSiteVisitDialog = (item = null) => {
+    setEditSiteVisit(item)
+    setSiteVisitForm(item
+      ? {
+          visitDate: item.visitDate || '',
+          visitTime: item.visitTime || '',
+          location: item.location || '',
+          workCompleted: item.workCompleted || '',
+          labourUsed: item.labourUsed || '',
+          materialUsed: item.materialUsed || '',
+          issues: item.issues || '',
+          nextDayPlan: item.nextDayPlan || '',
+          notes: item.notes || '',
+          status: item.status || 'Completed',
+        }
+      : { ...EMPTY_SITE_VISIT, visitDate: new Date().toISOString().slice(0, 10) })
+    setSiteVisitDialogOpen(true)
+  }
+  const saveSiteVisit = () => {
+    if (!siteVisitForm.visitDate) { toast.error('Visit date is required'); return }
+    const nowIso = new Date().toISOString()
+    if (editSiteVisit && editSiteVisit.id) {
+      updateAutosavedForm('siteVisits', (items = []) => items.map((v) =>
+        v.id === editSiteVisit.id ? { ...v, ...siteVisitForm, updatedAt: nowIso } : v
+      ))
+      toast.success('Site visit updated')
+    } else {
+      const newItem = { id: uid(), ...siteVisitForm, createdAt: nowIso, updatedAt: nowIso }
+      updateAutosavedForm('siteVisits', (items = []) => [...items, newItem])
+      toast.success('Site visit added')
+    }
+    setSiteVisitDialogOpen(false)
+  }
+  const removeSiteVisit = () => {
+    if (!deleteSiteVisitId) return
+    updateAutosavedForm('siteVisits', (items = []) => items.filter((v) => v.id !== deleteSiteVisitId))
+    toast.success('Site visit deleted')
+    setDeleteSiteVisitId(null)
+  }
+  const setSiteVisitF = (k) => (e) => setSiteVisitForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
 
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
   if (!tender) return null
@@ -1963,31 +2022,51 @@ export default function TenderDetail() {
                 <div>
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <CalendarDays className="h-4 w-4" /> Site Visits
+                    <span className="text-muted-foreground font-normal">· {(form.siteVisits || []).length} recorded</span>
                   </CardTitle>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Track daily execution updates, labour, materials, issues, photos, and next-day plans.
+                    Track daily execution updates, labour, materials, issues, and next-day plans.
                   </p>
                 </div>
-                <Button size="sm" disabled={!isAdmin}>
-                  <Plus className="h-3.5 w-3.5" /> Add Site Visit
-                </Button>
+                {isAdmin && (
+                  <Button type="button" size="sm" onClick={() => openSiteVisitDialog()}>
+                    <Plus className="h-3.5 w-3.5" /> Add Site Visit
+                  </Button>
+                )}
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="rounded-lg border border-dashed p-6 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
-                  <ClipboardList className="h-5 w-5" />
+            <CardContent className="space-y-3">
+              {(form.siteVisits || []).length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                    <ClipboardList className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-3 text-sm font-semibold">No site visits added yet.</h3>
+                  <p className="mx-auto mt-1 max-w-xl text-sm text-muted-foreground">
+                    Record daily progress, labour, materials, issues, and next-day plans.
+                  </p>
+                  {isAdmin && (
+                    <Button type="button" size="sm" className="mt-4" onClick={() => openSiteVisitDialog()}>
+                      <Plus className="h-3.5 w-3.5" /> Add first site visit
+                    </Button>
+                  )}
                 </div>
-                <h3 className="mt-3 text-sm font-semibold">No site visits recorded yet.</h3>
-                <p className="mx-auto mt-1 max-w-xl text-sm text-muted-foreground">
-                  Future entries will capture visit date, visit time, location, work completed, labour used, material used, issues or delays, photos, and next-day plan.
-                </p>
-                <div className="mt-5 grid grid-cols-1 gap-2 text-left text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
-                  {['Visit date', 'Visit time', 'Location', 'Work completed', 'Labour used', 'Material used', 'Issues / delays', 'Photos', 'Next-day plan'].map((field) => (
-                    <div key={field} className="rounded-md border bg-muted/20 px-3 py-2">{field}</div>
-                  ))}
+              ) : (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {[...(form.siteVisits || [])]
+                    .sort((a, b) => new Date(b.visitDate || 0) - new Date(a.visitDate || 0))
+                    .map((visit, index) => (
+                      <SiteVisitCard
+                        key={visit.id || `visit-${index}`}
+                        visit={visit}
+                        tenderName={form.name}
+                        isAdmin={isAdmin}
+                        onEdit={() => openSiteVisitDialog(visit)}
+                        onDelete={() => setDeleteSiteVisitId(visit.id)}
+                      />
+                    ))}
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -2510,6 +2589,142 @@ export default function TenderDetail() {
         title="Delete pay order"
         description="This will permanently remove this pay order from the tender and the global list."
       />
+
+      {/* Site Visit Sheet */}
+      <Sheet open={siteVisitDialogOpen} onOpenChange={setSiteVisitDialogOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
+          <SheetHeader className="px-6 py-4 border-b border-border">
+            <SheetTitle>{editSiteVisit ? 'Edit Site Visit' : 'New Site Visit'}</SheetTitle>
+            <SheetDescription>
+              {editSiteVisit ? 'Update site visit details.' : 'Record daily progress, labour, materials, and issues.'}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="td-sv-date">Visit Date <span className="text-destructive">*</span></Label>
+                <Input id="td-sv-date" type="date" value={siteVisitForm.visitDate} onChange={setSiteVisitF('visitDate')} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="td-sv-time">Visit Time</Label>
+                <Input id="td-sv-time" type="time" value={siteVisitForm.visitTime} onChange={setSiteVisitF('visitTime')} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="td-sv-loc">Location / Site Area</Label>
+              <Input id="td-sv-loc" value={siteVisitForm.location} onChange={setSiteVisitF('location')} placeholder="e.g. Block A, second floor" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="td-sv-work">Work Completed</Label>
+              <Textarea id="td-sv-work" value={siteVisitForm.workCompleted} onChange={setSiteVisitF('workCompleted')} rows={3} placeholder="What was finished today?" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="td-sv-labour">Labour Used</Label>
+                <Textarea id="td-sv-labour" value={siteVisitForm.labourUsed} onChange={setSiteVisitF('labourUsed')} rows={2} placeholder="e.g. 4 masons, 6 helpers" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="td-sv-material">Material Used</Label>
+                <Textarea id="td-sv-material" value={siteVisitForm.materialUsed} onChange={setSiteVisitF('materialUsed')} rows={2} placeholder="e.g. 20 bags cement, 1 ton sand" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="td-sv-issues">Issues / Delays</Label>
+              <Textarea id="td-sv-issues" value={siteVisitForm.issues} onChange={setSiteVisitF('issues')} rows={2} placeholder="Any blockers or delays?" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="td-sv-next">Next-Day Plan</Label>
+              <Textarea id="td-sv-next" value={siteVisitForm.nextDayPlan} onChange={setSiteVisitF('nextDayPlan')} rows={2} placeholder="Plan for the next day" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={siteVisitForm.status} onValueChange={setSiteVisitF('status')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{SITE_VISIT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="td-sv-notes">Notes</Label>
+              <Textarea id="td-sv-notes" value={siteVisitForm.notes} onChange={setSiteVisitF('notes')} rows={2} />
+            </div>
+          </div>
+          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setSiteVisitDialogOpen(false)}>Cancel</Button>
+            <Button type="button" onClick={saveSiteVisit}>
+              {editSiteVisit ? 'Save Changes' : 'Add Site Visit'}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <ConfirmDelete
+        open={!!deleteSiteVisitId}
+        onOpenChange={() => setDeleteSiteVisitId(null)}
+        onConfirm={removeSiteVisit}
+        title="Delete site visit"
+        description="This will permanently remove this site visit record from the tender."
+      />
+    </div>
+  )
+}
+
+function SiteVisitCard({ visit, tenderName, isAdmin, onEdit, onDelete }) {
+  const statusTone = visit.status === 'Issue'
+    ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300'
+    : visit.status === 'Partial'
+      ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300'
+      : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
+  const dash = '—'
+  return (
+    <Card className="overflow-hidden border-border/80 shadow-sm">
+      <CardContent className="space-y-3 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <Badge variant="outline" className="rounded-full text-xs">
+              <CalendarDays className="mr-1 h-3 w-3" />
+              {formatDate(visit.visitDate) || dash}
+              {visit.visitTime ? ` · ${visit.visitTime}` : ''}
+            </Badge>
+            <p className="mt-1.5 text-sm font-semibold text-foreground break-words">
+              {visit.location || 'Site visit'}
+            </p>
+            {tenderName && (
+              <p className="text-xs text-muted-foreground truncate">{tenderName}</p>
+            )}
+          </div>
+          {visit.status && (
+            <Badge variant="outline" className={`rounded-full text-xs ${statusTone}`}>{visit.status}</Badge>
+          )}
+        </div>
+        <SiteVisitField label="Work completed" value={visit.workCompleted} />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <SiteVisitField label="Labour used" value={visit.labourUsed} compact />
+          <SiteVisitField label="Material used" value={visit.materialUsed} compact />
+        </div>
+        <SiteVisitField label="Issues / delays" value={visit.issues} compact />
+        <SiteVisitField label="Next-day plan" value={visit.nextDayPlan} compact />
+        {visit.notes && <SiteVisitField label="Notes" value={visit.notes} compact />}
+        {isAdmin && (
+          <div className="flex justify-end gap-2 border-t pt-3">
+            <Button type="button" variant="outline" size="sm" onClick={onEdit}>
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={onDelete}>
+              <Trash2 className="h-3.5 w-3.5" /> Delete
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function SiteVisitField({ label, value, compact = false }) {
+  const display = value && String(value).trim() ? value : '—'
+  return (
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`mt-0.5 whitespace-pre-wrap break-words ${compact ? 'text-xs' : 'text-sm'} text-foreground`}>{display}</p>
     </div>
   )
 }
