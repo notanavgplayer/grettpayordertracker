@@ -4,7 +4,7 @@ import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, 
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
-import { getSupabaseStorageBucket, uploadTenderDocument } from '@/lib/supabaseStorage'
+import { uploadTenderDocument } from '@/lib/supabaseStorage'
 import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinancials, getTenderDisplayStatus, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -738,10 +738,18 @@ export default function TenderDetail() {
     updateAutosavedForm('raBills', (items = []) => items.filter((b) => b.id !== billId))
   }
 
-  const addDocument = () => {
+  const addDocument = (document = {}) => {
     updateAutosavedForm('documents', (items = []) => [
       ...items,
-      { id: uid(), title: '', type: 'Other', url: '', notes: '', addedAt: new Date().toISOString().slice(0, 10) },
+      {
+        id: document.id || uid(),
+        title: '',
+        type: 'Other',
+        url: '',
+        notes: '',
+        addedAt: new Date().toISOString().slice(0, 10),
+        ...document,
+      },
     ])
   }
   const updateDocument = (documentId, patch) => {
@@ -751,8 +759,8 @@ export default function TenderDetail() {
     updateAutosavedForm('documents', (items = []) => items.filter((item) => item.id !== documentId))
   }
 
-  const uploadDocumentFile = async (documentId, file) => {
-    if (!file) return
+  const uploadDocumentAsset = async (documentId, file) => {
+    if (!file) return null
     setUploadingDocumentId(documentId)
     setDocumentUploadProgress((prev) => ({ ...prev, [documentId]: 0 }))
     try {
@@ -762,8 +770,7 @@ export default function TenderDetail() {
         file,
         onProgress: (progress) => setDocumentUploadProgress((prev) => ({ ...prev, [documentId]: progress })),
       })
-      updateDocument(documentId, {
-        title: (form.documents || []).find((item) => item.id === documentId)?.title || file.name,
+      return {
         url: uploaded.url,
         fileName: file.name,
         fileType: file.type || '',
@@ -772,12 +779,12 @@ export default function TenderDetail() {
         storageBucket: uploaded.bucket,
         storagePath: uploaded.path,
         uploadedAt: new Date().toISOString().slice(0, 10),
-      })
-      toast.success('File uploaded and attached.')
+      }
     } catch (err) {
       console.error('Failed to upload document:', err)
       const message = err?.message || err?.code || 'Unknown error'
       toast.error(`Failed to upload file: ${message}`)
+      return null
     } finally {
       setUploadingDocumentId(null)
       setDocumentUploadProgress((prev) => {
@@ -930,10 +937,6 @@ export default function TenderDetail() {
     ...summary,
     [type]: documents.filter((item) => getDocumentKind(item) === type).length,
   }), {})
-  const documentCategoryCounts = DOCUMENT_CATEGORIES.map((category) => ({
-    category,
-    count: documents.filter((item) => (item.type || 'Other') === category).length,
-  }))
   const linkedTenderDocumentCount = documents.filter((item) => item.tenderRef || item.linkedTender || item.linkedProject || item.url || item.fileName).length
   const recentUploadCount = documents.filter((item) => daysSince(item.uploadedAt || item.addedAt) <= 30).length
   const filteredDocuments = documents.filter((item) => {
@@ -2086,7 +2089,7 @@ export default function TenderDetail() {
             documentTypeFilter={documentTypeFilter}
             setDocumentTypeFilter={setDocumentTypeFilter}
             addDocument={addDocument}
-            uploadDocumentFile={uploadDocumentFile}
+            uploadDocumentAsset={uploadDocumentAsset}
             updateDocument={updateDocument}
             removeDocument={removeDocument}
             uploadingDocumentId={uploadingDocumentId}
@@ -2094,141 +2097,6 @@ export default function TenderDetail() {
             tenderName={form.name}
             isAdmin={isAdmin}
           />
-          {false && (
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <Paperclip className="h-4 w-4" /> Documents & Links
-                </CardTitle>
-                {isAdmin && (
-                  <Button size="sm" onClick={addDocument}>
-                    <Plus className="h-3.5 w-3.5" /> Add Document
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {(form.documents || []).length === 0 ? (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                  {documentCategoryCounts.map(({ category, count }) => (
-                    <div key={category} className="rounded-md border bg-muted/20 p-3">
-                      <p className="text-xs font-medium text-muted-foreground">{category}</p>
-                      <p className="mt-1 font-mono text-lg font-semibold">{count}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {documentCategoryCounts.filter(({ count }) => count > 0).map(({ category, count }) => (
-                    <Badge key={category} variant="secondary" className="gap-1.5">
-                      {category}
-                      <span className="font-mono">{count}</span>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              {(form.documents || []).map((item) => (
-                <div key={item.id} className="rounded-md border bg-muted/10 p-3">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{item.title || item.fileName || item.type || 'Untitled document'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.fileName ? `Uploaded file: ${item.fileName}` : item.url ? 'Linked document' : `Draft document · Supabase bucket: ${getSupabaseStorageBucket()}`}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        id={`document-upload-${item.id}`}
-                        type="file"
-                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                        className="sr-only"
-                        disabled={!isAdmin || uploadingDocumentId === item.id}
-                        onChange={(event) => {
-                          const file = event.target.files?.[0]
-                          event.target.value = ''
-                          uploadDocumentFile(item.id, file)
-                        }}
-                      />
-                      {isAdmin && (
-                        <Button variant="outline" size="sm" asChild>
-                          <label htmlFor={`document-upload-${item.id}`} className="cursor-pointer">
-                            {uploadingDocumentId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                            {uploadingDocumentId === item.id
-                              ? `Uploading ${documentUploadProgress[item.id] ?? 0}%`
-                              : 'Upload'}
-                          </label>
-                        </Button>
-                      )}
-                      {item.url && (
-                        <Button variant="outline" size="icon-sm" asChild>
-                          <a href={item.url} target="_blank" rel="noreferrer" aria-label={`Open ${item.title || 'document'}`}>
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        </Button>
-                      )}
-                      {isAdmin && (
-                        <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removeDocument(item.id)} aria-label={`Remove ${item.title || 'document'}`}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.1fr_0.75fr_1.25fr] lg:items-end">
-                    <div className="space-y-1.5">
-                      <Label>Title</Label>
-                      <Input
-                        value={item.title || ''}
-                        onChange={(e) => updateDocument(item.id, { title: e.target.value })}
-                        disabled={!isAdmin}
-                        placeholder="e.g. Award letter"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Category</Label>
-                      <Select value={item.type || 'Other'} onValueChange={(value) => updateDocument(item.id, { type: value })} disabled={!isAdmin}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {DOCUMENT_CATEGORIES.map((category) => (
-                            <SelectItem key={category} value={category}>{category}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>URL</Label>
-                      <Input
-                        value={item.url || ''}
-                        onChange={(e) => updateDocument(item.id, { url: e.target.value })}
-                        disabled={!isAdmin}
-                        placeholder="https://..."
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3 space-y-1.5">
-                    <Label>Notes</Label>
-                    <Textarea
-                      value={item.notes || ''}
-                      onChange={(e) => updateDocument(item.id, { notes: e.target.value })}
-                      disabled={!isAdmin}
-                      rows={2}
-                      placeholder="Optional notes about this file or link"
-                    />
-                  </div>
-                </div>
-              ))}
-              {(form.documents || []).length === 0 && (
-                <div className="rounded-lg border border-dashed p-8 text-center">
-                  <FolderOpen className="mx-auto h-8 w-8 text-muted-foreground" />
-                  <p className="mt-3 text-sm font-medium">No documents or links added yet.</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Add work orders, BOQs, site photos, material invoices, bills, inspection letters, completion certificates, security refunds, or other project files.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          )}
         </TabsContent>
 
         {/* Contact tab */}
@@ -3415,7 +3283,7 @@ function DocumentsManager({
   documentTypeFilter,
   setDocumentTypeFilter,
   addDocument,
-  uploadDocumentFile,
+  uploadDocumentAsset,
   updateDocument,
   removeDocument,
   uploadingDocumentId,
@@ -3423,7 +3291,87 @@ function DocumentsManager({
   tenderName,
   isAdmin,
 }) {
+  const emptyDocumentForm = () => ({
+    id: uid(),
+    title: '',
+    type: 'Other',
+    url: '',
+    notes: '',
+    fileName: '',
+    fileType: '',
+    fileSize: '',
+    storageProvider: '',
+    storageBucket: '',
+    storagePath: '',
+    uploadedAt: '',
+    addedAt: new Date().toISOString().slice(0, 10),
+  })
+  const [documentSheetOpen, setDocumentSheetOpen] = useState(false)
+  const [editingDocument, setEditingDocument] = useState(null)
+  const [documentForm, setDocumentForm] = useState(emptyDocumentForm)
+  const [deleteDocumentId, setDeleteDocumentId] = useState(null)
+
+  const handleAddDocument = () => {
+    setEditingDocument(null)
+    setDocumentForm(emptyDocumentForm())
+    setDocumentSheetOpen(true)
+  }
+  const handleEditDocument = (item) => {
+    setEditingDocument(item)
+    setDocumentForm({
+      id: item.id || uid(),
+      title: item.title || '',
+      type: item.type || 'Other',
+      url: item.url || '',
+      notes: item.notes || '',
+      fileName: item.fileName || '',
+      fileType: item.fileType || '',
+      fileSize: item.fileSize || '',
+      storageProvider: item.storageProvider || '',
+      storageBucket: item.storageBucket || '',
+      storagePath: item.storagePath || '',
+      uploadedAt: item.uploadedAt || '',
+      addedAt: item.addedAt || new Date().toISOString().slice(0, 10),
+    })
+    setDocumentSheetOpen(true)
+  }
+  const setDocumentFormValue = (key) => (event) => {
+    const value = event?.target?.value ?? event
+    setDocumentForm((previous) => ({ ...previous, [key]: value }))
+  }
+  const handleDocumentUpload = async (file) => {
+    if (!file) return
+    const uploaded = await uploadDocumentAsset(documentForm.id, file)
+    if (!uploaded) return
+    setDocumentForm((previous) => ({
+      ...previous,
+      title: previous.title || file.name,
+      ...uploaded,
+    }))
+    toast.success('File uploaded. Save the document to attach it.')
+  }
+  const saveDocumentForm = () => {
+    const payload = {
+      ...documentForm,
+      title: documentForm.title || documentForm.fileName || documentForm.type || 'Untitled document',
+      type: documentForm.type || 'Other',
+      url: documentForm.url || '',
+      notes: documentForm.notes || '',
+      addedAt: documentForm.addedAt || new Date().toISOString().slice(0, 10),
+    }
+    if (editingDocument?.id) {
+      updateDocument(editingDocument.id, payload)
+      toast.success('Document updated')
+    } else {
+      addDocument(payload)
+      toast.success('Document added')
+    }
+    setDocumentSheetOpen(false)
+    setEditingDocument(null)
+  }
+
   return (
+    <>
     <Card className="rounded-xl border-border/80 shadow-sm">
       <CardHeader className="p-4 pb-4 md:p-6 md:pb-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -3436,7 +3384,7 @@ function DocumentsManager({
             </p>
           </div>
           {isAdmin && (
-            <Button onClick={addDocument} className="h-11 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 md:h-10 md:w-auto">
+            <Button onClick={handleAddDocument} className="h-11 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 md:h-10 md:w-auto">
               <Plus className="h-4 w-4" /> Upload Document
             </Button>
           )}
@@ -3486,7 +3434,7 @@ function DocumentsManager({
               Upload tender documents, site photos, BOQs, and work orders to keep records organized.
             </p>
             {isAdmin && (
-              <Button onClick={addDocument} className="mt-5 bg-emerald-600 text-white hover:bg-emerald-700">
+              <Button onClick={handleAddDocument} className="mt-5 bg-emerald-600 text-white hover:bg-emerald-700">
                 <Plus className="h-4 w-4" /> Upload first document
               </Button>
             )}
@@ -3498,24 +3446,125 @@ function DocumentsManager({
             <p className="mt-1 text-sm text-muted-foreground">Try a different search term or file type.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {filteredDocuments.map((item) => (
               <DocumentCard
                 key={item.id}
                 item={item}
                 isAdmin={isAdmin}
-                uploadingDocumentId={uploadingDocumentId}
-                documentUploadProgress={documentUploadProgress}
-                uploadDocumentFile={uploadDocumentFile}
-                updateDocument={updateDocument}
-                removeDocument={removeDocument}
                 tenderName={tenderName}
+                onEdit={() => handleEditDocument(item)}
+                onDelete={() => setDeleteDocumentId(item.id)}
               />
             ))}
           </div>
         )}
       </CardContent>
     </Card>
+
+    <Sheet open={documentSheetOpen} onOpenChange={setDocumentSheetOpen}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+        <SheetHeader className="border-b border-border px-6 py-4">
+          <SheetTitle>{editingDocument ? 'Edit Document' : 'Add Document'}</SheetTitle>
+          <SheetDescription>
+            Upload a tender file and save the metadata. Document cards stay compact in the grid.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4">
+            <Label htmlFor="td-document-upload" className="text-sm font-medium">Upload file / image</Label>
+            <Input
+              id="td-document-upload"
+              type="file"
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+              className="mt-2"
+              disabled={!isAdmin || uploadingDocumentId === documentForm.id}
+              onChange={async (event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                await handleDocumentUpload(file)
+              }}
+            />
+            {uploadingDocumentId === documentForm.id && (
+              <p className="mt-2 text-xs text-muted-foreground">Uploading {documentUploadProgress[documentForm.id] ?? 0}%...</p>
+            )}
+            {(documentForm.url || documentForm.fileName) && (
+              <div className="mt-3 rounded-lg bg-background p-3 text-xs text-muted-foreground">
+                <p className="truncate font-medium text-foreground" title={documentForm.fileName || documentForm.title}>
+                  {documentForm.fileName || documentForm.title || 'Uploaded file'}
+                </p>
+                {documentForm.fileSize ? <p className="mt-1">Size: {formatFileSize(documentForm.fileSize)}</p> : null}
+                {documentForm.url ? <p className="mt-1 break-all">URL saved for this document.</p> : null}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="td-document-title">Title</Label>
+            <Input
+              id="td-document-title"
+              value={documentForm.title}
+              onChange={setDocumentFormValue('title')}
+              placeholder="e.g. Award letter"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Category</Label>
+            <Select value={documentForm.type || 'Other'} onValueChange={setDocumentFormValue('type')}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {DOCUMENT_CATEGORIES.map((category) => (
+                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="td-document-url">URL</Label>
+            <Input
+              id="td-document-url"
+              value={documentForm.url}
+              onChange={setDocumentFormValue('url')}
+              placeholder="https://..."
+              className="min-w-0"
+            />
+            <p className="text-xs text-muted-foreground">Optional. Full URLs are only shown here, not on document cards.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="td-document-notes">Notes</Label>
+            <Textarea
+              id="td-document-notes"
+              value={documentForm.notes}
+              onChange={setDocumentFormValue('notes')}
+              rows={3}
+              placeholder="Optional notes about this file or link"
+            />
+          </div>
+        </div>
+        <SheetFooter className="gap-2 border-t border-border px-6 py-4">
+          <Button type="button" variant="outline" onClick={() => setDocumentSheetOpen(false)}>Cancel</Button>
+          <Button type="button" onClick={saveDocumentForm} disabled={!isAdmin}>
+            {editingDocument ? 'Save Document' : 'Add Document'}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+    <ConfirmDelete
+      open={!!deleteDocumentId}
+      onOpenChange={() => setDeleteDocumentId(null)}
+      onConfirm={() => {
+        if (!deleteDocumentId) return
+        removeDocument(deleteDocumentId)
+        setDeleteDocumentId(null)
+        toast.success('Document deleted')
+      }}
+      title="Delete document"
+      description="This will permanently remove this document from the tender."
+    />
+    </>
   )
 }
 
@@ -3542,17 +3591,16 @@ function DocumentStat({ icon: Icon, label, value, tone, className = '' }) {
   )
 }
 
-function DocumentCard({ item, isAdmin, uploadingDocumentId, documentUploadProgress, uploadDocumentFile, updateDocument, removeDocument, tenderName }) {
+function DocumentCard({ item, isAdmin, onDelete, tenderName, onEdit }) {
   const kind = getDocumentKind(item)
   const Icon = getDocumentIcon(kind)
   const isImage = kind === 'Image' && item.url
   const title = item.title || item.fileName || item.type || 'Untitled document'
   const date = item.uploadedAt || item.addedAt
-  const uploadId = `document-upload-${item.id}`
 
   return (
-    <Card className="overflow-hidden rounded-xl border-border/80 shadow-sm transition hover:shadow-md">
-      <CardContent className="space-y-3.5 p-3.5 md:space-y-4 md:p-4">
+    <Card className="min-w-0 self-start overflow-hidden rounded-xl border-border/80 shadow-sm transition hover:shadow-md">
+      <CardContent className="min-w-0 space-y-3.5 p-3.5 md:space-y-4 md:p-4">
         <div className="aspect-[16/10] overflow-hidden rounded-xl border border-border/80 bg-muted/30">
           {isImage ? (
             <img src={item.url} alt={title} className="h-full w-full object-cover" loading="lazy" />
@@ -3568,7 +3616,7 @@ function DocumentCard({ item, isAdmin, uploadingDocumentId, documentUploadProgre
 
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-foreground" title={title}>{title}</p>
               <p className="mt-1 truncate text-xs text-muted-foreground">
                 {tenderName || 'Linked tender'}{item.fileName ? ` - ${item.fileName}` : ''}
@@ -3590,26 +3638,6 @@ function DocumentCard({ item, isAdmin, uploadingDocumentId, documentUploadProgre
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <input
-            id={uploadId}
-            type="file"
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-            className="sr-only"
-            disabled={!isAdmin || uploadingDocumentId === item.id}
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              event.target.value = ''
-              uploadDocumentFile(item.id, file)
-            }}
-          />
-          {isAdmin && (
-            <Button variant="outline" size="sm" className="h-10 sm:h-9" asChild>
-              <label htmlFor={uploadId} className="cursor-pointer">
-                {uploadingDocumentId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                {uploadingDocumentId === item.id ? `${documentUploadProgress[item.id] ?? 0}%` : 'Upload'}
-              </label>
-            </Button>
-          )}
           {item.url && (
             <>
               <Button variant="outline" size="sm" className="h-10 sm:h-9" asChild>
@@ -3625,38 +3653,15 @@ function DocumentCard({ item, isAdmin, uploadingDocumentId, documentUploadProgre
             </>
           )}
           {isAdmin && (
-            <Button variant="ghost" size="sm" className="h-10 text-destructive sm:h-9" onClick={() => removeDocument(item.id)}>
+            <>
+            <Button variant="outline" size="sm" className="h-10 sm:h-9" onClick={onEdit}>
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+            <Button variant="ghost" size="sm" className="h-10 text-destructive sm:h-9" onClick={onDelete}>
               <Trash2 className="h-3.5 w-3.5" /> Delete
             </Button>
+            </>
           )}
-        </div>
-
-        <div className="space-y-3 border-t border-border/70 pt-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Title</Label>
-              <Input value={item.title || ''} onChange={(e) => updateDocument(item.id, { title: e.target.value })} disabled={!isAdmin} placeholder="e.g. Award letter" className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Category</Label>
-              <Select value={item.type || 'Other'} onValueChange={(value) => updateDocument(item.id, { type: value })} disabled={!isAdmin}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {DOCUMENT_CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>{category}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">URL</Label>
-            <Input value={item.url || ''} onChange={(e) => updateDocument(item.id, { url: e.target.value })} disabled={!isAdmin} placeholder="https://..." className="h-9" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Notes</Label>
-            <Textarea value={item.notes || ''} onChange={(e) => updateDocument(item.id, { notes: e.target.value })} disabled={!isAdmin} rows={2} placeholder="Optional notes about this file or link" />
-          </div>
         </div>
       </CardContent>
     </Card>
