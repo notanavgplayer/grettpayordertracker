@@ -490,42 +490,94 @@ export default function Home() {
           </CardHeader>
           <CardContent className="p-0">
             {allDeadlines.length === 0 ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">No upcoming deadlines</p>
+              <div className="px-4 py-10 text-center">
+                <p className="text-sm font-medium text-foreground">No upcoming deadlines</p>
+                <p className="mt-1 text-xs text-muted-foreground">Upcoming tender submissions will appear here.</p>
+              </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tender</TableHead>
-                    <TableHead className="hidden md:table-cell">Agency</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Due</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allDeadlines.map((t) => (
-                    <TableRow key={t.id} className="cursor-pointer" onClick={() => navigate(`/tenders/${t.id}`)}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-start gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                            <FileStack size={16} aria-hidden="true" />
+              <>
+                <div className="space-y-3 px-3 pb-3 md:hidden">
+                  {allDeadlines.map((t) => {
+                    const dueLabel = urgentDeadlineLabel(t.daysLeft)
+                    const dueClass = t.daysLeft < 0
+                      ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300'
+                      : t.daysLeft <= 1
+                        ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300'
+                        : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
+
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => navigate(`/tenders/${t.id}`)}
+                        className="w-full rounded-xl border bg-background p-3 text-left shadow-sm transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      >
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <FileStack size={17} aria-hidden="true" />
                           </div>
-                          <div className="min-w-0">
-                            <p className="line-clamp-2 text-sm leading-5">{t.name || 'Untitled'}</p>
-                            <p className="truncate text-xs text-muted-foreground md:hidden">{t.agency || '-'}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{t.name || 'Untitled'}</p>
+                            <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{t.agency || '—'}</p>
+                            {(t.nit || t.ref) && (
+                              <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{t.nit || t.ref}</p>
+                            )}
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="hidden max-w-[220px] truncate text-muted-foreground md:table-cell">{t.agency || '-'}</TableCell>
-                      <TableCell><StatusBadge status={getTenderDisplayStatus(t)} /></TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        <span className={t.daysLeft <= 1 ? 'font-semibold text-rose-600 dark:text-rose-400' : t.daysLeft <= 3 ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}>
-                          {t.daysLeft === 0 ? 'Today' : t.daysLeft === 1 ? 'Tomorrow' : `${t.daysLeft}d`}
-                        </span>
-                      </TableCell>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <StatusBadge status={getTenderDisplayStatus(t)} />
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${dueClass}`}>
+                            {dueLabel}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{formatDate(t.submissionDate)}</span>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-end border-t pt-3">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                            View Details <ChevronRight size={14} aria-hidden="true" />
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <Table className="hidden md:table">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tender</TableHead>
+                      <TableHead className="hidden md:table-cell">Agency</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Due</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {allDeadlines.map((t) => (
+                      <TableRow key={t.id} className="cursor-pointer" onClick={() => navigate(`/tenders/${t.id}`)}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                              <FileStack size={16} aria-hidden="true" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="line-clamp-2 text-sm leading-5">{t.name || 'Untitled'}</p>
+                              <p className="truncate text-xs text-muted-foreground md:hidden">{t.agency || '-'}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden max-w-[220px] truncate text-muted-foreground md:table-cell">{t.agency || '-'}</TableCell>
+                        <TableCell><StatusBadge status={getTenderDisplayStatus(t)} /></TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          <span className={t.daysLeft <= 1 ? 'font-semibold text-rose-600 dark:text-rose-400' : t.daysLeft <= 3 ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}>
+                            {t.daysLeft === 0 ? 'Today' : t.daysLeft === 1 ? 'Tomorrow' : `${t.daysLeft}d`}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </>
             )}
           </CardContent>
         </Card>

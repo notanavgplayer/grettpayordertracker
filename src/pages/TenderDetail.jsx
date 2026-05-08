@@ -27,7 +27,7 @@ import {
   DollarSign, History, User, Receipt, FileText, Printer, Paperclip, ExternalLink,
   Banknote, CalendarDays, ClipboardList, FolderOpen, Landmark, WalletCards,
   Hash, Link as LinkIcon, Upload, Download, ChevronDown, BarChart3, PieChart,
-  Search, Image as ImageIcon, FileSpreadsheet, FileType2,
+  Search, Image as ImageIcon, FileSpreadsheet, FileType2, Clock, Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -209,6 +209,7 @@ export default function TenderDetail() {
   const [poRefresh, setPoRefresh] = useState(0)
   const [siteVisitDialogOpen, setSiteVisitDialogOpen] = useState(false)
   const [editSiteVisit, setEditSiteVisit] = useState(null)
+  const [viewSiteVisit, setViewSiteVisit] = useState(null)
   const [siteVisitForm, setSiteVisitForm] = useState(EMPTY_SITE_VISIT)
   const [deleteSiteVisitId, setDeleteSiteVisitId] = useState(null)
   const [completeOpen, setCompleteOpen] = useState(false)
@@ -805,11 +806,12 @@ export default function TenderDetail() {
 
   // Site Visits — stored on the tender doc under `siteVisits`. Autosaved.
   const openSiteVisitDialog = (item = null) => {
+    setViewSiteVisit(null)
     setEditSiteVisit(item)
     setSiteVisitForm(item
       ? {
-          visitDate: item.visitDate || '',
-          visitTime: item.visitTime || '',
+          visitDate: item.visitDate || item.date || '',
+          visitTime: item.visitTime || item.time || item.visit_time || '',
           location: item.location || '',
           workCompleted: item.workCompleted || '',
           labourUsed: item.labourUsed || '',
@@ -2052,7 +2054,7 @@ export default function TenderDetail() {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
                   {[...(form.siteVisits || [])]
                     .sort((a, b) => new Date(b.visitDate || 0) - new Date(a.visitDate || 0))
                     .map((visit, index) => (
@@ -2061,6 +2063,7 @@ export default function TenderDetail() {
                         visit={visit}
                         tenderName={form.name}
                         isAdmin={isAdmin}
+                        onView={() => setViewSiteVisit(visit)}
                         onEdit={() => openSiteVisitDialog(visit)}
                         onDelete={() => setDeleteSiteVisitId(visit.id)}
                       />
@@ -2590,6 +2593,17 @@ export default function TenderDetail() {
         description="This will permanently remove this pay order from the tender and the global list."
       />
 
+      <SiteVisitViewDialog
+        open={!!viewSiteVisit}
+        visit={viewSiteVisit}
+        tenderName={form.name}
+        isAdmin={isAdmin}
+        onOpenChange={(open) => {
+          if (!open) setViewSiteVisit(null)
+        }}
+        onEdit={(visit) => openSiteVisitDialog(visit)}
+      />
+
       {/* Site Visit Sheet */}
       <Sheet open={siteVisitDialogOpen} onOpenChange={setSiteVisitDialogOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
@@ -2668,54 +2682,243 @@ export default function TenderDetail() {
   )
 }
 
-function SiteVisitCard({ visit, tenderName, isAdmin, onEdit, onDelete }) {
-  const statusTone = visit.status === 'Issue'
+function getSiteVisitDateValue(visit = {}) {
+  return visit.visitDate || visit.date || visit.visitedAt || null
+}
+
+function parseSafeSiteVisitDate(value) {
+  if (!value) return null
+  let date = null
+
+  if (typeof value?.toDate === 'function') {
+    date = value.toDate()
+  } else if (typeof value?.seconds === 'number') {
+    date = new Date(value.seconds * 1000)
+  } else if (typeof value === 'string') {
+    const trimmed = value.trim()
+    const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed)
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch
+      date = new Date(Number(year), Number(month) - 1, Number(day))
+    } else {
+      date = new Date(trimmed)
+    }
+  } else {
+    date = new Date(value)
+  }
+
+  if (!date || Number.isNaN(date.getTime())) return null
+  const year = date.getFullYear()
+  if (year < 2000 || year > 2100) return null
+  return date
+}
+
+function getSafeSiteVisitDateParts(visit = {}) {
+  const date = parseSafeSiteVisitDate(getSiteVisitDateValue(visit))
+  if (!date) return { day: '—', month: '', year: '', label: '—' }
+
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = date.toLocaleString('en-GB', { month: 'short' }).toUpperCase()
+  const year = String(date.getFullYear())
+  return { day, month, year, label: `${day} ${month} ${year}` }
+}
+
+function getSiteVisitTime(visit = {}) {
+  return visit.visitTime || visit.time || visit.visit_time || ''
+}
+
+function getSiteVisitStatusClass(status) {
+  return status === 'Issue'
+    ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300'
+    : status === 'Partial'
+      ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300'
+      : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
+}
+
+function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete }) {
+  const dateObj = parseSafeSiteVisitDate(getSiteVisitDateValue(visit))
+  const validDate = Boolean(dateObj)
+  const day = validDate ? String(dateObj.getDate()).padStart(2, '0') : '—'
+  const month = validDate ? dateObj.toLocaleString('en-GB', { month: 'short' }).toUpperCase() : ''
+  const year = validDate ? dateObj.getFullYear() : ''
+
+  const statusClass = visit.status === 'Issue'
     ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300'
     : visit.status === 'Partial'
       ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300'
       : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
-  const dash = '—'
+
+  const hasLabourOrMaterials = Boolean((visit.labourUsed && String(visit.labourUsed).trim()) || (visit.materialUsed && String(visit.materialUsed).trim()))
+  const issuesText = visit.issues && String(visit.issues).trim() ? visit.issues : ''
+  const nextDayText = visit.nextDayPlan && String(visit.nextDayPlan).trim() ? visit.nextDayPlan : ''
+  const notesText = visit.notes && String(visit.notes).trim() ? visit.notes : ''
+
   return (
-    <Card className="overflow-hidden border-border/80 shadow-sm">
-      <CardContent className="space-y-3 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <Badge variant="outline" className="rounded-full text-xs">
-              <CalendarDays className="mr-1 h-3 w-3" />
-              {formatDate(visit.visitDate) || dash}
-              {visit.visitTime ? ` · ${visit.visitTime}` : ''}
-            </Badge>
-            <p className="mt-1.5 text-sm font-semibold text-foreground break-words">
+    <Card className="flex h-full min-w-0 flex-col overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
+      <CardContent className="flex min-w-0 flex-1 flex-col gap-3.5 p-3.5 sm:p-4">
+        {/* Header: date badge · title · time */}
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-[62px] w-[58px] shrink-0 flex-col items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 shadow-sm shadow-emerald-900/5 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+            <span className="font-mono text-2xl font-bold leading-none tabular-nums">{day}</span>
+            <span className="mt-1 text-[10px] font-bold uppercase leading-none tracking-wide">{month || 'DATE'}</span>
+            {year && <span className="mt-1 text-[9px] font-medium leading-none text-emerald-700/65 dark:text-emerald-300/70">{year}</span>}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="break-words text-[15px] font-semibold leading-snug text-foreground">
               {visit.location || 'Site visit'}
             </p>
             {tenderName && (
-              <p className="text-xs text-muted-foreground truncate">{tenderName}</p>
+              <p className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground">{tenderName}</p>
             )}
           </div>
-          {visit.status && (
-            <Badge variant="outline" className={`rounded-full text-xs ${statusTone}`}>{visit.status}</Badge>
+          {getSiteVisitTime(visit) && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/80 bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              {getSiteVisitTime(visit)}
+            </span>
           )}
         </div>
-        <SiteVisitField label="Work completed" value={visit.workCompleted} />
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <SiteVisitField label="Labour used" value={visit.labourUsed} compact />
-          <SiteVisitField label="Material used" value={visit.materialUsed} compact />
-        </div>
-        <SiteVisitField label="Issues / delays" value={visit.issues} compact />
-        <SiteVisitField label="Next-day plan" value={visit.nextDayPlan} compact />
-        {visit.notes && <SiteVisitField label="Notes" value={visit.notes} compact />}
-        {isAdmin && (
-          <div className="flex justify-end gap-2 border-t pt-3">
-            <Button type="button" variant="outline" size="sm" onClick={onEdit}>
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </Button>
-            <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={onDelete}>
-              <Trash2 className="h-3.5 w-3.5" /> Delete
-            </Button>
+
+        {/* Body */}
+        <div className="min-w-0 space-y-3">
+          <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+            <SiteVisitField label="Work completed" value={visit.workCompleted} />
           </div>
-        )}
+          {hasLabourOrMaterials && (
+            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="rounded-xl border border-border/70 bg-background p-3">
+                <SiteVisitField label="Labour" value={visit.labourUsed} compact />
+              </div>
+              <div className="rounded-xl border border-border/70 bg-background p-3">
+                <SiteVisitField label="Materials" value={visit.materialUsed} compact />
+              </div>
+            </div>
+          )}
+          {issuesText && (
+            <div className="rounded-xl border border-rose-200/70 bg-rose-50/60 p-3 dark:border-rose-900/40 dark:bg-rose-950/20">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">Issues / delays</p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-foreground">{issuesText}</p>
+            </div>
+          )}
+          {nextDayText && (
+            <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/70 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Next-day plan</p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-foreground">{nextDayText}</p>
+            </div>
+          )}
+          {notesText && <SiteVisitField label="Notes" value={notesText} compact />}
+        </div>
+
+        {/* Footer: status badge left, actions right */}
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-border/80 pt-3">
+          {visit.status ? (
+            <Badge variant="outline" className={`rounded-full px-2.5 py-1 text-xs ${statusClass}`}>{visit.status}</Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          )}
+          <div className="flex flex-wrap gap-1.5">
+            <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={onView}>
+              <Eye className="h-3.5 w-3.5" /> View
+            </Button>
+            {isAdmin && (
+              <>
+              <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={onEdit}>
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </Button>
+              <Button type="button" variant="ghost" size="sm" className="h-8 px-2.5 text-xs text-destructive" onClick={onDelete}>
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </Button>
+              </>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
+  )
+}
+
+function SiteVisitViewDialog({ open, visit, tenderName, isAdmin, onOpenChange, onEdit }) {
+  if (!visit) return null
+
+  const dateParts = getSafeSiteVisitDateParts(visit)
+  const visitTime = getSiteVisitTime(visit)
+  const statusClass = getSiteVisitStatusClass(visit.status)
+  const safe = (value) => (value && String(value).trim() ? value : '—')
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-3xl overflow-x-hidden overflow-y-auto rounded-2xl p-0">
+        <DialogHeader className="border-b border-border px-5 py-4 text-left sm:px-6">
+          <DialogTitle className="min-w-0 break-words text-xl font-semibold">
+            {safe(visit.location || 'Site visit')}
+          </DialogTitle>
+          <DialogDescription className="min-w-0 break-words">
+            {safe(tenderName)}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 px-5 py-4 sm:px-6">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+            <SiteVisitDetailBox icon={CalendarDays} label="Visit Date" value={dateParts.label} />
+            <SiteVisitDetailBox icon={Clock} label="Visit Time" value={visitTime || '—'} />
+            <div className="min-w-0 rounded-xl border border-border/80 bg-background p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Status</p>
+              {visit.status ? (
+                <Badge variant="outline" className={`mt-2 rounded-full px-2.5 py-1 text-xs ${statusClass}`}>{visit.status}</Badge>
+              ) : (
+                <p className="mt-2 text-sm font-medium text-foreground">—</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
+            <SiteVisitDetailSection label="Work Completed" value={visit.workCompleted} className="md:col-span-2" />
+            <SiteVisitDetailSection label="Labour Used" value={visit.labourUsed} />
+            <SiteVisitDetailSection label="Material Used" value={visit.materialUsed} />
+            <SiteVisitDetailSection label="Issues / Delays" value={visit.issues} tone="rose" />
+            <SiteVisitDetailSection label="Next-Day Plan" value={visit.nextDayPlan} tone="emerald" />
+            <SiteVisitDetailSection label="Notes" value={visit.notes} className="md:col-span-2" />
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 border-t border-border px-5 py-4 sm:px-6">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          {isAdmin && (
+            <Button type="button" onClick={() => onEdit(visit)}>
+              <Pencil className="h-4 w-4" /> Edit Site Visit
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SiteVisitDetailBox({ icon: Icon, label, value }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-border/80 bg-background p-3">
+      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </p>
+      <p className="mt-2 break-words text-sm font-semibold text-foreground">{value || '—'}</p>
+    </div>
+  )
+}
+
+function SiteVisitDetailSection({ label, value, tone, className = '' }) {
+  const toneClass = tone === 'rose'
+    ? 'border-rose-200/70 bg-rose-50/50 dark:border-rose-900/40 dark:bg-rose-950/20'
+    : tone === 'emerald'
+      ? 'border-emerald-200/70 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/20'
+      : 'border-border/80 bg-background'
+  const display = value && String(value).trim() ? value : '—'
+
+  return (
+    <div className={`min-w-0 rounded-xl border p-3 ${toneClass} ${className}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-foreground">{display}</p>
+    </div>
   )
 }
 
@@ -2723,7 +2926,7 @@ function SiteVisitField({ label, value, compact = false }) {
   const display = value && String(value).trim() ? value : '—'
   return (
     <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className={`mt-0.5 whitespace-pre-wrap break-words ${compact ? 'text-xs' : 'text-sm'} text-foreground`}>{display}</p>
     </div>
   )
