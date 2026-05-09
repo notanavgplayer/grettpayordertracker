@@ -170,6 +170,23 @@ function getBillTitle(bill = {}, fallback = 'Bill') {
   return bill.no || bill.billNo || bill.desc || fallback
 }
 
+function getEnteredNumber(value) {
+  if (value === '' || value === null || value === undefined) return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function getBoqActualCost(item = {}) {
+  return getEnteredNumber(item.actualCost)
+}
+
+function getBoqProfitTone(value) {
+  if (value === null || value === undefined) return 'pending'
+  if (value < 0) return 'loss'
+  if (value > 0) return 'profit'
+  return 'neutral'
+}
+
 function getBillSummary(bills = []) {
   return bills.reduce((summary, bill) => {
     const amounts = getBillAmounts(bill)
@@ -201,6 +218,11 @@ export default function TenderDetail() {
   const [expSaving, setExpSaving] = useState(false)
   const [deleteExpId, setDeleteExpId] = useState(null)
   const [expRefresh, setExpRefresh] = useState(0)
+  const [viewExpense, setViewExpense] = useState(null)
+  const [expenseSearch, setExpenseSearch] = useState('')
+  const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('All')
+  const [expenseDateFrom, setExpenseDateFrom] = useState('')
+  const [expenseDateTo, setExpenseDateTo] = useState('')
   const [poDialogOpen, setPoDialogOpen] = useState(false)
   const [editPo, setEditPo] = useState(null)
   const [poForm, setPoForm] = useState(EMPTY_PO)
@@ -226,6 +248,7 @@ export default function TenderDetail() {
   const [autoSaveError, setAutoSaveError] = useState(false)
   const [boqEditMode, setBoqEditMode] = useState(false)
   const [editingBoqItemId, setEditingBoqItemId] = useState(null)
+  const [activeTenderTab, setActiveTenderTab] = useState('overview')
   const autoSaveTimerRef = useRef(null)
   const autoSavePayloadRef = useRef({})
 
@@ -687,7 +710,7 @@ export default function TenderDetail() {
   }
 
   // Bills helpers
-  const addBill = () => {
+  const addBill = (bill = {}) => {
     updateAutosavedForm('bills', (items = []) => [
       ...items,
       {
@@ -702,6 +725,7 @@ export default function TenderDetail() {
         date: '',
         status: 'Draft',
         remarks: '',
+        ...bill,
       },
     ])
   }
@@ -713,7 +737,7 @@ export default function TenderDetail() {
   }
 
   // RA Bills helpers
-  const addRABill = () => {
+  const addRABill = (bill = {}) => {
     updateAutosavedForm('raBills', (items = []) => [
       ...items,
       {
@@ -728,6 +752,7 @@ export default function TenderDetail() {
         paid: '',
         status: 'Submitted',
         remarks: '',
+        ...bill,
       },
     ])
   }
@@ -892,15 +917,19 @@ export default function TenderDetail() {
   const boqItems = form.boqItems || []
   const boqTotals = boqItems.reduce((totals, item) => {
     const quotedAmount = (Number(item.qty) || 0) * (Number(item.quotedRate) || 0)
-    const actualCost = Number(item.actualCost) || 0
+    const actualCost = getBoqActualCost(item)
     return {
       quotedAmount: totals.quotedAmount + quotedAmount,
-      actualCost: totals.actualCost + actualCost,
-      profitLoss: totals.profitLoss + quotedAmount - actualCost,
+      actualCost: totals.actualCost + (actualCost ?? 0),
+      profitLoss: actualCost === null ? totals.profitLoss : totals.profitLoss + quotedAmount - actualCost,
+      enteredActualCount: totals.enteredActualCount + (actualCost === null ? 0 : 1),
+      missingActualCount: totals.missingActualCount + (actualCost === null ? 1 : 0),
     }
-  }, { quotedAmount: 0, actualCost: 0, profitLoss: 0 })
-  const boqExpectedProfit = boqItems.length > 0 ? boqTotals.profitLoss : expectedProfit
-  const boqProfitMargin = boqTotals.quotedAmount > 0 ? Math.round((boqTotals.profitLoss / boqTotals.quotedAmount) * 100) : 0
+  }, { quotedAmount: 0, actualCost: 0, profitLoss: 0, enteredActualCount: 0, missingActualCount: 0 })
+  const hasBoqActualCosts = boqTotals.enteredActualCount > 0
+  const allBoqActualCostsEntered = boqItems.length > 0 && boqTotals.missingActualCount === 0
+  const boqExpectedProfit = boqItems.length > 0 ? (allBoqActualCostsEntered ? boqTotals.profitLoss : null) : expectedProfit
+  const boqProfitMargin = allBoqActualCostsEntered && boqTotals.quotedAmount > 0 ? Math.round((boqTotals.profitLoss / boqTotals.quotedAmount) * 100) : null
   const savedProgress = Number(form.progress ?? form.progressPercent ?? form.workProgress) || 0
   const dashboardProgress = form.status === 'Completed' ? 100 : Math.max(0, Math.min(savedProgress, 99))
   const progressMessage = {
@@ -926,6 +955,43 @@ export default function TenderDetail() {
   const recentExpenses = [...expenses]
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
     .slice(0, 5)
+  const expenseRows = [...expenses]
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  const expenseCategoryOptions = Array.from(new Set([...EXPENSE_CATEGORIES, ...expenses.map((expense) => expense.category).filter(Boolean)]))
+  const filteredExpenses = expenseRows.filter((expense) => {
+    const searchText = `${expense.description || ''} ${expense.note || ''} ${expense.category || ''}`.toLowerCase()
+    if (expenseSearch && !searchText.includes(expenseSearch.toLowerCase())) return false
+    if (expenseCategoryFilter !== 'All' && (expense.category || EXPENSE_CATEGORIES[0]) !== expenseCategoryFilter) return false
+    if (expenseDateFrom && (!expense.date || expense.date < expenseDateFrom)) return false
+    if (expenseDateTo && (!expense.date || expense.date > expenseDateTo)) return false
+    return true
+  })
+  const expenseFiltersActive = Boolean(expenseSearch || expenseCategoryFilter !== 'All' || expenseDateFrom || expenseDateTo)
+  const exportFilteredExpenses = () => {
+    const headers = ['Date', 'Description', 'Category', 'Notes', 'Amount', 'Status / Type']
+    const rows = filteredExpenses.map((expense) => [
+      expense.date || '-',
+      expense.description || '-',
+      expense.category || '-',
+      expense.note || '-',
+      Number(expense.amount) || 0,
+      getExpenseStatusLabel(expense),
+    ])
+    const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'expenses.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+  const clearExpenseFilters = () => {
+    setExpenseSearch('')
+    setExpenseCategoryFilter('All')
+    setExpenseDateFrom('')
+    setExpenseDateTo('')
+  }
   const bills = form.bills || []
   const raBills = form.raBills || []
   const billSummary = getBillSummary(bills)
@@ -1126,7 +1192,7 @@ export default function TenderDetail() {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
         <div className="space-y-5">
-          <Tabs defaultValue="overview" className="flex min-w-0 flex-col gap-4 md:gap-5">
+          <Tabs value={activeTenderTab} onValueChange={setActiveTenderTab} className="flex min-w-0 flex-col gap-4 md:gap-5">
           <Card className="order-1">
             <CardHeader className="p-4 pb-2 md:p-6 md:pb-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1213,6 +1279,48 @@ export default function TenderDetail() {
 
         {/* Overview tab: tender control dashboard */}
         <TabsContent value="overview" className="order-3 mt-0 space-y-5">
+          <TenderOverviewDashboard
+            form={form}
+            displayTenderStatus={displayTenderStatus}
+            dirty={dirty}
+            autoSaving={autoSaving}
+            autoSaveError={autoSaveError}
+            linkedPayOrderDisplay={linkedPayOrderDisplay}
+            linkedPOs={linkedPOs}
+            tenderFinancials={tenderFinancials}
+            tenderFinancialTone={tenderFinancialTone}
+            tenderFinancialDirectionText={tenderFinancialDirectionText}
+            contractValue={contractValue}
+            expectedProfit={expectedProfit}
+            projectedMargin={projectedMargin}
+            totalExpenses={totalExpenses}
+            totalReceived={totalReceived}
+            receivable={receivable}
+            cashPosition={cashPosition}
+            boqTotals={boqTotals}
+            boqProfitMargin={boqProfitMargin}
+            hasBoqActualCosts={hasBoqActualCosts}
+            allBoqActualCostsEntered={allBoqActualCostsEntered}
+            billSummary={billSummary}
+            raBillSummary={raBillSummary}
+            dashboardProgress={dashboardProgress}
+            progressMessage={progressMessage}
+            projectHealth={projectHealth}
+            projectHealthTone={projectHealthTone}
+            doneCount={doneCount}
+            checklist={checklist}
+            pct={pct}
+            expenses={expenses}
+            documents={documents}
+            recentActivity={recentActivity}
+            recentSiteVisits={recentSiteVisits}
+            recentDocuments={recentDocuments}
+            recentExpenses={recentExpenses}
+            recentBills={recentBills}
+            onViewTab={setActiveTenderTab}
+          />
+          {false && (
+          <>
           <Card className="overflow-hidden border-emerald-100 shadow-sm dark:border-emerald-900/40">
             <CardContent className="p-3.5 md:p-5">
               <div className="grid gap-4 md:gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -1521,6 +1629,8 @@ export default function TenderDetail() {
               </CardContent>
             </Card>
           )}
+          </>
+          )}
         </TabsContent>
 
         <TabsContent value="boq" className="order-3 mt-0 space-y-5">
@@ -1531,9 +1641,9 @@ export default function TenderDetail() {
 
           <div className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
             <BoqMetric icon={FileText} label="Quoted Total" value={formatCurrency(boqTotals.quotedAmount)} tone="emerald" />
-            <BoqMetric icon={WalletCards} label="Actual Cost" value={formatCurrency(boqTotals.actualCost)} tone="orange" />
-            <BoqMetric icon={BarChart3} label="Expected Profit" value={formatCurrency(boqTotals.profitLoss)} tone="blue" />
-            <BoqMetric icon={PieChart} label="Profit Margin" value={`${boqProfitMargin}%`} tone="violet" />
+            <BoqMetric icon={WalletCards} label="Actual Cost" value={hasBoqActualCosts ? formatCurrency(boqTotals.actualCost) : 'Pending'} tone="orange" />
+            <BoqMetric icon={BarChart3} label="Expected Profit" value={allBoqActualCostsEntered ? formatCurrency(boqTotals.profitLoss) : 'Pending actual costs'} tone="blue" />
+            <BoqMetric icon={PieChart} label="Profit Margin" value={boqProfitMargin === null ? '-' : `${boqProfitMargin}%`} tone="violet" />
           </div>
 
           <Card className="shadow-sm">
@@ -1573,8 +1683,8 @@ export default function TenderDetail() {
                 <div className="space-y-3 pb-24 md:hidden">
                   {boqItems.map((item, index) => {
                     const quotedAmount = (Number(item.qty) || 0) * (Number(item.quotedRate) || 0)
-                    const actualCost = Number(item.actualCost) || 0
-                    const profitLoss = quotedAmount - actualCost
+                    const actualCost = getBoqActualCost(item)
+                    const profitLoss = actualCost === null ? null : quotedAmount - actualCost
                     const isEditing = editingBoqItemId === item.id
                     return (
                       <div key={item.id} className="rounded-xl border bg-card p-3.5 shadow-sm">
@@ -1654,12 +1764,12 @@ export default function TenderDetail() {
                             <MobileBoqStat label="Quoted Amount" value={formatCurrency(quotedAmount)} />
                             <MobileBoqField
                               label="Actual Cost"
-                              value={isEditing ? item.actualCost === 0 ? '' : item.actualCost ?? '' : formatCurrency(actualCost)}
+                              value={isEditing ? item.actualCost === 0 ? '' : item.actualCost ?? '' : actualCost === null ? 'Pending' : formatCurrency(actualCost)}
                               editing={isEditing}
                               onChange={(value) => updateBoqItem(item.id, { actualCost: value })}
                               inputMode="decimal"
                             />
-                            <MobileBoqStat label="Profit / Loss" value={formatCurrency(profitLoss)} tone={profitLoss < 0 ? 'loss' : 'profit'} />
+                            <MobileBoqStat label="Profit / Loss" value={profitLoss === null ? 'Pending cost' : formatCurrency(profitLoss)} tone={getBoqProfitTone(profitLoss)} />
                           </div>
                         </div>
                       </div>
@@ -1668,8 +1778,8 @@ export default function TenderDetail() {
                   <div className="sticky bottom-20 z-20 rounded-2xl border border-emerald-200 bg-emerald-50/95 p-3 shadow-lg shadow-emerald-900/10 ring-1 ring-emerald-100 backdrop-blur supports-[backdrop-filter]:bg-emerald-50/85 dark:border-emerald-800/70 dark:bg-emerald-950/80 dark:ring-emerald-800/50 min-[430px]:p-4">
                     <div className="grid grid-cols-3 gap-1.5 text-center min-[420px]:gap-2">
                       <MobileBoqStat label="Total Quoted Amount" value={formatCurrency(boqTotals.quotedAmount)} tone="profit" large />
-                      <MobileBoqStat label="Actual Cost" value={formatCurrency(boqTotals.actualCost)} tone="loss" large />
-                      <MobileBoqStat label="Profit / Loss" value={formatCurrency(boqTotals.profitLoss)} tone={boqTotals.profitLoss < 0 ? 'loss' : 'profit'} large />
+                      <MobileBoqStat label="Actual Cost" value={hasBoqActualCosts ? formatCurrency(boqTotals.actualCost) : 'Pending'} tone="loss" large />
+                      <MobileBoqStat label="Profit / Loss" value={allBoqActualCostsEntered ? formatCurrency(boqTotals.profitLoss) : 'Pending cost'} tone={getBoqProfitTone(allBoqActualCostsEntered ? boqTotals.profitLoss : null)} large />
                     </div>
                   </div>
                 </div>
@@ -1691,9 +1801,10 @@ export default function TenderDetail() {
                     <TableBody>
                       {boqItems.map((item, index) => {
                         const quotedAmount = (Number(item.qty) || 0) * (Number(item.quotedRate) || 0)
-                        const actualCost = Number(item.actualCost) || 0
-                        const profitLoss = quotedAmount - actualCost
+                        const actualCost = getBoqActualCost(item)
+                        const profitLoss = actualCost === null ? null : quotedAmount - actualCost
                         const isEditing = editingBoqItemId === item.id
+                        const profitTone = getBoqProfitTone(profitLoss)
                         return (
                           <TableRow key={item.id} className={`group hover:bg-muted/20 ${isEditing ? 'bg-muted/20' : ''}`}>
                             <TableCell className="!px-2 !py-2 align-middle">
@@ -1779,12 +1890,12 @@ export default function TenderDetail() {
                                 <Input type="text" inputMode="decimal" value={item.actualCost === 0 ? '' : item.actualCost ?? ''} onChange={(e) => updateBoqItem(item.id, { actualCost: e.target.value })} disabled={!isAdmin} className="h-8 px-2 text-right" />
                               ) : (
                                 <button type="button" className={`w-full rounded-md px-2 py-1 text-right font-mono text-sm tabular-nums ${boqEditMode && isAdmin ? 'transition-colors hover:bg-muted/40' : ''}`} onClick={() => boqEditMode && isAdmin && setEditingBoqItemId(item.id)} disabled={!isAdmin || !boqEditMode}>
-                                  {formatCurrency(actualCost)}
+                                  {actualCost === null ? 'Pending' : formatCurrency(actualCost)}
                                 </button>
                               )}
                             </TableCell>
-                            <TableCell className={`!px-2 !py-3 text-right align-middle font-mono text-sm tabular-nums ${profitLoss < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                              {formatCurrency(profitLoss)}
+                            <TableCell className={`!px-2 !py-3 text-right align-middle font-mono text-sm tabular-nums ${profitTone === 'loss' ? 'text-rose-600 dark:text-rose-400' : profitTone === 'profit' ? 'text-emerald-600 dark:text-emerald-400' : profitTone === 'neutral' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                              {profitLoss === null ? 'Pending cost' : formatCurrency(profitLoss)}
                             </TableCell>
                           </TableRow>
                         )
@@ -1792,8 +1903,8 @@ export default function TenderDetail() {
                       <TableRow className="bg-emerald-50/60 font-semibold hover:bg-emerald-50/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/20">
                         <TableCell colSpan={5} className="px-2 py-4 text-right">Total</TableCell>
                         <TableCell className="px-2 py-4 text-right font-mono tabular-nums">{formatCurrency(boqTotals.quotedAmount)}</TableCell>
-                        <TableCell className="px-2 py-4 text-right font-mono tabular-nums">{formatCurrency(boqTotals.actualCost)}</TableCell>
-                        <TableCell className={`px-2 py-4 text-right font-mono tabular-nums ${boqTotals.profitLoss < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{formatCurrency(boqTotals.profitLoss)}</TableCell>
+                        <TableCell className="px-2 py-4 text-right font-mono tabular-nums">{hasBoqActualCosts ? formatCurrency(boqTotals.actualCost) : 'Pending'}</TableCell>
+                        <TableCell className={`px-2 py-4 text-right font-mono tabular-nums ${getBoqProfitTone(allBoqActualCostsEntered ? boqTotals.profitLoss : null) === 'loss' ? 'text-rose-600 dark:text-rose-400' : getBoqProfitTone(allBoqActualCostsEntered ? boqTotals.profitLoss : null) === 'profit' ? 'text-emerald-600 dark:text-emerald-400' : getBoqProfitTone(allBoqActualCostsEntered ? boqTotals.profitLoss : null) === 'neutral' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>{allBoqActualCostsEntered ? formatCurrency(boqTotals.profitLoss) : 'Pending cost'}</TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
@@ -1825,15 +1936,15 @@ export default function TenderDetail() {
         <TabsContent value="rabills" className="order-3 mt-0 space-y-4">
           <BillFinanceSection
             title="RA Bills"
-            description="Track running account bills, approvals, payments, and outstanding receivables."
+            description="Track running account bills, approvals, payments, deductions, and receivables."
             bills={raBills}
             summary={raBillSummary}
             isAdmin={isAdmin}
             onAdd={addRABill}
             onUpdate={updateRABill}
             onRemove={removeRABill}
-            addLabel="Add Bill / RA Bill"
-            emptyTitle="No bills or RA bills added yet."
+            addLabel="Add RA Bill"
+            emptyTitle="No RA bills added yet"
             dateKey="submitted"
             paidDateKey="paid"
           />
@@ -1923,6 +2034,33 @@ export default function TenderDetail() {
 
         {/* Expenses tab */}
         <TabsContent value="expenses" className="order-3 mt-0 space-y-4">
+          <ExpensesFinanceSection
+            expenses={expenses}
+            filteredExpenses={filteredExpenses}
+            expenseTotal={expenseTotal}
+            expenseOther={expenseOther}
+            heldByAgency={heldByAgency}
+            bidSecurityAtRisk={bidSecurityAtRisk}
+            sunkCost={sunkCost}
+            isAdmin={isAdmin}
+            openExpDialog={openExpDialog}
+            setDeleteExpId={setDeleteExpId}
+            setViewExpense={setViewExpense}
+            expenseSearch={expenseSearch}
+            setExpenseSearch={setExpenseSearch}
+            expenseCategoryFilter={expenseCategoryFilter}
+            setExpenseCategoryFilter={setExpenseCategoryFilter}
+            expenseCategoryOptions={expenseCategoryOptions}
+            expenseDateFrom={expenseDateFrom}
+            setExpenseDateFrom={setExpenseDateFrom}
+            expenseDateTo={expenseDateTo}
+            setExpenseDateTo={setExpenseDateTo}
+            expenseFiltersActive={expenseFiltersActive}
+            clearExpenseFilters={clearExpenseFilters}
+            exportFilteredExpenses={exportFilteredExpenses}
+          />
+          {false && (
+          <>
           {/* Summary — Sunk / At Risk / Held */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
             <Card><CardContent className="p-4 text-center">
@@ -2018,6 +2156,8 @@ export default function TenderDetail() {
               )}
             </CardContent>
           </Card>
+          </>
+          )}
         </TabsContent>
 
         <TabsContent value="site-visits" className="order-3 mt-0 space-y-4">
@@ -2173,7 +2313,7 @@ export default function TenderDetail() {
             <CardContent className="space-y-2 text-sm">
               <SnapshotRow label="Contract Value" value={formatCurrency(contractValue)} />
               <SnapshotRow label="Total Expenses" value={formatCurrency(totalExpenses)} />
-              <SnapshotRow label="BOQ Expected Profit" value={formatCurrency(boqExpectedProfit)} tone={boqExpectedProfit >= 0 ? 'profit' : 'loss'} />
+              <SnapshotRow label="BOQ Expected Profit" value={boqExpectedProfit === null ? 'Pending actual costs' : formatCurrency(boqExpectedProfit)} tone={boqExpectedProfit === null ? undefined : boqExpectedProfit >= 0 ? 'profit' : 'loss'} />
               <SnapshotRow label="Received from bills / RA bills" value={formatCurrency(totalReceived)} tone="profit" />
               <SnapshotRow label="Outstanding Billing" value={formatCurrency(receivable)} tone="accent" />
             </CardContent>
@@ -2335,52 +2475,51 @@ export default function TenderDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Expense Sheet */}
-      <Sheet open={expDialogOpen} onOpenChange={setExpDialogOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
-          <SheetHeader className="px-6 py-4 border-b border-border">
-            <SheetTitle>{editExp ? 'Edit Expense' : 'New Expense'}</SheetTitle>
-            <SheetDescription>
+      {/* Expense Dialog */}
+      <Dialog open={expDialogOpen} onOpenChange={setExpDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editExp ? 'Edit Expense' : 'Add Expense'}</DialogTitle>
+            <DialogDescription>
               {editExp ? 'Update expense details.' : 'Record a new expense for this tender.'}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="td-exp-desc">Description <span className="text-destructive">*</span></Label>
               <Input id="td-exp-desc" value={expForm.description} onChange={setExpF('description')} placeholder="What was this expense for?" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Category</Label>
-                <Select value={expForm.category} onValueChange={setExpF('category')}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="td-exp-amt">Amount (PKR)</Label>
-                <Input id="td-exp-amt" type="number" value={expForm.amount} onChange={setExpF('amount')} placeholder="0" className="font-mono tabular-nums" />
-              </div>
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select value={expForm.category} onValueChange={setExpF('category')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="td-exp-amt">Amount (PKR)</Label>
+              <Input id="td-exp-amt" type="number" value={expForm.amount} onChange={setExpF('amount')} placeholder="0" className="font-mono tabular-nums" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="td-exp-date">Date</Label>
               <Input id="td-exp-date" type="date" value={expForm.date} onChange={setExpF('date')} />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="td-exp-note">Notes</Label>
               <Textarea id="td-exp-note" value={expForm.note} onChange={setExpF('note')} rows={3} />
             </div>
           </div>
-          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
-            <Button variant="outline" onClick={() => setExpDialogOpen(false)}>Cancel</Button>
-            <Button onClick={saveExpense} disabled={expSaving}>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setExpDialogOpen(false)}>Cancel</Button>
+            <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={saveExpense} disabled={expSaving}>
               {expSaving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editExp ? 'Save Changes' : 'Add Expense'}
             </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
+      <ExpenseViewDialog expense={viewExpense} onOpenChange={(open) => !open && setViewExpense(null)} />
       <ConfirmDelete
         open={!!deleteExpId}
         onOpenChange={() => setDeleteExpId(null)}
@@ -2879,8 +3018,12 @@ function MobileBoqStat({ label, value, tone, large = false }) {
     tone === 'profit'
       ? 'text-emerald-600 dark:text-emerald-400'
       : tone === 'loss'
-        ? 'text-orange-600 dark:text-orange-400'
-        : 'text-foreground'
+        ? 'text-rose-600 dark:text-rose-400'
+        : tone === 'neutral'
+          ? 'text-amber-600 dark:text-amber-400'
+          : tone === 'pending'
+            ? 'text-muted-foreground'
+            : 'text-foreground'
   return (
     <div className="min-w-0">
       <p className={`${large ? 'text-xs font-medium text-foreground sm:text-sm' : 'text-sm text-muted-foreground'}`}>{label}</p>
@@ -3049,7 +3192,1351 @@ function OverviewListItem({ title, meta, value, tone, badge }) {
   )
 }
 
-function BillFinanceSection({
+function TenderOverviewDashboard({
+  form,
+  displayTenderStatus,
+  dirty,
+  autoSaving,
+  autoSaveError,
+  linkedPayOrderDisplay,
+  linkedPOs,
+  tenderFinancials,
+  tenderFinancialTone,
+  tenderFinancialDirectionText,
+  contractValue,
+  expectedProfit,
+  projectedMargin,
+  totalExpenses,
+  totalReceived,
+  receivable,
+  cashPosition,
+  boqTotals,
+  boqProfitMargin,
+  hasBoqActualCosts,
+  allBoqActualCostsEntered,
+  billSummary,
+  raBillSummary,
+  dashboardProgress,
+  progressMessage,
+  projectHealth,
+  projectHealthTone,
+  doneCount,
+  checklist,
+  pct,
+  expenses,
+  documents,
+  recentActivity,
+  recentSiteVisits,
+  recentDocuments,
+  recentExpenses,
+  recentBills,
+  onViewTab,
+}) {
+  const linkedPayOrderTotal = linkedPOs.reduce((sum, po) => sum + (Number(po.amount) || 0), 0)
+  const billingSummary = {
+    submitted: (billSummary.submitted || 0) + (raBillSummary.submitted || 0),
+    approved: (billSummary.approved || 0) + (raBillSummary.approved || 0),
+    received: (billSummary.received || 0) + (raBillSummary.received || 0),
+    balance: (billSummary.balance || 0) + (raBillSummary.balance || 0),
+    deductions: (billSummary.deductions || 0) + (raBillSummary.deductions || 0),
+  }
+  const profitTone = getBoqProfitTone(allBoqActualCostsEntered ? boqTotals.profitLoss : null)
+  const profitToneClass =
+    profitTone === 'loss'
+      ? 'text-rose-600'
+      : profitTone === 'profit'
+        ? 'text-emerald-700'
+        : profitTone === 'neutral'
+          ? 'text-amber-700'
+          : 'text-muted-foreground'
+
+  return (
+    <div className="space-y-5">
+      <Card className="overflow-hidden rounded-2xl border-border/80 bg-background shadow-sm">
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                {displayTenderStatus && <StatusBadge status={displayTenderStatus} />}
+                {dirty && <Badge variant="warning">Unsaved changes</Badge>}
+                {autoSaving && <Badge variant="info">Auto-saving</Badge>}
+                {autoSaveError && <Badge variant="destructive">Auto-save failed</Badge>}
+              </div>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{form.name || 'Untitled Tender'}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">{form.agency || 'No agency / client recorded'}</p>
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <OverviewInfo icon={Hash} label="NIT / Ref" value={form.nit || '-'} />
+                <OverviewInfo icon={CalendarDays} label="Submission" value={formatDate(form.submissionDate)} />
+                <OverviewInfo icon={CalendarDays} label="Opening" value={formatDate(form.openingDate)} />
+                <OverviewInfo icon={LinkIcon} label="Linked Pay Order" value={linkedPayOrderDisplay || '-'} />
+              </div>
+            </div>
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 lg:w-80">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Progress</p>
+              <div className="mt-3 flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-3xl font-bold tracking-tight text-emerald-900">{dashboardProgress}%</p>
+                  <p className="mt-1 text-sm text-emerald-800/80">{progressMessage}</p>
+                </div>
+                <Badge variant={projectHealthTone === 'profit' ? 'success' : projectHealthTone === 'loss' ? 'destructive' : 'warning'}>{projectHealth}</Badge>
+              </div>
+              <Progress value={dashboardProgress} className="mt-4 h-2" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <OverviewSection title="Financial Snapshot" icon={Banknote}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <OverviewMetric label="Estimated Cost" value={formatCurrencyPrecise(tenderFinancials.estimatedCost, 0)} tone="accent" />
+          <OverviewMetric label="Quoted Amount" value={formatCurrencyPrecise(tenderFinancials.quotedAmount, 0)} tone="accent" />
+          <OverviewMetric label="Difference" value={tenderFinancials.difference === null ? '-' : formatCurrencyPrecise(tenderFinancials.difference, 0)} tone={tenderFinancialTone} helper={tenderFinancials.difference === null ? undefined : tenderFinancialDirectionText} />
+          <OverviewMetric label="Quoted %" value={tenderFinancials.percentage === null ? '-' : `${tenderFinancials.percentage.toFixed(2)}%`} tone={tenderFinancialTone} />
+          <OverviewMetric label="Contract Value" value={formatCurrency(contractValue)} />
+          <OverviewMetric label="Tender Fee" value={formatCurrency(Number(form.tenderFee) || 0)} tone="expense" />
+          <OverviewMetric label="Bid Security / Linked PO" value={linkedPOs.length ? formatCurrency(linkedPayOrderTotal) : (linkedPayOrderDisplay || '-')} tone="accent" helper={linkedPOs.length ? `${linkedPOs.length} pay order${linkedPOs.length === 1 ? '' : 's'}` : undefined} />
+        </div>
+      </OverviewSection>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <OverviewSection title="Profit / Cost Summary" icon={BarChart3}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <OverviewMetric label="Quoted Total" value={formatCurrency(boqTotals.quotedAmount)} tone="profit" />
+            <OverviewMetric label="Actual Cost" value={hasBoqActualCosts ? formatCurrency(boqTotals.actualCost) : 'Pending'} tone="expense" helper={hasBoqActualCosts && !allBoqActualCostsEntered ? 'Some actual costs pending' : undefined} />
+            <OverviewMetric label="Profit / Loss" value={allBoqActualCostsEntered ? formatCurrency(boqTotals.profitLoss) : 'Pending actual costs'} valueClassName={profitToneClass} />
+            <OverviewMetric label="Profit Margin" value={boqProfitMargin === null ? '-' : `${boqProfitMargin}%`} tone={profitTone === 'loss' ? 'loss' : profitTone === 'profit' ? 'profit' : 'accent'} />
+            <OverviewMetric label="Expense Total" value={formatCurrency(totalExpenses)} tone="expense" />
+            <OverviewMetric label="Expected Profit" value={formatCurrency(expectedProfit)} tone={expectedProfit >= 0 ? 'profit' : 'loss'} helper={projectedMargin !== null ? `${projectedMargin}% margin` : undefined} />
+          </div>
+        </OverviewSection>
+
+        <OverviewSection title="Billing Summary" icon={WalletCards}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <OverviewMetric label="Total Billed" value={formatCurrency(billingSummary.submitted)} tone="profit" />
+            <OverviewMetric label="Approved Amount" value={formatCurrency(billingSummary.approved)} tone="accent" />
+            <OverviewMetric label="Received Amount" value={formatCurrency(billingSummary.received)} tone="profit" />
+            <OverviewMetric label="Balance / Receivable" value={formatCurrency(billingSummary.balance)} tone={billingSummary.balance > 0 ? 'expense' : 'profit'} />
+            <OverviewMetric label="Deductions" value={formatCurrency(billingSummary.deductions)} tone="loss" />
+            <OverviewMetric label="Cash Position" value={formatCurrency(cashPosition)} tone={cashPosition >= 0 ? 'profit' : 'loss'} helper={`${formatCurrency(totalReceived)} received`} />
+          </div>
+        </OverviewSection>
+      </div>
+
+      <OverviewSection title="Progress Summary" icon={CheckSquare}>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+          <OverviewCount label="Checklist" value={`${doneCount}/${checklist.length}`} helper={`${pct}% complete`} />
+          <OverviewCount label="Site Visits" value={(form.siteVisits || []).length} helper="Recorded visits" />
+          <OverviewCount label="Documents" value={documents.length} helper="Uploaded files" />
+          <OverviewCount label="Expenses" value={expenses.length} helper="Expense records" />
+          <OverviewCount label="Pay Orders" value={linkedPOs.length || (form.linkedPO ? 1 : 0)} helper="Linked records" />
+          <OverviewCount label="Recent Activity" value={recentActivity.length} helper="Latest updates" />
+        </div>
+      </OverviewSection>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <OverviewPreviewCard icon={CalendarDays} title="Recent Site Visits" empty="No site visits recorded yet." tab="site-visits" action="View Site Visits" onViewTab={onViewTab}>
+          {recentSiteVisits.map((visit) => (
+            <OverviewListItem key={visit.id || visit.date || visit.visitDate} title={visit.location || visit.workCompleted || 'Site visit'} meta={formatDate(visit.date || visit.visitDate)} />
+          ))}
+        </OverviewPreviewCard>
+        <OverviewPreviewCard icon={Paperclip} title="Recent Documents" empty="No documents uploaded yet." tab="documents" action="View Documents" onViewTab={onViewTab}>
+          {recentDocuments.map((document) => (
+            <OverviewListItem key={document.id || document.title || document.url} title={document.title || document.type || 'Document'} meta={`${document.type || 'Other'}${document.addedAt ? ` · ${formatDate(document.addedAt)}` : ''}`} />
+          ))}
+        </OverviewPreviewCard>
+        <OverviewPreviewCard icon={Receipt} title="Recent Expenses" empty="No expenses recorded yet." tab="expenses" action="View Expenses" onViewTab={onViewTab}>
+          {recentExpenses.slice(0, 4).map((expense) => (
+            <OverviewListItem key={expense.id} title={expense.description || 'Expense'} meta={`${formatDate(expense.date)}${expense.category ? ` · ${expense.category}` : ''}`} value={formatCurrency(Number(expense.amount) || 0)} tone="expense" />
+          ))}
+        </OverviewPreviewCard>
+        <OverviewPreviewCard icon={Landmark} title="Linked Pay Orders" empty="No linked pay orders." tab="payorders" action="View Pay Orders" onViewTab={onViewTab}>
+          {linkedPOs.slice(0, 4).map((po) => (
+            <OverviewListItem key={po.id} title={po.po || 'Pay order'} meta={`${po.bank || 'No bank'}${po.submitted ? ` · ${formatDate(po.submitted)}` : ''}`} value={formatCurrency(Number(po.amount) || 0)} badge={po.status} />
+          ))}
+        </OverviewPreviewCard>
+        <OverviewPreviewCard icon={FileText} title="Latest Bills / RA Bills" empty="No bills or RA bills yet." tab="bills" action="View Bills" onViewTab={onViewTab}>
+          {recentBills.map((bill) => (
+            <OverviewListItem key={`${bill.isRaBill ? 'ra' : 'bill'}-${bill.id || bill.no || bill.desc}`} title={bill.isRaBill ? `RA bill ${bill.no || ''}`.trim() : (bill.no || bill.desc || 'Bill')} meta={`${bill.status || 'No status'}${(bill.paid || bill.submitted || bill.date) ? ` · ${formatDate(bill.paid || bill.submitted || bill.date)}` : ''}`} value={formatCurrency(Number(bill.amount) || 0)} badge={bill.status} />
+          ))}
+        </OverviewPreviewCard>
+        <OverviewPreviewCard icon={History} title="Recent Activity" empty="No activity yet." tab="overview">
+          {recentActivity.map((activity) => (
+            <OverviewListItem key={activity.id} title={activity.title} meta={formatDate(activity.date)} />
+          ))}
+        </OverviewPreviewCard>
+      </div>
+    </div>
+  )
+}
+
+function OverviewSection({ title, icon: Icon, children }) {
+  return (
+    <Card className="rounded-2xl border-border/80 bg-background shadow-sm">
+      <CardHeader className="p-4 pb-3 md:p-5 md:pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Icon className="h-4 w-4 text-emerald-600" /> {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0 md:p-5 md:pt-0">{children}</CardContent>
+    </Card>
+  )
+}
+
+function OverviewMetric({ label, value, tone, helper, valueClassName }) {
+  const toneClass =
+    valueClassName ||
+    (tone === 'profit'
+      ? 'text-emerald-700'
+      : tone === 'loss' || tone === 'expense'
+        ? 'text-rose-600'
+        : tone === 'accent'
+          ? 'text-blue-700'
+          : 'text-foreground')
+  return (
+    <div className="rounded-xl border border-border/80 bg-slate-50/40 p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`mt-2 break-words font-mono text-base font-bold tabular-nums [overflow-wrap:anywhere] ${toneClass}`}>{value || '-'}</p>
+      {helper && <p className="mt-1 text-xs text-muted-foreground">{helper}</p>}
+    </div>
+  )
+}
+
+function OverviewCount({ label, value, helper }) {
+  return (
+    <div className="rounded-xl border border-border/80 bg-background p-3 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-2 font-mono text-xl font-bold tabular-nums text-emerald-700">{value}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
+    </div>
+  )
+}
+
+function OverviewPreviewCard({ icon: Icon, title, empty, tab, action, onViewTab, children }) {
+  const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : []
+  return (
+    <Card className="rounded-2xl border-border/80 bg-background shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 p-4 pb-3 md:p-5 md:pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Icon className="h-4 w-4 text-emerald-600" /> {title}
+        </CardTitle>
+        {action && (
+          <button
+            type="button"
+            onClick={() => onViewTab?.(tab)}
+            className="h-8 rounded-lg border border-emerald-200 bg-background px-3 text-xs font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50"
+          >
+            {action}
+          </button>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-2 p-4 pt-0 md:p-5 md:pt-0">
+        {items.length === 0 ? (
+          <p className="rounded-xl border border-dashed py-7 text-center text-sm text-muted-foreground">{empty}</p>
+        ) : (
+          items
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ExpensesFinanceSection({
+  expenses,
+  filteredExpenses,
+  expenseTotal,
+  expenseOther,
+  heldByAgency,
+  bidSecurityAtRisk,
+  sunkCost,
+  isAdmin,
+  openExpDialog,
+  setDeleteExpId,
+  setViewExpense,
+  expenseSearch,
+  setExpenseSearch,
+  expenseCategoryFilter,
+  setExpenseCategoryFilter,
+  expenseCategoryOptions,
+  expenseDateFrom,
+  setExpenseDateFrom,
+  expenseDateTo,
+  setExpenseDateTo,
+  expenseFiltersActive,
+  clearExpenseFilters,
+  exportFilteredExpenses,
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 rounded-2xl border border-border/80 bg-background p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+            <Receipt className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">Expenses</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Track project-related spending, documentation, and recoverable amounts.
+            </p>
+          </div>
+        </div>
+        {isAdmin && (
+          <Button className="h-11 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:w-auto" onClick={() => openExpDialog()}>
+            <Plus className="h-4 w-4" /> Add Expense
+          </Button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <ExpenseSummaryCard icon={WalletCards} label="Total Expenses" value={expenseTotal} helper="All recorded expenses" tone="emerald" />
+        <ExpenseSummaryCard icon={CheckCircle} label="Paid Expenses" value={expenseOther} helper="Recorded project spend" tone="green" />
+        <ExpenseSummaryCard icon={Landmark} label="Recoverable / Held" value={heldByAgency} helper="Recoverable / held by agency" tone="blue" />
+        <ExpenseSummaryCard icon={Receipt} label="At Risk" value={bidSecurityAtRisk} helper="Potentially at risk" tone="amber" />
+        <ExpenseSummaryCard icon={Trash2} label="Sunk Cost / Non-Recoverable" value={sunkCost} helper="Non-recoverable expenses" tone="red" />
+      </div>
+
+      <div className="rounded-2xl border border-border/80 bg-background p-3 shadow-sm md:p-4">
+        <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(170px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={expenseSearch} onChange={(event) => setExpenseSearch(event.target.value)} placeholder="Search expenses..." className="h-11 pl-9" />
+          </div>
+          <BillSelect label="Category" value={expenseCategoryFilter} onValueChange={setExpenseCategoryFilter} options={['All', ...expenseCategoryOptions]} />
+          <BillDateFilter label="Date From" value={expenseDateFrom} onChange={(event) => setExpenseDateFrom(event.target.value)} />
+          <BillDateFilter label="Date To" value={expenseDateTo} onChange={(event) => setExpenseDateTo(event.target.value)} />
+          {expenseFiltersActive && (
+            <Button type="button" variant="outline" className="h-11" onClick={clearExpenseFilters}>
+              <Clock className="h-4 w-4" /> Clear filters
+            </Button>
+          )}
+          <Button type="button" variant="outline" className="h-11" onClick={exportFilteredExpenses} disabled={filteredExpenses.length === 0}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+        </div>
+      </div>
+
+      {expenses.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+            <Receipt className="h-7 w-7" />
+          </div>
+          <p className="mt-4 text-base font-semibold text-foreground">No expenses added yet</p>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+            Add project expenses to track spending, recoverables, and deductions.
+          </p>
+          {isAdmin && (
+            <Button onClick={() => openExpDialog()} className="mt-5 bg-emerald-600 text-white hover:bg-emerald-700">
+              <Plus className="h-4 w-4" /> Add first expense
+            </Button>
+          )}
+        </div>
+      ) : filteredExpenses.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
+          <Search className="mx-auto h-8 w-8 text-muted-foreground" />
+          <p className="mt-3 text-sm font-medium">No expenses match these filters.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Try a different search, category, or date range.</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3 md:hidden">
+            {filteredExpenses.map((expense) => (
+              <ExpenseMobileCard key={expense.id} expense={expense} isAdmin={isAdmin} onView={setViewExpense} onEdit={openExpDialog} onDelete={setDeleteExpId} />
+            ))}
+          </div>
+
+          <div className="hidden overflow-hidden rounded-2xl border border-border/80 bg-background shadow-sm md:block">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                  <TableHead className="pl-6 text-xs font-semibold uppercase text-slate-500">Date</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-slate-500">Description</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-slate-500">Category</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-slate-500">Notes</TableHead>
+                  <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Amount</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-slate-500">Status / Type</TableHead>
+                  <TableHead className="pr-6 text-right text-xs font-semibold uppercase text-slate-500">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredExpenses.map((expense) => (
+                  <TableRow key={expense.id} className="h-16 border-border/70 hover:bg-slate-50/50">
+                    <TableCell className="pl-6 text-sm text-slate-700">{formatDate(expense.date)}</TableCell>
+                    <TableCell className="max-w-[260px] text-sm font-medium text-foreground">
+                      <span className="line-clamp-2">{expense.description || '-'}</span>
+                    </TableCell>
+                    <TableCell><ExpenseCategoryBadge category={expense.category || 'Miscellaneous'} /></TableCell>
+                    <TableCell className="max-w-[260px] text-sm text-muted-foreground">
+                      <span className="line-clamp-2">{expense.note || '-'}</span>
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm font-semibold tabular-nums text-slate-950">{formatCurrency(Number(expense.amount) || 0)}</TableCell>
+                    <TableCell><ExpenseStatusBadge status={getExpenseStatusLabel(expense)} /></TableCell>
+                    <TableCell className="pr-6">
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="icon-sm" onClick={() => setViewExpense(expense)} aria-label="View expense"><Eye className="h-3.5 w-3.5" /></Button>
+                        {isAdmin && <Button type="button" variant="outline" size="icon-sm" onClick={() => openExpDialog(expense)} aria-label="Edit expense"><Pencil className="h-3.5 w-3.5" /></Button>}
+                        {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => setDeleteExpId(expense.id)} aria-label="Delete expense"><Trash2 className="h-3.5 w-3.5" /></Button>}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="flex flex-col gap-3 border-t border-border/80 px-4 py-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between md:px-6">
+              <span>Showing 1 to {filteredExpenses.length} of {expenses.length} expenses</span>
+              <span>{filteredExpenses.length === expenses.length ? 'All expenses visible' : 'Filtered view'}</span>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function ExpenseSummaryCard({ icon: Icon, label, value, helper, tone }) {
+  return <BillSummaryCard icon={Icon} label={label} value={value} helper={helper} tone={tone} />
+}
+
+function getExpenseStatusLabel(expense = {}) {
+  return expense.status || expense.type || 'Paid'
+}
+
+function ExpenseCategoryBadge({ category }) {
+  const normalized = category || 'Miscellaneous'
+  const className = normalized === 'Printing & Documentation'
+    ? 'border-blue-200 bg-blue-50 text-blue-700'
+    : normalized === 'Miscellaneous'
+      ? 'border-slate-200 bg-slate-50 text-slate-700'
+      : normalized.includes('Fuel')
+        ? 'border-cyan-200 bg-cyan-50 text-cyan-700'
+        : normalized.includes('Labour')
+          ? 'border-orange-200 bg-orange-50 text-orange-700'
+          : normalized.includes('Tender')
+            ? 'border-rose-200 bg-rose-50 text-rose-700'
+            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  return <Badge variant="outline" className={`shrink-0 rounded-full ${className}`}>{normalized}</Badge>
+}
+
+function ExpenseStatusBadge({ status }) {
+  const normalized = status || 'Paid'
+  const className = ['Paid', 'Recoverable'].includes(normalized)
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : normalized === 'Held by Agency'
+      ? 'border-blue-200 bg-blue-50 text-blue-700'
+      : normalized === 'At Risk'
+        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        : ['Sunk Cost', 'Non-Recoverable'].includes(normalized)
+          ? 'border-rose-200 bg-rose-50 text-rose-700'
+          : 'border-slate-200 bg-slate-50 text-slate-700'
+  return <Badge variant="outline" className={`shrink-0 rounded-full ${className}`}>{normalized}</Badge>
+}
+
+function ExpenseMobileCard({ expense, isAdmin, onView, onEdit, onDelete }) {
+  return (
+    <div className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-base font-semibold text-foreground">{expense.description || '-'}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <ExpenseCategoryBadge category={expense.category || 'Miscellaneous'} />
+            <ExpenseStatusBadge status={getExpenseStatusLabel(expense)} />
+          </div>
+        </div>
+        <p className="shrink-0 font-mono text-sm font-bold tabular-nums text-slate-950">{formatCurrency(Number(expense.amount) || 0)}</p>
+      </div>
+      <p className="mt-3 text-sm text-muted-foreground">{formatDate(expense.date)}</p>
+      {expense.note && <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-muted-foreground">{expense.note}</p>}
+      <div className="mt-4 flex justify-end gap-2">
+        <Button type="button" variant="outline" size="icon-sm" onClick={() => onView(expense)} aria-label="View expense"><Eye className="h-3.5 w-3.5" /></Button>
+        {isAdmin && <Button type="button" variant="outline" size="icon-sm" onClick={() => onEdit(expense)} aria-label="Edit expense"><Pencil className="h-3.5 w-3.5" /></Button>}
+        {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600" onClick={() => onDelete(expense.id)} aria-label="Delete expense"><Trash2 className="h-3.5 w-3.5" /></Button>}
+      </div>
+    </div>
+  )
+}
+
+function ExpenseViewDialog({ expense, onOpenChange }) {
+  return (
+    <Dialog open={!!expense} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{expense?.description || 'Expense'}</DialogTitle>
+          <DialogDescription>Expense details, category, amount, and notes.</DialogDescription>
+        </DialogHeader>
+        {expense && (
+          <div className="grid gap-3 text-sm sm:grid-cols-2">
+            <BillDetail label="Date" value={formatDate(expense.date)} />
+            <BillDetail label="Amount" value={formatCurrency(Number(expense.amount) || 0)} />
+            <BillDetail label="Category" value={expense.category || '-'} />
+            <BillDetail label="Status / Type" value={getExpenseStatusLabel(expense)} />
+            <div className="sm:col-span-2">
+              <BillDetail label="Notes" value={expense.note || '-'} />
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function BillFinanceSection(props) {
+  if (props.title === 'Bills / Invoices') {
+    return <BillsInvoicesSection {...props} />
+  }
+  if (props.title === 'RA Bills') {
+    return <RABillsSection {...props} />
+  }
+  return <LegacyBillFinanceSection {...props} />
+}
+
+function BillsInvoicesSection({
+  title,
+  description,
+  bills,
+  summary,
+  isAdmin,
+  onAdd,
+  onUpdate,
+  onRemove,
+  addLabel,
+  emptyTitle,
+  dateKey,
+}) {
+  const emptyBillForm = () => ({
+    id: '',
+    no: '',
+    type: 'Running Bill',
+    date: '',
+    amount: '',
+    approvedAmount: '',
+    receivedAmount: '',
+    deductions: '',
+    status: 'Draft',
+    remarks: '',
+    desc: '',
+  })
+  const [billFormOpen, setBillFormOpen] = useState(false)
+  const [editingBill, setEditingBill] = useState(null)
+  const [viewingBill, setViewingBill] = useState(null)
+  const [billForm, setBillForm] = useState(emptyBillForm)
+  const [deleteBillId, setDeleteBillId] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [typeFilter, setTypeFilter] = useState('All')
+  const [statusFilter, setStatusFilter] = useState('All')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
+  const billTypeOptions = Array.from(new Set([...BILL_TYPES, ...bills.map((bill) => bill.type).filter(Boolean)]))
+  const billStatusOptions = Array.from(new Set([...BILL_STATUS_OPTIONS, ...bills.map((bill) => bill.status).filter(Boolean)]))
+  const filteredBills = bills.filter((bill) => {
+    const billNo = String(bill.no || bill.billNo || '').toLowerCase()
+    const billType = bill.type || 'Running Bill'
+    const billStatus = bill.status || 'Draft'
+    const billDate = getBillDate(bill)
+    if (searchTerm && !billNo.includes(searchTerm.toLowerCase())) return false
+    if (typeFilter !== 'All' && billType !== typeFilter) return false
+    if (statusFilter !== 'All' && billStatus !== statusFilter) return false
+    if (dateFrom && (!billDate || billDate < dateFrom)) return false
+    if (dateTo && (!billDate || billDate > dateTo)) return false
+    return true
+  })
+
+  const setBillFormValue = (key) => (event) => {
+    const value = event?.target?.value ?? event
+    setBillForm((previous) => ({ ...previous, [key]: value }))
+  }
+  const openAddBill = () => {
+    setEditingBill(null)
+    setBillForm(emptyBillForm())
+    setBillFormOpen(true)
+  }
+  const openEditBill = (bill) => {
+    setEditingBill(bill)
+    setBillForm({
+      id: bill.id || '',
+      no: bill.no || bill.billNo || '',
+      type: bill.type || 'Running Bill',
+      date: bill[dateKey] || '',
+      amount: bill.submittedAmount ?? bill.amount ?? '',
+      approvedAmount: bill.approvedAmount ?? '',
+      receivedAmount: bill.receivedAmount ?? '',
+      deductions: bill.deductions ?? '',
+      status: bill.status || 'Draft',
+      remarks: bill.remarks || bill.desc || '',
+      desc: bill.desc || bill.remarks || '',
+    })
+    setBillFormOpen(true)
+  }
+  const saveBillForm = () => {
+    const payload = {
+      no: billForm.no || '',
+      type: billForm.type || 'Running Bill',
+      [dateKey]: billForm.date || '',
+      amount: billForm.amount === '' ? 0 : billForm.amount,
+      submittedAmount: billForm.amount === '' ? 0 : billForm.amount,
+      approvedAmount: billForm.approvedAmount === '' ? '' : billForm.approvedAmount,
+      receivedAmount: billForm.receivedAmount === '' ? '' : billForm.receivedAmount,
+      deductions: billForm.deductions === '' ? '' : billForm.deductions,
+      status: billForm.status || 'Draft',
+      remarks: billForm.remarks || '',
+      desc: billForm.remarks || '',
+    }
+    if (editingBill?.id) {
+      onUpdate(editingBill.id, payload)
+      toast.success('Bill updated')
+    } else {
+      onAdd(payload)
+      toast.success('Bill added')
+    }
+    setBillFormOpen(false)
+    setEditingBill(null)
+  }
+  const exportBills = () => {
+    const headers = ['Bill No.', 'Type', 'Date', 'Submitted', 'Approved', 'Received', 'Deductions', 'Balance', 'Status']
+    const rows = filteredBills.map((bill) => {
+      const amounts = getBillAmounts(bill)
+      return [
+        getBillTitle(bill, '-'),
+        bill.type || 'Running Bill',
+        getBillDate(bill) || '-',
+        amounts.submitted,
+        amounts.approved,
+        amounts.received,
+        amounts.deductions,
+        amounts.balance,
+        bill.status || 'Draft',
+      ]
+    })
+    const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'bills-invoices.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+  const clearFilters = () => {
+    setSearchTerm('')
+    setTypeFilter('All')
+    setStatusFilter('All')
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  const summaryCards = [
+    { icon: FileText, label: 'Total Billed', value: summary.submitted, helper: 'Submitted amount', tone: 'emerald' },
+    { icon: CheckCircle, label: 'Approved Amount', value: summary.approved, helper: 'Approved or submitted fallback', tone: 'blue' },
+    { icon: WalletCards, label: 'Received Amount', value: summary.received, helper: 'Payments received', tone: 'green' },
+    { icon: BarChart3, label: 'Balance / Receivable', value: summary.balance, helper: 'Approved minus received', tone: 'amber' },
+    { icon: Receipt, label: 'Deductions', value: summary.deductions, helper: 'Recorded deductions', tone: 'red' },
+  ]
+
+  return (
+    <>
+      <div className="space-y-5">
+        <div className="flex flex-col gap-4 rounded-2xl border border-border/80 bg-background p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+              <Receipt className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
+            </div>
+          </div>
+          {isAdmin && (
+            <Button className="h-11 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:w-auto" onClick={openAddBill}>
+              <Plus className="h-4 w-4" /> {addLabel}
+            </Button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {summaryCards.map((card) => (
+            <BillSummaryCard key={card.label} {...card} />
+          ))}
+        </div>
+
+        <div className="rounded-2xl border border-border/80 bg-background p-3 shadow-sm md:p-4">
+          <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search by bill no..." className="h-11 pl-9" />
+            </div>
+            <BillSelect label="Type" value={typeFilter} onValueChange={setTypeFilter} options={['All', ...billTypeOptions]} />
+            <BillSelect label="Status" value={statusFilter} onValueChange={setStatusFilter} options={['All', ...billStatusOptions]} />
+            <BillDateFilter label="Date From" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+            <BillDateFilter label="Date To" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+            <Button type="button" variant="outline" className="h-11" onClick={exportBills} disabled={filteredBills.length === 0}>
+              <Download className="h-4 w-4" /> Export
+            </Button>
+            <Button type="button" variant="outline" className="h-11 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={clearFilters}>
+              <ChevronDown className="h-4 w-4" /> Filters
+            </Button>
+          </div>
+        </div>
+
+        {bills.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+              <Receipt className="h-7 w-7" />
+            </div>
+            <p className="mt-4 text-base font-semibold text-foreground">{emptyTitle}</p>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+              Add project bills, approved amounts, received payments, and deductions to track receivables.
+            </p>
+            {isAdmin && (
+              <Button onClick={openAddBill} className="mt-5 bg-emerald-600 text-white hover:bg-emerald-700">
+                <Plus className="h-4 w-4" /> Add first bill
+              </Button>
+            )}
+          </div>
+        ) : filteredBills.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
+            <Search className="mx-auto h-8 w-8 text-muted-foreground" />
+            <p className="mt-3 text-sm font-medium">No bills match these filters.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Try a different bill number, type, status, or date range.</p>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-3 md:hidden">
+              {filteredBills.map((bill) => (
+                <BillsMobileCard key={bill.id} bill={bill} isAdmin={isAdmin} onView={setViewingBill} onEdit={openEditBill} onDelete={setDeleteBillId} />
+              ))}
+            </div>
+
+            <div className="hidden overflow-hidden rounded-2xl border border-border/80 bg-background shadow-sm md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                    <TableHead className="pl-6 text-xs font-semibold uppercase text-slate-500">Bill No.</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-slate-500">Type</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-slate-500">Date</TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Submitted</TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Approved</TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Received</TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Deductions</TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Balance</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-slate-500">Status</TableHead>
+                    <TableHead className="pr-6 text-right text-xs font-semibold uppercase text-slate-500">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredBills.map((bill) => {
+                    const amounts = getBillAmounts(bill)
+                    return (
+                      <TableRow key={bill.id} className="h-16 border-border/70 hover:bg-slate-50/50">
+                        <TableCell className="pl-6 font-mono text-sm font-semibold text-emerald-700">{getBillTitle(bill, '-')}</TableCell>
+                        <TableCell><BillTypeBadge type={bill.type || 'Running Bill'} /></TableCell>
+                        <TableCell className="text-sm text-slate-700">{formatDate(getBillDate(bill))}</TableCell>
+                        <BillMoneyCell value={amounts.submitted} />
+                        <BillMoneyCell value={amounts.approved} />
+                        <BillMoneyCell value={amounts.received} />
+                        <BillMoneyCell value={amounts.deductions} />
+                        <BillMoneyCell value={amounts.balance} strong />
+                        <TableCell><BillInvoiceStatusBadge status={bill.status || 'Draft'} /></TableCell>
+                        <TableCell className="pr-6">
+                          <div className="flex justify-end gap-2">
+                            <Button type="button" variant="outline" size="icon-sm" onClick={() => setViewingBill(bill)} aria-label="View bill"><Eye className="h-3.5 w-3.5" /></Button>
+                            {isAdmin && <Button type="button" variant="outline" size="icon-sm" onClick={() => openEditBill(bill)} aria-label="Edit bill"><Pencil className="h-3.5 w-3.5" /></Button>}
+                            {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => setDeleteBillId(bill.id)} aria-label="Delete bill"><Trash2 className="h-3.5 w-3.5" /></Button>}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+              <div className="flex flex-col gap-3 border-t border-border/80 px-4 py-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between md:px-6">
+                <span>Showing 1 to {filteredBills.length} of {bills.length} bills</span>
+                <span>{filteredBills.length === bills.length ? 'All bills visible' : 'Filtered view'}</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <Dialog open={billFormOpen} onOpenChange={setBillFormOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingBill ? 'Edit Bill / Invoice' : 'Add Bill / RA Bill'}</DialogTitle>
+            <DialogDescription>Record submitted, approved, received, deductions, and receivable details.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <BillField label="Bill No." value={billForm.no} onChange={setBillFormValue('no')} disabled={!isAdmin} placeholder="BILL-12" />
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Select value={billForm.type} onValueChange={setBillFormValue('type')} disabled={!isAdmin}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{billTypeOptions.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <BillField label="Date" type="date" value={billForm.date} onChange={setBillFormValue('date')} disabled={!isAdmin} />
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={billForm.status} onValueChange={setBillFormValue('status')} disabled={!isAdmin}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{billStatusOptions.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <BillField label="Submitted Amount" type="number" value={billForm.amount} onChange={setBillFormValue('amount')} disabled={!isAdmin} />
+            <BillField label="Approved Amount" type="number" value={billForm.approvedAmount} onChange={setBillFormValue('approvedAmount')} disabled={!isAdmin} />
+            <BillField label="Received Amount" type="number" value={billForm.receivedAmount} onChange={setBillFormValue('receivedAmount')} disabled={!isAdmin} />
+            <BillField label="Deductions" type="number" value={billForm.deductions} onChange={setBillFormValue('deductions')} disabled={!isAdmin} />
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Remarks / Notes</Label>
+              <Textarea value={billForm.remarks} onChange={setBillFormValue('remarks')} rows={3} placeholder="Add remarks or notes" disabled={!isAdmin} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setBillFormOpen(false)}>Cancel</Button>
+            <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={saveBillForm} disabled={!isAdmin}>
+              {editingBill ? 'Save Changes' : 'Add Bill'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <BillViewDialog bill={viewingBill} onOpenChange={(open) => !open && setViewingBill(null)} />
+      <ConfirmDelete
+        open={!!deleteBillId}
+        onOpenChange={() => setDeleteBillId(null)}
+        onConfirm={() => {
+          if (!deleteBillId) return
+          onRemove(deleteBillId)
+          setDeleteBillId(null)
+          toast.success('Bill deleted')
+        }}
+        title="Delete bill"
+        description="This will permanently remove this bill from the tender."
+      />
+    </>
+  )
+}
+
+function BillSummaryCard({ icon: Icon, label, value, helper, tone }) {
+  const tones = {
+    emerald: 'bg-emerald-50 text-emerald-700',
+    green: 'bg-green-50 text-green-700',
+    blue: 'bg-blue-50 text-blue-700',
+    amber: 'bg-amber-50 text-amber-700',
+    red: 'bg-rose-50 text-rose-700',
+  }
+  const valueTone = {
+    emerald: 'text-emerald-700',
+    green: 'text-emerald-700',
+    blue: 'text-blue-700',
+    amber: 'text-amber-700',
+    red: 'text-rose-700',
+  }
+  return (
+    <div className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${tones[tone] || tones.emerald}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+          <p className={`mt-1 truncate font-mono text-lg font-bold tabular-nums ${valueTone[tone] || valueTone.emerald}`}>
+            {formatCurrency(value || 0)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BillSelect({ label, value, onValueChange, options }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger className="h-11 bg-background"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option} value={option}>{option === 'All' ? `All ${label}s` : option}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+function BillDateFilter({ label, value, onChange }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input type="date" value={value} onChange={onChange} className="h-11 bg-background" />
+    </div>
+  )
+}
+
+function BillMoneyCell({ value, strong = false }) {
+  return (
+    <TableCell className={`text-right font-mono text-sm tabular-nums ${strong ? 'font-semibold text-slate-950' : 'text-slate-700'}`}>
+      {formatCurrency(value || 0)}
+    </TableCell>
+  )
+}
+
+function BillTypeBadge({ type }) {
+  const normalized = type || 'Running Bill'
+  const className =
+    normalized === 'Final Bill'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : normalized === 'Invoice'
+        ? 'border-violet-200 bg-violet-50 text-violet-700'
+        : 'border-blue-200 bg-blue-50 text-blue-700'
+  return <Badge variant="outline" className={`shrink-0 rounded-full ${className}`}>{normalized}</Badge>
+}
+
+function BillInvoiceStatusBadge({ status }) {
+  const normalized = status || 'Draft'
+  const className =
+    ['Paid', 'Approved'].includes(normalized)
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : ['Partial', 'Partially Paid'].includes(normalized)
+        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        : ['Pending'].includes(normalized)
+          ? 'border-amber-200 bg-amber-50 text-amber-700'
+          : normalized === 'Rejected'
+            ? 'border-rose-200 bg-rose-50 text-rose-700'
+            : ['Submitted', 'Under Review'].includes(normalized)
+              ? 'border-blue-200 bg-blue-50 text-blue-700'
+              : 'border-slate-200 bg-slate-50 text-slate-700'
+  return <Badge variant="outline" className={`shrink-0 rounded-full ${className}`}>{normalized}</Badge>
+}
+
+function BillsMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
+  const amounts = getBillAmounts(bill)
+  return (
+    <div className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-mono text-base font-semibold text-emerald-700">{getBillTitle(bill, '-')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{formatDate(getBillDate(bill))}</p>
+        </div>
+        <BillInvoiceStatusBadge status={bill.status || 'Draft'} />
+      </div>
+      <div className="mt-3">
+        <BillTypeBadge type={bill.type || 'Running Bill'} />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3">
+        <MobileBillAmount label="Submitted" value={amounts.submitted} />
+        <MobileBillAmount label="Approved" value={amounts.approved} />
+        <MobileBillAmount label="Received" value={amounts.received} tone="profit" />
+        <MobileBillAmount label="Deductions" value={amounts.deductions} />
+        <MobileBillAmount label="Balance" value={amounts.balance} tone={amounts.balance > 0 ? 'accent' : 'profit'} />
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        <Button type="button" variant="outline" size="icon-sm" onClick={() => onView(bill)} aria-label="View bill"><Eye className="h-3.5 w-3.5" /></Button>
+        {isAdmin && <Button type="button" variant="outline" size="icon-sm" onClick={() => onEdit(bill)} aria-label="Edit bill"><Pencil className="h-3.5 w-3.5" /></Button>}
+        {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600" onClick={() => onDelete(bill.id)} aria-label="Delete bill"><Trash2 className="h-3.5 w-3.5" /></Button>}
+      </div>
+    </div>
+  )
+}
+
+function BillViewDialog({ bill, onOpenChange }) {
+  const amounts = getBillAmounts(bill || {})
+  return (
+    <Dialog open={!!bill} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{bill ? getBillTitle(bill, 'Bill') : 'Bill'}</DialogTitle>
+          <DialogDescription>Bill / invoice details and payment status.</DialogDescription>
+        </DialogHeader>
+        {bill && (
+          <div className="grid gap-3 text-sm sm:grid-cols-2">
+            <BillDetail label="Type" value={bill.type || 'Running Bill'} />
+            <BillDetail label="Status" value={bill.status || 'Draft'} />
+            <BillDetail label="Date" value={formatDate(getBillDate(bill))} />
+            <BillDetail label="Submitted" value={formatCurrency(amounts.submitted)} />
+            <BillDetail label="Approved" value={formatCurrency(amounts.approved)} />
+            <BillDetail label="Received" value={formatCurrency(amounts.received)} />
+            <BillDetail label="Deductions" value={formatCurrency(amounts.deductions)} />
+            <BillDetail label="Balance" value={formatCurrency(amounts.balance)} />
+            <div className="sm:col-span-2">
+              <BillDetail label="Remarks / Notes" value={bill.remarks || bill.desc || '-'} />
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function BillDetail({ label, value }) {
+  return (
+    <div className="rounded-xl border border-border/80 bg-slate-50/70 p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 break-words text-sm font-medium text-foreground">{value || '-'}</p>
+    </div>
+  )
+}
+
+function RABillsSection({
+  title,
+  description,
+  bills,
+  summary,
+  isAdmin,
+  onAdd,
+  onUpdate,
+  onRemove,
+  addLabel,
+  emptyTitle,
+  dateKey,
+}) {
+  const emptyRaBillForm = () => ({
+    id: '',
+    no: '',
+    date: '',
+    amount: '',
+    approvedAmount: '',
+    receivedAmount: '',
+    deductions: '',
+    status: 'Submitted',
+    remarks: '',
+  })
+  const [raBillFormOpen, setRaBillFormOpen] = useState(false)
+  const [editingRaBill, setEditingRaBill] = useState(null)
+  const [viewingRaBill, setViewingRaBill] = useState(null)
+  const [raBillForm, setRaBillForm] = useState(emptyRaBillForm)
+  const [deleteRaBillId, setDeleteRaBillId] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
+  const raStatusOptions = Array.from(new Set([...BILL_STATUS_OPTIONS, ...bills.map((bill) => bill.status).filter(Boolean)]))
+  const filteredRaBills = bills.filter((bill) => {
+    const billNo = String(bill.no || bill.billNo || '').toLowerCase()
+    const billStatus = bill.status || 'Draft'
+    const billDate = getBillDate(bill)
+    if (searchTerm && !billNo.includes(searchTerm.toLowerCase())) return false
+    if (statusFilter !== 'All' && billStatus !== statusFilter) return false
+    if (dateFrom && (!billDate || billDate < dateFrom)) return false
+    if (dateTo && (!billDate || billDate > dateTo)) return false
+    return true
+  })
+
+  const setRaBillFormValue = (key) => (event) => {
+    const value = event?.target?.value ?? event
+    setRaBillForm((previous) => ({ ...previous, [key]: value }))
+  }
+  const openAddRaBill = () => {
+    setEditingRaBill(null)
+    setRaBillForm(emptyRaBillForm())
+    setRaBillFormOpen(true)
+  }
+  const openEditRaBill = (bill) => {
+    setEditingRaBill(bill)
+    setRaBillForm({
+      id: bill.id || '',
+      no: bill.no || bill.billNo || '',
+      date: bill[dateKey] || bill.date || '',
+      amount: bill.submittedAmount ?? bill.amount ?? '',
+      approvedAmount: bill.approvedAmount ?? '',
+      receivedAmount: bill.receivedAmount ?? '',
+      deductions: bill.deductions ?? '',
+      status: bill.status || 'Submitted',
+      remarks: bill.remarks || bill.desc || '',
+    })
+    setRaBillFormOpen(true)
+  }
+  const saveRaBillForm = () => {
+    const payload = {
+      no: raBillForm.no || '',
+      type: 'Running Bill',
+      [dateKey]: raBillForm.date || '',
+      amount: raBillForm.amount === '' ? 0 : raBillForm.amount,
+      submittedAmount: raBillForm.amount === '' ? 0 : raBillForm.amount,
+      approvedAmount: raBillForm.approvedAmount === '' ? '' : raBillForm.approvedAmount,
+      receivedAmount: raBillForm.receivedAmount === '' ? '' : raBillForm.receivedAmount,
+      deductions: raBillForm.deductions === '' ? '' : raBillForm.deductions,
+      status: raBillForm.status || 'Submitted',
+      remarks: raBillForm.remarks || '',
+      desc: raBillForm.remarks || '',
+    }
+    if (editingRaBill?.id) {
+      onUpdate(editingRaBill.id, payload)
+      toast.success('RA bill updated')
+    } else {
+      onAdd(payload)
+      toast.success('RA bill added')
+    }
+    setRaBillFormOpen(false)
+    setEditingRaBill(null)
+  }
+  const exportRaBills = () => {
+    const headers = ['RA Bill No.', 'Date', 'Submitted', 'Approved', 'Received', 'Deductions', 'Balance', 'Status']
+    const rows = filteredRaBills.map((bill) => {
+      const amounts = getBillAmounts(bill)
+      return [
+        getBillTitle(bill, '-'),
+        getBillDate(bill) || '-',
+        amounts.submitted,
+        amounts.approved,
+        amounts.received,
+        amounts.deductions,
+        amounts.balance,
+        bill.status || 'Draft',
+      ]
+    })
+    const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'ra-bills.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+  const clearRaFilters = () => {
+    setSearchTerm('')
+    setStatusFilter('All')
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  const summaryCards = [
+    { icon: FileText, label: 'Total RA Billed', value: summary.submitted, helper: 'Submitted amount', tone: 'emerald' },
+    { icon: CheckCircle, label: 'Approved Amount', value: summary.approved, helper: 'Approved or submitted fallback', tone: 'blue' },
+    { icon: WalletCards, label: 'Received Amount', value: summary.received, helper: 'Payments received', tone: 'green' },
+    { icon: BarChart3, label: 'Balance / Receivable', value: summary.balance, helper: 'Approved minus received', tone: 'amber' },
+    { icon: Receipt, label: 'Deductions', value: summary.deductions, helper: 'Recorded deductions', tone: 'red' },
+  ]
+
+  return (
+    <>
+      <div className="space-y-5">
+        <div className="flex flex-col gap-4 rounded-2xl border border-border/80 bg-background p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+              <FileText className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
+            </div>
+          </div>
+          {isAdmin && (
+            <Button className="h-11 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:w-auto" onClick={openAddRaBill}>
+              <Plus className="h-4 w-4" /> {addLabel}
+            </Button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {summaryCards.map((card) => (
+            <BillSummaryCard key={card.label} {...card} />
+          ))}
+        </div>
+
+        <div className="rounded-2xl border border-border/80 bg-background p-3 shadow-sm md:p-4">
+          <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search by RA bill no..." className="h-11 pl-9" />
+            </div>
+            <BillSelect label="Status" value={statusFilter} onValueChange={setStatusFilter} options={['All', ...raStatusOptions]} />
+            <BillDateFilter label="Date From" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+            <BillDateFilter label="Date To" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+            <Button type="button" variant="outline" className="h-11" onClick={exportRaBills} disabled={filteredRaBills.length === 0}>
+              <Download className="h-4 w-4" /> Export CSV
+            </Button>
+            <Button type="button" variant="outline" className="h-11 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={clearRaFilters}>
+              <ChevronDown className="h-4 w-4" /> Clear filters
+            </Button>
+          </div>
+        </div>
+
+        {bills.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+              <FileText className="h-7 w-7" />
+            </div>
+            <p className="mt-4 text-base font-semibold text-foreground">{emptyTitle}</p>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+              Add running account bills to track submitted, approved, received, and outstanding amounts.
+            </p>
+            {isAdmin && (
+              <Button onClick={openAddRaBill} className="mt-5 bg-emerald-600 text-white hover:bg-emerald-700">
+                <Plus className="h-4 w-4" /> Add first RA bill
+              </Button>
+            )}
+          </div>
+        ) : filteredRaBills.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
+            <Search className="mx-auto h-8 w-8 text-muted-foreground" />
+            <p className="mt-3 text-sm font-medium">No RA bills match these filters.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Try a different RA bill number, status, or date range.</p>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-3 md:hidden">
+              {filteredRaBills.map((bill) => (
+                <RABillMobileCard key={bill.id} bill={bill} isAdmin={isAdmin} onView={setViewingRaBill} onEdit={openEditRaBill} onDelete={setDeleteRaBillId} />
+              ))}
+            </div>
+
+            <div className="hidden overflow-hidden rounded-2xl border border-border/80 bg-background shadow-sm md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                    <TableHead className="pl-6 text-xs font-semibold uppercase text-slate-500">RA Bill No.</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-slate-500">Date</TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Submitted</TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Approved</TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Received</TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Deductions</TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Balance</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-slate-500">Status</TableHead>
+                    <TableHead className="pr-6 text-right text-xs font-semibold uppercase text-slate-500">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRaBills.map((bill) => {
+                    const amounts = getBillAmounts(bill)
+                    return (
+                      <TableRow key={bill.id} className="h-16 border-border/70 hover:bg-slate-50/50">
+                        <TableCell className="pl-6 font-mono text-sm font-semibold text-emerald-700">{getBillTitle(bill, '-')}</TableCell>
+                        <TableCell className="text-sm text-slate-700">{formatDate(getBillDate(bill))}</TableCell>
+                        <BillMoneyCell value={amounts.submitted} />
+                        <BillMoneyCell value={amounts.approved} />
+                        <BillMoneyCell value={amounts.received} />
+                        <BillMoneyCell value={amounts.deductions} />
+                        <BillMoneyCell value={amounts.balance} strong />
+                        <TableCell><BillInvoiceStatusBadge status={bill.status || 'Draft'} /></TableCell>
+                        <TableCell className="pr-6">
+                          <div className="flex justify-end gap-2">
+                            <Button type="button" variant="outline" size="icon-sm" onClick={() => setViewingRaBill(bill)} aria-label="View RA bill"><Eye className="h-3.5 w-3.5" /></Button>
+                            {isAdmin && <Button type="button" variant="outline" size="icon-sm" onClick={() => openEditRaBill(bill)} aria-label="Edit RA bill"><Pencil className="h-3.5 w-3.5" /></Button>}
+                            {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => setDeleteRaBillId(bill.id)} aria-label="Delete RA bill"><Trash2 className="h-3.5 w-3.5" /></Button>}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+              <div className="flex flex-col gap-3 border-t border-border/80 px-4 py-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between md:px-6">
+                <span>Showing 1 to {filteredRaBills.length} of {bills.length} RA bills</span>
+                <span>{filteredRaBills.length === bills.length ? 'All RA bills visible' : 'Filtered view'}</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <Dialog open={raBillFormOpen} onOpenChange={setRaBillFormOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingRaBill ? 'Edit RA Bill' : 'Add RA Bill'}</DialogTitle>
+            <DialogDescription>Record running account bill approvals, payments, deductions, and receivables.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <BillField label="RA Bill No." value={raBillForm.no} onChange={setRaBillFormValue('no')} disabled={!isAdmin} placeholder="RA-06" />
+            <BillField label="RA Bill Date" type="date" value={raBillForm.date} onChange={setRaBillFormValue('date')} disabled={!isAdmin} />
+            <BillField label="Submitted Amount" type="number" value={raBillForm.amount} onChange={setRaBillFormValue('amount')} disabled={!isAdmin} />
+            <BillField label="Approved Amount" type="number" value={raBillForm.approvedAmount} onChange={setRaBillFormValue('approvedAmount')} disabled={!isAdmin} />
+            <BillField label="Received Amount" type="number" value={raBillForm.receivedAmount} onChange={setRaBillFormValue('receivedAmount')} disabled={!isAdmin} />
+            <BillField label="Deductions" type="number" value={raBillForm.deductions} onChange={setRaBillFormValue('deductions')} disabled={!isAdmin} />
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Status</Label>
+              <Select value={raBillForm.status} onValueChange={setRaBillFormValue('status')} disabled={!isAdmin}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{raStatusOptions.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Remarks / Notes</Label>
+              <Textarea value={raBillForm.remarks} onChange={setRaBillFormValue('remarks')} rows={3} placeholder="Add remarks or notes" disabled={!isAdmin} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setRaBillFormOpen(false)}>Cancel</Button>
+            <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={saveRaBillForm} disabled={!isAdmin}>
+              {editingRaBill ? 'Save Changes' : 'Add RA Bill'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <RABillViewDialog bill={viewingRaBill} onOpenChange={(open) => !open && setViewingRaBill(null)} />
+      <ConfirmDelete
+        open={!!deleteRaBillId}
+        onOpenChange={() => setDeleteRaBillId(null)}
+        onConfirm={() => {
+          if (!deleteRaBillId) return
+          onRemove(deleteRaBillId)
+          setDeleteRaBillId(null)
+          toast.success('RA bill deleted')
+        }}
+        title="Delete RA bill"
+        description="This will permanently remove this RA bill from the tender."
+      />
+    </>
+  )
+}
+
+function RABillMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
+  const amounts = getBillAmounts(bill)
+  return (
+    <div className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-mono text-base font-semibold text-emerald-700">{getBillTitle(bill, '-')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{formatDate(getBillDate(bill))}</p>
+        </div>
+        <BillInvoiceStatusBadge status={bill.status || 'Draft'} />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3">
+        <MobileBillAmount label="Submitted" value={amounts.submitted} />
+        <MobileBillAmount label="Approved" value={amounts.approved} />
+        <MobileBillAmount label="Received" value={amounts.received} tone="profit" />
+        <MobileBillAmount label="Deductions" value={amounts.deductions} />
+        <MobileBillAmount label="Balance" value={amounts.balance} tone={amounts.balance > 0 ? 'accent' : 'profit'} />
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        <Button type="button" variant="outline" size="icon-sm" onClick={() => onView(bill)} aria-label="View RA bill"><Eye className="h-3.5 w-3.5" /></Button>
+        {isAdmin && <Button type="button" variant="outline" size="icon-sm" onClick={() => onEdit(bill)} aria-label="Edit RA bill"><Pencil className="h-3.5 w-3.5" /></Button>}
+        {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600" onClick={() => onDelete(bill.id)} aria-label="Delete RA bill"><Trash2 className="h-3.5 w-3.5" /></Button>}
+      </div>
+    </div>
+  )
+}
+
+function RABillViewDialog({ bill, onOpenChange }) {
+  const amounts = getBillAmounts(bill || {})
+  return (
+    <Dialog open={!!bill} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{bill ? getBillTitle(bill, 'RA Bill') : 'RA Bill'}</DialogTitle>
+          <DialogDescription>RA bill approvals, payments, deductions, and receivable details.</DialogDescription>
+        </DialogHeader>
+        {bill && (
+          <div className="grid gap-3 text-sm sm:grid-cols-2">
+            <BillDetail label="Status" value={bill.status || 'Draft'} />
+            <BillDetail label="Date" value={formatDate(getBillDate(bill))} />
+            <BillDetail label="Submitted" value={formatCurrency(amounts.submitted)} />
+            <BillDetail label="Approved" value={formatCurrency(amounts.approved)} />
+            <BillDetail label="Received" value={formatCurrency(amounts.received)} />
+            <BillDetail label="Deductions" value={formatCurrency(amounts.deductions)} />
+            <BillDetail label="Balance" value={formatCurrency(amounts.balance)} />
+            <div className="sm:col-span-2">
+              <BillDetail label="Remarks / Notes" value={bill.remarks || bill.desc || '-'} />
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function LegacyBillFinanceSection({
   title,
   description,
   bills,
