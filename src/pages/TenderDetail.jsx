@@ -1331,7 +1331,7 @@ export default function TenderDetail() {
   ].filter(Boolean).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 6)
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:space-y-5 md:pb-0">
+    <div className="mx-auto max-w-[1500px] space-y-4 pb-[calc(env(safe-area-inset-bottom)+120px)] md:space-y-5 md:pb-0">
       <Breadcrumbs
         items={[
           { label: 'Home', href: '/home' },
@@ -2582,8 +2582,8 @@ export default function TenderDetail() {
 
       {/* Floating save for mobile */}
       {isAdmin && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 p-4 backdrop-blur md:hidden">
-          <Button onClick={save} disabled={saving || !dirty} size="lg" className="h-14 w-full rounded-xl bg-emerald-600 text-white shadow-lg hover:bg-emerald-700">
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+          <Button onClick={save} disabled={saving || !dirty} size="lg" className="h-12 w-full rounded-xl bg-emerald-600 text-white shadow-lg hover:bg-emerald-700">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save Changes
           </Button>
@@ -3043,23 +3043,23 @@ function AwardWorkOrderSection({ details, timeline, isAdmin, onEdit }) {
   return (
     <div className="space-y-4">
       <Card className="rounded-2xl border-border/80 shadow-sm">
-        <CardHeader className="p-4 pb-3 md:p-5 md:pb-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <CardHeader className="p-3 pb-2 md:p-5 md:pb-3">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">Post Award</p>
-              <CardTitle className="mt-1 text-xl">Award / Work Order</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-700 md:text-xs md:tracking-[0.22em]">Post Award</p>
+              <CardTitle className="mt-0.5 text-lg md:mt-1 md:text-xl">Award / Work Order</CardTitle>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground md:text-sm">
                 Track award details, work order information, contract period, securities, and project execution dates.
               </p>
             </div>
             {isAdmin && (
-              <Button className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto" onClick={onEdit}>
+              <Button className="h-10 w-full bg-emerald-600 text-sm text-white hover:bg-emerald-700 sm:w-auto" onClick={onEdit}>
                 <Pencil className="h-4 w-4" /> Edit Award Details
               </Button>
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 p-4 pt-0 md:p-5 md:pt-0">
+        <CardContent className="space-y-3 p-3 pt-0 md:space-y-4 md:p-5 md:pt-0">
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 min-[1800px]:grid-cols-6">
             <AwardMetric icon={CheckCircle} label="Award Status" value={details.awardStatus || 'Not Awarded'} badgeClass={getAwardStatusClass(details.awardStatus)} />
             <AwardMetric icon={Banknote} label="Contract Value" value={Number(details.contractValue) > 0 ? formatCurrency(details.contractValue) : MISSING_VALUE} helper="Awarded value" />
@@ -3115,20 +3115,20 @@ function AwardMetric({ icon: Icon, label, value, helper, tone, badgeClass }) {
       ? 'bg-amber-50 text-amber-700'
       : 'bg-emerald-50 text-emerald-700'
   return (
-    <div className="flex min-h-[108px] max-w-full min-w-0 items-start gap-3 rounded-xl border border-border/80 bg-background p-3.5 shadow-sm">
+    <div className="flex min-h-0 max-w-full min-w-0 items-start gap-2.5 rounded-xl border border-border/80 bg-background p-2.5 shadow-sm sm:min-h-[108px] sm:gap-3 sm:p-3.5">
       {Icon && (
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 sm:rounded-xl ${iconClass}`}>
           <Icon className="h-4 w-4" />
         </div>
       )}
       <div className="min-w-0 flex-1 overflow-hidden">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-[11px]">{label}</p>
         {badgeClass ? (
-          <Badge variant="outline" className={`mt-2 max-w-full whitespace-normal break-words rounded-full px-2.5 py-1 text-xs leading-4 ${badgeClass}`}>{value}</Badge>
+          <Badge variant="outline" className={`mt-1 max-w-full whitespace-normal break-words rounded-full px-2 py-0.5 text-xs leading-4 sm:mt-2 sm:px-2.5 sm:py-1 ${badgeClass}`}>{value}</Badge>
         ) : (
-          <p className={`mt-2 max-w-full break-words text-sm font-semibold leading-5 [overflow-wrap:anywhere] ${toneClass}`}>{value || MISSING_VALUE}</p>
+          <p className={`mt-1 max-w-full break-words text-[13px] font-semibold leading-5 [overflow-wrap:anywhere] sm:mt-2 sm:text-sm ${toneClass}`}>{value || MISSING_VALUE}</p>
         )}
-        {helper && <p className="mt-1 line-clamp-2 max-w-full break-all text-xs leading-4 text-muted-foreground">{helper}</p>}
+        {helper && <p className="mt-0.5 line-clamp-2 max-w-full break-all text-[11px] leading-4 text-muted-foreground sm:mt-1 sm:text-xs">{helper}</p>}
       </div>
     </div>
   )
@@ -3137,20 +3137,20 @@ function AwardMetric({ icon: Icon, label, value, helper, tone, badgeClass }) {
 function AwardDetailCard({ title, icon: Icon, rows }) {
   return (
     <Card className="rounded-2xl border-border/80 shadow-sm">
-      <CardHeader className="p-4 pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+      <CardHeader className="p-3 pb-1.5 sm:p-4 sm:pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 sm:h-8 sm:w-8">
             <Icon className="h-4 w-4" />
           </span>
           {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4 pt-1">
+      <CardContent className="p-3 pt-1 sm:p-4 sm:pt-1">
         <div className="divide-y divide-border/70">
         {rows.map(([label, value]) => (
-          <div key={label} className="grid grid-cols-1 gap-1 py-3 first:pt-1 last:pb-0 sm:grid-cols-[190px_minmax(0,1fr)] sm:items-start sm:gap-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-            <p className={`min-w-0 break-words text-sm font-semibold leading-5 ${value === MISSING_VALUE ? 'text-muted-foreground' : 'text-foreground'}`}>
+          <div key={label} className="grid grid-cols-1 gap-1 py-2.5 first:pt-1 last:pb-0 sm:grid-cols-[190px_minmax(0,1fr)] sm:items-start sm:gap-4 sm:py-3">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs">{label}</p>
+            <p className={`min-w-0 break-words text-[13px] font-semibold leading-5 sm:text-sm ${value === MISSING_VALUE ? 'text-muted-foreground' : 'text-foreground'}`}>
               {value || MISSING_VALUE}
             </p>
           </div>
