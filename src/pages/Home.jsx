@@ -6,17 +6,19 @@ import {
   ArrowDown,
   ArrowUp,
   Banknote,
+  CalendarCheck,
   Calendar as CalendarIcon,
   CheckSquare,
   ChevronRight,
   Clock,
+  FolderOpen,
   FileStack,
   FileText,
   Landmark,
+  ListTodo,
   MapPin,
-  Trophy,
-  TrendingUp,
-  WalletCards,
+  Plus,
+  ReceiptText,
   X,
 } from 'lucide-react'
 import {
@@ -46,7 +48,6 @@ import {
   cn,
   daysUntil,
   formatCurrency,
-  formatDate,
   getTenderDisplayStatus,
   isActionableTenderStatus,
   isTaskDone,
@@ -110,30 +111,30 @@ function DashboardMetric({ title, value, icon: Icon, helper, href, tone = 'prima
     : 'text-muted-foreground'
 
   const card = (
-    <Card className={cn('h-full rounded-xl border bg-card shadow-sm transition-all', colors.card)}>
-      <CardContent className="flex h-full items-start gap-4 p-4 sm:p-5">
-        <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl', colors.icon)}>
+    <Card className={cn('h-full min-w-0 rounded-xl border bg-card shadow-sm transition-all', colors.card)}>
+      <CardContent className="flex h-full min-w-0 items-start gap-3 p-3.5 sm:gap-4 sm:p-4 xl:p-5">
+        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11', colors.icon)}>
           <Icon className="h-5 w-5" aria-hidden="true" />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-w-0 items-start justify-between gap-2">
+            <p className="min-w-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:text-[11px]">
               {title}
             </p>
             {trend && (
-              <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold', colors.chip)}>
+              <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold', colors.chip)}>
                 {TrendIcon && <TrendIcon className="h-3 w-3" aria-hidden="true" />}
                 {trend}
               </span>
             )}
           </div>
-          <p className="mt-3 truncate text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
+          <p className="mt-2 max-w-full break-words text-[22px] font-semibold leading-7 tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-2xl xl:text-[26px]">
             {value}
           </p>
           {helper && (
-            <p className={cn('mt-2 flex items-center gap-1 text-xs leading-5', helperColor)}>
+            <p className={cn('mt-1.5 flex min-w-0 items-center gap-1 text-xs leading-5', helperColor)}>
               {!trend && TrendIcon && <TrendIcon className="h-3.5 w-3.5" aria-hidden="true" />}
-              {helper}
+              <span className="min-w-0 truncate">{helper}</span>
             </p>
           )}
         </div>
@@ -142,6 +143,111 @@ function DashboardMetric({ title, value, icon: Icon, helper, href, tone = 'prima
   )
 
   return href ? <Link to={href} className="block h-full">{card}</Link> : card
+}
+
+function toDate(value) {
+  if (!value) return null
+  if (value instanceof Date) return value
+  if (typeof value?.toDate === 'function') return value.toDate()
+  if (typeof value?.seconds === 'number') return new Date(value.seconds * 1000)
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function startOfLocalDay(value = new Date()) {
+  const date = toDate(value)
+  if (Number.isNaN(date.getTime())) return null
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function isSameLocalDay(value, compareTo = new Date()) {
+  const date = startOfLocalDay(value)
+  const target = startOfLocalDay(compareTo)
+  return Boolean(date && target && date.getTime() === target.getTime())
+}
+
+function isBeforeToday(value) {
+  const date = startOfLocalDay(value)
+  const today = startOfLocalDay()
+  return Boolean(date && today && date.getTime() < today.getTime())
+}
+
+function toMillis(value) {
+  const date = toDate(value)
+  return date ? date.getTime() : 0
+}
+
+function formatDashboardDate(value) {
+  const date = toDate(value)
+  if (!date) return '—'
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : []
+}
+
+function DashboardSectionHeader({ title, description, action }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      </div>
+      {action}
+    </div>
+  )
+}
+
+function AttentionItem({ icon: Icon, title, description, meta, tone = 'warning', onClick }) {
+  const toneClass = {
+    danger: 'border-rose-200 bg-rose-50/70 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300',
+    warning: 'border-amber-200 bg-amber-50/70 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300',
+    info: 'border-blue-200 bg-blue-50/70 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/20 dark:text-blue-300',
+    success: 'border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300',
+  }[tone]
+
+  const content = (
+    <>
+      <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border', toneClass)}>
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{title}</span>
+        {description && <span className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{description}</span>}
+      </span>
+      {meta && <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">{meta}</span>}
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full min-w-0 items-start gap-3 rounded-xl border bg-background p-3 text-left shadow-sm transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex min-w-0 items-start gap-3 rounded-xl border bg-background p-3 shadow-sm">
+      {content}
+    </div>
+  )
+}
+
+function FinanceLine({ label, value, tone }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2.5">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className={cn('text-sm font-semibold tabular-nums', tone === 'danger' ? 'text-rose-700 dark:text-rose-300' : tone === 'success' ? 'text-emerald-700 dark:text-emerald-300' : 'text-foreground')}>
+        {value}
+      </span>
+    </div>
+  )
 }
 
 export default function Home() {
@@ -291,26 +397,163 @@ export default function Home() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = (displayName || 'there').split(' ')[0]
   const todayLabel = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const dueSoonCount = actionableTenderDeadlines
+    .map((t) => daysUntil(t.submissionDate))
+    .filter((days) => days !== null && days >= 0 && days <= 7).length
+  const overdueActiveTenders = actionableTenderDeadlines
+    .filter((t) => t.submissionDate && isBeforeToday(t.submissionDate))
+    .map((t) => ({ ...t, daysLeft: daysUntil(t.submissionDate) }))
+  const todaysSubmissions = actionableTenderDeadlines
+    .filter((t) => t.submissionDate && isSameLocalDay(t.submissionDate))
+    .map((t) => ({ ...t, attentionType: 'Submission due today' }))
+  const todaysOpenings = tenders
+    .filter((t) => t.openingDate && isSameLocalDay(t.openingDate))
+    .map((t) => ({ ...t, attentionType: 'Bid opening today' }))
+  const todaysTasks = openTodos
+    .filter((todo) => todo.dueDate && isSameLocalDay(todo.dueDate))
+  const actionRequiredItems = [
+    ...overdueActiveTenders.slice(0, 3).map((t) => ({
+      id: `overdue-${t.id}`,
+      icon: AlertTriangle,
+      title: t.name || 'Untitled tender',
+      description: `${t.agency || 'Tender'} submission is overdue.`,
+      meta: 'Overdue',
+      tone: 'danger',
+      onClick: () => navigate(`/tenders/${t.id}`),
+    })),
+    ...todaysSubmissions.slice(0, 3).map((t) => ({
+      id: `submission-${t.id}`,
+      icon: Clock,
+      title: t.name || 'Untitled tender',
+      description: `${t.agency || 'Tender'} requires submission today.`,
+      meta: 'Today',
+      tone: 'warning',
+      onClick: () => navigate(`/tenders/${t.id}`),
+    })),
+    ...todaysOpenings.slice(0, 2).map((t) => ({
+      id: `opening-${t.id}`,
+      icon: CalendarCheck,
+      title: t.name || 'Untitled tender',
+      description: `${t.agency || 'Tender'} bid opening is scheduled today.`,
+      meta: 'Opening',
+      tone: 'info',
+      onClick: () => navigate(`/tenders/${t.id}`),
+    })),
+    ...atRisk.slice(0, 2).map((po) => ({
+      id: `po-${po.id}`,
+      icon: Landmark,
+      title: po.poNumber ? `Pay order #${po.poNumber}` : 'Pay order needs action',
+      description: po.bank ? `${po.bank} is awaiting bid result.` : 'Submitted pay order is awaiting bid result.',
+      meta: 'Pay Order',
+      tone: 'warning',
+      onClick: () => navigate('/pay-orders'),
+    })),
+    ...todaysTasks.slice(0, 3).map((todo) => ({
+      id: `task-${todo.id}`,
+      icon: CheckSquare,
+      title: todo.text || 'Task due today',
+      description: todo.tenderName || todo.notes || 'Open task due today.',
+      meta: 'Task',
+      tone: 'info',
+      onClick: () => navigate('/todo'),
+    })),
+  ].slice(0, 6)
+
+  const totalQuoted = tenders.reduce((sum, tender) => sum + (Number(tender.quotedAmount) || Number(tender.value) || 0), 0)
+  const totalBilled = wonTenders.reduce((sum, tender) => {
+    const bills = Array.isArray(tender.bills) ? tender.bills : []
+    const raBills = Array.isArray(tender.raBills) ? tender.raBills : []
+    return sum + [...bills, ...raBills].reduce((billSum, bill) => billSum + (Number(bill.approvedAmount) || Number(bill.amount) || Number(bill.submittedAmount) || 0), 0)
+  }, 0)
+  const financeProfit = totalBilled > 0 ? totalBilled - totalExpenses : expectedProfit
+
+  const recentActivity = [
+    ...tenders.map((t) => ({
+      id: `tender-${t.id}`,
+      type: 'Tender',
+      title: t.name || 'Tender updated',
+      description: t.agency || 'Tender record',
+      date: t.updatedAt || t.createdAt,
+      href: `/tenders/${t.id}`,
+      icon: FileText,
+    })),
+    ...payOrders.map((po) => ({
+      id: `po-${po.id}`,
+      type: 'Pay Order',
+      title: po.poNumber ? `Pay order #${po.poNumber}` : 'Pay order updated',
+      description: po.bank || po.status || 'Pay order record',
+      date: po.updatedAt || po.createdAt,
+      href: '/pay-orders',
+      icon: Landmark,
+    })),
+    ...expenses.map((expense) => ({
+      id: `expense-${expense.id}`,
+      type: 'Expense',
+      title: expense.title || expense.description || 'Expense added',
+      description: formatCurrency(expense.amount),
+      date: expense.updatedAt || expense.createdAt || expense.date,
+      href: '/expenses',
+      icon: ReceiptText,
+    })),
+    ...tenders.flatMap((tender) => asArray(tender.siteVisits).map((visit, index) => ({
+      id: `visit-${tender.id}-${visit.id || index}`,
+      type: 'Site Visit',
+      title: visit.location || tender.name || 'Site visit added',
+      description: tender.name || 'Project activity',
+      date: visit.updatedAt || visit.createdAt || visit.visitDate || visit.date,
+      href: `/tenders/${tender.id}`,
+      icon: MapPin,
+    }))),
+    ...tenders.flatMap((tender) => asArray(tender.documents).map((documentItem, index) => ({
+      id: `document-${tender.id}-${documentItem.id || index}`,
+      type: 'Document',
+      title: documentItem.title || documentItem.name || 'Document uploaded',
+      description: tender.name || 'Tender document',
+      date: documentItem.updatedAt || documentItem.uploadedAt || documentItem.createdAt,
+      href: `/tenders/${tender.id}`,
+      icon: FolderOpen,
+    }))),
+  ]
+    .filter((item) => toMillis(item.date) > 0)
+    .sort((a, b) => toMillis(b.date) - toMillis(a.date))
+    .slice(0, 6)
+
+  const quickLinks = [
+    { label: 'Tenders', description: 'Pipeline and submissions', href: '/tenders', icon: FileStack },
+    { label: 'Pay Orders', description: 'Security instruments', href: '/pay-orders', icon: Landmark },
+    { label: 'Documents', description: 'Tender files and records', href: '/documents', icon: FolderOpen },
+    { label: 'Calendar', description: 'Deadlines and openings', href: '/calendar', icon: CalendarIcon },
+    { label: 'To-Do', description: 'Open tasks and follow-ups', href: '/todo', icon: ListTodo },
+  ]
 
   return (
     <div className="space-y-5 lg:space-y-6">
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-[30px]">
-            {greeting}, {firstName} 👋
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Here's what's happening with your projects today.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <div className="hidden items-center gap-2 rounded-lg border bg-background px-3 py-2 text-muted-foreground shadow-sm sm:flex">
-            <CalendarIcon className="h-4 w-4" aria-hidden="true" />
-            {todayLabel}
+      <section className="rounded-2xl border bg-card p-4 shadow-sm sm:p-5 lg:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Daily Control Center</p>
+            <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-[32px]">
+              Dashboard
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+              Track tenders, deadlines, pay orders, payments, and project activity.
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">{greeting}, {firstName}. Today is {todayLabel}.</p>
           </div>
-          <Button variant="outline" size="sm" className="h-9 rounded-lg">
-            This Week <ChevronRight className="h-4 w-4 rotate-90" aria-hidden="true" />
-          </Button>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <Button asChild className="h-10 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">
+              <Link to="/tenders"><Plus className="h-4 w-4" /> New Tender</Link>
+            </Button>
+            <Button asChild variant="outline" className="h-10 rounded-xl">
+              <Link to="/pay-orders"><Plus className="h-4 w-4" /> Pay Order</Link>
+            </Button>
+            <Button asChild variant="outline" className="h-10 rounded-xl">
+              <Link to="/expenses"><Plus className="h-4 w-4" /> Expense</Link>
+            </Button>
+            <Button asChild variant="outline" className="h-10 rounded-xl">
+              <Link to="/calendar"><CalendarIcon className="h-4 w-4" /> Calendar</Link>
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -390,15 +633,59 @@ export default function Home() {
         </section>
       )}
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <DashboardMetric icon={FileStack} title="Active Tenders" value={activeTenders.length} href="/tenders" tone="primary" helper="Bidding, submitted, awarded, or in progress" trend={activeTenders.length > 0 ? String(activeTenders.length) : null} trendPositive={activeTenders.length > 0} />
-        <DashboardMetric icon={FileText} title="Pay Orders at Risk" value={atRisk.length} href="/pay-orders" tone="warning" helper="Submitted, bid pending" trend={atRisk.length === 0 ? 'Clear' : String(atRisk.length)} trendPositive={atRisk.length === 0} />
-        <DashboardMetric icon={CheckSquare} title="Open Tasks" value={openTodos.length} href="/todo" tone="info" helper={openTodos.length === 0 ? 'All tasks done' : 'Remaining'} trend={openTodos.length > 0 ? String(openTodos.length) : '0'} trendPositive={openTodos.length === 0} />
-        <DashboardMetric icon={Trophy} title="Won Tenders" value={wonTenders.length} href="/tenders" tone="success" helper={`${inProgressTenders.length} in progress`} trend={wonTenders.length > 0 ? String(wonTenders.length) : null} trendPositive={wonTenders.length > 0} />
-        <DashboardMetric icon={TrendingUp} title="Expected Profit" value={formatCurrency(expectedProfit)} href="/tenders" tone={expectedProfit >= 0 ? 'success' : 'danger'} helper="Won tenders only" trendPositive={expectedProfit >= 0} />
-        <DashboardMetric icon={WalletCards} title="Cash Position" value={formatCurrency(cashPosition)} href="/tenders" tone={cashPosition >= 0 ? 'success' : 'danger'} helper="Won tenders only" trendPositive={cashPosition >= 0} />
-        <DashboardMetric icon={Banknote} title="Receivable" value={formatCurrency(receivable)} href="/tenders" tone="info" helper="Won tenders only" trendPositive={receivable === 0} />
-        <DashboardMetric icon={Landmark} title="PO Exposure" value={formatCurrency(payOrdersHeld)} href="/pay-orders" tone={payOrdersHeld > 0 ? 'warning' : 'success'} helper="Pending, submitted, or held" trendPositive={payOrdersHeld === 0} />
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-6">
+        <DashboardMetric icon={FileStack} title="Active Tenders" value={activeTenders.length} href="/tenders" tone="primary" helper="Open pipeline" trend={activeTenders.length > 0 ? String(activeTenders.length) : null} trendPositive={activeTenders.length > 0} />
+        <DashboardMetric icon={Clock} title="Due Soon" value={dueSoonCount} href="/calendar" tone={dueSoonCount > 0 ? 'warning' : 'success'} helper="Next 7 days" trend={dueSoonCount === 0 ? 'Clear' : String(dueSoonCount)} trendPositive={dueSoonCount === 0} />
+        <DashboardMetric icon={Landmark} title="Pay Orders" value={payOrders.length} href="/pay-orders" tone="info" helper={`${atRisk.length} need action`} trend={atRisk.length > 0 ? String(atRisk.length) : '0'} trendPositive={atRisk.length === 0} />
+        <DashboardMetric icon={Banknote} title="Receivables" value={formatCurrency(receivable)} href="/tenders" tone="info" helper="Won tenders" trendPositive={receivable === 0} />
+        <DashboardMetric icon={ReceiptText} title="Expenses" value={formatCurrency(totalExpenses)} href="/expenses" tone={totalExpenses > 0 ? 'warning' : 'success'} helper="Project expenses" trendPositive={false} />
+        <DashboardMetric icon={CheckSquare} title="Open Tasks" value={openTodos.length} href="/todo" tone="primary" helper={openTodos.length === 0 ? 'All tasks done' : 'Pending follow-ups'} trend={openTodos.length > 0 ? String(openTodos.length) : '0'} trendPositive={openTodos.length === 0} />
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <Card className="rounded-xl border shadow-sm">
+          <CardHeader className="pb-3">
+            <DashboardSectionHeader
+              title="Today / Action Required"
+              description="What needs attention across submissions, openings, pay orders, and tasks."
+              action={(
+                <Link to="/calendar">
+                  <Button variant="outline" size="sm" className="h-9 rounded-lg">
+                    Calendar <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
+            />
+          </CardHeader>
+          <CardContent className="pt-0">
+            {actionRequiredItems.length === 0 ? (
+              <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-8 text-center">
+                <p className="text-sm font-semibold text-foreground">No urgent actions today</p>
+                <p className="mt-1 text-xs text-muted-foreground">Deadlines, pay orders, and due tasks will appear here when they need attention.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {actionRequiredItems.map((item) => (
+                  <AttentionItem key={item.id} {...item} />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-xl border shadow-sm">
+          <CardHeader className="pb-3">
+            <DashboardSectionHeader title="Financial Snapshot" description="Current tender finance position." />
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            <FinanceLine label="Quoted Total" value={formatCurrency(totalQuoted)} />
+            <FinanceLine label="Expenses" value={formatCurrency(totalExpenses)} tone={totalExpenses > 0 ? 'danger' : undefined} />
+            <FinanceLine label="Billed" value={formatCurrency(totalBilled)} />
+            <FinanceLine label="Received" value={formatCurrency(tenderFinancials.totalReceived)} tone="success" />
+            <FinanceLine label="Receivable" value={formatCurrency(receivable)} />
+            <FinanceLine label={financeProfit >= 0 ? 'Profit / Surplus' : 'Loss'} value={formatCurrency(financeProfit)} tone={financeProfit >= 0 ? 'success' : 'danger'} />
+          </CardContent>
+        </Card>
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-5">
@@ -478,9 +765,9 @@ export default function Home() {
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Clock size={16} className="text-muted-foreground" />
-                Upcoming Submissions
+                Upcoming Deadlines
               </CardTitle>
-              <CardDescription>Next tenders due for submission</CardDescription>
+              <CardDescription>Next tender submissions and follow-ups</CardDescription>
             </div>
             <Link to="/tenders">
               <Button variant="ghost" size="sm" className="h-8 text-xs">
@@ -526,11 +813,14 @@ export default function Home() {
                         </div>
 
                         <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className="inline-flex rounded-full border bg-muted/40 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                            Submission
+                          </span>
                           <StatusBadge status={getTenderDisplayStatus(t)} />
                           <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${dueClass}`}>
                             {dueLabel}
                           </span>
-                          <span className="text-xs text-muted-foreground">{formatDate(t.submissionDate)}</span>
+                          <span className="text-xs text-muted-foreground">{formatDashboardDate(t.submissionDate)}</span>
                         </div>
 
                         <div className="mt-3 flex items-center justify-end border-t pt-3">
@@ -548,6 +838,7 @@ export default function Home() {
                     <TableRow>
                       <TableHead>Tender</TableHead>
                       <TableHead className="hidden md:table-cell">Agency</TableHead>
+                      <TableHead className="hidden lg:table-cell">Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Due</TableHead>
                     </TableRow>
@@ -567,6 +858,7 @@ export default function Home() {
                           </div>
                         </TableCell>
                         <TableCell className="hidden max-w-[220px] truncate text-muted-foreground md:table-cell">{t.agency || '-'}</TableCell>
+                        <TableCell className="hidden text-muted-foreground lg:table-cell">Submission</TableCell>
                         <TableCell><StatusBadge status={getTenderDisplayStatus(t)} /></TableCell>
                         <TableCell className="text-right tabular-nums">
                           <span className={t.daysLeft <= 1 ? 'font-semibold text-rose-600 dark:text-rose-400' : t.daysLeft <= 3 ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}>
@@ -617,7 +909,7 @@ export default function Home() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium leading-tight text-foreground">{todo.text}</p>
                         <p className={`mt-1 text-xs ${overdue ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'}`}>
-                          {todo.dueDate ? `Due ${formatDate(todo.dueDate)}` : 'No due date'}
+                          {todo.dueDate ? `Due ${formatDashboardDate(todo.dueDate)}` : 'No due date'}
                         </p>
                       </div>
                       <input
@@ -628,6 +920,75 @@ export default function Home() {
                         aria-label={`Mark task complete: ${todo.text}`}
                         className="h-4 w-4 shrink-0 cursor-pointer rounded border-border accent-primary"
                       />
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <Card className="rounded-xl border shadow-sm">
+          <CardHeader className="pb-3">
+            <DashboardSectionHeader title="Quick Links" description="Jump into the most-used modules." />
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-3 pt-0 sm:grid-cols-2">
+            {quickLinks.map((item) => {
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className="flex min-w-0 items-center gap-3 rounded-xl border bg-background p-3 shadow-sm transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-foreground">{item.label}</span>
+                    <span className="mt-0.5 block line-clamp-1 text-xs text-muted-foreground">{item.description}</span>
+                  </span>
+                  <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                </Link>
+              )
+            })}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-xl border shadow-sm">
+          <CardHeader className="pb-3">
+            <DashboardSectionHeader title="Recent Activity" description="Latest tender, pay order, expense, document, and site visit updates." />
+          </CardHeader>
+          <CardContent className="pt-0">
+            {recentActivity.length === 0 ? (
+              <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-8 text-center">
+                <p className="text-sm font-semibold text-foreground">No recent activity</p>
+                <p className="mt-1 text-xs text-muted-foreground">Updates will appear here when records change.</p>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {recentActivity.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <li key={item.id}>
+                      <Link
+                        to={item.href}
+                        className="flex min-w-0 items-start gap-3 rounded-xl border bg-background p-3 shadow-sm transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                          <Icon className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="line-clamp-1 text-sm font-semibold text-foreground">{item.title}</span>
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">{item.type}</span>
+                          </span>
+                          <span className="mt-1 line-clamp-1 text-xs text-muted-foreground">{item.description}</span>
+                        </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{formatDashboardDate(item.date)}</span>
+                      </Link>
                     </li>
                   )
                 })}
