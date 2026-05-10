@@ -4,7 +4,7 @@ import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, 
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
-import { uploadTenderDocument } from '@/lib/supabaseStorage'
+import { hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
 import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinancials, getTenderDisplayStatus, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +27,7 @@ import {
   DollarSign, History, User, Receipt, FileText, Printer, Paperclip, ExternalLink,
   Banknote, CalendarDays, ClipboardList, FolderOpen, Landmark, WalletCards,
   Hash, Link as LinkIcon, Upload, Download, ChevronDown, BarChart3, PieChart,
-  Search, Image as ImageIcon, FileSpreadsheet, FileType2, Clock, Eye,
+  Search, Image as ImageIcon, FileSpreadsheet, FileType2, Clock, Eye, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -35,6 +35,7 @@ const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: ''
 const EMPTY_PO = { po: '', bank: '', amount: '', purpose: 'Bid Security', status: 'Pending', submitted: '', notes: '' }
 const SITE_VISIT_STATUSES = ['Completed', 'Partial', 'Issue']
 const EMPTY_SITE_VISIT = {
+  id: '',
   visitDate: '',
   visitTime: '',
   location: '',
@@ -45,6 +46,7 @@ const EMPTY_SITE_VISIT = {
   nextDayPlan: '',
   notes: '',
   status: 'Completed',
+  photos: [],
 }
 const INLINE_INPUT_CLASS = 'h-8 border-transparent bg-transparent px-0 text-sm shadow-none hover:border-input focus-visible:px-3 focus-visible:ring-1 md:text-base'
 const INLINE_TEXTAREA_CLASS = 'min-h-[44px] resize-none border-transparent bg-transparent px-0 py-1 text-sm shadow-none hover:border-input focus-visible:px-3 focus-visible:ring-1 md:text-base'
@@ -62,6 +64,33 @@ const DOCUMENT_CATEGORIES = [
 const BILL_STATUSES = ['Draft', 'Submitted', 'Approved', 'Paid', 'Partially Paid', 'Rejected']
 const BILL_STATUS_OPTIONS = ['Pending', 'Under Review', ...BILL_STATUSES]
 const BILL_TYPES = ['Running Bill', 'Final Bill', 'Invoice']
+const AWARD_STATUSES = ['Not Awarded', 'Awarded', 'Work Order Issued', 'In Progress', 'Completed', 'Closed']
+const EMPTY_AWARD_WORK_ORDER = {
+  awardStatus: 'Not Awarded',
+  awardDate: '',
+  workOrderNumber: '',
+  workOrderDate: '',
+  contractValue: '',
+  departmentReference: '',
+  startDate: '',
+  completionPeriod: '',
+  expectedCompletionDate: '',
+  actualCompletionDate: '',
+  extensionGranted: 'No',
+  extensionDays: '',
+  extensionRemarks: '',
+  performanceSecurityAmount: '',
+  performanceSecurityType: '',
+  performanceSecurityExpiryDate: '',
+  retentionPercentage: '',
+  retentionAmount: '',
+  mobilizationAdvance: '',
+  siteHandoverDate: '',
+  engineerContact: '',
+  contractorRepresentative: '',
+  executionStatus: '',
+  remarks: '',
+}
 const STATUS_MEANINGS = {
   Awarded: 'Won and awaiting kickoff or formal work start.',
   'In Progress': 'Won and work is underway.',
@@ -73,6 +102,7 @@ const STATUS_MEANINGS = {
 }
 
 const DOCUMENT_TYPE_FILTERS = ['All', 'PDF', 'Image', 'Excel', 'Word', 'Other']
+const MISSING_VALUE = '\u2014'
 
 function getDocumentKind(document = {}) {
   const text = `${document.fileType || ''} ${document.fileName || ''} ${document.title || ''} ${document.type || ''} ${document.url || ''}`.toLowerCase()
@@ -200,6 +230,64 @@ function getBillSummary(bills = []) {
   }, { submitted: 0, approved: 0, received: 0, deductions: 0, balance: 0 })
 }
 
+function addDaysToDate(dateValue, daysValue) {
+  if (!dateValue || !daysValue) return ''
+  const date = new Date(dateValue)
+  const days = Number(daysValue)
+  if (Number.isNaN(date.getTime()) || !Number.isFinite(days)) return ''
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function getAwardWorkOrderDetails(form = {}) {
+  const stored = form.awardWorkOrder || form.award || form.workOrder || {}
+  const contractValue = stored.contractValue ?? form.contractValue ?? form.value ?? form.awardedValue ?? ''
+  const startDate = stored.startDate ?? form.startDate ?? ''
+  const completionPeriod = stored.completionPeriod ?? form.completionPeriod ?? ''
+  const calculatedCompletionDate = addDaysToDate(startDate, completionPeriod)
+  const retentionPercentage = stored.retentionPercentage ?? ''
+  const retentionAmount = stored.retentionAmount || (
+    Number(contractValue) > 0 && Number(retentionPercentage) > 0
+      ? String((Number(contractValue) * Number(retentionPercentage)) / 100)
+      : ''
+  )
+
+  return {
+    ...EMPTY_AWARD_WORK_ORDER,
+    ...stored,
+    awardStatus: stored.awardStatus || stored.status || (['Awarded', 'In Progress', 'Completed'].includes(form.status) ? form.status : 'Not Awarded'),
+    contractValue,
+    startDate,
+    completionPeriod,
+    expectedCompletionDate: stored.expectedCompletionDate || form.expectedCompletionDate || calculatedCompletionDate || '',
+    actualCompletionDate: stored.actualCompletionDate || form.completionDate || '',
+    retentionAmount,
+  }
+}
+
+function getAwardStatusClass(status) {
+  if (status === 'Completed') return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
+  if (status === 'Closed') return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300'
+  if (status === 'In Progress') return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300'
+  if (status === 'Work Order Issued') return 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-300'
+  if (status === 'Awarded') return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300'
+  return 'border-muted bg-muted/40 text-muted-foreground'
+}
+
+function getAwardTimelineSummary(details = {}) {
+  const expected = details.expectedCompletionDate ? new Date(details.expectedCompletionDate) : null
+  if (!expected || Number.isNaN(expected.getTime())) return { label: '-', helper: 'No expected completion date', tone: 'neutral' }
+  if (['Completed', 'Closed'].includes(details.awardStatus)) return { label: 'Closed', helper: formatDate(details.actualCompletionDate || details.expectedCompletionDate), tone: 'profit' }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  expected.setHours(0, 0, 0, 0)
+  const diffDays = Math.ceil((expected.getTime() - today.getTime()) / 86400000)
+  if (diffDays < 0) return { label: `${Math.abs(diffDays)} days overdue`, helper: `Expected ${formatDate(details.expectedCompletionDate)}`, tone: 'loss' }
+  if (diffDays === 0) return { label: 'Due today', helper: `Expected ${formatDate(details.expectedCompletionDate)}`, tone: 'accent' }
+  return { label: `${diffDays} days remaining`, helper: `Expected ${formatDate(details.expectedCompletionDate)}`, tone: 'profit' }
+}
+
 export default function TenderDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -234,6 +322,13 @@ export default function TenderDetail() {
   const [viewSiteVisit, setViewSiteVisit] = useState(null)
   const [siteVisitForm, setSiteVisitForm] = useState(EMPTY_SITE_VISIT)
   const [deleteSiteVisitId, setDeleteSiteVisitId] = useState(null)
+  const [siteVisitPhotoUploading, setSiteVisitPhotoUploading] = useState(false)
+  const [siteVisitPhotoProgress, setSiteVisitPhotoProgress] = useState(0)
+  const [siteVisitPhotoError, setSiteVisitPhotoError] = useState('')
+  const [siteVisitPhotoPreview, setSiteVisitPhotoPreview] = useState({ photos: [], index: 0 })
+  const [awardDialogOpen, setAwardDialogOpen] = useState(false)
+  const [awardForm, setAwardForm] = useState(EMPTY_AWARD_WORK_ORDER)
+  const [expectedCompletionManuallyEdited, setExpectedCompletionManuallyEdited] = useState(false)
   const [completeOpen, setCompleteOpen] = useState(false)
   const [completionDate, setCompletionDate] = useState('')
   const [completionRemarks, setCompletionRemarks] = useState('')
@@ -840,8 +935,11 @@ export default function TenderDetail() {
   const openSiteVisitDialog = (item = null) => {
     setViewSiteVisit(null)
     setEditSiteVisit(item)
+    setSiteVisitPhotoError('')
+    setSiteVisitPhotoProgress(0)
     setSiteVisitForm(item
       ? {
+          id: item.id || uid(),
           visitDate: item.visitDate || item.date || '',
           visitTime: item.visitTime || item.time || item.visit_time || '',
           location: item.location || '',
@@ -852,20 +950,22 @@ export default function TenderDetail() {
           nextDayPlan: item.nextDayPlan || '',
           notes: item.notes || '',
           status: item.status || 'Completed',
+          photos: normalizeSiteVisitPhotos(item.photos),
         }
-      : { ...EMPTY_SITE_VISIT, visitDate: new Date().toISOString().slice(0, 10) })
+      : { ...EMPTY_SITE_VISIT, id: uid(), visitDate: new Date().toISOString().slice(0, 10), photos: [] })
     setSiteVisitDialogOpen(true)
   }
   const saveSiteVisit = () => {
     if (!siteVisitForm.visitDate) { toast.error('Visit date is required'); return }
     const nowIso = new Date().toISOString()
+    const payload = { ...siteVisitForm, id: siteVisitForm.id || editSiteVisit?.id || uid(), photos: normalizeSiteVisitPhotos(siteVisitForm.photos) }
     if (editSiteVisit && editSiteVisit.id) {
       updateAutosavedForm('siteVisits', (items = []) => items.map((v) =>
-        v.id === editSiteVisit.id ? { ...v, ...siteVisitForm, updatedAt: nowIso } : v
+        v.id === editSiteVisit.id ? { ...v, ...payload, updatedAt: nowIso } : v
       ))
       toast.success('Site visit updated')
     } else {
-      const newItem = { id: uid(), ...siteVisitForm, createdAt: nowIso, updatedAt: nowIso }
+      const newItem = { ...payload, createdAt: nowIso, updatedAt: nowIso }
       updateAutosavedForm('siteVisits', (items = []) => [...items, newItem])
       toast.success('Site visit added')
     }
@@ -878,7 +978,133 @@ export default function TenderDetail() {
     setDeleteSiteVisitId(null)
   }
   const setSiteVisitF = (k) => (e) => setSiteVisitForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
-
+  const uploadSiteVisitPhotos = async (files) => {
+    const imageFiles = Array.from(files || []).filter((file) => /^image\/(jpeg|jpg|png|webp)$/i.test(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name))
+    if (!imageFiles.length) {
+      if (files?.length) {
+        const message = 'Please select JPG, PNG, or WEBP photos.'
+        setSiteVisitPhotoError(message)
+        toast.error(message)
+      }
+      return
+    }
+    if (!hasSupabaseStorageConfig()) {
+      setSiteVisitPhotoError('Photo upload storage is not configured.')
+      toast.error('Photo upload storage is not configured.')
+      return
+    }
+    const visitId = siteVisitForm.id || uid()
+    setSiteVisitForm((previous) => ({ ...previous, id: previous.id || visitId }))
+    setSiteVisitPhotoUploading(true)
+    setSiteVisitPhotoError('')
+    setSiteVisitPhotoProgress(0)
+    try {
+      const uploadedPhotos = []
+      for (let index = 0; index < imageFiles.length; index += 1) {
+        const file = imageFiles[index]
+        const photoId = uid()
+        const uploaded = await uploadTenderDocument({
+          tenderId: id,
+          documentId: `site-visit-${visitId}-${photoId}`,
+          file,
+          onProgress: (progress) => {
+            const completed = index / imageFiles.length
+            const current = progress / 100 / imageFiles.length
+            setSiteVisitPhotoProgress(Math.round((completed + current) * 100))
+          },
+        })
+        uploadedPhotos.push({
+          id: photoId,
+          url: uploaded.url,
+          fileUrl: uploaded.url,
+          name: file.name,
+          fileName: file.name,
+          size: file.size,
+          fileSize: file.size,
+          type: file.type || '',
+          mimeType: file.type || '',
+          storageProvider: 'supabase',
+          storageBucket: uploaded.bucket,
+          storagePath: uploaded.path,
+          caption: '',
+          uploadedAt: new Date().toISOString(),
+        })
+      }
+      setSiteVisitForm((previous) => ({
+        ...previous,
+        photos: [...normalizeSiteVisitPhotos(previous.photos), ...uploadedPhotos],
+      }))
+      toast.success(`${uploadedPhotos.length} photo${uploadedPhotos.length === 1 ? '' : 's'} uploaded`)
+    } catch (error) {
+      const message = error?.message || 'Photo upload failed.'
+      setSiteVisitPhotoError(message)
+      toast.error(message)
+    } finally {
+      setSiteVisitPhotoUploading(false)
+      setSiteVisitPhotoProgress(0)
+    }
+  }
+  const removeSiteVisitPhoto = (photoId) => {
+    setSiteVisitForm((previous) => ({
+      ...previous,
+      photos: normalizeSiteVisitPhotos(previous.photos).filter((photo) => photo.id !== photoId),
+    }))
+  }
+  const openSiteVisitPhotoPreview = (photos = [], index = 0) => {
+    const normalizedPhotos = normalizeSiteVisitPhotos(photos).filter((photo) => getSiteVisitPhotoUrl(photo))
+    if (!normalizedPhotos.length) {
+      toast.error('Image preview unavailable.')
+      return
+    }
+    const safeIndex = Math.min(Math.max(Number(index) || 0, 0), normalizedPhotos.length - 1)
+    setSiteVisitPhotoPreview({ photos: normalizedPhotos, index: safeIndex })
+  }
+  const openAwardDialog = () => {
+    const nextAwardForm = getAwardWorkOrderDetails(form)
+    const autoExpectedCompletionDate = addDaysToDate(nextAwardForm.startDate, nextAwardForm.completionPeriod)
+    setExpectedCompletionManuallyEdited(Boolean(nextAwardForm.expectedCompletionDate && nextAwardForm.expectedCompletionDate !== autoExpectedCompletionDate))
+    setAwardForm(nextAwardForm)
+    setAwardDialogOpen(true)
+  }
+  const setAwardField = (key) => (valueOrEvent) => {
+    const value = valueOrEvent?.target ? valueOrEvent.target.value : valueOrEvent
+    setAwardForm((previous) => {
+      const next = { ...previous, [key]: value }
+      if (key === 'startDate' || key === 'completionPeriod') {
+        const startDate = key === 'startDate' ? value : next.startDate
+        const completionPeriod = key === 'completionPeriod' ? value : next.completionPeriod
+        const calculated = addDaysToDate(startDate, completionPeriod)
+        if (!expectedCompletionManuallyEdited) next.expectedCompletionDate = calculated
+      }
+      if (key === 'expectedCompletionDate') {
+        const calculated = addDaysToDate(next.startDate, next.completionPeriod)
+        setExpectedCompletionManuallyEdited(Boolean(value && value !== calculated))
+      }
+      if (key === 'contractValue' || key === 'retentionPercentage') {
+        const contractValue = Number(key === 'contractValue' ? value : next.contractValue)
+        const retentionPercentage = Number(key === 'retentionPercentage' ? value : next.retentionPercentage)
+        if (Number.isFinite(contractValue) && Number.isFinite(retentionPercentage) && contractValue > 0 && retentionPercentage >= 0) {
+          next.retentionAmount = String((contractValue * retentionPercentage) / 100)
+        }
+      }
+      return next
+    })
+  }
+  const saveAwardDetails = () => {
+    const next = {
+      ...awardForm,
+      expectedCompletionDate: awardForm.expectedCompletionDate || addDaysToDate(awardForm.startDate, awardForm.completionPeriod),
+      retentionAmount: awardForm.retentionAmount || (
+        Number(awardForm.contractValue) > 0 && Number(awardForm.retentionPercentage) > 0
+          ? String((Number(awardForm.contractValue) * Number(awardForm.retentionPercentage)) / 100)
+          : ''
+      ),
+      updatedAt: new Date().toISOString(),
+    }
+    updateAutosavedForm('awardWorkOrder', next)
+    setAwardDialogOpen(false)
+    toast.success('Award details saved')
+  }
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
   if (!tender) return null
 
@@ -1051,8 +1277,11 @@ export default function TenderDetail() {
     ['Received From Bills/RA Bills', formatCurrency(totalReceived)],
     ['Linked Pay Orders', String(linkedPOs.length)],
   ]
+  const awardDetails = getAwardWorkOrderDetails(form)
+  const awardTimeline = getAwardTimelineSummary(awardDetails)
   const compactTabs = [
     ['overview', 'Overview'],
+    ['award', 'Award / Work Order'],
     ['boq', 'BOQ / Profit'],
     ['bills', `Bills (${(form.bills || []).length})`],
     ['expenses', `Expenses (${expenses.length})`],
@@ -1633,6 +1862,15 @@ export default function TenderDetail() {
           )}
         </TabsContent>
 
+        <TabsContent value="award" className="order-3 mt-0 space-y-4">
+          <AwardWorkOrderSection
+            details={awardDetails}
+            timeline={awardTimeline}
+            isAdmin={isAdmin}
+            onEdit={openAwardDialog}
+          />
+        </TabsContent>
+
         <TabsContent value="boq" className="order-3 mt-0 space-y-5">
           <div>
             <h2 className="text-xl font-semibold tracking-tight md:text-2xl">BOQ / Profit Tracking</h2>
@@ -2197,7 +2435,7 @@ export default function TenderDetail() {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
+                <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
                   {[...(form.siteVisits || [])]
                     .sort((a, b) => new Date(b.visitDate || 0) - new Date(a.visitDate || 0))
                     .map((visit, index) => (
@@ -2209,6 +2447,7 @@ export default function TenderDetail() {
                         onView={() => setViewSiteVisit(visit)}
                         onEdit={() => openSiteVisitDialog(visit)}
                         onDelete={() => setDeleteSiteVisitId(visit.id)}
+                        onPhotoPreview={openSiteVisitPhotoPreview}
                       />
                     ))}
                 </div>
@@ -2609,69 +2848,149 @@ export default function TenderDetail() {
           if (!open) setViewSiteVisit(null)
         }}
         onEdit={(visit) => openSiteVisitDialog(visit)}
+        onPhotoPreview={openSiteVisitPhotoPreview}
+      />
+
+      <SiteVisitPhotoPreviewDialog
+        preview={siteVisitPhotoPreview}
+        onOpenChange={(open) => {
+          if (!open) setSiteVisitPhotoPreview({ photos: [], index: 0 })
+        }}
+        onNavigate={(index) => setSiteVisitPhotoPreview((previous) => ({ ...previous, index }))}
+      />
+
+      <AwardWorkOrderSheet
+        open={awardDialogOpen}
+        onOpenChange={setAwardDialogOpen}
+        form={awardForm}
+        setField={setAwardField}
+        onSave={saveAwardDetails}
+        isAdmin={isAdmin}
       />
 
       {/* Site Visit Sheet */}
       <Sheet open={siteVisitDialogOpen} onOpenChange={setSiteVisitDialogOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
+        <SheetContent side="right" className="w-full p-0 flex flex-col gap-0 sm:max-w-2xl">
           <SheetHeader className="px-6 py-4 border-b border-border">
             <SheetTitle>{editSiteVisit ? 'Edit Site Visit' : 'New Site Visit'}</SheetTitle>
             <SheetDescription>
               {editSiteVisit ? 'Update site visit details.' : 'Record daily progress, labour, materials, and issues.'}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="td-sv-date">Visit Date <span className="text-destructive">*</span></Label>
-                <Input id="td-sv-date" type="date" value={siteVisitForm.visitDate} onChange={setSiteVisitF('visitDate')} />
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_0.95fr]">
+              <div className="space-y-4">
+                <div className="border-b border-border pb-2">
+                  <p className="text-sm font-semibold text-emerald-700">Visit Details</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="td-sv-date">Visit Date <span className="text-destructive">*</span></Label>
+                    <Input id="td-sv-date" type="date" value={siteVisitForm.visitDate} onChange={setSiteVisitF('visitDate')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="td-sv-time">Visit Time</Label>
+                    <Input id="td-sv-time" type="time" value={siteVisitForm.visitTime} onChange={setSiteVisitF('visitTime')} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="td-sv-loc">Location / Site Area</Label>
+                  <Input id="td-sv-loc" value={siteVisitForm.location} onChange={setSiteVisitF('location')} placeholder="e.g. Block A, second floor" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="td-sv-work">Work Completed</Label>
+                  <Textarea id="td-sv-work" value={siteVisitForm.workCompleted} onChange={setSiteVisitF('workCompleted')} rows={3} placeholder="What was finished today?" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="td-sv-labour">Labour Used</Label>
+                    <Textarea id="td-sv-labour" value={siteVisitForm.labourUsed} onChange={setSiteVisitF('labourUsed')} rows={2} placeholder="e.g. 4 masons, 6 helpers" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="td-sv-material">Material Used</Label>
+                    <Textarea id="td-sv-material" value={siteVisitForm.materialUsed} onChange={setSiteVisitF('materialUsed')} rows={2} placeholder="e.g. 20 bags cement, 1 ton sand" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="td-sv-issues">Issues / Delays</Label>
+                  <Textarea id="td-sv-issues" value={siteVisitForm.issues} onChange={setSiteVisitF('issues')} rows={2} placeholder="Any blockers or delays?" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="td-sv-next">Next-Day Plan</Label>
+                  <Textarea id="td-sv-next" value={siteVisitForm.nextDayPlan} onChange={setSiteVisitF('nextDayPlan')} rows={2} placeholder="Plan for the next day" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Status</Label>
+                  <Select value={siteVisitForm.status} onValueChange={setSiteVisitF('status')}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{SITE_VISIT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="td-sv-notes">Notes</Label>
+                  <Textarea id="td-sv-notes" value={siteVisitForm.notes} onChange={setSiteVisitF('notes')} rows={2} />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="td-sv-time">Visit Time</Label>
-                <Input id="td-sv-time" type="time" value={siteVisitForm.visitTime} onChange={setSiteVisitF('visitTime')} />
+
+              <div className="space-y-4 lg:border-l lg:border-border lg:pl-5">
+                <div className="border-b border-border pb-2">
+                  <p className="text-sm font-semibold text-emerald-700">Photos ({normalizeSiteVisitPhotos(siteVisitForm.photos).length})</p>
+                </div>
+                <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-center">
+                  <Input
+                    id="td-sv-photos"
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    multiple
+                    className="sr-only"
+                    disabled={!isAdmin || siteVisitPhotoUploading}
+                    onChange={async (event) => {
+                      const files = Array.from(event.target.files || [])
+                      event.target.value = ''
+                      await uploadSiteVisitPhotos(files)
+                    }}
+                  />
+                  <Label
+                    htmlFor="td-sv-photos"
+                    role="button"
+                    tabIndex={siteVisitPhotoUploading || !isAdmin ? -1 : 0}
+                    onKeyDown={(event) => {
+                      if ((event.key === 'Enter' || event.key === ' ') && !siteVisitPhotoUploading && isAdmin) {
+                        event.preventDefault()
+                        document.getElementById('td-sv-photos')?.click()
+                      }
+                    }}
+                    className={`flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg py-6 text-sm transition hover:bg-background/60 ${
+                      siteVisitPhotoUploading || !isAdmin ? 'pointer-events-none opacity-60' : ''
+                    }`}
+                  >
+                    {siteVisitPhotoUploading ? <Loader2 className="h-6 w-6 animate-spin text-emerald-600" /> : <Upload className="h-6 w-6 text-emerald-600" />}
+                    <span className="font-semibold text-foreground">{siteVisitPhotoUploading ? `Uploading ${siteVisitPhotoProgress}%` : 'Upload Photos'}</span>
+                    <span className="text-xs text-muted-foreground">{isAdmin ? 'Click to select multiple JPG, PNG, or WEBP images' : 'Only admins can upload photos'}</span>
+                  </Label>
+                </div>
+                {siteVisitPhotoError && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                    {siteVisitPhotoError}
+                  </div>
+                )}
+                {normalizeSiteVisitPhotos(siteVisitForm.photos).length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {normalizeSiteVisitPhotos(siteVisitForm.photos).map((photo) => (
+                      <SiteVisitPhotoTile key={photo.id} photo={photo} onRemove={() => removeSiteVisitPhoto(photo.id)} editable />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-border/80 bg-background p-4 text-sm text-muted-foreground">
+                    No photos attached yet. You can save the visit without photos.
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="td-sv-loc">Location / Site Area</Label>
-              <Input id="td-sv-loc" value={siteVisitForm.location} onChange={setSiteVisitF('location')} placeholder="e.g. Block A, second floor" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="td-sv-work">Work Completed</Label>
-              <Textarea id="td-sv-work" value={siteVisitForm.workCompleted} onChange={setSiteVisitF('workCompleted')} rows={3} placeholder="What was finished today?" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="td-sv-labour">Labour Used</Label>
-                <Textarea id="td-sv-labour" value={siteVisitForm.labourUsed} onChange={setSiteVisitF('labourUsed')} rows={2} placeholder="e.g. 4 masons, 6 helpers" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="td-sv-material">Material Used</Label>
-                <Textarea id="td-sv-material" value={siteVisitForm.materialUsed} onChange={setSiteVisitF('materialUsed')} rows={2} placeholder="e.g. 20 bags cement, 1 ton sand" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="td-sv-issues">Issues / Delays</Label>
-              <Textarea id="td-sv-issues" value={siteVisitForm.issues} onChange={setSiteVisitF('issues')} rows={2} placeholder="Any blockers or delays?" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="td-sv-next">Next-Day Plan</Label>
-              <Textarea id="td-sv-next" value={siteVisitForm.nextDayPlan} onChange={setSiteVisitF('nextDayPlan')} rows={2} placeholder="Plan for the next day" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Select value={siteVisitForm.status} onValueChange={setSiteVisitF('status')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{SITE_VISIT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="td-sv-notes">Notes</Label>
-              <Textarea id="td-sv-notes" value={siteVisitForm.notes} onChange={setSiteVisitF('notes')} rows={2} />
             </div>
           </div>
           <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setSiteVisitDialogOpen(false)}>Cancel</Button>
-            <Button type="button" onClick={saveSiteVisit}>
+            <Button type="button" onClick={saveSiteVisit} disabled={siteVisitPhotoUploading}>
               {editSiteVisit ? 'Save Changes' : 'Add Site Visit'}
             </Button>
           </SheetFooter>
@@ -2687,6 +3006,287 @@ export default function TenderDetail() {
       />
     </div>
   )
+}
+
+function AwardWorkOrderSection({ details, timeline, isAdmin, onEdit }) {
+  const hasDetails = Boolean(
+    details.workOrderNumber ||
+    details.awardDate ||
+    details.workOrderDate ||
+    details.startDate ||
+    details.expectedCompletionDate ||
+    Number(details.contractValue) > 0 ||
+    details.awardStatus !== 'Not Awarded'
+  )
+
+  if (!hasDetails) {
+    return (
+      <Card className="rounded-2xl border-border/80 shadow-sm">
+        <CardContent className="flex flex-col items-center justify-center px-5 py-12 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+            <ClipboardList className="h-6 w-6" />
+          </div>
+          <h2 className="mt-4 text-lg font-semibold">No award or work order details added yet</h2>
+          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+            Add award and work order information when the tender is awarded or execution starts.
+          </p>
+          {isAdmin && (
+            <Button className="mt-5 bg-emerald-600 text-white hover:bg-emerald-700" onClick={onEdit}>
+              <Plus className="h-4 w-4" /> Add Award Details
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="rounded-2xl border-border/80 shadow-sm">
+        <CardHeader className="p-4 pb-3 md:p-5 md:pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">Post Award</p>
+              <CardTitle className="mt-1 text-xl">Award / Work Order</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Track award details, work order information, contract period, securities, and project execution dates.
+              </p>
+            </div>
+            {isAdmin && (
+              <Button className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto" onClick={onEdit}>
+                <Pencil className="h-4 w-4" /> Edit Award Details
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 p-4 pt-0 md:p-5 md:pt-0">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 min-[1800px]:grid-cols-6">
+            <AwardMetric icon={CheckCircle} label="Award Status" value={details.awardStatus || 'Not Awarded'} badgeClass={getAwardStatusClass(details.awardStatus)} />
+            <AwardMetric icon={Banknote} label="Contract Value" value={Number(details.contractValue) > 0 ? formatCurrency(details.contractValue) : MISSING_VALUE} helper="Awarded value" />
+            <AwardMetric icon={FileText} label="Work Order Date" value={formatDate(details.workOrderDate) || MISSING_VALUE} helper={details.workOrderNumber || 'No work order #'} />
+            <AwardMetric icon={CalendarDays} label="Start Date" value={formatDate(details.startDate) || MISSING_VALUE} />
+            <AwardMetric icon={CalendarDays} label="Expected Completion" value={formatDate(details.expectedCompletionDate) || MISSING_VALUE} />
+            <AwardMetric icon={Clock} label="Timeline" value={timeline.label === '-' ? MISSING_VALUE : timeline.label} helper={timeline.helper} tone={timeline.tone} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <AwardDetailCard title="Award Details" icon={FileText} rows={[
+          ['Award date', formatDate(details.awardDate) || MISSING_VALUE],
+          ['Work order number', details.workOrderNumber || MISSING_VALUE],
+          ['Work order date', formatDate(details.workOrderDate) || MISSING_VALUE],
+          ['Department / agency reference', details.departmentReference || MISSING_VALUE],
+        ]} />
+        <AwardDetailCard title="Contract Period" icon={CalendarDays} rows={[
+          ['Start date', formatDate(details.startDate) || MISSING_VALUE],
+          ['Completion period', details.completionPeriod ? `${details.completionPeriod} days` : MISSING_VALUE],
+          ['Expected completion', formatDate(details.expectedCompletionDate) || MISSING_VALUE],
+          ['Actual completion', formatDate(details.actualCompletionDate) || MISSING_VALUE],
+          ['Extension granted', details.extensionGranted || 'No'],
+          ['Extension days', details.extensionDays ? `${details.extensionDays} days` : MISSING_VALUE],
+          ['Extension remarks', details.extensionRemarks || MISSING_VALUE],
+        ]} />
+        <AwardDetailCard title="Securities / Deductions" icon={Landmark} rows={[
+          ['Performance security', Number(details.performanceSecurityAmount) > 0 ? formatCurrency(details.performanceSecurityAmount) : MISSING_VALUE],
+          ['Security type', details.performanceSecurityType || MISSING_VALUE],
+          ['Security expiry', formatDate(details.performanceSecurityExpiryDate) || MISSING_VALUE],
+          ['Retention percentage', details.retentionPercentage ? `${details.retentionPercentage}%` : MISSING_VALUE],
+          ['Retention amount', Number(details.retentionAmount) > 0 ? formatCurrency(details.retentionAmount) : MISSING_VALUE],
+          ['Mobilization advance', Number(details.mobilizationAdvance) > 0 ? formatCurrency(details.mobilizationAdvance) : MISSING_VALUE],
+        ]} />
+        <AwardDetailCard title="Execution Details" icon={User} rows={[
+          ['Site handover date', formatDate(details.siteHandoverDate) || MISSING_VALUE],
+          ['Engineer / department contact', details.engineerContact || MISSING_VALUE],
+          ['Contractor representative', details.contractorRepresentative || MISSING_VALUE],
+          ['Current execution status', details.executionStatus || MISSING_VALUE],
+          ['Remarks / notes', details.remarks || MISSING_VALUE],
+        ]} />
+      </div>
+    </div>
+  )
+}
+
+function AwardMetric({ icon: Icon, label, value, helper, tone, badgeClass }) {
+  const toneClass = tone === 'loss' ? 'text-rose-700' : tone === 'accent' ? 'text-amber-700' : tone === 'profit' ? 'text-emerald-700' : 'text-foreground'
+  const iconClass = tone === 'loss'
+    ? 'bg-rose-50 text-rose-700'
+    : tone === 'accent'
+      ? 'bg-amber-50 text-amber-700'
+      : 'bg-emerald-50 text-emerald-700'
+  return (
+    <div className="flex min-h-[108px] max-w-full min-w-0 items-start gap-3 rounded-xl border border-border/80 bg-background p-3.5 shadow-sm">
+      {Icon && (
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+      )}
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+        {badgeClass ? (
+          <Badge variant="outline" className={`mt-2 max-w-full whitespace-normal break-words rounded-full px-2.5 py-1 text-xs leading-4 ${badgeClass}`}>{value}</Badge>
+        ) : (
+          <p className={`mt-2 max-w-full break-words text-sm font-semibold leading-5 [overflow-wrap:anywhere] ${toneClass}`}>{value || MISSING_VALUE}</p>
+        )}
+        {helper && <p className="mt-1 line-clamp-2 max-w-full break-all text-xs leading-4 text-muted-foreground">{helper}</p>}
+      </div>
+    </div>
+  )
+}
+
+function AwardDetailCard({ title, icon: Icon, rows }) {
+  return (
+    <Card className="rounded-2xl border-border/80 shadow-sm">
+      <CardHeader className="p-4 pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+            <Icon className="h-4 w-4" />
+          </span>
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-1">
+        <div className="divide-y divide-border/70">
+        {rows.map(([label, value]) => (
+          <div key={label} className="grid grid-cols-1 gap-1 py-3 first:pt-1 last:pb-0 sm:grid-cols-[190px_minmax(0,1fr)] sm:items-start sm:gap-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+            <p className={`min-w-0 break-words text-sm font-semibold leading-5 ${value === MISSING_VALUE ? 'text-muted-foreground' : 'text-foreground'}`}>
+              {value || MISSING_VALUE}
+            </p>
+          </div>
+        ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function AwardWorkOrderSheet({ open, onOpenChange, form, setField, onSave, isAdmin }) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-3xl">
+        <SheetHeader className="border-b border-border px-6 py-4">
+          <SheetTitle>Award / Work Order</SheetTitle>
+          <SheetDescription>Update award, work order, contract period, securities, and execution details.</SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="space-y-6">
+            <AwardFormGroup title="Award Details">
+              <AwardSelectField label="Award status" value={form.awardStatus} onValueChange={setField('awardStatus')} options={AWARD_STATUSES} disabled={!isAdmin} />
+              <AwardFormField label="Award date" type="date" value={form.awardDate} onChange={setField('awardDate')} disabled={!isAdmin} />
+              <AwardFormField label="Work order number" value={form.workOrderNumber} onChange={setField('workOrderNumber')} disabled={!isAdmin} />
+              <AwardFormField label="Work order date" type="date" value={form.workOrderDate} onChange={setField('workOrderDate')} disabled={!isAdmin} />
+              <AwardFormField label="Contract value" type="number" value={form.contractValue} onChange={setField('contractValue')} disabled={!isAdmin} />
+              <AwardFormField label="Department / agency reference" value={form.departmentReference} onChange={setField('departmentReference')} disabled={!isAdmin} />
+            </AwardFormGroup>
+
+            <AwardFormGroup title="Contract Period">
+              <AwardFormField label="Start date" type="date" value={form.startDate} onChange={setField('startDate')} disabled={!isAdmin} />
+              <AwardFormField label="Completion period (days)" type="number" value={form.completionPeriod} onChange={setField('completionPeriod')} disabled={!isAdmin} />
+              <AwardFormField label="Expected completion date" type="date" value={form.expectedCompletionDate} onChange={setField('expectedCompletionDate')} disabled={!isAdmin} />
+              <AwardFormField label="Actual completion date" type="date" value={form.actualCompletionDate} onChange={setField('actualCompletionDate')} disabled={!isAdmin} />
+              <AwardSelectField label="Extension granted" value={form.extensionGranted} onValueChange={setField('extensionGranted')} options={['No', 'Yes']} disabled={!isAdmin} />
+              <AwardFormField label="Extension days" type="number" value={form.extensionDays} onChange={setField('extensionDays')} disabled={!isAdmin} />
+              <AwardTextAreaField label="Extension remarks" value={form.extensionRemarks} onChange={setField('extensionRemarks')} disabled={!isAdmin} className="sm:col-span-2" />
+            </AwardFormGroup>
+
+            <AwardFormGroup title="Securities / Deductions">
+              <AwardFormField label="Performance security amount" type="number" value={form.performanceSecurityAmount} onChange={setField('performanceSecurityAmount')} disabled={!isAdmin} />
+              <AwardFormField label="Performance security type" value={form.performanceSecurityType} onChange={setField('performanceSecurityType')} disabled={!isAdmin} />
+              <AwardFormField label="Performance security expiry date" type="date" value={form.performanceSecurityExpiryDate} onChange={setField('performanceSecurityExpiryDate')} disabled={!isAdmin} />
+              <AwardFormField label="Retention percentage" type="number" value={form.retentionPercentage} onChange={setField('retentionPercentage')} disabled={!isAdmin} />
+              <AwardFormField label="Retention amount" type="number" value={form.retentionAmount} onChange={setField('retentionAmount')} disabled={!isAdmin} />
+              <AwardFormField label="Mobilization advance" type="number" value={form.mobilizationAdvance} onChange={setField('mobilizationAdvance')} disabled={!isAdmin} />
+            </AwardFormGroup>
+
+            <AwardFormGroup title="Execution Details">
+              <AwardFormField label="Site handover date" type="date" value={form.siteHandoverDate} onChange={setField('siteHandoverDate')} disabled={!isAdmin} />
+              <AwardFormField label="Engineer / department contact" value={form.engineerContact} onChange={setField('engineerContact')} disabled={!isAdmin} />
+              <AwardFormField label="Contractor representative" value={form.contractorRepresentative} onChange={setField('contractorRepresentative')} disabled={!isAdmin} />
+              <AwardFormField label="Current execution status" value={form.executionStatus} onChange={setField('executionStatus')} disabled={!isAdmin} />
+              <AwardTextAreaField label="Remarks / notes" value={form.remarks} onChange={setField('remarks')} disabled={!isAdmin} className="sm:col-span-2" />
+            </AwardFormGroup>
+          </div>
+        </div>
+        <SheetFooter className="gap-2 border-t border-border bg-background px-6 py-4">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button type="button" onClick={onSave} disabled={!isAdmin} className="bg-emerald-600 text-white hover:bg-emerald-700">
+            <Save className="h-4 w-4" /> Save Award Details
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function AwardFormGroup({ title, children }) {
+  return (
+    <section>
+      <h3 className="mb-3 text-sm font-semibold text-emerald-700">{title}</h3>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
+    </section>
+  )
+}
+
+function AwardFormField({ label, className = '', ...props }) {
+  return (
+    <div className={`space-y-1.5 ${className}`}>
+      <Label>{label}</Label>
+      <Input {...props} />
+    </div>
+  )
+}
+
+function AwardTextAreaField({ label, className = '', ...props }) {
+  return (
+    <div className={`space-y-1.5 ${className}`}>
+      <Label>{label}</Label>
+      <Textarea rows={3} {...props} />
+    </div>
+  )
+}
+
+function AwardSelectField({ label, value, onValueChange, options, disabled }) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Select value={value || ''} onValueChange={onValueChange} disabled={disabled}>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>{options.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+function normalizeSiteVisitPhotos(photos) {
+  if (!Array.isArray(photos)) return []
+  return photos
+    .filter((photo) => photo && (photo.url || photo.fileUrl || photo.publicUrl || photo.downloadUrl))
+    .map((photo, index) => ({
+      id: photo.id || `photo-${index}`,
+      url: photo.url || photo.fileUrl || photo.publicUrl || photo.downloadUrl || '',
+      fileUrl: photo.fileUrl || photo.url || photo.publicUrl || photo.downloadUrl || '',
+      name: photo.name || photo.fileName || `Photo ${index + 1}`,
+      size: photo.size || photo.fileSize || '',
+      type: photo.type || photo.mimeType || photo.fileType || '',
+      caption: photo.caption || '',
+      uploadedAt: photo.uploadedAt || photo.addedAt || '',
+    }))
+}
+
+function getSiteVisitPhotoUrl(photo = {}) {
+  return photo.url || photo.fileUrl || photo.publicUrl || photo.downloadUrl || ''
+}
+
+function formatSiteVisitPhotoCount(count) {
+  return `${count} photo${count === 1 ? '' : 's'}`
+}
+
+function formatPhotoSize(bytes) {
+  const value = Number(bytes)
+  if (!Number.isFinite(value) || value <= 0) return ''
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(0)} KB`
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function getSiteVisitDateValue(visit = {}) {
@@ -2731,7 +3331,17 @@ function getSafeSiteVisitDateParts(visit = {}) {
 }
 
 function getSiteVisitTime(visit = {}) {
-  return visit.visitTime || visit.time || visit.visit_time || ''
+  const directTime = visit.visitTime || visit.time || visit.visit_time
+  if (directTime && String(directTime).trim()) return String(directTime).trim()
+  if (!visit.visitedAt) return ''
+  if (typeof visit.visitedAt === 'string') {
+    const visitedAt = visit.visitedAt.trim()
+    const timeOnly = /^(\d{1,2}):(\d{2})(?::\d{2})?(?:\s?(AM|PM))?$/i.exec(visitedAt)
+    if (timeOnly) return visitedAt
+  }
+  const date = parseSafeSiteVisitDate(visit.visitedAt)
+  if (!date) return ''
+  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
 
 function getSiteVisitStatusClass(status) {
@@ -2742,7 +3352,7 @@ function getSiteVisitStatusClass(status) {
       : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
 }
 
-function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete }) {
+function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete, onPhotoPreview }) {
   const dateObj = parseSafeSiteVisitDate(getSiteVisitDateValue(visit))
   const validDate = Boolean(dateObj)
   const day = validDate ? String(dateObj.getDate()).padStart(2, '0') : '—'
@@ -2756,13 +3366,15 @@ function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete })
       : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
 
   const hasLabourOrMaterials = Boolean((visit.labourUsed && String(visit.labourUsed).trim()) || (visit.materialUsed && String(visit.materialUsed).trim()))
+  const workCompletedText = visit.workCompleted && String(visit.workCompleted).trim() ? visit.workCompleted : ''
   const issuesText = visit.issues && String(visit.issues).trim() ? visit.issues : ''
   const nextDayText = visit.nextDayPlan && String(visit.nextDayPlan).trim() ? visit.nextDayPlan : ''
   const notesText = visit.notes && String(visit.notes).trim() ? visit.notes : ''
+  const photos = normalizeSiteVisitPhotos(visit.photos)
 
   return (
-    <Card className="flex h-full min-w-0 flex-col overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
-      <CardContent className="flex min-w-0 flex-1 flex-col gap-3.5 p-3.5 sm:p-4">
+    <Card className="min-w-0 self-start overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
+      <CardContent className="min-w-0 space-y-3.5 p-3.5 sm:p-4">
         {/* Header: date badge · title · time */}
         <div className="flex min-w-0 items-start gap-3">
           <div className="flex h-[62px] w-[58px] shrink-0 flex-col items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 shadow-sm shadow-emerald-900/5 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
@@ -2787,10 +3399,12 @@ function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete })
         </div>
 
         {/* Body */}
-        <div className="min-w-0 space-y-3">
-          <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-            <SiteVisitField label="Work completed" value={visit.workCompleted} />
-          </div>
+        <div className="min-w-0 space-y-2.5">
+          {workCompletedText ? (
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+              <SiteVisitField label="Work completed" value={workCompletedText} />
+            </div>
+          ) : null}
           {hasLabourOrMaterials && (
             <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="rounded-xl border border-border/70 bg-background p-3">
@@ -2814,10 +3428,11 @@ function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete })
             </div>
           )}
           {notesText && <SiteVisitField label="Notes" value={notesText} compact />}
+          {photos.length > 0 && <SiteVisitPhotoStrip photos={photos} onOpenPhoto={(index) => onPhotoPreview?.(photos, index)} />}
         </div>
 
         {/* Footer: status badge left, actions right */}
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-border/80 pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/80 pt-3">
           {visit.status ? (
             <Badge variant="outline" className={`rounded-full px-2.5 py-1 text-xs ${statusClass}`}>{visit.status}</Badge>
           ) : (
@@ -2844,12 +3459,79 @@ function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete })
   )
 }
 
-function SiteVisitViewDialog({ open, visit, tenderName, isAdmin, onOpenChange, onEdit }) {
+function SiteVisitPhotoStrip({ photos, onOpenPhoto }) {
+  const visible = photos.slice(0, 3)
+  const extra = Math.max(photos.length - visible.length, 0)
+  return (
+    <div className="w-full rounded-xl border border-border/70 bg-muted/10 p-2.5 text-left">
+      <div className="mb-2.5 flex items-center justify-between gap-2 text-xs">
+        <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+          <ImageIcon className="h-3.5 w-3.5" />
+          Photos
+        </span>
+        <span className="text-muted-foreground">{formatSiteVisitPhotoCount(photos.length)}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {visible.map((photo, index) => (
+          <button
+            key={photo.id}
+            type="button"
+            onClick={() => onOpenPhoto?.(index)}
+            className="relative aspect-video overflow-hidden rounded-md border border-border/70 bg-muted transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            aria-label={`Preview site visit photo ${index + 1}`}
+          >
+            <SiteVisitPhotoImage photo={photo} className="h-full w-full object-cover" />
+            {index === visible.length - 1 && extra > 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/55 text-sm font-bold text-white">+{extra}</div>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SiteVisitPhotoImage({ photo, className = '' }) {
+  const [failed, setFailed] = useState(false)
+  const photoUrl = getSiteVisitPhotoUrl(photo)
+  if (!photoUrl || failed) {
+    return (
+      <div className={`flex items-center justify-center bg-muted text-muted-foreground ${className}`}>
+        <ImageIcon className="h-5 w-5" />
+      </div>
+    )
+  }
+  return <img src={photoUrl} alt={photo.caption || photo.name || 'Site visit photo'} className={className} loading="lazy" onError={() => setFailed(true)} />
+}
+
+function SiteVisitPhotoTile({ photo, editable = false, onRemove, onOpen }) {
+  return (
+    <div className="group relative min-w-0 overflow-hidden rounded-xl border border-border/80 bg-background">
+      <button type="button" className="block aspect-square w-full overflow-hidden bg-muted" onClick={onOpen} disabled={!onOpen}>
+        <SiteVisitPhotoImage photo={photo} className="h-full w-full object-cover" />
+      </button>
+      {editable && (
+      <div className="min-w-0 px-2 py-1.5">
+        <p className="truncate text-[11px] font-medium text-foreground" title={photo.name}>{photo.name || 'Photo'}</p>
+        {formatPhotoSize(photo.size) && <p className="text-[10px] text-muted-foreground">{formatPhotoSize(photo.size)}</p>}
+      </div>
+      )}
+      {editable && (
+        <Button type="button" variant="secondary" size="icon-sm" className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full bg-background/90 text-rose-600 shadow-sm hover:bg-rose-50" onClick={onRemove} aria-label="Remove photo">
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function SiteVisitViewDialog({ open, visit, tenderName, isAdmin, onOpenChange, onEdit, onPhotoPreview }) {
   if (!visit) return null
 
   const dateParts = getSafeSiteVisitDateParts(visit)
   const visitTime = getSiteVisitTime(visit)
   const statusClass = getSiteVisitStatusClass(visit.status)
+  const photos = normalizeSiteVisitPhotos(visit.photos)
   const safe = (value) => (value && String(value).trim() ? value : '—')
 
   return (
@@ -2867,7 +3549,7 @@ function SiteVisitViewDialog({ open, visit, tenderName, isAdmin, onOpenChange, o
         <div className="space-y-4 px-5 py-4 sm:px-6">
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
             <SiteVisitDetailBox icon={CalendarDays} label="Visit Date" value={dateParts.label} />
-            <SiteVisitDetailBox icon={Clock} label="Visit Time" value={visitTime || '—'} />
+            <SiteVisitDetailBox icon={Clock} label="Visit Time" value={visitTime || '\u2014'} />
             <div className="min-w-0 rounded-xl border border-border/80 bg-background p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Status</p>
               {visit.status ? (
@@ -2878,13 +3560,32 @@ function SiteVisitViewDialog({ open, visit, tenderName, isAdmin, onOpenChange, o
             </div>
           </div>
 
-          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
-            <SiteVisitDetailSection label="Work Completed" value={visit.workCompleted} className="md:col-span-2" />
-            <SiteVisitDetailSection label="Labour Used" value={visit.labourUsed} />
-            <SiteVisitDetailSection label="Material Used" value={visit.materialUsed} />
-            <SiteVisitDetailSection label="Issues / Delays" value={visit.issues} tone="rose" />
-            <SiteVisitDetailSection label="Next-Day Plan" value={visit.nextDayPlan} tone="emerald" />
-            <SiteVisitDetailSection label="Notes" value={visit.notes} className="md:col-span-2" />
+          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-1">
+              <SiteVisitDetailSection label="Work Completed" value={visit.workCompleted} className="md:col-span-2 lg:col-span-1" />
+              <SiteVisitDetailSection label="Labour Used" value={visit.labourUsed} />
+              <SiteVisitDetailSection label="Material Used" value={visit.materialUsed} />
+              <SiteVisitDetailSection label="Issues / Delays" value={visit.issues} tone="rose" />
+              <SiteVisitDetailSection label="Next-Day Plan" value={visit.nextDayPlan} tone="emerald" />
+              <SiteVisitDetailSection label="Notes" value={visit.notes} className="md:col-span-2 lg:col-span-1" />
+            </div>
+            <div className="min-w-0 rounded-xl border border-border/80 bg-background p-3">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">Photos ({photos.length})</p>
+                {photos.length > 0 && <span className="text-xs text-muted-foreground">Click to preview</span>}
+              </div>
+              {photos.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {photos.map((photo, index) => (
+                    <SiteVisitPhotoTile key={photo.id} photo={photo} onOpen={() => onPhotoPreview?.(photos, index)} />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-muted/15 p-5 text-center text-sm text-muted-foreground">
+                  No photos attached to this visit.
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -2901,14 +3602,92 @@ function SiteVisitViewDialog({ open, visit, tenderName, isAdmin, onOpenChange, o
   )
 }
 
+function SiteVisitPhotoPreviewDialog({ preview, onOpenChange, onNavigate }) {
+  const photos = normalizeSiteVisitPhotos(preview.photos)
+  const open = photos.length > 0
+  const safeIndex = Math.min(Math.max(Number(preview.index) || 0, 0), Math.max(photos.length - 1, 0))
+  const photo = photos[safeIndex]
+  const photoUrl = getSiteVisitPhotoUrl(photo)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setFailed(false)
+  }, [photoUrl])
+
+  const goToPhoto = (nextIndex) => {
+    if (!photos.length) return
+    const wrappedIndex = (nextIndex + photos.length) % photos.length
+    onNavigate(wrappedIndex)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-5xl overflow-hidden rounded-2xl p-0">
+        <DialogHeader className="border-b border-border px-4 py-3 text-left sm:px-5">
+          <DialogTitle className="min-w-0 truncate text-base font-semibold">
+            {photo?.name || 'Site visit photo'}
+          </DialogTitle>
+          <DialogDescription>
+            {photos.length > 1 ? `${safeIndex + 1} of ${photos.length}` : 'Photo preview'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="relative bg-muted/30 p-3 sm:p-4">
+          <div className="flex min-h-[240px] items-center justify-center overflow-hidden rounded-xl border border-border/80 bg-background sm:min-h-[420px]">
+            {photoUrl && !failed ? (
+              <img
+                src={photoUrl}
+                alt={photo?.caption || photo?.name || 'Site visit photo'}
+                className="max-h-[72vh] w-auto max-w-full object-contain"
+                onError={() => setFailed(true)}
+              />
+            ) : (
+              <div className="flex min-h-[240px] w-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
+                <ImageIcon className="h-8 w-8" />
+                <span>Image preview unavailable.</span>
+              </div>
+            )}
+          </div>
+
+          {photos.length > 1 && (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute left-5 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-background/90 shadow-md"
+                onClick={() => goToPhoto(safeIndex - 1)}
+                aria-label="Previous photo"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute right-5 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-background/90 shadow-md"
+                onClick={() => goToPhoto(safeIndex + 1)}
+                aria-label="Next photo"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function SiteVisitDetailBox({ icon: Icon, label, value }) {
+  const isEmpty = !value
   return (
     <div className="min-w-0 rounded-xl border border-border/80 bg-background p-3">
       <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </p>
-      <p className="mt-2 break-words text-sm font-semibold text-foreground">{value || '—'}</p>
+      <p className={`mt-2 break-words text-sm font-semibold ${isEmpty ? 'text-muted-foreground' : 'text-foreground'}`}>{value || '—'}</p>
     </div>
   )
 }
@@ -2919,18 +3698,20 @@ function SiteVisitDetailSection({ label, value, tone, className = '' }) {
     : tone === 'emerald'
       ? 'border-emerald-200/70 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/20'
       : 'border-border/80 bg-background'
-  const display = value && String(value).trim() ? value : '—'
+  const isEmpty = !(value && String(value).trim())
+  const display = isEmpty ? '-' : value
 
   return (
     <div className={`min-w-0 rounded-xl border p-3 ${toneClass} ${className}`}>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-foreground">{display}</p>
+      <p className={`mt-1 whitespace-pre-wrap break-words text-sm leading-5 ${isEmpty ? 'text-muted-foreground' : 'text-foreground'}`}>{display}</p>
     </div>
   )
 }
 
 function SiteVisitField({ label, value, compact = false }) {
-  const display = value && String(value).trim() ? value : '—'
+  const isEmpty = !(value && String(value).trim())
+  const display = isEmpty ? '-' : value
   return (
     <div>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -3249,6 +4030,8 @@ function TenderOverviewDashboard({
         : profitTone === 'neutral'
           ? 'text-amber-700'
           : 'text-muted-foreground'
+  const awardDetails = getAwardWorkOrderDetails(form)
+  const awardTimeline = getAwardTimelineSummary(awardDetails)
 
   return (
     <div className="space-y-5">
@@ -3295,6 +4078,15 @@ function TenderOverviewDashboard({
           <OverviewMetric label="Contract Value" value={formatCurrency(contractValue)} />
           <OverviewMetric label="Tender Fee" value={formatCurrency(Number(form.tenderFee) || 0)} tone="expense" />
           <OverviewMetric label="Bid Security / Linked PO" value={linkedPOs.length ? formatCurrency(linkedPayOrderTotal) : (linkedPayOrderDisplay || '-')} tone="accent" helper={linkedPOs.length ? `${linkedPOs.length} pay order${linkedPOs.length === 1 ? '' : 's'}` : undefined} />
+        </div>
+      </OverviewSection>
+
+      <OverviewSection title="Award / Work Order" icon={ClipboardList}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <OverviewMetric label="Award Status" value={awardDetails.awardStatus || 'Not Awarded'} />
+          <OverviewMetric label="Work Order Number" value={awardDetails.workOrderNumber || '-'} />
+          <OverviewMetric label="Work Order Date" value={formatDate(awardDetails.workOrderDate) || '-'} />
+          <OverviewMetric label="Expected Completion" value={formatDate(awardDetails.expectedCompletionDate) || '-'} helper={awardTimeline.label !== '-' ? awardTimeline.label : undefined} tone={awardTimeline.tone} />
         </div>
       </OverviewSection>
 
@@ -5233,3 +6025,4 @@ function FinancialMetric({ label, value, tone, helper }) {
     </div>
   )
 }
+
