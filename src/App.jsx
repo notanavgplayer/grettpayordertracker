@@ -15,6 +15,7 @@ const PayOrders = lazy(() => import('@/pages/PayOrders'))
 const Tenders = lazy(() => import('@/pages/Tenders'))
 const TenderDetail = lazy(() => import('@/pages/TenderDetail'))
 const TenderReport = lazy(() => import('@/pages/TenderReport'))
+const Reports = lazy(() => import('@/pages/Reports'))
 const Calendar = lazy(() => import('@/pages/Calendar'))
 const Expenses = lazy(() => import('@/pages/Expenses'))
 const Documents = lazy(() => import('@/pages/Documents'))
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="/tenders" element={<AppLayout><Tenders /></AppLayout>} />
             <Route path="/tenders/:id" element={<AppLayout><TenderDetail /></AppLayout>} />
             <Route path="/tenders/:id/report" element={<AppLayout><TenderReport /></AppLayout>} />
+            <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
             <Route path="/calendar" element={<AppLayout><Calendar /></AppLayout>} />
             <Route path="/expenses" element={<AppLayout><Expenses /></AppLayout>} />
             <Route path="/documents" element={<AppLayout><Documents /></AppLayout>} />

@@ -35,6 +35,7 @@ import {
 import { toast } from 'sonner'
 
 import ChartTooltip from '@/components/shared/ChartTooltip'
+import KpiCard from '@/components/shared/KpiCard'
 import LoadState from '@/components/shared/LoadState'
 import { MetricRowSkeleton } from '@/components/shared/LoadingSkeletons'
 import StatusBadge from '@/components/shared/StatusBadge'
@@ -104,42 +105,18 @@ const METRIC_TONES = {
 function DashboardMetric({ title, value, icon: Icon, helper, href, tone = 'primary', trend, trendPositive }) {
   const colors = METRIC_TONES[tone] ?? METRIC_TONES.primary
   const TrendIcon = trendPositive === true ? ArrowUp : trendPositive === false ? ArrowDown : null
-  const helperColor = trendPositive === true
-    ? 'text-emerald-600 dark:text-emerald-400'
-    : trendPositive === false
-    ? 'text-rose-600 dark:text-rose-400'
-    : 'text-muted-foreground'
+  const kpiTone = tone === 'warning' ? 'amber' : tone === 'danger' ? 'rose' : tone === 'info' ? 'blue' : 'emerald'
 
   const card = (
-    <Card className={cn('h-full min-w-0 rounded-xl border bg-card shadow-sm transition-all', colors.card)}>
-      <CardContent className="flex h-full min-w-0 items-start gap-3 p-3.5 sm:gap-4 sm:p-4 xl:p-5">
-        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11', colors.icon)}>
-          <Icon className="h-5 w-5" aria-hidden="true" />
-        </div>
-        <div className="min-w-0 flex-1 overflow-hidden">
-          <div className="flex min-w-0 items-start justify-between gap-2">
-            <p className="min-w-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:text-[11px]">
-              {title}
-            </p>
-            {trend && (
-              <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold', colors.chip)}>
-                {TrendIcon && <TrendIcon className="h-3 w-3" aria-hidden="true" />}
-                {trend}
-              </span>
-            )}
-          </div>
-          <p className="mt-2 max-w-full break-words text-[22px] font-semibold leading-7 tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-2xl xl:text-[26px]">
-            {value}
-          </p>
-          {helper && (
-            <p className={cn('mt-1.5 flex min-w-0 items-center gap-1 text-xs leading-5', helperColor)}>
-              {!trend && TrendIcon && <TrendIcon className="h-3.5 w-3.5" aria-hidden="true" />}
-              <span className="min-w-0 truncate">{helper}</span>
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <KpiCard
+      className={cn('transition-all', colors.card)}
+      icon={Icon}
+      label={title}
+      value={value}
+      helper={helper}
+      tone={kpiTone}
+      badge={trend ? <span className="inline-flex items-center gap-1">{TrendIcon && <TrendIcon className="h-3 w-3" aria-hidden="true" />}{trend}</span> : null}
+    />
   )
 
   return href ? <Link to={href} className="block h-full">{card}</Link> : card
@@ -199,13 +176,18 @@ function DashboardSectionHeader({ title, description, action }) {
   )
 }
 
-function AttentionItem({ icon: Icon, title, description, meta, tone = 'warning', onClick }) {
+function AttentionItem({ icon: Icon, type, title, description, dueDate, status, priority, tone = 'warning', onClick }) {
   const toneClass = {
     danger: 'border-rose-200 bg-rose-50/70 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300',
     warning: 'border-amber-200 bg-amber-50/70 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300',
     info: 'border-blue-200 bg-blue-50/70 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/20 dark:text-blue-300',
     success: 'border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300',
   }[tone]
+  const priorityClass = tone === 'danger'
+    ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300'
+    : tone === 'warning'
+      ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300'
+      : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
 
   const content = (
     <>
@@ -213,10 +195,20 @@ function AttentionItem({ icon: Icon, title, description, meta, tone = 'warning',
         <Icon className="h-4 w-4" aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
+        <span className="mb-1 flex flex-wrap items-center gap-2">
+          {type && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{type}</span>}
+          {priority && <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', priorityClass)}>{priority}</span>}
+        </span>
         <span className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{title}</span>
         {description && <span className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{description}</span>}
+        <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          {dueDate && <span>{dueDate}</span>}
+          {status && <span className="rounded-full bg-muted/70 px-2 py-0.5 font-medium">{status}</span>}
+        </span>
       </span>
-      {meta && <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">{meta}</span>}
+      <span className="ml-auto shrink-0 self-end text-xs font-semibold text-emerald-700 dark:text-emerald-300 sm:self-start">
+        View
+      </span>
     </>
   )
 
@@ -225,7 +217,7 @@ function AttentionItem({ icon: Icon, title, description, meta, tone = 'warning',
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full min-w-0 items-start gap-3 rounded-xl border bg-background p-3 text-left shadow-sm transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="flex w-full min-w-0 items-start gap-3 rounded-xl border bg-background p-3.5 text-left shadow-sm transition-colors hover:border-emerald-200 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         {content}
       </button>
@@ -233,7 +225,7 @@ function AttentionItem({ icon: Icon, title, description, meta, tone = 'warning',
   }
 
   return (
-    <div className="flex min-w-0 items-start gap-3 rounded-xl border bg-background p-3 shadow-sm">
+    <div className="flex min-w-0 items-start gap-3 rounded-xl border bg-background p-3.5 shadow-sm">
       {content}
     </div>
   )
@@ -248,6 +240,22 @@ function FinanceLine({ label, value, tone }) {
       </span>
     </div>
   )
+}
+
+function FinanceMetricCard({ icon: Icon, label, value, helper, tone = 'default' }) {
+  const kpiTone = tone === 'danger' ? 'rose' : tone === 'warning' ? 'amber' : tone === 'success' ? 'emerald' : 'slate'
+  return <KpiCard icon={Icon} label={label} value={value} helper={helper} tone={kpiTone} valueClassName="text-base sm:text-lg" />
+}
+
+function activityTone(type) {
+  const normalized = String(type || '').toLowerCase()
+  if (normalized.includes('pay')) return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
+  if (normalized.includes('document')) return 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'
+  if (normalized.includes('expense')) return 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
+  if (normalized.includes('bill')) return 'bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300'
+  if (normalized.includes('visit')) return 'bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-300'
+  if (normalized.includes('task')) return 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300'
+  return 'bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
 }
 
 export default function Home() {
@@ -411,51 +419,85 @@ export default function Home() {
     .map((t) => ({ ...t, attentionType: 'Bid opening today' }))
   const todaysTasks = openTodos
     .filter((todo) => todo.dueDate && isSameLocalDay(todo.dueDate))
+  const pendingBillFollowups = wonTenders.flatMap((tender) => [
+    ...asArray(tender.bills).map((bill, index) => ({ ...bill, billType: 'Bill', tender, index })),
+    ...asArray(tender.raBills).map((bill, index) => ({ ...bill, billType: 'RA Bill', tender, index })),
+  ]).filter((bill) => {
+    const status = String(bill.status || '').toLowerCase()
+    return status && !['paid', 'completed', 'closed', 'rejected'].includes(status)
+  })
   const actionRequiredItems = [
     ...overdueActiveTenders.slice(0, 3).map((t) => ({
       id: `overdue-${t.id}`,
       icon: AlertTriangle,
+      type: 'Tender',
       title: t.name || 'Untitled tender',
       description: `${t.agency || 'Tender'} submission is overdue.`,
-      meta: 'Overdue',
+      dueDate: formatDashboardDate(t.submissionDate),
+      status: getTenderDisplayStatus(t),
+      priority: 'Overdue',
       tone: 'danger',
       onClick: () => navigate(`/tenders/${t.id}`),
     })),
     ...todaysSubmissions.slice(0, 3).map((t) => ({
       id: `submission-${t.id}`,
       icon: Clock,
+      type: 'Submission',
       title: t.name || 'Untitled tender',
       description: `${t.agency || 'Tender'} requires submission today.`,
-      meta: 'Today',
+      dueDate: formatDashboardDate(t.submissionDate),
+      status: getTenderDisplayStatus(t),
+      priority: 'Today',
       tone: 'warning',
       onClick: () => navigate(`/tenders/${t.id}`),
     })),
     ...todaysOpenings.slice(0, 2).map((t) => ({
       id: `opening-${t.id}`,
       icon: CalendarCheck,
+      type: 'Opening',
       title: t.name || 'Untitled tender',
       description: `${t.agency || 'Tender'} bid opening is scheduled today.`,
-      meta: 'Opening',
+      dueDate: formatDashboardDate(t.openingDate),
+      status: getTenderDisplayStatus(t),
+      priority: 'Today',
       tone: 'info',
       onClick: () => navigate(`/tenders/${t.id}`),
     })),
     ...atRisk.slice(0, 2).map((po) => ({
       id: `po-${po.id}`,
       icon: Landmark,
+      type: 'Pay Order',
       title: po.poNumber ? `Pay order #${po.poNumber}` : 'Pay order needs action',
       description: po.bank ? `${po.bank} is awaiting bid result.` : 'Submitted pay order is awaiting bid result.',
-      meta: 'Pay Order',
+      dueDate: po.submittedDate ? formatDashboardDate(po.submittedDate) : null,
+      status: po.bidResult || po.status || 'Awaiting',
+      priority: 'Due Soon',
       tone: 'warning',
       onClick: () => navigate('/pay-orders'),
     })),
     ...todaysTasks.slice(0, 3).map((todo) => ({
       id: `task-${todo.id}`,
       icon: CheckSquare,
+      type: 'Task',
       title: todo.text || 'Task due today',
       description: todo.tenderName || todo.notes || 'Open task due today.',
-      meta: 'Task',
+      dueDate: formatDashboardDate(todo.dueDate),
+      status: todo.priority ? `${todo.priority} priority` : 'Open',
+      priority: 'Today',
       tone: 'info',
       onClick: () => navigate('/todo'),
+    })),
+    ...pendingBillFollowups.slice(0, 2).map((bill) => ({
+      id: `bill-${bill.tender.id}-${bill.billType}-${bill.id || bill.index}`,
+      icon: ReceiptText,
+      type: bill.billType,
+      title: bill.billNo || bill.number || `${bill.billType} follow-up`,
+      description: bill.tender.name || 'Tender billing follow-up',
+      dueDate: bill.date ? formatDashboardDate(bill.date) : null,
+      status: bill.status || 'Pending',
+      priority: 'Due Soon',
+      tone: 'success',
+      onClick: () => navigate(`/tenders/${bill.tender.id}`),
     })),
   ].slice(0, 6)
 
@@ -466,6 +508,26 @@ export default function Home() {
     return sum + [...bills, ...raBills].reduce((billSum, bill) => billSum + (Number(bill.approvedAmount) || Number(bill.amount) || Number(bill.submittedAmount) || 0), 0)
   }, 0)
   const financeProfit = totalBilled > 0 ? totalBilled - totalExpenses : expectedProfit
+  const billingProgress = tenderFinancials.contractValue > 0
+    ? Math.min(100, Math.round((totalBilled / tenderFinancials.contractValue) * 100))
+    : null
+  const pendingBillsAmount = pendingBillFollowups.reduce((sum, bill) => (
+    sum + (Number(bill.approvedAmount) || Number(bill.amount) || Number(bill.submittedAmount) || 0)
+  ), 0)
+  const receivableTenders = wonTenders
+    .map((tender) => {
+      const billPaid = asArray(tender.bills)
+        .filter((bill) => bill.status === 'Paid')
+        .reduce((sum, bill) => sum + (Number(bill.amount) || Number(bill.receivedAmount) || 0), 0)
+      const raBillPaid = asArray(tender.raBills)
+        .filter((bill) => bill.status === 'Paid')
+        .reduce((sum, bill) => sum + (Number(bill.amount) || Number(bill.receivedAmount) || 0), 0)
+      const balance = Math.max((Number(tender.value) || Number(tender.quotedAmount) || 0) - billPaid - raBillPaid, 0)
+      return { id: tender.id, name: tender.name || 'Untitled tender', agency: tender.agency, balance }
+    })
+    .filter((item) => item.balance > 0)
+    .sort((a, b) => b.balance - a.balance)
+    .slice(0, 3)
 
   const recentActivity = [
     ...tenders.map((t) => ({
@@ -476,6 +538,7 @@ export default function Home() {
       date: t.updatedAt || t.createdAt,
       href: `/tenders/${t.id}`,
       icon: FileText,
+      actor: t.updatedBy || t.createdBy || t.ownerName,
     })),
     ...payOrders.map((po) => ({
       id: `po-${po.id}`,
@@ -485,6 +548,7 @@ export default function Home() {
       date: po.updatedAt || po.createdAt,
       href: '/pay-orders',
       icon: Landmark,
+      actor: po.updatedBy || po.createdBy,
     })),
     ...expenses.map((expense) => ({
       id: `expense-${expense.id}`,
@@ -494,6 +558,17 @@ export default function Home() {
       date: expense.updatedAt || expense.createdAt || expense.date,
       href: '/expenses',
       icon: ReceiptText,
+      actor: expense.updatedBy || expense.createdBy,
+    })),
+    ...tenders.flatMap((tender) => [...asArray(tender.bills), ...asArray(tender.raBills)].map((bill, index) => ({
+      id: `bill-activity-${tender.id}-${bill.id || index}`,
+      type: bill.type || 'Bill',
+      title: bill.billNo || bill.number || 'Bill updated',
+      description: tender.name || 'Billing record',
+      date: bill.updatedAt || bill.createdAt || bill.date,
+      href: `/tenders/${tender.id}`,
+      icon: ReceiptText,
+      actor: bill.updatedBy || bill.createdBy,
     })),
     ...tenders.flatMap((tender) => asArray(tender.siteVisits).map((visit, index) => ({
       id: `visit-${tender.id}-${visit.id || index}`,
@@ -503,6 +578,7 @@ export default function Home() {
       date: visit.updatedAt || visit.createdAt || visit.visitDate || visit.date,
       href: `/tenders/${tender.id}`,
       icon: MapPin,
+      actor: visit.updatedBy || visit.createdBy,
     }))),
     ...tenders.flatMap((tender) => asArray(tender.documents).map((documentItem, index) => ({
       id: `document-${tender.id}-${documentItem.id || index}`,
@@ -512,6 +588,17 @@ export default function Home() {
       date: documentItem.updatedAt || documentItem.uploadedAt || documentItem.createdAt,
       href: `/tenders/${tender.id}`,
       icon: FolderOpen,
+      actor: documentItem.uploadedBy || documentItem.updatedBy || documentItem.createdBy,
+    }))),
+    ...todos.map((todo) => ({
+      id: `task-activity-${todo.id}`,
+      type: 'Task',
+      title: todo.text || 'Task updated',
+      description: todo.tenderName || todo.status || 'Task record',
+      date: todo.updatedAt || todo.createdAt || todo.dueDate,
+      href: '/todo',
+      icon: CheckSquare,
+      actor: todo.updatedBy || todo.createdBy,
     }))),
   ]
     .filter((item) => toMillis(item.date) > 0)
@@ -519,11 +606,12 @@ export default function Home() {
     .slice(0, 6)
 
   const quickLinks = [
-    { label: 'Tenders', description: 'Pipeline and submissions', href: '/tenders', icon: FileStack },
-    { label: 'Pay Orders', description: 'Security instruments', href: '/pay-orders', icon: Landmark },
-    { label: 'Documents', description: 'Tender files and records', href: '/documents', icon: FolderOpen },
-    { label: 'Calendar', description: 'Deadlines and openings', href: '/calendar', icon: CalendarIcon },
-    { label: 'To-Do', description: 'Open tasks and follow-ups', href: '/todo', icon: ListTodo },
+    { label: 'Tenders', description: 'Manage tender pipeline', href: '/tenders', icon: FileStack, count: tenders.length },
+    { label: 'Pay Orders', description: 'Track pay order status', href: '/pay-orders', icon: Landmark, count: payOrders.length },
+    { label: 'Documents', description: 'Browse tender documents', href: '/documents', icon: FolderOpen, count: tenders.reduce((sum, tender) => sum + asArray(tender.documents).length, 0) },
+    { label: 'Calendar', description: 'View deadlines and events', href: '/calendar', icon: CalendarIcon, count: dueSoonCount },
+    { label: 'To-Do', description: 'Manage pending tasks', href: '/todo', icon: ListTodo, count: openTodos.length },
+    { label: 'Expenses', description: 'Track project spending', href: '/expenses', icon: ReceiptText, count: expenses.length },
   ]
 
   return (
@@ -646,8 +734,8 @@ export default function Home() {
         <Card className="rounded-xl border shadow-sm">
           <CardHeader className="pb-3">
             <DashboardSectionHeader
-              title="Today / Action Required"
-              description="What needs attention across submissions, openings, pay orders, and tasks."
+              title="Action Required"
+              description="Items that need attention today or soon."
               action={(
                 <Link to="/calendar">
                   <Button variant="outline" size="sm" className="h-9 rounded-lg">
@@ -660,8 +748,8 @@ export default function Home() {
           <CardContent className="pt-0">
             {actionRequiredItems.length === 0 ? (
               <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-8 text-center">
-                <p className="text-sm font-semibold text-foreground">No urgent actions today</p>
-                <p className="mt-1 text-xs text-muted-foreground">Deadlines, pay orders, and due tasks will appear here when they need attention.</p>
+                <p className="text-sm font-semibold text-foreground">All clear</p>
+                <p className="mt-1 text-xs text-muted-foreground">No urgent tender deadlines, tasks, or pay order actions for now.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -673,17 +761,65 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border shadow-sm">
+        <Card className="overflow-hidden rounded-xl border shadow-sm">
           <CardHeader className="pb-3">
-            <DashboardSectionHeader title="Financial Snapshot" description="Current tender finance position." />
+            <DashboardSectionHeader title="Financial Snapshot" description="Receivables, payments, expenses, and pending finance actions." />
           </CardHeader>
-          <CardContent className="space-y-2 pt-0">
-            <FinanceLine label="Quoted Total" value={formatCurrency(totalQuoted)} />
-            <FinanceLine label="Expenses" value={formatCurrency(totalExpenses)} tone={totalExpenses > 0 ? 'danger' : undefined} />
-            <FinanceLine label="Billed" value={formatCurrency(totalBilled)} />
-            <FinanceLine label="Received" value={formatCurrency(tenderFinancials.totalReceived)} tone="success" />
-            <FinanceLine label="Receivable" value={formatCurrency(receivable)} />
-            <FinanceLine label={financeProfit >= 0 ? 'Profit / Surplus' : 'Loss'} value={formatCurrency(financeProfit)} tone={financeProfit >= 0 ? 'success' : 'danger'} />
+          <CardContent className="space-y-4 pt-0">
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/60 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Total Receivable</p>
+                  <p className="mt-2 max-w-full break-words text-3xl font-semibold leading-tight text-emerald-950 [overflow-wrap:anywhere] dark:text-emerald-100">
+                    {formatCurrency(receivable)}
+                  </p>
+                  <p className="mt-1 text-xs text-emerald-800/75 dark:text-emerald-100/70">
+                    Received {formatCurrency(tenderFinancials.totalReceived)} against {formatCurrency(tenderFinancials.contractValue)} contract value.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-emerald-200 bg-white/75 px-3 py-2 text-sm font-semibold text-emerald-700 shadow-sm dark:border-emerald-900/60 dark:bg-background/60 dark:text-emerald-300">
+                  {billingProgress === null ? '—' : `${billingProgress}% billed`}
+                </div>
+              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-emerald-100 dark:bg-emerald-950">
+                <div className="h-full rounded-full bg-emerald-600" style={{ width: `${billingProgress ?? 0}%` }} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <FinanceMetricCard icon={FileStack} label="Quoted / Contract" value={formatCurrency(totalQuoted)} helper="Quoted total across tenders" />
+              <FinanceMetricCard icon={ReceiptText} label="Expenses" value={formatCurrency(totalExpenses)} helper="Linked project expenses" tone={totalExpenses > 0 ? 'warning' : 'success'} />
+              <FinanceMetricCard icon={Banknote} label="Total Billed" value={formatCurrency(totalBilled)} helper={billingProgress === null ? 'No contract baseline' : `${billingProgress}% of contract value`} tone="success" />
+              <FinanceMetricCard icon={Landmark} label="Pending Pay Orders" value={formatCurrency(payOrdersHeld)} helper="Pending, submitted, or held" tone={payOrdersHeld > 0 ? 'warning' : 'success'} />
+              <FinanceMetricCard icon={ReceiptText} label="Pending Bills" value={formatCurrency(pendingBillsAmount)} helper={`${pendingBillFollowups.length} bill follow-up${pendingBillFollowups.length === 1 ? '' : 's'}`} tone={pendingBillsAmount > 0 ? 'warning' : 'success'} />
+              <FinanceMetricCard icon={Banknote} label={financeProfit >= 0 ? 'Profit / Surplus' : 'Profit / Loss'} value={formatCurrency(financeProfit)} helper="Based on available billing or tender profit data" tone={financeProfit >= 0 ? 'success' : 'danger'} />
+            </div>
+
+            {receivableTenders.length > 0 && (
+              <div className="rounded-xl border bg-background p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">Receivable follow-ups</p>
+                  <Link to="/tenders" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-300">
+                    View all
+                  </Link>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {receivableTenders.map((item) => (
+                    <Link
+                      key={item.id}
+                      to={`/tenders/${item.id}`}
+                      className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2.5 transition-colors hover:bg-muted"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-foreground">{item.name}</span>
+                        {item.agency && <span className="block truncate text-xs text-muted-foreground">{item.agency}</span>}
+                      </span>
+                      <span className="shrink-0 text-sm font-semibold text-emerald-700 dark:text-emerald-300">{formatCurrency(item.balance)}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>
@@ -929,12 +1065,12 @@ export default function Home() {
         </Card>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="rounded-xl border shadow-sm">
           <CardHeader className="pb-3">
-            <DashboardSectionHeader title="Quick Links" description="Jump into the most-used modules." />
+            <DashboardSectionHeader title="Quick Links" description="Jump to important modules." />
           </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-3 pt-0 sm:grid-cols-2">
+          <CardContent className="grid grid-cols-1 gap-3 pt-0 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
             {quickLinks.map((item) => {
               const Icon = item.icon
               return (
@@ -946,11 +1082,14 @@ export default function Home() {
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
                     <Icon className="h-4 w-4" aria-hidden="true" />
                   </span>
-                  <span className="min-w-0">
+                  <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-foreground">{item.label}</span>
                     <span className="mt-0.5 block line-clamp-1 text-xs text-muted-foreground">{item.description}</span>
                   </span>
-                  <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <span className="flex shrink-0 items-center gap-2">
+                    {item.count !== undefined && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{item.count}</span>}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  </span>
                 </Link>
               )
             })}
@@ -959,35 +1098,40 @@ export default function Home() {
 
         <Card className="rounded-xl border shadow-sm">
           <CardHeader className="pb-3">
-            <DashboardSectionHeader title="Recent Activity" description="Latest tender, pay order, expense, document, and site visit updates." />
+            <DashboardSectionHeader title="Recent Activity" description="Latest tender, pay order, document, expense, bill, and site visit updates." />
           </CardHeader>
           <CardContent className="pt-0">
             {recentActivity.length === 0 ? (
               <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-8 text-center">
                 <p className="text-sm font-semibold text-foreground">No recent activity</p>
-                <p className="mt-1 text-xs text-muted-foreground">Updates will appear here when records change.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Updates will appear here as tenders, pay orders, documents, and site visits are changed.</p>
               </div>
             ) : (
-              <ul className="space-y-3">
+              <ul className="relative space-y-3 before:absolute before:bottom-3 before:left-[17px] before:top-3 before:w-px before:bg-border">
                 {recentActivity.map((item) => {
                   const Icon = item.icon
+                  const badgeClass = activityTone(item.type)
                   return (
                     <li key={item.id}>
                       <Link
                         to={item.href}
-                        className="flex min-w-0 items-start gap-3 rounded-xl border bg-background p-3 shadow-sm transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                        className="relative flex min-w-0 items-start gap-3 rounded-xl border bg-background p-3 shadow-sm transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                       >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <span className={cn('z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full', badgeClass)}>
                           <Icon className="h-4 w-4" aria-hidden="true" />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-center gap-2">
-                            <span className="line-clamp-1 text-sm font-semibold text-foreground">{item.title}</span>
-                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">{item.type}</span>
+                            <span className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{item.title}</span>
+                            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', badgeClass)}>{item.type}</span>
                           </span>
                           <span className="mt-1 line-clamp-1 text-xs text-muted-foreground">{item.description}</span>
+                          <span className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                            <span>{formatDashboardDate(item.date)}</span>
+                            {item.actor && <span>by {item.actor}</span>}
+                          </span>
                         </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{formatDashboardDate(item.date)}</span>
+                        <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                       </Link>
                     </li>
                   )

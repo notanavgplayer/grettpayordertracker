@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import PageHeader from "@/components/shared/PageHeader";
 import EmptyState from "@/components/shared/EmptyState";
 import ConfirmDelete from "@/components/shared/ConfirmDelete";
+import KpiCard from "@/components/shared/KpiCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -145,36 +146,34 @@ export default function Todo() {
 
   const stats = [
     {
-      title: "Open",
+      label: "Open",
       value: open,
       helper: "Active items to complete",
       icon: ClipboardList,
-      className: "border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-300",
-      iconClassName: "bg-emerald-500 text-white",
+      tone: "emerald",
     },
     {
-      title: "Done",
+      label: "Done",
       value: done,
       helper: "Completed tasks",
       icon: CheckCircle2,
-      className: "border-blue-200 bg-blue-50/70 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/25 dark:text-blue-300",
-      iconClassName: "bg-blue-500 text-white",
+      tone: "blue",
     },
     {
-      title: "High Priority",
+      label: "High Priority",
       value: highPriority,
       helper: "Need immediate attention",
       icon: Flag,
-      className: "hidden border-amber-200 bg-amber-50/70 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300 sm:block",
-      iconClassName: "bg-amber-400 text-white",
+      tone: "amber",
+      className: "hidden sm:block",
     },
     {
-      title: "Overdue",
+      label: "Overdue",
       value: overdue,
       helper: "Past due tasks",
       icon: Clock3,
-      className: "hidden border-red-200 bg-red-50/70 text-red-700 dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-300 sm:block",
-      iconClassName: "bg-red-400 text-white",
+      tone: "rose",
+      className: "hidden sm:block",
     },
   ];
 
@@ -194,27 +193,10 @@ export default function Todo() {
         className="pt-1 sm:pt-0"
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.title} className={cn("overflow-hidden rounded-xl border shadow-sm", stat.className)}>
-              <CardContent className="flex items-center gap-3 p-4 sm:p-5">
-                <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-sm sm:h-12 sm:w-12", stat.iconClassName)}>
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-foreground/70 sm:text-sm">{stat.title}</p>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <p className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{stat.value}</p>
-                    <span className="hidden text-xs text-muted-foreground sm:inline">tasks</span>
-                  </div>
-                  <p className="mt-1 hidden truncate text-xs text-muted-foreground sm:block">{stat.helper}</p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        {stats.map((stat) => (
+          <KpiCard key={stat.label} {...stat} />
+        ))}
       </div>
 
       {isAdmin && (

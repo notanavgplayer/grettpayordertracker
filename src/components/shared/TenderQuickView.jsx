@@ -3,6 +3,7 @@ import { calculateTenderFinancials, formatCurrencyPrecise, getTenderDisplayStatu
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import KpiCard from '@/components/shared/KpiCard'
 import {
   Building2,
   Calculator,
@@ -51,19 +52,13 @@ function formatQuickDate(dateStr) {
 
 function SummaryCard({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-2.5 shadow-sm shadow-emerald-950/[0.02] sm:p-4">
-      <div className="flex items-center gap-2.5 sm:gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 sm:h-10 sm:w-10">
-          <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-slate-600 sm:text-sm">{label}</p>
-          <p className="mt-1 break-words text-sm font-bold leading-tight text-emerald-700 min-[390px]:text-base sm:text-base">
-            {valueOrFallback(value)}
-          </p>
-        </div>
-      </div>
-    </div>
+    <KpiCard
+      icon={Icon}
+      label={label}
+      value={valueOrFallback(value)}
+      tone="emerald"
+      valueClassName="text-sm sm:text-base"
+    />
   )
 }
 

@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import Breadcrumbs from '@/components/shared/Breadcrumbs'
 import StatusBadge from '@/components/shared/StatusBadge'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
+import KpiCard from '@/components/shared/KpiCard'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, CheckCircle,
@@ -1918,7 +1919,7 @@ export default function TenderDetail() {
                 </p>
               ) : (
                 <>
-                <div className="space-y-3 pb-24 md:hidden">
+                <div className="space-y-3 pb-[calc(env(safe-area-inset-bottom)+11rem)] md:hidden">
                   {boqItems.map((item, index) => {
                     const quotedAmount = (Number(item.qty) || 0) * (Number(item.quotedRate) || 0)
                     const actualCost = getBoqActualCost(item)
@@ -2013,7 +2014,7 @@ export default function TenderDetail() {
                       </div>
                     )
                   })}
-                  <div className="sticky bottom-20 z-20 rounded-2xl border border-emerald-200 bg-emerald-50/95 p-3 shadow-lg shadow-emerald-900/10 ring-1 ring-emerald-100 backdrop-blur supports-[backdrop-filter]:bg-emerald-50/85 dark:border-emerald-800/70 dark:bg-emerald-950/80 dark:ring-emerald-800/50 min-[430px]:p-4">
+                  <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-20 rounded-2xl border border-emerald-200 bg-emerald-50/95 p-3 shadow-lg shadow-emerald-900/10 ring-1 ring-emerald-100 backdrop-blur supports-[backdrop-filter]:bg-emerald-50/85 dark:border-emerald-800/70 dark:bg-emerald-950/80 dark:ring-emerald-800/50 min-[430px]:p-4">
                     <div className="grid grid-cols-3 gap-1.5 text-center min-[420px]:gap-2">
                       <MobileBoqStat label="Total Quoted Amount" value={formatCurrency(boqTotals.quotedAmount)} tone="profit" large />
                       <MobileBoqStat label="Actual Cost" value={hasBoqActualCosts ? formatCurrency(boqTotals.actualCost) : 'Pending'} tone="loss" large />
@@ -2647,10 +2648,10 @@ export default function TenderDetail() {
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => setCompleteOpen(false)} disabled={completing}>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCompleteOpen(false)} disabled={completing}>
               Cancel
             </Button>
-            <Button onClick={completeTender} disabled={completing}>
+            <Button className="w-full sm:w-auto" onClick={completeTender} disabled={completing}>
               {completing && <Loader2 className="h-4 w-4 animate-spin" />}
               {hasCompletionWarnings ? 'Complete Anyway & Save' : 'Mark Completed & Save'}
             </Button>
@@ -2706,8 +2707,8 @@ export default function TenderDetail() {
             </p>
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => setSummaryOpen(false)}>Close</Button>
-            <Button onClick={() => window.print()}>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setSummaryOpen(false)}>Close</Button>
+            <Button className="w-full sm:w-auto" onClick={() => window.print()}>
               <Printer className="h-4 w-4" /> Print / Save PDF
             </Button>
           </DialogFooter>
@@ -2749,8 +2750,8 @@ export default function TenderDetail() {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setExpDialogOpen(false)}>Cancel</Button>
-            <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={saveExpense} disabled={expSaving}>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setExpDialogOpen(false)}>Cancel</Button>
+            <Button type="button" className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto" onClick={saveExpense} disabled={expSaving}>
               {expSaving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editExp ? 'Save Changes' : 'Add Expense'}
             </Button>
@@ -2770,13 +2771,13 @@ export default function TenderDetail() {
       {/* Pay Order Sheet */}
       <Sheet open={poDialogOpen} onOpenChange={setPoDialogOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
-          <SheetHeader className="px-6 py-4 border-b border-border">
+          <SheetHeader className="px-4 py-4 border-b border-border sm:px-6">
             <SheetTitle>{editPo ? 'Edit Pay Order' : 'New Pay Order'}</SheetTitle>
             <SheetDescription>
               {editPo ? 'Update pay order details.' : 'Attach a pay order to this tender. It will also appear in the global Pay Orders list.'}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 sm:px-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="td-po-num">PO Number <span className="text-destructive">*</span></Label>
@@ -2821,9 +2822,9 @@ export default function TenderDetail() {
               <Textarea id="td-po-notes" value={poForm.notes} onChange={setPoF('notes')} rows={3} />
             </div>
           </div>
-          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
-            <Button variant="outline" onClick={() => setPoDialogOpen(false)}>Cancel</Button>
-            <Button onClick={savePo} disabled={poSaving}>
+          <SheetFooter className="px-4 py-4 border-t border-border bg-background sm:justify-end gap-2 sm:px-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setPoDialogOpen(false)}>Cancel</Button>
+            <Button className="w-full sm:w-auto" onClick={savePo} disabled={poSaving}>
               {poSaving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editPo ? 'Save Changes' : 'Add Pay Order'}
             </Button>
@@ -2871,13 +2872,13 @@ export default function TenderDetail() {
       {/* Site Visit Sheet */}
       <Sheet open={siteVisitDialogOpen} onOpenChange={setSiteVisitDialogOpen}>
         <SheetContent side="right" className="w-full p-0 flex flex-col gap-0 sm:max-w-2xl">
-          <SheetHeader className="px-6 py-4 border-b border-border">
+          <SheetHeader className="px-4 py-4 border-b border-border sm:px-6">
             <SheetTitle>{editSiteVisit ? 'Edit Site Visit' : 'New Site Visit'}</SheetTitle>
             <SheetDescription>
               {editSiteVisit ? 'Update site visit details.' : 'Record daily progress, labour, materials, and issues.'}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_0.95fr]">
               <div className="space-y-4">
                 <div className="border-b border-border pb-2">
@@ -2988,9 +2989,9 @@ export default function TenderDetail() {
               </div>
             </div>
           </div>
-          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setSiteVisitDialogOpen(false)}>Cancel</Button>
-            <Button type="button" onClick={saveSiteVisit} disabled={siteVisitPhotoUploading}>
+          <SheetFooter className="px-4 py-4 border-t border-border bg-background sm:justify-end gap-2 sm:px-6">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setSiteVisitDialogOpen(false)}>Cancel</Button>
+            <Button type="button" className="w-full sm:w-auto" onClick={saveSiteVisit} disabled={siteVisitPhotoUploading}>
               {editSiteVisit ? 'Save Changes' : 'Add Site Visit'}
             </Button>
           </SheetFooter>
@@ -3115,20 +3116,20 @@ function AwardMetric({ icon: Icon, label, value, helper, tone, badgeClass }) {
       ? 'bg-amber-50 text-amber-700'
       : 'bg-emerald-50 text-emerald-700'
   return (
-    <div className="flex min-h-0 max-w-full min-w-0 items-start gap-2.5 rounded-xl border border-border/80 bg-background p-2.5 shadow-sm sm:min-h-[108px] sm:gap-3 sm:p-3.5">
+    <div className="flex h-full min-h-0 max-w-full min-w-0 items-start gap-3 rounded-xl border border-border/80 bg-card p-3 shadow-sm sm:p-4">
       {Icon && (
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 sm:rounded-xl ${iconClass}`}>
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 ${iconClass}`}>
           <Icon className="h-4 w-4" />
         </div>
       )}
       <div className="min-w-0 flex-1 overflow-hidden">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-[11px]">{label}</p>
+        <p className="break-words text-[11px] font-semibold uppercase leading-4 tracking-wide text-muted-foreground">{label}</p>
         {badgeClass ? (
           <Badge variant="outline" className={`mt-1 max-w-full whitespace-normal break-words rounded-full px-2 py-0.5 text-xs leading-4 sm:mt-2 sm:px-2.5 sm:py-1 ${badgeClass}`}>{value}</Badge>
         ) : (
-          <p className={`mt-1 max-w-full break-words text-[13px] font-semibold leading-5 [overflow-wrap:anywhere] sm:mt-2 sm:text-sm ${toneClass}`}>{value || MISSING_VALUE}</p>
+          <p className={`mt-1 max-w-full break-words font-mono text-sm font-bold leading-5 tabular-nums [overflow-wrap:anywhere] sm:text-base ${toneClass}`}>{value || MISSING_VALUE}</p>
         )}
-        {helper && <p className="mt-0.5 line-clamp-2 max-w-full break-all text-[11px] leading-4 text-muted-foreground sm:mt-1 sm:text-xs">{helper}</p>}
+        {helper && <p className="mt-1 line-clamp-2 max-w-full break-words text-xs leading-4 text-muted-foreground [overflow-wrap:anywhere]">{helper}</p>}
       </div>
     </div>
   )
@@ -3165,11 +3166,11 @@ function AwardWorkOrderSheet({ open, onOpenChange, form, setField, onSave, isAdm
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-3xl">
-        <SheetHeader className="border-b border-border px-6 py-4">
+        <SheetHeader className="border-b border-border px-4 py-4 sm:px-6">
           <SheetTitle>Award / Work Order</SheetTitle>
           <SheetDescription>Update award, work order, contract period, securities, and execution details.</SheetDescription>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           <div className="space-y-6">
             <AwardFormGroup title="Award Details">
               <AwardSelectField label="Award status" value={form.awardStatus} onValueChange={setField('awardStatus')} options={AWARD_STATUSES} disabled={!isAdmin} />
@@ -3208,9 +3209,9 @@ function AwardWorkOrderSheet({ open, onOpenChange, form, setField, onSave, isAdm
             </AwardFormGroup>
           </div>
         </div>
-        <SheetFooter className="gap-2 border-t border-border bg-background px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" onClick={onSave} disabled={!isAdmin} className="bg-emerald-600 text-white hover:bg-emerald-700">
+        <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 sm:px-6">
+          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button type="button" onClick={onSave} disabled={!isAdmin} className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
             <Save className="h-4 w-4" /> Save Award Details
           </Button>
         </SheetFooter>
@@ -3536,8 +3537,8 @@ function SiteVisitViewDialog({ open, visit, tenderName, isAdmin, onOpenChange, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-3xl overflow-x-hidden overflow-y-auto rounded-2xl p-0">
-        <DialogHeader className="border-b border-border px-5 py-4 text-left sm:px-6">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-3xl overflow-x-hidden overflow-y-auto rounded-2xl p-0">
+        <DialogHeader className="border-b border-border px-4 py-4 text-left sm:px-6">
           <DialogTitle className="min-w-0 break-words text-xl font-semibold">
             {safe(visit.location || 'Site visit')}
           </DialogTitle>
@@ -3546,7 +3547,7 @@ function SiteVisitViewDialog({ open, visit, tenderName, isAdmin, onOpenChange, o
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 px-5 py-4 sm:px-6">
+        <div className="space-y-4 px-4 py-4 sm:px-6">
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
             <SiteVisitDetailBox icon={CalendarDays} label="Visit Date" value={dateParts.label} />
             <SiteVisitDetailBox icon={Clock} label="Visit Time" value={visitTime || '\u2014'} />
@@ -3589,10 +3590,10 @@ function SiteVisitViewDialog({ open, visit, tenderName, isAdmin, onOpenChange, o
           </div>
         </div>
 
-        <DialogFooter className="gap-2 border-t border-border px-5 py-4 sm:px-6">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        <DialogFooter className="gap-2 border-t border-border px-4 py-4 sm:px-6">
+          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>Close</Button>
           {isAdmin && (
-            <Button type="button" onClick={() => onEdit(visit)}>
+            <Button type="button" className="w-full sm:w-auto" onClick={() => onEdit(visit)}>
               <Pencil className="h-4 w-4" /> Edit Site Visit
             </Button>
           )}
@@ -3622,7 +3623,7 @@ function SiteVisitPhotoPreviewDialog({ preview, onOpenChange, onNavigate }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-5xl overflow-hidden rounded-2xl p-0">
+      <DialogContent className="max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-5xl overflow-hidden rounded-2xl p-0">
         <DialogHeader className="border-b border-border px-4 py-3 text-left sm:px-5">
           <DialogTitle className="min-w-0 truncate text-base font-semibold">
             {photo?.name || 'Site visit photo'}
@@ -3633,16 +3634,16 @@ function SiteVisitPhotoPreviewDialog({ preview, onOpenChange, onNavigate }) {
         </DialogHeader>
 
         <div className="relative bg-muted/30 p-3 sm:p-4">
-          <div className="flex min-h-[240px] items-center justify-center overflow-hidden rounded-xl border border-border/80 bg-background sm:min-h-[420px]">
+          <div className="flex min-h-[220px] items-center justify-center overflow-hidden rounded-xl border border-border/80 bg-background sm:min-h-[420px]">
             {photoUrl && !failed ? (
               <img
                 src={photoUrl}
                 alt={photo?.caption || photo?.name || 'Site visit photo'}
-                className="max-h-[72vh] w-auto max-w-full object-contain"
+                className="max-h-[calc(100dvh-10rem)] w-auto max-w-full object-contain sm:max-h-[72vh]"
                 onError={() => setFailed(true)}
               />
             ) : (
-              <div className="flex min-h-[240px] w-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
+              <div className="flex min-h-[220px] w-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
                 <ImageIcon className="h-8 w-8" />
                 <span>Image preview unavailable.</span>
               </div>
@@ -3721,37 +3722,20 @@ function SiteVisitField({ label, value, compact = false }) {
 }
 
 function TenderMetric({ icon: Icon, label, value, detail, tone, className = '' }) {
-  const toneClasses = {
-    emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400',
-    sky: 'bg-sky-50 text-sky-600 dark:bg-sky-950/30 dark:text-sky-400',
-    violet: 'bg-violet-50 text-violet-600 dark:bg-violet-950/30 dark:text-violet-400',
-    orange: 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400',
-    rose: 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400',
-    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400',
-  }
   return (
-    <Card className={className}>
-      <CardContent className="flex min-h-[86px] items-center gap-2.5 p-3 sm:min-h-[96px] sm:gap-3 sm:p-4 md:gap-4">
-        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full sm:h-14 sm:w-14 md:h-11 md:w-11 ${toneClasses[tone] || toneClasses.blue}`}>
-          <Icon className="h-[18px] w-[18px] sm:h-6 sm:w-6 md:h-5 md:w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground sm:text-sm md:text-xs">{label}</p>
-          <p className="break-words text-[clamp(0.95rem,4.2vw,1.15rem)] font-semibold leading-5 tabular-nums [overflow-wrap:anywhere] sm:text-xl sm:leading-6 md:text-lg">{value}</p>
-          {detail && <p className="truncate text-[11px] text-muted-foreground sm:text-xs">{detail}</p>}
-        </div>
-      </CardContent>
-    </Card>
+    <KpiCard
+      className={className}
+      icon={Icon}
+      label={label}
+      value={value}
+      helper={detail}
+      tone={tone || 'blue'}
+      valueClassName="text-base sm:text-lg"
+    />
   )
 }
 
 function BoqMetric({ icon: Icon, label, value, tone }) {
-  const toneClasses = {
-    emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400',
-    orange: 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400',
-    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400',
-    violet: 'bg-violet-50 text-violet-600 dark:bg-violet-950/30 dark:text-violet-400',
-  }
   const valueClasses = {
     emerald: 'text-emerald-700 dark:text-emerald-300',
     orange: 'text-orange-600 dark:text-orange-300',
@@ -3760,19 +3744,13 @@ function BoqMetric({ icon: Icon, label, value, tone }) {
   }
 
   return (
-    <Card className="shadow-sm">
-      <CardContent className="flex min-h-[78px] items-center gap-2 p-2.5 sm:min-h-[88px] sm:gap-3 sm:p-4">
-        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full sm:h-11 sm:w-11 ${toneClasses[tone] || toneClasses.emerald}`}>
-          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground sm:text-sm">{label}</p>
-          <p className={`mt-0.5 whitespace-normal break-words font-mono text-sm font-semibold leading-5 tabular-nums [overflow-wrap:anywhere] sm:text-xl sm:leading-6 ${valueClasses[tone] || valueClasses.emerald}`}>
-            {value}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <KpiCard
+      icon={Icon}
+      label={label}
+      value={value}
+      tone={tone || 'emerald'}
+      valueClassName={`text-sm sm:text-xl ${valueClasses[tone] || valueClasses.emerald}`}
+    />
   )
 }
 
@@ -4185,21 +4163,18 @@ function OverviewMetric({ label, value, tone, helper, valueClassName }) {
           ? 'text-blue-700'
           : 'text-foreground')
   return (
-    <div className="rounded-xl border border-border/80 bg-slate-50/40 p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={`mt-2 break-words font-mono text-base font-bold tabular-nums [overflow-wrap:anywhere] ${toneClass}`}>{value || '-'}</p>
-      {helper && <p className="mt-1 text-xs text-muted-foreground">{helper}</p>}
-    </div>
+    <KpiCard
+      label={label}
+      value={value || '-'}
+      helper={helper}
+      valueClassName={`text-base sm:text-lg ${toneClass}`}
+    />
   )
 }
 
 function OverviewCount({ label, value, helper }) {
   return (
-    <div className="rounded-xl border border-border/80 bg-background p-3 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-2 font-mono text-xl font-bold tabular-nums text-emerald-700">{value}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
-    </div>
+    <KpiCard label={label} value={value} helper={helper} tone="emerald" />
   )
 }
 
@@ -4448,7 +4423,7 @@ function ExpenseMobileCard({ expense, isAdmin, onView, onEdit, onDelete }) {
 function ExpenseViewDialog({ expense, onOpenChange }) {
   return (
     <Dialog open={!!expense} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{expense?.description || 'Expense'}</DialogTitle>
           <DialogDescription>Expense details, category, amount, and notes.</DialogDescription>
@@ -4780,8 +4755,8 @@ function BillsInvoicesSection({
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setBillFormOpen(false)}>Cancel</Button>
-            <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={saveBillForm} disabled={!isAdmin}>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setBillFormOpen(false)}>Cancel</Button>
+            <Button type="button" className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto" onClick={saveBillForm} disabled={!isAdmin}>
               {editingBill ? 'Save Changes' : 'Add Bill'}
             </Button>
           </DialogFooter>
@@ -4806,13 +4781,6 @@ function BillsInvoicesSection({
 }
 
 function BillSummaryCard({ icon: Icon, label, value, helper, tone }) {
-  const tones = {
-    emerald: 'bg-emerald-50 text-emerald-700',
-    green: 'bg-green-50 text-green-700',
-    blue: 'bg-blue-50 text-blue-700',
-    amber: 'bg-amber-50 text-amber-700',
-    red: 'bg-rose-50 text-rose-700',
-  }
   const valueTone = {
     emerald: 'text-emerald-700',
     green: 'text-emerald-700',
@@ -4821,20 +4789,14 @@ function BillSummaryCard({ icon: Icon, label, value, helper, tone }) {
     red: 'text-rose-700',
   }
   return (
-    <div className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${tones[tone] || tones.emerald}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-          <p className={`mt-1 truncate font-mono text-lg font-bold tabular-nums ${valueTone[tone] || valueTone.emerald}`}>
-            {formatCurrency(value || 0)}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
-        </div>
-      </div>
-    </div>
+    <KpiCard
+      icon={Icon}
+      label={label}
+      value={formatCurrency(value || 0)}
+      helper={helper}
+      tone={tone || 'emerald'}
+      valueClassName={`text-lg sm:text-xl ${valueTone[tone] || valueTone.emerald}`}
+    />
   )
 }
 
@@ -4933,7 +4895,7 @@ function BillViewDialog({ bill, onOpenChange }) {
   const amounts = getBillAmounts(bill || {})
   return (
     <Dialog open={!!bill} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{bill ? getBillTitle(bill, 'Bill') : 'Bill'}</DialogTitle>
           <DialogDescription>Bill / invoice details and payment status.</DialogDescription>
@@ -5248,8 +5210,8 @@ function RABillsSection({
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setRaBillFormOpen(false)}>Cancel</Button>
-            <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={saveRaBillForm} disabled={!isAdmin}>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setRaBillFormOpen(false)}>Cancel</Button>
+            <Button type="button" className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto" onClick={saveRaBillForm} disabled={!isAdmin}>
               {editingRaBill ? 'Save Changes' : 'Add RA Bill'}
             </Button>
           </DialogFooter>
@@ -5304,7 +5266,7 @@ function RABillViewDialog({ bill, onOpenChange }) {
   const amounts = getBillAmounts(bill || {})
   return (
     <Dialog open={!!bill} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{bill ? getBillTitle(bill, 'RA Bill') : 'RA Bill'}</DialogTitle>
           <DialogDescription>RA bill approvals, payments, deductions, and receivable details.</DialogDescription>
@@ -5366,15 +5328,13 @@ function LegacyBillFinanceSection({
 
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-5">
         {summaryCards.map((card) => (
-          <Card key={card.label} className="rounded-xl shadow-sm">
-            <CardContent className="p-3.5">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{card.label}</p>
-              <p className={`mt-2 font-mono text-base font-semibold tabular-nums sm:text-lg ${card.tone}`}>
-                {formatCurrency(card.value)}
-              </p>
-              <p className="mt-1 hidden text-xs text-muted-foreground sm:block">{card.helper}</p>
-            </CardContent>
-          </Card>
+          <KpiCard
+            key={card.label}
+            label={card.label}
+            value={formatCurrency(card.value)}
+            helper={card.helper}
+            valueClassName={`text-base sm:text-lg ${card.tone}`}
+          />
         ))}
       </div>
 
@@ -5743,13 +5703,13 @@ function DocumentsManager({
 
     <Sheet open={documentSheetOpen} onOpenChange={setDocumentSheetOpen}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
-        <SheetHeader className="border-b border-border px-6 py-4">
+        <SheetHeader className="border-b border-border px-4 py-4 sm:px-6">
           <SheetTitle>{editingDocument ? 'Edit Document' : 'Add Document'}</SheetTitle>
           <SheetDescription>
             Upload a tender file and save the metadata. Document cards stay compact in the grid.
           </SheetDescription>
         </SheetHeader>
-        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
           <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4">
             <Label htmlFor="td-document-upload" className="text-sm font-medium">Upload file / image</Label>
             <Input
@@ -5823,9 +5783,9 @@ function DocumentsManager({
             />
           </div>
         </div>
-        <SheetFooter className="gap-2 border-t border-border px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => setDocumentSheetOpen(false)}>Cancel</Button>
-          <Button type="button" onClick={saveDocumentForm} disabled={!isAdmin}>
+        <SheetFooter className="gap-2 border-t border-border px-4 py-4 sm:px-6">
+          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setDocumentSheetOpen(false)}>Cancel</Button>
+          <Button type="button" className="w-full sm:w-auto" onClick={saveDocumentForm} disabled={!isAdmin}>
             {editingDocument ? 'Save Document' : 'Add Document'}
           </Button>
         </SheetFooter>
@@ -5848,25 +5808,8 @@ function DocumentsManager({
 }
 
 function DocumentStat({ icon: Icon, label, value, tone, className = '' }) {
-  const tones = {
-    emerald: 'bg-emerald-50 text-emerald-700',
-    green: 'bg-green-50 text-green-700',
-    red: 'bg-red-50 text-red-700',
-    blue: 'bg-blue-50 text-blue-700',
-    amber: 'bg-amber-50 text-amber-700',
-  }
   return (
-    <div className={`rounded-xl border border-border/80 bg-background p-3 shadow-sm md:p-4 ${className}`}>
-      <div className="flex items-center gap-2.5 md:gap-3">
-        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl md:h-10 md:w-10 ${tones[tone] || tones.emerald}`}>
-          <Icon className="h-4 w-4 md:h-5 md:w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
-        </div>
-      </div>
-    </div>
+    <KpiCard className={className} icon={Icon} label={label} value={value} tone={tone || 'emerald'} />
   )
 }
 
@@ -6016,13 +5959,7 @@ function FinancialMetric({ label, value, tone, helper }) {
         : 'text-foreground'
 
   return (
-    <div className="min-w-0 rounded-lg border border-border bg-muted/20 p-3 md:p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`mt-1 break-words font-mono text-sm font-bold leading-5 tabular-nums [overflow-wrap:anywhere] sm:text-base md:text-lg ${toneClass}`}>
-        {value}
-      </p>
-      {helper && <p className="mt-0.5 text-xs text-muted-foreground">{helper}</p>}
-    </div>
+    <KpiCard label={label} value={value} helper={helper} tone={tone === 'loss' || tone === 'expense' ? 'rose' : tone === 'profit' ? 'emerald' : 'slate'} valueClassName={`text-sm sm:text-base md:text-lg ${toneClass}`} />
   )
 }
 

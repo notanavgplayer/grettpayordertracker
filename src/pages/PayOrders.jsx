@@ -22,6 +22,8 @@ import StatusBadge from "@/components/shared/StatusBadge";
 import EmptyState from "@/components/shared/EmptyState";
 import ConfirmDelete from "@/components/shared/ConfirmDelete";
 import PayOrderQuickView from "@/components/shared/PayOrderQuickView";
+import KpiCard from "@/components/shared/KpiCard";
+import PageHeader from "@/components/shared/PageHeader";
 import { PageTableSkeleton } from "@/components/shared/LoadingSkeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -151,21 +153,6 @@ function cleanPayOrderPayload(data) {
   }, {});
 }
 
-const KPI_TONES = {
-  green: {
-    icon: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    helper: "text-emerald-600 dark:text-emerald-400",
-  },
-  amber: {
-    icon: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    helper: "text-emerald-600 dark:text-emerald-400",
-  },
-  blue: {
-    icon: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    helper: "text-muted-foreground",
-  },
-};
-
 const STATUS_CHART_COLORS = {
   Pending: CHART_SEMANTIC.positive,
   Held: CHART_SEMANTIC.warning,
@@ -177,28 +164,15 @@ const STATUS_CHART_COLORS = {
 };
 
 function PayOrderKpiCard({ icon: Icon, label, value, helper, tone = "green" }) {
-  const styles = KPI_TONES[tone] || KPI_TONES.green;
+  const kpiTone = tone === "amber" ? "amber" : tone === "blue" ? "blue" : "emerald";
   return (
-    <Card className="rounded-xl border bg-card shadow-sm">
-      <CardContent className="flex min-h-[110px] items-center gap-3 p-3 sm:min-h-[118px] sm:gap-4 sm:p-5">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:h-14 sm:w-14 ${styles.icon}`}>
-          <Icon className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-muted-foreground sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-[0.08em]">
-            {label}
-          </p>
-          <p className="mt-1 text-lg font-semibold leading-tight tracking-tight text-foreground sm:mt-2 sm:truncate sm:text-2xl">
-            {value}
-          </p>
-          {helper && (
-            <p className={`mt-1 hidden text-xs font-medium sm:mt-2 sm:block ${styles.helper}`}>
-              {helper}
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <KpiCard
+      icon={Icon}
+      label={label}
+      value={value}
+      helper={helper}
+      tone={kpiTone}
+    />
   );
 }
 
@@ -242,6 +216,7 @@ export default function PayOrders() {
   const [deleteId, setDeleteId] = useState(null);
   const [quickView, setQuickView] = useState(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
@@ -561,30 +536,129 @@ export default function PayOrders() {
   const getActivityNext = (entry) =>
     getActivityMeta(entry).next || entry.next || getActivityMeta(entry).tender || "";
 
+  const closeFilterPanels = () => {
+    setFilterOpen(false);
+    setMobileFilterOpen(false);
+  };
+
+  const clearFilterPanel = () => {
+    setDraftFilters(EMPTY_FILTERS);
+    setAppliedFilters(EMPTY_FILTERS);
+    closeFilterPanels();
+  };
+
+  const applyFilterPanel = () => {
+    setAppliedFilters(draftFilters);
+    closeFilterPanels();
+  };
+
+  const filterPanelContent = (
+    <>
+      <div className="grid gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Bank</Label>
+          <Select
+            value={draftFilters.bank}
+            onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, bank: value }))}
+          >
+            <SelectTrigger className="h-10 md:h-9">
+              <SelectValue placeholder="All banks" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All banks</SelectItem>
+              {bankOptions.map((bank) => (
+                <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Status</Label>
+            <Select
+              value={draftFilters.status}
+              onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, status: value }))}
+            >
+              <SelectTrigger className="h-10 md:h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {PO_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Bid Result</Label>
+            <Select
+              value={draftFilters.bidResult}
+              onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, bidResult: value }))}
+            >
+              <SelectTrigger className="h-10 md:h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All results</SelectItem>
+                {BID_RESULTS.map((result) => (
+                  <SelectItem key={result} value={result}>{result}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field
+            label="Submitted from"
+            type="date"
+            value={draftFilters.submittedFrom}
+            onChange={(event) => setDraftFilters((filters) => ({ ...filters, submittedFrom: event.target.value }))}
+          />
+          <Field
+            label="Submitted to"
+            type="date"
+            value={draftFilters.submittedTo}
+            onChange={(event) => setDraftFilters((filters) => ({ ...filters, submittedTo: event.target.value }))}
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field
+            label="Min amount"
+            type="number"
+            value={draftFilters.amountMin}
+            onChange={(event) => setDraftFilters((filters) => ({ ...filters, amountMin: event.target.value }))}
+            placeholder="0"
+          />
+          <Field
+            label="Max amount"
+            type="number"
+            value={draftFilters.amountMax}
+            onChange={(event) => setDraftFilters((filters) => ({ ...filters, amountMax: event.target.value }))}
+            placeholder="0"
+          />
+        </div>
+      </div>
+    </>
+  );
+
   if (loading) return <PageTableSkeleton rows={8} cols={6} metrics={4} />;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">
-            Pay Orders
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage pay order entries and activity logs
-          </p>
-        </div>
-        {isAdmin && (
+      <PageHeader
+        title="Pay Orders"
+        description="Manage pay order entries and activity logs"
+        actions={isAdmin && (
           <Button
             onClick={() => openDialog()}
-            className="h-11 shrink-0 gap-2 rounded-lg bg-emerald-600 px-3 text-white shadow-sm hover:bg-emerald-700 sm:px-5"
+            className="h-11 w-full shrink-0 gap-2 rounded-lg bg-emerald-600 px-4 text-white shadow-sm hover:bg-emerald-700 sm:w-auto sm:px-5"
           >
             <Plus className="h-4 w-4" />
-            <span className="hidden min-[390px]:inline">Add Pay Order</span>
-            <span className="min-[390px]:hidden">Add</span>
+            Add Pay Order
           </Button>
         )}
-      </div>
+      />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <PayOrderKpiCard
@@ -769,7 +843,7 @@ export default function PayOrders() {
               />
             </div>
             <div className="flex shrink-0 gap-2">
-              <div className="relative">
+              <div className="relative hidden md:block">
                 <Button
                   variant="outline"
                   size="icon"
@@ -790,111 +864,20 @@ export default function PayOrders() {
                         </span>
                       )}
                     </div>
-                    <div className="grid gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Bank</Label>
-                        <Select
-                          value={draftFilters.bank}
-                          onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, bank: value }))}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="All banks" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All banks</SelectItem>
-                            {bankOptions.map((bank) => (
-                              <SelectItem key={bank} value={bank}>{bank}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Status</Label>
-                          <Select
-                            value={draftFilters.status}
-                            onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, status: value }))}
-                          >
-                            <SelectTrigger className="h-9">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All statuses</SelectItem>
-                              {PO_STATUSES.map((status) => (
-                                <SelectItem key={status} value={status}>{status}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Bid Result</Label>
-                          <Select
-                            value={draftFilters.bidResult}
-                            onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, bidResult: value }))}
-                          >
-                            <SelectTrigger className="h-9">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All results</SelectItem>
-                              {BID_RESULTS.map((result) => (
-                                <SelectItem key={result} value={result}>{result}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field
-                          label="Submitted from"
-                          type="date"
-                          value={draftFilters.submittedFrom}
-                          onChange={(event) => setDraftFilters((filters) => ({ ...filters, submittedFrom: event.target.value }))}
-                        />
-                        <Field
-                          label="Submitted to"
-                          type="date"
-                          value={draftFilters.submittedTo}
-                          onChange={(event) => setDraftFilters((filters) => ({ ...filters, submittedTo: event.target.value }))}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field
-                          label="Min amount"
-                          type="number"
-                          value={draftFilters.amountMin}
-                          onChange={(event) => setDraftFilters((filters) => ({ ...filters, amountMin: event.target.value }))}
-                          placeholder="0"
-                        />
-                        <Field
-                          label="Max amount"
-                          type="number"
-                          value={draftFilters.amountMax}
-                          onChange={(event) => setDraftFilters((filters) => ({ ...filters, amountMax: event.target.value }))}
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
+                    {filterPanelContent}
                     <div className="mt-4 flex justify-end gap-2">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          setDraftFilters(EMPTY_FILTERS);
-                          setAppliedFilters(EMPTY_FILTERS);
-                          setFilterOpen(false);
-                        }}
+                        onClick={clearFilterPanel}
                       >
                         Clear
                       </Button>
                       <Button
                         type="button"
                         size="sm"
-                        onClick={() => {
-                          setAppliedFilters(draftFilters);
-                          setFilterOpen(false);
-                        }}
+                        onClick={applyFilterPanel}
                       >
                         Apply
                       </Button>
@@ -902,6 +885,44 @@ export default function PayOrders() {
                   </div>
                 )}
               </div>
+              <Button
+                variant="outline"
+                size="icon"
+                className={`h-11 w-11 rounded-lg md:hidden ${hasPanelFilters ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : ""}`}
+                aria-label="Filter pay orders"
+                aria-expanded={mobileFilterOpen}
+                onClick={() => setMobileFilterOpen(true)}
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+              <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+                <SheetContent side="bottom" className="max-h-[calc(100dvh-1rem)] gap-0 overflow-hidden rounded-t-2xl p-0 md:hidden">
+                  <SheetHeader className="border-b border-border px-4 py-4 text-left">
+                    <div className="flex items-center justify-between gap-3">
+                      <SheetTitle>Filter pay orders</SheetTitle>
+                      {hasPanelFilters && (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                    <SheetDescription>
+                      Narrow the list by bank, status, submission date, result, and amount.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="flex-1 overflow-y-auto px-4 py-4">
+                    {filterPanelContent}
+                  </div>
+                  <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+                    <Button type="button" variant="outline" className="w-full" onClick={clearFilterPanel}>
+                      Clear
+                    </Button>
+                    <Button type="button" className="w-full" onClick={applyFilterPanel}>
+                      Apply
+                    </Button>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
               <Button
                 variant="outline"
                 size="icon"

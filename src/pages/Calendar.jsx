@@ -4,6 +4,7 @@ import { useFirestoreCRUD, useCollection } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
 import { cn, formatDate, isTaskDone } from "@/lib/utils";
 import PageHeader from "@/components/shared/PageHeader";
+import KpiCard from "@/components/shared/KpiCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -332,28 +333,28 @@ export default function Calendar() {
       value: allEvents.filter((event) => event.date === todayStr).length,
       helper: "Actions scheduled today",
       icon: Clock3,
-      className: "border-amber-200 bg-amber-50/70 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200",
+      tone: "amber",
     },
     {
       label: "This Week",
       value: thisWeekEvents.length,
       helper: "Next 7 days",
       icon: CalendarIcon,
-      className: "border-blue-200 bg-blue-50/70 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/25 dark:text-blue-200",
+      tone: "blue",
     },
     {
       label: "Overdue",
       value: overdueEvents.length,
       helper: "Needs follow-up",
       icon: AlertTriangle,
-      className: "border-red-200 bg-red-50/70 text-red-800 dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-200",
+      tone: "rose",
     },
     {
       label: "Upcoming Openings",
       value: openingEvents.length,
       helper: "Bid openings ahead",
       icon: FolderOpen,
-      className: "border-emerald-200 bg-emerald-50/70 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-200",
+      tone: "emerald",
     },
   ];
 
@@ -453,7 +454,7 @@ export default function Calendar() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title="Calendar"
         description="Track submissions, openings, pay orders, and tasks"
@@ -506,18 +507,7 @@ export default function Calendar() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {summaryCards.map((card) => (
-          <Card key={card.label} className={cn("rounded-xl border shadow-sm", card.className)}>
-            <CardContent className="flex min-h-[104px] items-center gap-3 p-3.5 sm:p-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/70 dark:bg-background/30">
-                <card.icon className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-foreground/70">{card.label}</p>
-                <p className="mt-1 text-2xl font-semibold leading-none text-foreground">{card.value}</p>
-                <p className="mt-1 hidden truncate text-xs text-muted-foreground sm:block">{card.helper}</p>
-              </div>
-            </CardContent>
-          </Card>
+          <KpiCard key={card.label} {...card} />
         ))}
       </div>
 
@@ -632,7 +622,7 @@ export default function Calendar() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[92dvh]">
           <DialogHeader>
             <DialogTitle>{editEvent ? "Edit Event" : "New Event"}</DialogTitle>
           </DialogHeader>

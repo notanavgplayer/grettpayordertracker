@@ -1,10 +1,9 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useCollection, useFirestoreCRUD } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
 import {
   formatDate,
-  formatCurrency,
   formatCurrencyPrecise,
   calculateTenderFinancials,
   getTenderDisplayStatus,
@@ -18,13 +17,13 @@ import StatusBadge from "@/components/shared/StatusBadge";
 import EmptyState from "@/components/shared/EmptyState";
 import ConfirmDelete from "@/components/shared/ConfirmDelete";
 import TenderQuickView from "@/components/shared/TenderQuickView";
+import KpiCard from "@/components/shared/KpiCard";
 import { PageTableSkeleton } from "@/components/shared/LoadingSkeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -48,7 +47,6 @@ import {
   SheetDescription,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { Progress } from "@/components/ui/progress";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,7 +62,15 @@ import {
   Loader2,
   FileStack,
   Download,
+  Banknote,
+  BarChart3,
+  BriefcaseBusiness,
+  Clock3,
   ExternalLink,
+  Filter,
+  Landmark,
+  TrendingUp,
+  X,
   CheckCircle,
   Calendar,
   MoreHorizontal,
@@ -72,7 +78,23 @@ import {
 import { toast } from "sonner";
 
 const TERMINAL_STATUSES = ["Completed", "Lost", "Cancelled"];
-
+const PIPELINE_STAGES = [
+  "Draft",
+  "Bidding",
+  "Submitted",
+  "Awarded",
+  "In Progress",
+  "Completed",
+  "Lost",
+  "Cancelled",
+];
+const FILTER_STATUSES = ["All", ...PIPELINE_STAGES, "Overdue"];
+const SORT_OPTIONS = [
+  { value: "submissionDate", label: "Submission Date" },
+  { value: "openingDate", label: "Opening Date" },
+  { value: "value", label: "Value" },
+  { value: "status", label: "Status" },
+];
 const STATUS_TONES = {
   Bidding: {
     border: "border-amber-300/70 dark:border-amber-800/70",
@@ -150,6 +172,22 @@ const EMPTY_TENDER = {
   statusHistory: [],
 };
 
+function toNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function parseDateValue(value) {
+  if (!value) return null;
+  if (typeof value?.toDate === "function") return value.toDate();
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isSameStatus(status, target) {
+  return String(status || "").trim().toLowerCase() === target.toLowerCase();
+}
+
 export default function Tenders() {
   const { data: tenders, loading } = useCollection(
     "tenders",
@@ -166,6 +204,12 @@ export default function Tenders() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
+  const [filterAgency, setFilterAgency] = useState("All");
+  const [submissionFrom, setSubmissionFrom] = useState("");
+  const [submissionTo, setSubmissionTo] = useState("");
+  const [sortBy, setSortBy] = useState("submissionDate");
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState("10");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState(EMPTY_TENDER);
@@ -179,17 +223,257 @@ export default function Tenders() {
     [tenders],
   );
 
+  const agencies = useMemo(() => {
+    return Array.from(
+      new Set(
+        tendersResolved
+          .map((t) => String(t.agency || "").trim())
+          .filter(Boolean),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+  }, [tendersResolved]);
+
   const filtered = useMemo(() => {
-    return tendersResolved.filter((t) => {
-      if (filterStatus !== "All" && t.displayStatus !== filterStatus)
-        return false;
-      if (!search) return true;
+    const from = parseDateValue(submissionFrom);
+    const to = parseDateValue(submissionTo);
+    return tendersResolved
+      .filter((t) => {
+        if (filterStatus !== "All" && t.displayStatus !== filterStatus)
+          return false;
+        if (filterAgency !== "All" && t.agency !== filterAgency) return false;
+        const submissionDate = parseDateValue(t.submissionDate);
+        if (from && (!submissionDate || submissionDate < from)) return false;
+        if (to && (!submissionDate || submissionDate > to)) return false;
+        if (!search) return true;
       const q = search.toLowerCase();
       return [t.name, t.agency, t.nit].some((v) =>
         (v || "").toLowerCase().includes(q),
       );
+      })
+      .sort((a, b) => {
+        if (sortBy === "value") return toNumber(b.value) - toNumber(a.value);
+        if (sortBy === "status") {
+          return String(a.displayStatus || "").localeCompare(
+            String(b.displayStatus || ""),
+          );
+        }
+        const aDate = parseDateValue(a[sortBy])?.getTime() || Number.MAX_SAFE_INTEGER;
+        const bDate = parseDateValue(b[sortBy])?.getTime() || Number.MAX_SAFE_INTEGER;
+        return aDate - bDate;
+      });
+  }, [
+    tendersResolved,
+    search,
+    filterStatus,
+    filterAgency,
+    submissionFrom,
+    submissionTo,
+    sortBy,
+  ]);
+
+  const numericRowsPerPage = rowsPerPage === "all" ? filtered.length || 1 : Number(rowsPerPage);
+  const pageCount = rowsPerPage === "all" ? 1 : Math.max(1, Math.ceil(filtered.length / numericRowsPerPage));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = rowsPerPage === "all" ? 0 : (currentPage - 1) * numericRowsPerPage;
+  const pageEnd = rowsPerPage === "all" ? filtered.length : pageStart + numericRowsPerPage;
+  const paginatedTenders = filtered.slice(pageStart, pageEnd);
+  const displayStart = filtered.length === 0 ? 0 : pageStart + 1;
+  const displayEnd = Math.min(pageEnd, filtered.length);
+  const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1)
+    .filter((pageNumber) => pageCount <= 5 || Math.abs(pageNumber - currentPage) <= 2);
+  const paginationText = filtered.length === 0
+    ? "Showing 0 tenders"
+    : rowsPerPage === "all" || filtered.length <= numericRowsPerPage
+    ? `Showing all ${filtered.length} ${filtered.length === 1 ? "tender" : "tenders"}`
+    : `Showing ${displayStart} to ${displayEnd} of ${filtered.length} tenders`;
+  const showPaginationControls = rowsPerPage !== "all" && filtered.length > numericRowsPerPage;
+  const hasActiveFilters =
+    search ||
+    filterStatus !== "All" ||
+    filterAgency !== "All" ||
+    submissionFrom ||
+    submissionTo ||
+    sortBy !== "submissionDate";
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterStatus, filterAgency, submissionFrom, submissionTo, sortBy, rowsPerPage]);
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+
+  const stageCounts = useMemo(() => {
+    const counts = { All: tendersResolved.length };
+    FILTER_STATUSES.forEach((status) => {
+      if (status === "All") return;
+      counts[status] = tendersResolved.filter((t) =>
+        isSameStatus(t.displayStatus, status),
+      ).length;
     });
-  }, [tendersResolved, search, filterStatus]);
+    return counts;
+  }, [tendersResolved]);
+
+  const pipelineCards = useMemo(() => {
+    const countAny = (statuses) =>
+      tendersResolved.filter((t) =>
+        statuses.some((status) => isSameStatus(t.displayStatus, status)),
+      ).length;
+
+    return [
+      {
+        label: "Total Tenders",
+        value: tendersResolved.length,
+        helper: "All records",
+        icon: FileStack,
+        tone: "emerald",
+      },
+      {
+        label: "Draft",
+        value: countAny(["Draft"]),
+        helper: "Being prepared",
+        icon: Pencil,
+        tone: "slate",
+      },
+      {
+        label: "Bidding",
+        value: countAny(["Bidding"]),
+        helper: "Submission pipeline",
+        icon: Clock3,
+        tone: "amber",
+      },
+      {
+        label: "Submitted",
+        value: countAny(["Submitted"]),
+        helper: "Awaiting results",
+        icon: CheckCircle,
+        tone: "blue",
+      },
+      {
+        label: "Awarded / Won",
+        value: countAny(["Awarded", "Won"]),
+        helper: "Converted projects",
+        icon: BriefcaseBusiness,
+        tone: "teal",
+      },
+      {
+        label: "In Progress",
+        value: countAny(["In Progress"]),
+        helper: "Execution active",
+        icon: TrendingUp,
+        tone: "violet",
+      },
+      {
+        label: "Completed",
+        value: countAny(["Completed"]),
+        helper: "Closed work",
+        icon: CheckCircle,
+        tone: "emerald",
+      },
+      {
+        label: "Lost / Cancelled",
+        value: countAny(["Lost", "Cancelled"]),
+        helper: "Not active",
+        icon: X,
+        tone: "red",
+      },
+    ];
+  }, [tendersResolved]);
+
+  const financeCards = useMemo(() => {
+    const summaries = tendersResolved.map((t) => ({
+      tender: t,
+      financials: calculateTenderFinancials(t),
+    }));
+    const estimatedTotal = summaries.reduce(
+      (sum, item) => sum + toNumber(item.financials.estimatedCost),
+      0,
+    );
+    const quotedTotal = summaries.reduce(
+      (sum, item) => sum + toNumber(item.financials.quotedAmount),
+      0,
+    );
+    const awardedValue = summaries
+      .filter((item) =>
+        ["Awarded", "Won", "In Progress", "Completed"].some((status) =>
+          isSameStatus(item.tender.displayStatus, status),
+        ),
+      )
+      .reduce(
+        (sum, item) =>
+          sum +
+          toNumber(item.tender.value || item.financials.quotedAmount),
+        0,
+      );
+    const activeValue = summaries
+      .filter(
+        (item) =>
+          !TERMINAL_STATUSES.some((status) =>
+            isSameStatus(item.tender.displayStatus, status),
+          ),
+      )
+      .reduce(
+        (sum, item) =>
+          sum +
+          toNumber(
+            item.tender.value ||
+              item.financials.quotedAmount ||
+              item.financials.estimatedCost,
+          ),
+        0,
+      );
+    const percentages = summaries
+      .map((item) => item.financials.percentage)
+      .filter((value) => Number.isFinite(value));
+    const averageQuotedPercent = percentages.length
+      ? percentages.reduce((sum, value) => sum + value, 0) / percentages.length
+      : null;
+
+    return [
+      {
+        label: "Estimated Total",
+        value: formatCurrencyPrecise(estimatedTotal, 0),
+        helper: "Tender estimates",
+        icon: Landmark,
+      },
+      {
+        label: "Quoted Total",
+        value: formatCurrencyPrecise(quotedTotal, 0),
+        helper: "Submitted quote value",
+        icon: Banknote,
+      },
+      {
+        label: "Awarded Contract Value",
+        value: formatCurrencyPrecise(awardedValue, 0),
+        helper: "Awarded and active work",
+        icon: BriefcaseBusiness,
+      },
+      {
+        label: "Average Quoted %",
+        value:
+          averageQuotedPercent === null
+            ? "â€”"
+            : `${averageQuotedPercent.toFixed(2)}%`,
+        helper: "Average variance",
+        icon: BarChart3,
+      },
+      {
+        label: "Active Tender Value",
+        value: formatCurrencyPrecise(activeValue, 0),
+        helper: "Open pipeline value",
+        icon: TrendingUp,
+      },
+    ];
+  }, [tendersResolved]);
+
+  const clearFilters = () => {
+    setSearch("");
+    setFilterStatus("All");
+    setFilterAgency("All");
+    setSubmissionFrom("");
+    setSubmissionTo("");
+    setSortBy("submissionDate");
+  };
 
   const openDialog = (item = null) => {
     setEditItem(item);
@@ -388,13 +672,27 @@ export default function Tenders() {
     return String(value).replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim() || "—";
   };
 
+  const getSubmissionDueLabel = (tender) => {
+    if (tender.displayStatus === "Overdue") return "Overdue";
+    const date = parseDateValue(tender.submissionDate);
+    if (!date) return "—";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    const days = Math.round((date - today) / 86400000);
+    if (days === 0) return "Due Today";
+    if (days === 1) return "Due Tomorrow";
+    if (days > 1) return `Due in ${days} days`;
+    return formatDate(tender.submissionDate) || "—";
+  };
+
   if (loading) return <PageTableSkeleton rows={6} cols={6} metrics={5} />;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Tenders"
-        description="Manage your tender pipeline"
+        description="Manage tender pipeline, submissions, pay orders, deadlines, and project status."
         actions={
           <>
             <Button
@@ -406,75 +704,126 @@ export default function Tenders() {
             </Button>
             {isAdmin && (
               <Button onClick={() => openDialog()}>
-                <Plus className="h-4 w-4" /> New Tender
+                <Plus className="h-4 w-4" /> Add Tender
               </Button>
             )}
           </>
         }
       />
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-        {[...TENDER_STATUSES, "Overdue"].map((s) => {
-          const count = tendersResolved.filter(
-            (t) => t.displayStatus === s,
-          ).length;
-          const active = filterStatus === s;
-          const tone = STATUS_TONES[s] || STATUS_TONES.Cancelled;
-          return (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setFilterStatus(s === filterStatus ? "All" : s)}
-              aria-pressed={active}
-              aria-label={`Filter by ${s}: ${count} tender${count !== 1 ? "s" : ""}`}
-              className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
-            >
-              <Card
-                className={`transition-all hover:shadow-sm ${tone.border} ${active ? `ring-2 ring-offset-1 ring-offset-background ${tone.border}` : ""} ${count > 0 ? tone.bg : ""}`}
-              >
-                <CardContent className="p-3 text-center">
-                  <p className={`text-xl font-bold font-mono tabular-nums ${count > 0 ? tone.text : "text-foreground"}`}>
-                    {count}
-                  </p>
-                  <p className={`text-xs ${count > 0 ? tone.text : "text-muted-foreground"}`}>
-                    {s}
-                  </p>
-                </CardContent>
-              </Card>
-            </button>
-          );
-        })}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
+        {pipelineCards.map((card) => (
+          <KpiCard key={card.label} {...card} />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {financeCards.map((card) => (
+          <KpiCard key={card.label} {...card} valueClassName="text-lg sm:text-xl" />
+        ))}
       </div>
 
       {/* Tender table */}
-      {filtered.length === 0 && !search && filterStatus === "All" ? (
+      {filtered.length === 0 && !hasActiveFilters ? (
         <EmptyState
           icon={FileStack}
-          title="No tenders found"
-          description="Add your first tender to get started."
+          title="No tenders added yet"
+          description="Add your first tender to start tracking submissions, pay orders, deadlines, and results."
           action={
             isAdmin && (
               <Button onClick={() => openDialog()}>
-                <Plus className="h-4 w-4" /> New Tender
+                <Plus className="h-4 w-4" /> Add first tender
               </Button>
             )
           }
         />
       ) : (
-        <Card>
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 space-y-0 border-b border-border py-3 px-4">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Card className="overflow-hidden rounded-xl border shadow-sm">
+          <CardHeader className="space-y-4 border-b border-border bg-card/80 px-4 py-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-foreground">
+                  Tender Pipeline
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {filtered.length} of {tendersResolved.length} tenders shown
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                disabled={!hasActiveFilters}
+              >
+                <X className="h-4 w-4" /> Clear filters
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(220px,1.4fr)_repeat(5,minmax(150px,1fr))]">
+              <div className="relative min-w-0">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search tenders..."
+                  className="h-10 min-w-0 pl-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="h-10 min-w-0">
+                  <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FILTER_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterAgency} onValueChange={setFilterAgency}>
+                <SelectTrigger className="h-10 min-w-0">
+                  <SelectValue placeholder="Agency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All agencies</SelectItem>
+                  {agencies.map((agency) => (
+                    <SelectItem key={agency} value={agency}>
+                      {agency}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
-                placeholder="Search tenders…"
-                className="pl-9 h-9"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                type="date"
+                className="h-10 min-w-0"
+                value={submissionFrom}
+                onChange={(e) => setSubmissionFrom(e.target.value)}
+                aria-label="Submission date from"
               />
+              <Input
+                type="date"
+                className="h-10 min-w-0"
+                value={submissionTo}
+                onChange={(e) => setSubmissionTo(e.target.value)}
+                aria-label="Submission date to"
+              />
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="h-10 min-w-0">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex gap-1.5 overflow-x-auto scrollbar-thin -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
-              {["All", ...TENDER_STATUSES, "Overdue"].map((s) => {
+              {FILTER_STATUSES.map((s) => {
                 const tone = STATUS_TONES[s];
                 const active = filterStatus === s;
                 return (
@@ -490,20 +839,25 @@ export default function Tenders() {
                     }`}
                   >
                     {s}
+                    <span className="ml-1.5 rounded-full bg-background/70 px-1.5 py-0.5 font-mono text-[10px] tabular-nums">
+                      {stageCounts[s] ?? 0}
+                    </span>
                   </button>
                 );
               })}
             </div>
           </CardHeader>
           {filtered.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              No tenders match your filters.
-            </div>
+            <EmptyState
+              icon={FileStack}
+              title="No matching tenders"
+              description="Try changing search or filters."
+            />
           ) : (
             <>
               {/* Mobile: card-per-row */}
-              <div className="md:hidden p-3 space-y-3 bg-muted/30">
-                {filtered.map((t) => {
+              <div className="space-y-3 bg-muted/30 p-3 pb-4 md:hidden">
+                {paginatedTenders.map((t) => {
                   const financialSummary = getTenderFinancialSummary(t);
                   const summaryTone =
                     financialSummary?.direction === "above"
@@ -623,6 +977,15 @@ export default function Tenders() {
                             <span className="text-sm truncate">
                               {formatDate(t.submissionDate) || "—"}
                             </span>
+                            <span
+                              className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                t.displayStatus === "Overdue"
+                                  ? "bg-red-50 text-red-700"
+                                  : "bg-emerald-50 text-emerald-700"
+                              }`}
+                            >
+                              {getSubmissionDueLabel(t)}
+                            </span>
                           </div>
                           <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1 ml-[22px]">
                             Submission
@@ -647,22 +1010,25 @@ export default function Tenders() {
               </div>
 
               {/* Desktop: table */}
-              <Table className="hidden md:table">
+              <div className="hidden overflow-x-auto md:block">
+              <Table className="min-w-[1180px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="text-sm">Tender Name</TableHead>
                     <TableHead className="text-sm">Agency</TableHead>
-                    <TableHead className="text-sm">NIT/Ref</TableHead>
-                    <TableHead className="text-sm hidden lg:table-cell text-right">
-                      Value
-                    </TableHead>
-                    <TableHead className="text-sm">Submission</TableHead>
                     <TableHead className="text-sm">Status</TableHead>
+                    <TableHead className="text-sm">Submission</TableHead>
+                    <TableHead className="text-sm">Opening</TableHead>
+                    <TableHead className="text-right text-sm">Estimated</TableHead>
+                    <TableHead className="text-right text-sm">Quoted</TableHead>
+                    <TableHead className="text-sm">Quoted %</TableHead>
+                    <TableHead className="text-sm">NIT/Ref</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((t) => {
+                  {paginatedTenders.map((t) => {
+                    const financialSummary = getTenderFinancialSummary(t);
                     return (
                       <TableRow key={t.id}>
                         <TableCell className="min-w-[200px] max-w-[320px]">
@@ -677,17 +1043,26 @@ export default function Tenders() {
                         <TableCell className="text-sm text-muted-foreground min-w-[160px] max-w-[220px] whitespace-normal break-words">
                           {t.agency || "—"}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground font-mono whitespace-nowrap">
-                          {t.nit || "—"}
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm font-mono tabular-nums text-right whitespace-nowrap">
-                          {formatCurrency(t.value)}
+                        <TableCell className="whitespace-nowrap">
+                          <StatusBadge status={t.displayStatus} />
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           {formatDate(t.submissionDate) || "—"}
                         </TableCell>
-                        <TableCell>
-                          <StatusBadge status={t.displayStatus} />
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {formatDate(t.openingDate) || "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm tabular-nums whitespace-nowrap">
+                          {financialSummary?.estimate || "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm tabular-nums whitespace-nowrap">
+                          {financialSummary?.quoted || "—"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {financialSummary?.percentText || "—"}
+                        </TableCell>
+                        <TableCell className="max-w-[220px] font-mono text-sm text-muted-foreground whitespace-normal break-words">
+                          {t.nit || "—"}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -735,6 +1110,64 @@ export default function Tenders() {
                   })}
                 </TableBody>
               </Table>
+              </div>
+              <div className="flex flex-col gap-3 border-t border-border bg-card px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground sm:px-4 md:flex-row md:items-center md:justify-between">
+                <span className="shrink-0">{paginationText}</span>
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center md:justify-end">
+                  {showPaginationControls && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="min-h-10"
+                        disabled={currentPage <= 1 || filtered.length === 0}
+                        onClick={() => setPage((value) => Math.max(1, value - 1))}
+                      >
+                        Previous
+                      </Button>
+                      {pageNumbers[0] > 1 && <span className="px-1">...</span>}
+                      {pageNumbers.map((pageNumber) => (
+                        <Button
+                          key={pageNumber}
+                          variant="outline"
+                          size="sm"
+                          className={`min-h-10 min-w-10 px-3 ${
+                            pageNumber === currentPage
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                              : ""
+                          }`}
+                          onClick={() => setPage(pageNumber)}
+                        >
+                          {pageNumber}
+                        </Button>
+                      ))}
+                      {pageNumbers[pageNumbers.length - 1] < pageCount && (
+                        <span className="px-1">...</span>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="min-h-10"
+                        disabled={currentPage >= pageCount || filtered.length === 0}
+                        onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                  <Select value={rowsPerPage} onValueChange={setRowsPerPage}>
+                    <SelectTrigger className="h-10 w-full min-w-0 sm:w-[148px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10 rows</SelectItem>
+                      <SelectItem value="20">20 rows</SelectItem>
+                      <SelectItem value="50">50 rows</SelectItem>
+                      <SelectItem value="all">All rows</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </>
           )}
         </Card>

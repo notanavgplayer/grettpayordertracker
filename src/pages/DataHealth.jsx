@@ -15,6 +15,7 @@ import {
 import { db } from '@/lib/firebase'
 import { BID_RESULTS, EXPENSE_CATEGORIES, PO_PURPOSES, PO_STATUSES, TENDER_STATUSES, formatCurrency } from '@/lib/utils'
 import PageHeader from '@/components/shared/PageHeader'
+import KpiCard from '@/components/shared/KpiCard'
 import LoadState from '@/components/shared/LoadState'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -384,25 +385,8 @@ export default function DataHealth() {
 }
 
 function SummaryCard({ icon: Icon, label, value, tone = 'emerald', className = '' }) {
-  const tones = {
-    emerald: 'bg-emerald-50 text-emerald-700',
-    green: 'bg-green-50 text-green-700',
-    amber: 'bg-amber-50 text-amber-700',
-    red: 'bg-rose-50 text-rose-700',
-  }
-  return (
-    <Card className={`rounded-xl border-border/80 shadow-sm ${className}`}>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${tones[tone] || tones.emerald}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  )
+  const normalizedTone = tone === 'red' ? 'rose' : tone === 'green' ? 'emerald' : tone
+  return <KpiCard icon={Icon} label={label} value={value} tone={normalizedTone} className={className} />
 }
 
 function IssueGroup({ group, issues, repairing, onRepair }) {

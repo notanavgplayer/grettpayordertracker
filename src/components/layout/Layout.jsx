@@ -23,6 +23,7 @@ const PAGE_BREADCRUMBS = {
   '/home': [{ label: 'Home' }],
   '/tenders': [{ label: 'Home', href: '/home' }, { label: 'Tenders' }],
   '/pay-orders': [{ label: 'Home', href: '/home' }, { label: 'Pay Orders' }],
+  '/reports': [{ label: 'Home', href: '/home' }, { label: 'Reports' }],
   '/expenses': [{ label: 'Home', href: '/home' }, { label: 'Expenses' }],
   '/calendar': [{ label: 'Home', href: '/home' }, { label: 'Calendar' }],
   '/todo': [{ label: 'Home', href: '/home' }, { label: 'To-Do' }],
