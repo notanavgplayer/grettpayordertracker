@@ -103,16 +103,16 @@ export default function Settings() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-5 sm:space-y-6">
       <PageHeader title="Settings" description="Manage account, preferences, users, and app configuration" />
 
       <Card className="rounded-xl border-border/80 bg-card shadow-sm">
-        <CardHeader className="space-y-1.5 pb-4">
+        <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
           <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4 text-emerald-600" /> Account</CardTitle>
           <CardDescription>Update your profile details and account identity.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex items-center gap-4 rounded-xl border border-border/70 bg-muted/20 p-4">
+        <CardContent className="space-y-4 sm:space-y-5">
+          <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/20 p-3.5 sm:gap-4 sm:p-4">
             <Avatar className="h-12 w-12 flex-shrink-0">
               <AvatarFallback className="bg-emerald-100 font-semibold text-emerald-700">{getInitials(displayName)}</AvatarFallback>
             </Avatar>
@@ -125,7 +125,7 @@ export default function Settings() {
 
           <Separator />
 
-          <div className="space-y-4">
+          <div className="space-y-3.5 sm:space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex-1 space-y-1.5">
                 <Label htmlFor="display-name">Display Name</Label>
@@ -135,28 +135,28 @@ export default function Settings() {
                   autoComplete="name"
                   value={newDisplayName}
                   onChange={(e) => setNewDisplayName(e.target.value)}
-                  className="h-11"
+                  className="h-10 sm:h-11"
                 />
               </div>
-              <Button onClick={saveName} disabled={savingName || newDisplayName === displayName} className="h-11 w-full sm:w-auto">
+              <Button onClick={saveName} disabled={savingName || newDisplayName === displayName} className="h-10 w-full sm:h-11 sm:w-auto">
                 {savingName && <Loader2 className="h-4 w-4 animate-spin" />} Save
               </Button>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="user-email">Email</Label>
-              <Input id="user-email" name="email" autoComplete="email" value={user?.email || ''} disabled className="h-11" />
+              <Input id="user-email" name="email" autoComplete="email" value={user?.email || ''} disabled className="h-10 sm:h-11" />
             </div>
           </div>
         </CardContent>
       </Card>
 
       <Card className="rounded-xl border-border/80 bg-card shadow-sm">
-        <CardHeader className="space-y-1.5 pb-4">
+        <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
           <CardTitle className="text-base">Change Password</CardTitle>
           <CardDescription>Keep your account secure with a strong password.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3.5 sm:space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="current-password">Current Password</Label>
             <Input
@@ -166,7 +166,7 @@ export default function Settings() {
               autoComplete="current-password"
               value={currentPw}
               onChange={(e) => setCurrentPw(e.target.value)}
-              className="h-11"
+              className="h-10 sm:h-11"
             />
           </div>
           <div className="space-y-1.5">
@@ -179,7 +179,7 @@ export default function Settings() {
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
               placeholder="Minimum 10 characters"
-              className="h-11"
+              className="h-10 sm:h-11"
             />
           </div>
           <div className="space-y-1.5">
@@ -199,22 +199,22 @@ export default function Settings() {
               value={confirmPw}
               onChange={(e) => setConfirmPw(e.target.value)}
               placeholder="Re-enter new password"
-              className="h-11"
+              className="h-10 sm:h-11"
             />
           </div>
-          <Button onClick={changePassword} disabled={savingPw} className="h-11 w-full sm:w-auto">
+          <Button onClick={changePassword} disabled={savingPw} className="h-10 w-full sm:h-11 sm:w-auto">
             {savingPw && <Loader2 className="h-4 w-4 animate-spin" />} Update Password
           </Button>
         </CardContent>
       </Card>
 
       <Card className="rounded-xl border-border/80 bg-card shadow-sm">
-        <CardHeader className="space-y-1.5 pb-4">
+        <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
           <CardTitle className="text-base">Appearance</CardTitle>
           <CardDescription>Choose the visual theme for your workspace.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-muted/20 p-4">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/20 p-3.5 sm:gap-4 sm:p-4">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                 {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
@@ -231,12 +231,12 @@ export default function Settings() {
 
       {isAdmin && (
         <Card className="rounded-xl border-border/80 bg-card shadow-sm">
-          <CardHeader className="space-y-1.5 pb-4">
+          <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
             <CardTitle className="flex items-center gap-2 text-base"><Download className="h-4 w-4 text-emerald-600" /> Data Backup</CardTitle>
             <CardDescription>Export all your data as a JSON backup file</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={doExport} disabled={exportingBackup} variant="outline" className="h-11 w-full sm:w-auto">
+            <Button onClick={doExport} disabled={exportingBackup} variant="outline" className="h-10 w-full sm:h-11 sm:w-auto">
               {exportingBackup ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               Export Full Backup (JSON)
             </Button>
@@ -246,17 +246,17 @@ export default function Settings() {
 
       {isAdmin && (
         <Card className="rounded-xl border-border/80 bg-card shadow-sm">
-          <CardHeader className="space-y-1.5 pb-4">
+          <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
             <CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-emerald-600" /> User Management</CardTitle>
             <CardDescription>Manage roles for all users in the system</CardDescription>
           </CardHeader>
           <CardContent>
             {loadingUsers ? (
-              <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading users...</div>
+              <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/20 p-3.5 text-sm text-muted-foreground sm:p-4"><Loader2 className="h-4 w-4 animate-spin" /> Loading users...</div>
             ) : (
               <div className="space-y-3">
                 {users.map((u) => (
-                  <div key={u.id} className="rounded-xl border border-border/80 bg-background p-4 shadow-sm">
+                  <div key={u.id} className="rounded-xl border border-border/80 bg-background p-3.5 shadow-sm sm:p-4">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarFallback className="bg-emerald-100 text-xs font-semibold text-emerald-700">{getInitials(u.displayName || u.email || '')}</AvatarFallback>

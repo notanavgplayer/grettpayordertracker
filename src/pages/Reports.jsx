@@ -687,7 +687,7 @@ export default function Reports() {
   if (loading) return <PageTableSkeleton rows={8} cols={6} metrics={5} />;
 
   return (
-    <div className="space-y-7 pb-6">
+    <div className="space-y-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:space-y-7 sm:pb-6">
       <PageHeader
         title="Reports"
         description="Generate tender, financial, document, and site progress reports."
@@ -698,7 +698,7 @@ export default function Reports() {
               size="sm"
               onClick={() => selectedReport && exportReport(selectedReport)}
               disabled={!selectedReport || selectedRows.length === 0}
-              className="min-h-10"
+              className="min-h-9 sm:min-h-10"
             >
               <Download className="h-4 w-4" /> Export CSV
             </Button>
@@ -706,7 +706,7 @@ export default function Reports() {
               size="sm"
               onClick={() => selectedReport && handlePrint(selectedReport)}
               disabled={!selectedReport || selectedRows.length === 0}
-              className="min-h-10"
+              className="min-h-9 sm:min-h-10"
             >
               <Printer className="h-4 w-4" /> Print Report
             </Button>
@@ -716,7 +716,12 @@ export default function Reports() {
 
       <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         {summaryCards.map((card) => (
-          <KpiCard key={card.label} {...card} />
+          <KpiCard
+            key={card.label}
+            {...card}
+            contentClassName="gap-2.5 p-3.5 sm:gap-3 sm:p-5"
+            valueClassName="text-xl sm:text-2xl"
+          />
         ))}
       </div>
 
@@ -788,14 +793,14 @@ export default function Reports() {
       </Card>
 
       {reportGroups.map((group) => (
-        <section key={group.key} className="space-y-4 pt-1 print:hidden">
-          <div className="border-b border-border/70 pb-3">
+        <section key={group.key} className="scroll-mt-24 space-y-3 pt-2 print:hidden sm:space-y-4 sm:pt-1">
+          <div className="border-b border-border/70 pb-2.5 sm:pb-3">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight text-foreground">{group.title}</h2>
-              <p className="text-sm text-muted-foreground">{group.reports.length} reports available with the current data set</p>
+              <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">{group.title}</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">{group.reports.length} reports available with the current data set</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 2xl:grid-cols-3">
             {group.reports.map((report) => {
               const Icon = report.icon;
               const rows = getReportRows(report, rowsByKey, filters);
@@ -807,30 +812,30 @@ export default function Reports() {
                     isSelected ? "border-emerald-300 ring-2 ring-emerald-100 dark:border-emerald-800 dark:ring-emerald-950" : ""
                   }`}
                 >
-                  <CardContent className="flex h-full flex-col gap-4 p-4 sm:p-5">
-                    <div className="flex items-start gap-3.5">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-900/50">
-                        <Icon className="h-5 w-5" aria-hidden="true" />
+                  <CardContent className="flex h-full flex-col gap-3 p-3.5 sm:gap-4 sm:p-5">
+                    <div className="flex items-start gap-3 sm:gap-3.5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-900/50 sm:h-12 sm:w-12">
+                        <Icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
                       </div>
-                      <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="min-w-0 text-base font-semibold leading-snug text-foreground">{report.name}</h3>
-                          <Badge variant="outline" className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          <Badge variant="outline" className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium text-muted-foreground">
                             {rows.length} {rows.length === 1 ? "record" : "records"}
                           </Badge>
                         </div>
-                        <p className="text-sm leading-6 text-muted-foreground">{report.description}</p>
+                        <p className="text-sm leading-snug text-muted-foreground">{report.description}</p>
                       </div>
                     </div>
                     <div className="mt-auto grid grid-cols-1 gap-2 min-[390px]:grid-cols-2 lg:grid-cols-3">
-                      <Button variant="outline" size="sm" className="min-h-10 justify-center gap-2 rounded-lg px-3" onClick={() => previewReport(report)}>
-                        <Eye className="h-4 w-4" /> Preview
+                      <Button variant="outline" size="sm" className="min-h-9 justify-center gap-1.5 rounded-lg px-2.5 text-sm sm:min-h-10 sm:gap-2 sm:px-3" onClick={() => previewReport(report)}>
+                        <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Preview
                       </Button>
-                      <Button variant="outline" size="sm" className="min-h-10 justify-center gap-2 rounded-lg px-3 disabled:cursor-not-allowed disabled:opacity-45" onClick={() => exportReport(report)} disabled={rows.length === 0}>
-                        <Download className="h-4 w-4" /> Export CSV
+                      <Button variant="outline" size="sm" className="min-h-9 justify-center gap-1.5 rounded-lg px-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-10 sm:gap-2 sm:px-3" onClick={() => exportReport(report)} disabled={rows.length === 0}>
+                        <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Export CSV
                       </Button>
-                      <Button variant="outline" size="sm" className="min-h-10 justify-center gap-2 rounded-lg px-3 disabled:cursor-not-allowed disabled:opacity-45 min-[390px]:col-span-2 lg:col-span-1" onClick={() => handlePrint(report)} disabled={rows.length === 0}>
-                        <Printer className="h-4 w-4" /> Print
+                      <Button variant="outline" size="sm" className="min-h-9 justify-center gap-1.5 rounded-lg px-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-45 min-[390px]:col-span-2 sm:min-h-10 sm:gap-2 sm:px-3 lg:col-span-1" onClick={() => handlePrint(report)} disabled={rows.length === 0}>
+                        <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Print
                       </Button>
                     </div>
                   </CardContent>

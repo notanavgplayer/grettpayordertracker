@@ -490,7 +490,7 @@ export default function Calendar() {
       <Card className="overflow-hidden rounded-2xl border-emerald-100 bg-gradient-to-br from-emerald-50 via-background to-background shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/20">
         <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Deadline Control Center</p>
+            <p className="text-xs font-medium tracking-normal text-emerald-700 dark:text-emerald-300 sm:font-semibold sm:uppercase sm:tracking-[0.18em]">Deadline Control Center</p>
             <h2 className="mt-2 text-xl font-semibold tracking-tight text-foreground md:text-2xl">
               {allEvents.length} tracked date{allEvents.length === 1 ? "" : "s"} across tenders and projects
             </h2>
