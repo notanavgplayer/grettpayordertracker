@@ -1348,7 +1348,7 @@ export default function TenderDetail() {
         ]}
         className="mb-2 sm:hidden"
       />
-      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-xl border bg-card p-3 shadow-sm md:hidden">
+      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-2xl border border-border/80 bg-card p-3.5 shadow-sm md:hidden">
         <div className="aspect-square overflow-hidden rounded-lg border bg-emerald-50 dark:bg-emerald-950/30">
           <div className="relative h-full w-full">
             <div className="absolute bottom-4 left-4 h-8 w-14 rounded-t-full border-t-4 border-emerald-600" />
@@ -1369,6 +1369,21 @@ export default function TenderDetail() {
           </div>
         </div>
       </div>
+      <div className="grid grid-cols-2 gap-2 md:hidden">
+        <Button variant="outline" size="sm" className="h-10 rounded-lg" onClick={() => setSummaryOpen(true)}>
+          <FileText className="h-4 w-4" /> Summary
+        </Button>
+        <Button asChild variant="outline" size="sm" className="h-10 rounded-lg">
+          <Link to={`/tenders/${id}/report`}>
+            <Printer className="h-4 w-4" /> Report
+          </Link>
+        </Button>
+        {isAdmin && form.status !== 'Completed' && (
+          <Button variant="outline" size="sm" className="col-span-2 h-10 rounded-lg" onClick={openCompleteDialog}>
+            <CheckCircle className="h-4 w-4" /> Mark Completed
+          </Button>
+        )}
+      </div>
 
       <div className="hidden flex-col gap-4 md:flex lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-2">
@@ -1376,7 +1391,7 @@ export default function TenderDetail() {
             <ArrowLeft className="h-4 w-4" /> Tenders
           </Link>
           <div className="space-y-2">
-            <h1 className="max-w-5xl text-xl font-bold tracking-tight sm:text-2xl lg:text-3xl">
+            <h1 className="max-w-5xl break-words text-2xl font-semibold leading-tight tracking-tight lg:text-3xl">
               {form.name || 'Untitled Tender'}
             </h1>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -1389,21 +1404,21 @@ export default function TenderDetail() {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-          <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setSummaryOpen(true)}>
+          <Button variant="outline" size="sm" className="h-9 w-full rounded-lg sm:w-auto" onClick={() => setSummaryOpen(true)}>
             <FileText className="h-4 w-4" /> Summary
           </Button>
-          <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
+          <Button asChild variant="outline" size="sm" className="h-9 w-full rounded-lg sm:w-auto">
             <Link to={`/tenders/${id}/report`}>
               <Printer className="h-4 w-4" /> Report
             </Link>
           </Button>
           {isAdmin && form.status !== 'Completed' && (
-            <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={openCompleteDialog}>
+            <Button variant="outline" size="sm" className="h-9 w-full rounded-lg sm:w-auto" onClick={openCompleteDialog}>
               <CheckCircle className="h-4 w-4" /> Mark Completed
             </Button>
           )}
           {isAdmin && (
-            <Button onClick={save} disabled={saving || !dirty} size="sm" className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
+            <Button onClick={save} disabled={saving || !dirty} size="sm" className="h-9 w-full rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Save Changes
             </Button>
@@ -1411,33 +1426,36 @@ export default function TenderDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
         <TenderMetric icon={Banknote} label="Contract Value" value={formatCurrency(contractValue)} detail="PKR" tone="emerald" />
         <TenderMetric icon={Receipt} label="Tender Fee" value={formatCurrency(Number(form.tenderFee) || 0)} detail="Auto expense" tone="sky" />
         <TenderMetric icon={Landmark} label="Linked Pay Orders" value={linkedPOs.length || (form.linkedPO ? 1 : 0)} detail={form.linkedPO || 'Total'} tone="violet" />
-        <TenderMetric icon={FileText} label="Bills" value={(form.bills || []).length} detail={formatCurrency(billTotal)} tone="orange" className="hidden md:block" />
+        <TenderMetric icon={FileText} label="Bills" value={(form.bills || []).length} detail={formatCurrency(billTotal)} tone="orange" />
         <TenderMetric icon={WalletCards} label="Expenses" value={expenses.length} detail={formatCurrency(totalExpenses)} tone="rose" />
-        <TenderMetric icon={CheckSquare} label="Execution Progress" value={`${dashboardProgress}%`} detail={form.status === 'Completed' ? 'Completed' : 'Manual update'} tone="blue" className="hidden md:block" />
+        <TenderMetric icon={CheckSquare} label="Execution Progress" value={`${dashboardProgress}%`} detail={form.status === 'Completed' ? 'Completed' : 'Manual update'} tone="blue" />
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
         <div className="space-y-5">
           <Tabs value={activeTenderTab} onValueChange={setActiveTenderTab} className="flex min-w-0 flex-col gap-4 md:gap-5">
-          <Card className="order-1">
-            <CardHeader className="p-4 pb-2 md:p-6 md:pb-2">
+          <Card className="order-1 rounded-2xl border-border/80 bg-background shadow-sm">
+            <CardHeader className="p-4 pb-3 md:p-5 md:pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <FileText className="h-5 w-5 text-emerald-600" /> Tender Details
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                    <FileText className="h-4 w-4" />
+                  </span>
+                  Tender Details
                 </CardTitle>
                 {isAdmin && (
-                  <Button variant={detailsEditing ? 'secondary' : 'outline'} size="sm" className="h-10 md:h-9" onClick={() => setDetailsEditing((value) => !value)}>
+                  <Button variant={detailsEditing ? 'secondary' : 'outline'} size="sm" className="h-9 rounded-lg" onClick={() => setDetailsEditing((value) => !value)}>
                     <Pencil className="h-3.5 w-3.5" /> {detailsEditing ? 'Viewing' : 'Edit Details'}
                   </Button>
                 )}
               </div>
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-0 md:px-5 md:pb-5">
-              <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <DetailRow icon={FileText} label="Tender Name" className="md:col-span-2 xl:col-span-2">
                   {detailsEditing ? (
                     <Textarea value={form.name || ''} onChange={(e) => updateForm('name', e.target.value)} rows={2} className={`${INLINE_TEXTAREA_CLASS} min-h-[48px] overflow-hidden font-medium leading-snug`} />
@@ -2509,48 +2527,55 @@ export default function TenderDetail() {
       </Tabs>
         </div>
 
-        <aside className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
+        <aside className="space-y-4 xl:sticky xl:top-4">
+          <Card className="rounded-2xl border-border/80 shadow-sm">
+            <CardHeader className="p-4 pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
-                <TrendingUpIcon /> Project Status
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <TrendingUpIcon />
+                </span>
+                Project Status
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:block lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-6">
-                <div className="space-y-2">
-                  <div className="flex items-end justify-between gap-3">
-                    <span className="text-2xl font-semibold text-emerald-600 sm:text-3xl dark:text-emerald-400">{dashboardProgress}%</span>
-                    {displayTenderStatus && <StatusBadge status={displayTenderStatus} />}
+            <CardContent className="space-y-4 p-4 pt-0">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-3xl font-semibold leading-none text-emerald-700 dark:text-emerald-300">{dashboardProgress}%</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{progressMessage}</p>
                   </div>
-                  <Progress value={dashboardProgress} className="h-2" />
-                  <p className="text-sm text-muted-foreground">{progressMessage}</p>
+                  {displayTenderStatus && <StatusBadge status={displayTenderStatus} />}
                 </div>
-                <div className="space-y-2 border-t pt-3 text-sm md:border-t-0 md:pt-0 lg:border-l lg:pl-6">
-                  <SnapshotRow label="Start Date" value={formatDate(form.submissionDate)} />
-                  <SnapshotRow label="Estimated Completion" value={formatDate(form.completionDate)} />
-                  <SnapshotRow label="Project Health" value={projectHealth} tone={projectHealthTone} />
-                </div>
+                <Progress value={dashboardProgress} className="mt-4 h-2" />
+              </div>
+              <div className="space-y-2 text-sm">
+                <SnapshotRow label="Start Date" value={formatDate(form.submissionDate)} />
+                <SnapshotRow label="Estimated Completion" value={formatDate(form.completionDate)} />
+                <SnapshotRow label="Project Health" value={projectHealth} tone={projectHealthTone} />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Important Dates</CardTitle>
+          <Card className="rounded-2xl border-border/80 shadow-sm">
+            <CardHeader className="p-4 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CalendarDays className="h-4 w-4 text-emerald-600" /> Important Dates
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
+            <CardContent className="space-y-2 p-4 pt-0 text-sm">
               <SnapshotRow label="Submission Date" value={formatDate(form.submissionDate)} />
               <SnapshotRow label="Opening Date" value={formatDate(form.openingDate)} />
               <SnapshotRow label="Completion" value={formatDate(form.completionDate)} />
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Financial Snapshot</CardTitle>
+          <Card className="rounded-2xl border-border/80 shadow-sm">
+            <CardHeader className="p-4 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Banknote className="h-4 w-4 text-emerald-600" /> Financial Snapshot
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
+            <CardContent className="space-y-2 p-4 pt-0 text-sm">
               <SnapshotRow label="Contract Value" value={formatCurrency(contractValue)} />
               <SnapshotRow label="Total Expenses" value={formatCurrency(totalExpenses)} />
               <SnapshotRow label="BOQ Expected Profit" value={boqExpectedProfit === null ? 'Pending actual costs' : formatCurrency(boqExpectedProfit)} tone={boqExpectedProfit === null ? undefined : boqExpectedProfit >= 0 ? 'profit' : 'loss'} />
@@ -2559,15 +2584,17 @@ export default function TenderDetail() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Recent Activity</CardTitle>
+          <Card className="rounded-2xl border-border/80 shadow-sm">
+            <CardHeader className="p-4 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <History className="h-4 w-4 text-emerald-600" /> Recent Activity
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {recentActivity.length === 0 && <p className="text-sm text-muted-foreground">No activity yet.</p>}
+            <CardContent className="space-y-3 p-4 pt-0">
+              {recentActivity.length === 0 && <p className="rounded-xl border border-dashed py-6 text-center text-sm text-muted-foreground">No activity yet.</p>}
               {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex gap-3 text-sm">
-                  <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-muted">
+                <div key={activity.id} className="flex gap-3 rounded-xl border border-border/70 bg-muted/10 p-3 text-sm">
+                  <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-background text-emerald-700 shadow-sm">
                     <activity.icon className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
@@ -3807,14 +3834,14 @@ function formatPlainNumber(value) {
 
 function DetailRow({ icon: Icon, label, children, note, className = '' }) {
   return (
-    <div className={`rounded-lg border bg-background px-3 py-2.5 ${className}`}>
-      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
-        <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+    <div className={`min-w-0 rounded-xl border border-border/80 bg-card px-3 py-3 shadow-sm ${className}`}>
+      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">
+        <Icon className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/80" />
         <span>{label}</span>
       </div>
       <div className="min-w-0">
         {children}
-        {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
+        {note && <p className="mt-1 text-xs leading-4 text-muted-foreground">{note}</p>}
       </div>
     </div>
   )
@@ -3822,7 +3849,7 @@ function DetailRow({ icon: Icon, label, children, note, className = '' }) {
 
 function DetailValue({ children }) {
   return (
-    <p className="whitespace-pre-wrap break-words text-sm font-medium leading-5 [overflow-wrap:anywhere] md:text-base">
+    <p className="whitespace-pre-wrap break-words text-sm font-semibold leading-5 text-foreground [overflow-wrap:anywhere] md:text-[15px]">
       {children || '-'}
     </p>
   )
@@ -3955,10 +3982,6 @@ function OverviewListItem({ title, meta, value, tone, badge }) {
 
 function TenderOverviewDashboard({
   form,
-  displayTenderStatus,
-  dirty,
-  autoSaving,
-  autoSaveError,
   linkedPayOrderDisplay,
   linkedPOs,
   tenderFinancials,
@@ -3986,7 +4009,6 @@ function TenderOverviewDashboard({
   pct,
   expenses,
   documents,
-  recentActivity,
   recentSiteVisits,
   recentDocuments,
   recentExpenses,
@@ -4015,39 +4037,32 @@ function TenderOverviewDashboard({
 
   return (
     <div className="space-y-5">
-      <Card className="overflow-hidden rounded-2xl border-border/80 bg-background shadow-sm">
-        <CardContent className="p-4 md:p-5">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                {displayTenderStatus && <StatusBadge status={displayTenderStatus} />}
-                {dirty && <Badge variant="warning">Unsaved changes</Badge>}
-                {autoSaving && <Badge variant="info">Auto-saving</Badge>}
-                {autoSaveError && <Badge variant="destructive">Auto-save failed</Badge>}
+      <OverviewGroupHeading
+        title="Performance & Financials"
+        helper="Current progress, award status, cost, billing, and cash position."
+      />
+
+      <OverviewSection title="Execution Progress" icon={CheckSquare}>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+            <p className="text-xs font-medium tracking-normal text-emerald-800 sm:font-semibold sm:uppercase sm:tracking-wide">Current progress</p>
+            <div className="mt-3 flex items-end justify-between gap-3">
+              <div>
+                <p className="text-3xl font-semibold leading-none text-emerald-800">{dashboardProgress}%</p>
+                <p className="mt-2 text-sm text-emerald-900/75">{progressMessage}</p>
               </div>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{form.name || 'Untitled Tender'}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">{form.agency || 'No agency / client recorded'}</p>
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <OverviewInfo icon={Hash} label="NIT / Ref" value={form.nit || '-'} />
-                <OverviewInfo icon={CalendarDays} label="Submission" value={formatDate(form.submissionDate)} />
-                <OverviewInfo icon={CalendarDays} label="Opening" value={formatDate(form.openingDate)} />
-                <OverviewInfo icon={LinkIcon} label="Linked Pay Order" value={linkedPayOrderDisplay || '-'} />
-              </div>
+              <Badge variant={projectHealthTone === 'profit' ? 'success' : projectHealthTone === 'loss' ? 'destructive' : 'warning'}>{projectHealth}</Badge>
             </div>
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3.5 sm:p-4 lg:w-80">
-              <p className="text-xs font-medium tracking-normal text-emerald-800 sm:font-semibold sm:uppercase sm:tracking-wide">Progress</p>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-2xl font-semibold tracking-tight text-emerald-900 sm:text-3xl sm:font-bold">{dashboardProgress}%</p>
-                  <p className="mt-1 text-sm text-emerald-800/80">{progressMessage}</p>
-                </div>
-                <Badge variant={projectHealthTone === 'profit' ? 'success' : projectHealthTone === 'loss' ? 'destructive' : 'warning'}>{projectHealth}</Badge>
-              </div>
-              <Progress value={dashboardProgress} className="mt-4 h-2" />
-            </div>
+            <Progress value={dashboardProgress} className="mt-4 h-2" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <OverviewInfo icon={Hash} label="NIT / Ref" value={form.nit || '-'} />
+            <OverviewInfo icon={CalendarDays} label="Submission" value={formatDate(form.submissionDate)} />
+            <OverviewInfo icon={CalendarDays} label="Opening" value={formatDate(form.openingDate)} />
+            <OverviewInfo icon={LinkIcon} label="Linked Pay Order" value={linkedPayOrderDisplay || '-'} />
+          </div>
+        </div>
+      </OverviewSection>
 
       <OverviewSection title="Financial Snapshot" icon={Banknote}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -4094,6 +4109,11 @@ function TenderOverviewDashboard({
         </OverviewSection>
       </div>
 
+      <OverviewGroupHeading
+        title="Progress & Records"
+        helper="A compact count of linked operational records for this tender."
+      />
+
       <OverviewSection title="Progress Summary" icon={CheckSquare}>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
           <OverviewCount label="Checklist" value={`${doneCount}/${checklist.length}`} helper={`${pct}% complete`} />
@@ -4101,42 +4121,51 @@ function TenderOverviewDashboard({
           <OverviewCount label="Documents" value={documents.length} helper="Uploaded files" />
           <OverviewCount label="Expenses" value={expenses.length} helper="Expense records" />
           <OverviewCount label="Pay Orders" value={linkedPOs.length || (form.linkedPO ? 1 : 0)} helper="Linked records" />
-          <OverviewCount label="Recent Activity" value={recentActivity.length} helper="Latest updates" />
+          <OverviewCount label="Bills / RA" value={(form.bills || []).length + (form.raBills || []).length} helper="Billing records" />
         </div>
       </OverviewSection>
 
+      <OverviewGroupHeading
+        title="Recent Tender Records"
+        helper="Latest records from detailed tabs. Use View All to jump to the full section."
+      />
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <OverviewPreviewCard icon={CalendarDays} title="Recent Site Visits" empty="No site visits recorded yet." tab="site-visits" action="View Site Visits" onViewTab={onViewTab}>
-          {recentSiteVisits.map((visit) => (
+        <OverviewPreviewCard icon={CalendarDays} title="Recent Site Visits" empty="No site visits recorded yet." tab="site-visits" action="View All" onViewTab={onViewTab}>
+          {recentSiteVisits.slice(0, 3).map((visit) => (
             <OverviewListItem key={visit.id || visit.date || visit.visitDate} title={visit.location || visit.workCompleted || 'Site visit'} meta={formatDate(visit.date || visit.visitDate)} />
           ))}
         </OverviewPreviewCard>
-        <OverviewPreviewCard icon={Paperclip} title="Recent Documents" empty="No documents uploaded yet." tab="documents" action="View Documents" onViewTab={onViewTab}>
-          {recentDocuments.map((document) => (
+        <OverviewPreviewCard icon={Paperclip} title="Recent Documents" empty="No documents uploaded yet." tab="documents" action="View All" onViewTab={onViewTab}>
+          {recentDocuments.slice(0, 3).map((document) => (
             <OverviewListItem key={document.id || document.title || document.url} title={document.title || document.type || 'Document'} meta={`${document.type || 'Other'}${document.addedAt ? ` · ${formatDate(document.addedAt)}` : ''}`} />
           ))}
         </OverviewPreviewCard>
-        <OverviewPreviewCard icon={Receipt} title="Recent Expenses" empty="No expenses recorded yet." tab="expenses" action="View Expenses" onViewTab={onViewTab}>
-          {recentExpenses.slice(0, 4).map((expense) => (
+        <OverviewPreviewCard icon={Receipt} title="Recent Expenses" empty="No expenses recorded yet." tab="expenses" action="View All" onViewTab={onViewTab}>
+          {recentExpenses.slice(0, 3).map((expense) => (
             <OverviewListItem key={expense.id} title={expense.description || 'Expense'} meta={`${formatDate(expense.date)}${expense.category ? ` · ${expense.category}` : ''}`} value={formatCurrency(Number(expense.amount) || 0)} tone="expense" />
           ))}
         </OverviewPreviewCard>
-        <OverviewPreviewCard icon={Landmark} title="Linked Pay Orders" empty="No linked pay orders." tab="payorders" action="View Pay Orders" onViewTab={onViewTab}>
-          {linkedPOs.slice(0, 4).map((po) => (
+        <OverviewPreviewCard icon={Landmark} title="Linked Pay Orders" empty="No linked pay orders." tab="payorders" action="View All" onViewTab={onViewTab}>
+          {linkedPOs.slice(0, 3).map((po) => (
             <OverviewListItem key={po.id} title={po.po || 'Pay order'} meta={`${po.bank || 'No bank'}${po.submitted ? ` · ${formatDate(po.submitted)}` : ''}`} value={formatCurrency(Number(po.amount) || 0)} badge={po.status} />
           ))}
         </OverviewPreviewCard>
-        <OverviewPreviewCard icon={FileText} title="Latest Bills / RA Bills" empty="No bills or RA bills yet." tab="bills" action="View Bills" onViewTab={onViewTab}>
-          {recentBills.map((bill) => (
+        <OverviewPreviewCard icon={FileText} title="Latest Bills / RA Bills" empty="No bills or RA bills yet." tab="bills" action="View All" onViewTab={onViewTab}>
+          {recentBills.slice(0, 3).map((bill) => (
             <OverviewListItem key={`${bill.isRaBill ? 'ra' : 'bill'}-${bill.id || bill.no || bill.desc}`} title={bill.isRaBill ? `RA bill ${bill.no || ''}`.trim() : (bill.no || bill.desc || 'Bill')} meta={`${bill.status || 'No status'}${(bill.paid || bill.submitted || bill.date) ? ` · ${formatDate(bill.paid || bill.submitted || bill.date)}` : ''}`} value={formatCurrency(Number(bill.amount) || 0)} badge={bill.status} />
           ))}
         </OverviewPreviewCard>
-        <OverviewPreviewCard icon={History} title="Recent Activity" empty="No activity yet." tab="overview">
-          {recentActivity.map((activity) => (
-            <OverviewListItem key={activity.id} title={activity.title} meta={formatDate(activity.date)} />
-          ))}
-        </OverviewPreviewCard>
       </div>
+    </div>
+  )
+}
+
+function OverviewGroupHeading({ title, helper }) {
+  return (
+    <div className="pt-1">
+      <h3 className="text-sm font-semibold tracking-tight text-foreground">{title}</h3>
+      {helper && <p className="mt-1 text-xs text-muted-foreground">{helper}</p>}
     </div>
   )
 }
