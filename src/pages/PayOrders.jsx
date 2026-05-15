@@ -652,7 +652,7 @@ export default function PayOrders() {
         actions={isAdmin && (
           <Button
             onClick={() => openDialog()}
-            className="h-11 w-full shrink-0 gap-2 rounded-lg bg-emerald-600 px-4 text-white shadow-sm hover:bg-emerald-700 sm:w-auto sm:px-5"
+            className="h-10 w-full shrink-0 gap-2 rounded-lg bg-emerald-600 px-4 text-white shadow-sm hover:bg-emerald-700 sm:h-11 sm:w-auto sm:px-5"
           >
             <Plus className="h-4 w-4" />
             Add Pay Order
@@ -817,17 +817,17 @@ export default function PayOrders() {
       )}
 
       <Tabs defaultValue="payorders">
-        <div className="flex flex-col gap-4 border-b border-border pb-0 lg:flex-row lg:items-end">
-          <TabsList className="h-11 w-full justify-start rounded-none border-b bg-transparent p-0 lg:w-auto lg:border-b-0">
+        <div className="flex flex-col gap-3 border-b border-border pb-0 lg:flex-row lg:items-end lg:gap-4">
+          <TabsList className="h-10 w-full justify-start rounded-none border-b bg-transparent p-0 sm:h-11 lg:w-auto lg:border-b-0">
             <TabsTrigger
               value="payorders"
-              className="h-11 rounded-none border-b-2 border-transparent bg-transparent px-0 pr-8 text-base text-muted-foreground shadow-none data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none"
+              className="h-10 rounded-none border-b-2 border-transparent bg-transparent px-0 pr-7 text-sm text-muted-foreground shadow-none data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none sm:h-11 sm:pr-8 sm:text-base"
             >
               Pay Orders
             </TabsTrigger>
             <TabsTrigger
               value="activity"
-              className="h-11 rounded-none border-b-2 border-transparent bg-transparent px-0 text-base text-muted-foreground shadow-none data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none"
+              className="h-10 rounded-none border-b-2 border-transparent bg-transparent px-0 text-sm text-muted-foreground shadow-none data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none sm:h-11 sm:text-base"
             >
               Activity Log
             </TabsTrigger>
@@ -837,7 +837,7 @@ export default function PayOrders() {
               <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search pay orders..."
-                className="h-11 rounded-lg pl-10"
+                className="h-10 rounded-lg pl-10 sm:h-11"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -847,7 +847,7 @@ export default function PayOrders() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className={`h-11 w-11 rounded-lg ${hasPanelFilters ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : ""}`}
+                  className={`h-10 w-10 rounded-lg sm:h-11 sm:w-11 ${hasPanelFilters ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : ""}`}
                   aria-label="Filter pay orders"
                   aria-expanded={filterOpen}
                   onClick={() => setFilterOpen((open) => !open)}
@@ -888,7 +888,7 @@ export default function PayOrders() {
               <Button
                 variant="outline"
                 size="icon"
-                className={`h-11 w-11 rounded-lg md:hidden ${hasPanelFilters ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : ""}`}
+                className={`h-10 w-10 rounded-lg md:hidden ${hasPanelFilters ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : ""}`}
                 aria-label="Filter pay orders"
                 aria-expanded={mobileFilterOpen}
                 onClick={() => setMobileFilterOpen(true)}
@@ -914,10 +914,10 @@ export default function PayOrders() {
                     {filterPanelContent}
                   </div>
                   <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
-                    <Button type="button" variant="outline" className="w-full" onClick={clearFilterPanel}>
+                    <Button type="button" variant="outline" className="h-10 w-full" onClick={clearFilterPanel}>
                       Clear
                     </Button>
-                    <Button type="button" className="w-full" onClick={applyFilterPanel}>
+                    <Button type="button" className="h-10 w-full" onClick={applyFilterPanel}>
                       Apply
                     </Button>
                   </SheetFooter>
@@ -926,7 +926,7 @@ export default function PayOrders() {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-11 w-11 rounded-lg"
+                className="h-10 w-10 rounded-lg sm:h-11 sm:w-11"
                 title="Export CSV"
                 aria-label="Export CSV"
                 onClick={() => {
@@ -939,7 +939,7 @@ export default function PayOrders() {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-11 w-11 rounded-lg"
+                className="h-10 w-10 rounded-lg sm:h-11 sm:w-11"
                 title="Export PDF"
                 aria-label="Export PDF"
                 onClick={() => {
@@ -1328,9 +1328,9 @@ export default function PayOrders() {
       <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
         <SheetContent
           side="right"
-          className="w-full sm:max-w-lg p-0 flex flex-col gap-0"
+          className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-lg"
         >
-          <SheetHeader className="px-6 py-4 border-b border-border">
+          <SheetHeader className="border-b border-border px-4 py-4 sm:px-6">
             <SheetTitle>
               {editItem ? "Edit Pay Order" : "New Pay Order"}
             </SheetTitle>
@@ -1340,8 +1340,8 @@ export default function PayOrders() {
                 : "Record a new pay order entry."}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
                 label={
                   <>
@@ -1388,7 +1388,7 @@ export default function PayOrders() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
                 label="NIT / Reference"
                 value={form.nit}
@@ -1422,11 +1422,11 @@ export default function PayOrders() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 rounded-md border border-border p-3">
+            <div className="min-w-0 space-y-2 rounded-md border border-border p-3">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                 Attach to tender
               </Label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {[
                   ["none", "None"],
                   ["existing", "Existing"],
@@ -1459,7 +1459,7 @@ export default function PayOrders() {
                   return (
                     <div className="space-y-2">
                       {selected ? (
-                        <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
+                        <div className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium truncate">
                               {selected.name || "Untitled"}
@@ -1472,6 +1472,7 @@ export default function PayOrders() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="shrink-0"
                             onClick={() => {
                               setForm((p) => ({ ...p, tenderRef: "" }));
                               setTenderSearch("");
@@ -1492,7 +1493,7 @@ export default function PayOrders() {
                             />
                           </div>
                           {q && (
-                            <div className="rounded-md border border-border max-h-48 overflow-y-auto">
+                            <div className="max-h-48 min-w-0 overflow-y-auto rounded-md border border-border">
                               {matches.length === 0 ? (
                                 <p className="text-xs text-muted-foreground text-center py-3">
                                   No matching tenders.
@@ -1509,7 +1510,7 @@ export default function PayOrders() {
                                       }));
                                       setTenderSearch("");
                                     }}
-                                    className="w-full text-left px-3 py-2 hover:bg-accent border-b border-border last:border-0"
+                                    className="w-full min-w-0 border-b border-border px-3 py-2 text-left hover:bg-accent last:border-0"
                                   >
                                     <p className="text-sm font-medium truncate">
                                       {t.name || "Untitled"}
@@ -1545,7 +1546,7 @@ export default function PayOrders() {
                       }))
                     }
                   />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                     <Field
                       label="NIT"
                       value={newTenderFields.nit}
@@ -1597,7 +1598,7 @@ export default function PayOrders() {
               value={form.submitted}
               onChange={setF("submitted")}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={setF("status")}>
@@ -1642,7 +1643,7 @@ export default function PayOrders() {
               />
             </div>
           </div>
-          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
+          <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
@@ -1658,16 +1659,16 @@ export default function PayOrders() {
       <Sheet open={logDialogOpen} onOpenChange={setLogDialogOpen}>
         <SheetContent
           side="right"
-          className="w-full sm:max-w-md p-0 flex flex-col gap-0"
+          className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-md"
         >
-          <SheetHeader className="px-6 py-4 border-b border-border">
+          <SheetHeader className="border-b border-border px-4 py-4 sm:px-6">
             <SheetTitle>New Log Entry</SheetTitle>
             <SheetDescription>
               Track a follow-up action for this pay order.
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
                 label="Date"
                 type="date"
@@ -1710,7 +1711,7 @@ export default function PayOrders() {
               placeholder="Who performed this?"
             />
           </div>
-          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
+          <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
             <Button variant="outline" onClick={() => setLogDialogOpen(false)}>
               Cancel
             </Button>
@@ -1797,10 +1798,11 @@ export default function PayOrders() {
 }
 
 function Field({ label, className, inputClassName, ...props }) {
+  const fieldClassName = props.type === "date" ? `mobile-date-input ${className || ""}` : className;
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 space-y-1.5">
       <Label>{label}</Label>
-      <Input className={className} {...props} />
+      <Input className={fieldClassName} {...props} />
     </div>
   );
 }

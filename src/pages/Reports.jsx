@@ -754,11 +754,11 @@ export default function Reports() {
             </div>
             <div className="space-y-1.5 min-w-0">
               <Label htmlFor="report-date-from" className="text-xs font-medium text-muted-foreground">Date From</Label>
-              <Input id="report-date-from" className="h-10 min-w-0" type="date" value={filters.dateFrom} onChange={(event) => setFilter("dateFrom", event.target.value)} />
+              <Input id="report-date-from" className="mobile-date-input" type="date" value={filters.dateFrom} onChange={(event) => setFilter("dateFrom", event.target.value)} />
             </div>
             <div className="space-y-1.5 min-w-0">
               <Label htmlFor="report-date-to" className="text-xs font-medium text-muted-foreground">Date To</Label>
-              <Input id="report-date-to" className="h-10 min-w-0" type="date" value={filters.dateTo} onChange={(event) => setFilter("dateTo", event.target.value)} />
+              <Input id="report-date-to" className="mobile-date-input" type="date" value={filters.dateTo} onChange={(event) => setFilter("dateTo", event.target.value)} />
             </div>
             <div className="space-y-1.5 min-w-0">
               <Label className="text-xs font-medium text-muted-foreground">Status</Label>

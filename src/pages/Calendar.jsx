@@ -622,18 +622,18 @@ export default function Calendar() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[92dvh]">
+        <DialogContent className="max-h-[92dvh] overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>{editEvent ? "Edit Event" : "New Event"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="min-w-0 space-y-4 py-2">
             <div className="space-y-1.5">
               <Label>Title *</Label>
               <Input value={form.title} onChange={(event) => setForm((previous) => ({ ...previous, title: event.target.value }))} placeholder="Event title" />
             </div>
             <div className="space-y-1.5">
               <Label>Date *</Label>
-              <Input type="date" value={form.date} onChange={(event) => setForm((previous) => ({ ...previous, date: event.target.value }))} />
+              <Input type="date" value={form.date} onChange={(event) => setForm((previous) => ({ ...previous, date: event.target.value }))} className="mobile-date-input" />
             </div>
             <div className="space-y-1.5">
               <Label>Type</Label>
@@ -646,7 +646,7 @@ export default function Calendar() {
           </div>
           <DialogFooter className="gap-2">
             {editEvent && (
-              <Button variant="destructive" onClick={handleDelete} className="mr-auto">
+              <Button variant="destructive" onClick={handleDelete} className="w-full sm:mr-auto sm:w-auto">
                 Delete
               </Button>
             )}

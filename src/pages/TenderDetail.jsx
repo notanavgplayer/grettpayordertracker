@@ -1359,7 +1359,7 @@ export default function TenderDetail() {
           </div>
         </div>
         <div className="min-w-0 space-y-1.5">
-          <h1 className="text-lg font-bold leading-snug tracking-tight sm:text-2xl">
+          <h1 className="text-lg font-semibold leading-snug tracking-tight sm:text-2xl">
             {form.name || 'Untitled Tender'}
           </h1>
           <p className="break-words text-xs text-muted-foreground sm:text-sm">{form.nit ? `NIT ${form.nit}` : 'No NIT / Reference'}</p>
@@ -1500,7 +1500,7 @@ export default function TenderDetail() {
             <TabsTrigger
               key={value}
               value={value}
-              className="h-11 flex-shrink-0 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 text-sm text-muted-foreground data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-400 sm:text-base md:h-9 md:rounded-md md:border-b-0 md:px-4 md:py-2 md:text-sm md:data-[state=active]:bg-emerald-50 md:data-[state=active]:text-emerald-700 md:dark:data-[state=active]:bg-emerald-950/40"
+              className="h-10 flex-shrink-0 rounded-none border-b-2 border-transparent px-3 pb-2.5 pt-2 text-sm text-muted-foreground data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none dark:data-[state=active]:text-emerald-400 sm:h-11 sm:text-base md:h-9 md:rounded-md md:border-b-0 md:px-4 md:py-2 md:text-sm md:data-[state=active]:bg-emerald-50 md:data-[state=active]:text-emerald-700 md:dark:data-[state=active]:bg-emerald-950/40"
             >
               {label}
             </TabsTrigger>
@@ -1872,7 +1872,7 @@ export default function TenderDetail() {
           />
         </TabsContent>
 
-        <TabsContent value="boq" className="order-3 mt-0 space-y-5">
+        <TabsContent value="boq" className="order-3 mt-0 space-y-4 md:space-y-5">
           <div>
             <h2 className="text-xl font-semibold tracking-tight md:text-2xl">BOQ / Profit Tracking</h2>
             <div className="mt-2 h-1 w-10 rounded-full bg-emerald-600" />
@@ -1886,13 +1886,13 @@ export default function TenderDetail() {
           </div>
 
           <Card className="shadow-sm">
-            <CardContent className="space-y-5 p-4 md:p-5">
+            <CardContent className="space-y-4 p-3.5 md:space-y-5 md:p-5">
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                 {isAdmin && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-11 w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/30 sm:h-9 sm:w-auto"
+                    className="h-10 w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/30 sm:h-9 sm:w-auto"
                     onClick={() => {
                       const nextMode = !boqEditMode
                       setBoqEditMode(nextMode)
@@ -1904,11 +1904,11 @@ export default function TenderDetail() {
                   </Button>
                 )}
                 {isAdmin && (
-                  <Button size="sm" className="h-11 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:h-9 sm:w-auto" onClick={addBoqItem}>
+                  <Button size="sm" className="h-10 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:h-9 sm:w-auto" onClick={addBoqItem}>
                     <Plus className="h-4 w-4" /> Add Item
                   </Button>
                 )}
-                <Button variant="outline" size="sm" className="col-span-2 h-11 w-full sm:col-span-1 sm:h-9 sm:w-auto" onClick={() => window.print()}>
+                <Button variant="outline" size="sm" className="col-span-2 h-10 w-full sm:col-span-1 sm:h-9 sm:w-auto" onClick={() => window.print()}>
                   <Download className="h-4 w-4" /> Export <ChevronDown className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -1926,7 +1926,7 @@ export default function TenderDetail() {
                     const profitLoss = actualCost === null ? null : quotedAmount - actualCost
                     const isEditing = editingBoqItemId === item.id
                     return (
-                      <div key={item.id} className="rounded-xl border bg-card p-3.5 shadow-sm">
+                      <div key={item.id} className="rounded-xl border bg-card p-3 shadow-sm min-[430px]:p-3.5">
                         <div className="flex items-start gap-3">
                           <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 font-mono text-base font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
                             {index + 1}
@@ -1944,7 +1944,7 @@ export default function TenderDetail() {
                             ) : (
                               <button
                                 type="button"
-                                className={`w-full text-left text-base leading-6 ${item.description ? '' : 'text-muted-foreground'}`}
+                                className={`w-full text-left text-sm font-medium leading-5 min-[430px]:text-base min-[430px]:leading-6 ${item.description ? '' : 'text-muted-foreground'}`}
                                 onClick={() => boqEditMode && isAdmin && setEditingBoqItemId(item.id)}
                                 disabled={!isAdmin || !boqEditMode}
                               >
@@ -2197,7 +2197,7 @@ export default function TenderDetail() {
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <FileText className="h-4 w-4" /> Pay Orders for this tender
                 </CardTitle>
-                {isAdmin && <Button size="sm" onClick={() => openPoDialog()}><Plus className="h-3.5 w-3.5" /> Add Pay Order</Button>}
+                {isAdmin && <Button size="sm" className="h-10 md:h-9" onClick={() => openPoDialog()}><Plus className="h-3.5 w-3.5" /> Add Pay Order</Button>}
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -2413,7 +2413,7 @@ export default function TenderDetail() {
                   </p>
                 </div>
                 {isAdmin && (
-                  <Button type="button" size="sm" onClick={() => openSiteVisitDialog()}>
+                  <Button type="button" size="sm" className="h-10 md:h-9" onClick={() => openSiteVisitDialog()}>
                     <Plus className="h-3.5 w-3.5" /> Add Site Visit
                   </Button>
                 )}
@@ -2430,7 +2430,7 @@ export default function TenderDetail() {
                     Record daily progress, labour, materials, issues, and next-day plans.
                   </p>
                   {isAdmin && (
-                    <Button type="button" size="sm" className="mt-4" onClick={() => openSiteVisitDialog()}>
+                    <Button type="button" size="sm" className="mt-4 h-10 md:h-9" onClick={() => openSiteVisitDialog()}>
                       <Plus className="h-3.5 w-3.5" /> Add first site visit
                     </Button>
                   )}
@@ -2485,7 +2485,7 @@ export default function TenderDetail() {
             <CardHeader><CardTitle className="flex items-center gap-2 text-sm"><User className="h-4 w-4" /> Contact Person</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {['name', 'phone', 'email', 'role'].map((field) => (
-                <div key={field} className="space-y-1.5">
+                <div key={field} className="min-w-0 space-y-1.5">
                   <Label className="capitalize">{field}</Label>
                   <Input
                     value={(form.contactPerson || {})[field] || ''}
@@ -2494,7 +2494,7 @@ export default function TenderDetail() {
                   />
                 </div>
               ))}
-              <div className="space-y-1.5 sm:col-span-2">
+              <div className="min-w-0 space-y-1.5 sm:col-span-2">
                 <Label>Notes</Label>
                 <Textarea
                   value={(form.contactPerson || {}).notes || ''}
@@ -2520,7 +2520,7 @@ export default function TenderDetail() {
               <div className="grid gap-4 md:block lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-6">
                 <div className="space-y-2">
                   <div className="flex items-end justify-between gap-3">
-                    <span className="text-3xl font-semibold text-emerald-600 dark:text-emerald-400">{dashboardProgress}%</span>
+                    <span className="text-2xl font-semibold text-emerald-600 sm:text-3xl dark:text-emerald-400">{dashboardProgress}%</span>
                     {displayTenderStatus && <StatusBadge status={displayTenderStatus} />}
                   </div>
                   <Progress value={dashboardProgress} className="h-2" />
@@ -2625,16 +2625,17 @@ export default function TenderDetail() {
             <p className="text-xs text-muted-foreground">
               Received payments are calculated from Bills and RA Bills marked as Paid.
             </p>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="completion-date">Completion Date</Label>
               <Input
                 id="completion-date"
                 type="date"
                 value={completionDate}
                 onChange={(e) => setCompletionDate(e.target.value)}
+                className="mobile-date-input"
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="completion-remarks">
                 Final Remarks {hasCompletionWarnings && <span className="text-destructive">*</span>}
               </Label>
@@ -2724,34 +2725,34 @@ export default function TenderDetail() {
               {editExp ? 'Update expense details.' : 'Record a new expense for this tender.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="td-exp-desc">Description <span className="text-destructive">*</span></Label>
-              <Input id="td-exp-desc" value={expForm.description} onChange={setExpF('description')} placeholder="What was this expense for?" />
+              <Input id="td-exp-desc" value={expForm.description} onChange={setExpF('description')} placeholder="What was this expense for?" className="h-10 w-full min-w-0 text-sm sm:h-11" />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label>Category</Label>
               <Select value={expForm.category} onValueChange={setExpF('category')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 w-full min-w-0 text-sm sm:h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>{EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="td-exp-amt">Amount (PKR)</Label>
-              <Input id="td-exp-amt" type="number" value={expForm.amount} onChange={setExpF('amount')} placeholder="0" className="font-mono tabular-nums" />
+              <Input id="td-exp-amt" type="number" value={expForm.amount} onChange={setExpF('amount')} placeholder="0" className="h-10 w-full min-w-0 font-mono text-sm tabular-nums sm:h-11" />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="td-exp-date">Date</Label>
-              <Input id="td-exp-date" type="date" value={expForm.date} onChange={setExpF('date')} />
+              <Input id="td-exp-date" type="date" value={expForm.date} onChange={setExpF('date')} className="expense-date-input" />
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="min-w-0 space-y-1.5 sm:col-span-2">
               <Label htmlFor="td-exp-note">Notes</Label>
-              <Textarea id="td-exp-note" value={expForm.note} onChange={setExpF('note')} rows={3} />
+              <Textarea id="td-exp-note" value={expForm.note} onChange={setExpF('note')} rows={3} className="min-h-24 text-sm sm:min-h-28" />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setExpDialogOpen(false)}>Cancel</Button>
-            <Button type="button" className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto" onClick={saveExpense} disabled={expSaving}>
+            <Button type="button" variant="outline" className="h-10 w-full sm:h-11 sm:w-auto" onClick={() => setExpDialogOpen(false)}>Cancel</Button>
+            <Button type="button" className="h-10 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={saveExpense} disabled={expSaving}>
               {expSaving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editExp ? 'Save Changes' : 'Add Expense'}
             </Button>
@@ -2770,20 +2771,20 @@ export default function TenderDetail() {
 
       {/* Pay Order Sheet */}
       <Sheet open={poDialogOpen} onOpenChange={setPoDialogOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
+        <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-md">
           <SheetHeader className="px-4 py-4 border-b border-border sm:px-6">
             <SheetTitle>{editPo ? 'Edit Pay Order' : 'New Pay Order'}</SheetTitle>
             <SheetDescription>
               {editPo ? 'Update pay order details.' : 'Attach a pay order to this tender. It will also appear in the global Pay Orders list.'}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 sm:px-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+          <div className="min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="td-po-num">PO Number <span className="text-destructive">*</span></Label>
                 <Input id="td-po-num" value={poForm.po} onChange={setPoF('po')} className="font-mono" placeholder="PO-2024-001" />
               </div>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <Label>Bank</Label>
                 <Select value={poForm.bank} onValueChange={setPoF('bank')}>
                   <SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger>
@@ -2791,25 +2792,25 @@ export default function TenderDetail() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="td-po-amt">Amount (PKR)</Label>
                 <Input id="td-po-amt" type="number" value={poForm.amount} onChange={setPoF('amount')} placeholder="0" className="font-mono tabular-nums" />
               </div>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="td-po-sub">Submitted</Label>
-                <Input id="td-po-sub" type="date" value={poForm.submitted} onChange={setPoF('submitted')} />
+                <Input id="td-po-sub" type="date" value={poForm.submitted} onChange={setPoF('submitted')} className="mobile-date-input" />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="min-w-0 space-y-1.5">
                 <Label>Purpose</Label>
                 <Select value={poForm.purpose} onValueChange={setPoF('purpose')}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{PO_PURPOSES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <Label>Status</Label>
                 <Select value={poForm.status} onValueChange={setPoF('status')}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -2817,12 +2818,12 @@ export default function TenderDetail() {
                 </Select>
               </div>
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="td-po-notes">Notes</Label>
               <Textarea id="td-po-notes" value={poForm.notes} onChange={setPoF('notes')} rows={3} />
             </div>
           </div>
-          <SheetFooter className="px-4 py-4 border-t border-border bg-background sm:justify-end gap-2 sm:px-6">
+          <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setPoDialogOpen(false)}>Cancel</Button>
             <Button className="w-full sm:w-auto" onClick={savePo} disabled={poSaving}>
               {poSaving && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -2871,73 +2872,73 @@ export default function TenderDetail() {
 
       {/* Site Visit Sheet */}
       <Sheet open={siteVisitDialogOpen} onOpenChange={setSiteVisitDialogOpen}>
-        <SheetContent side="right" className="w-full p-0 flex flex-col gap-0 sm:max-w-2xl">
+        <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-2xl">
           <SheetHeader className="px-4 py-4 border-b border-border sm:px-6">
             <SheetTitle>{editSiteVisit ? 'Edit Site Visit' : 'New Site Visit'}</SheetTitle>
             <SheetDescription>
               {editSiteVisit ? 'Update site visit details.' : 'Record daily progress, labour, materials, and issues.'}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_0.95fr]">
-              <div className="space-y-4">
+          <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
+            <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[1fr_0.95fr]">
+              <div className="min-w-0 space-y-4">
                 <div className="border-b border-border pb-2">
                   <p className="text-sm font-semibold text-emerald-700">Visit Details</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
+                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="td-sv-date">Visit Date <span className="text-destructive">*</span></Label>
-                    <Input id="td-sv-date" type="date" value={siteVisitForm.visitDate} onChange={setSiteVisitF('visitDate')} />
+                    <Input id="td-sv-date" type="date" value={siteVisitForm.visitDate} onChange={setSiteVisitF('visitDate')} className="mobile-date-input" />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="td-sv-time">Visit Time</Label>
                     <Input id="td-sv-time" type="time" value={siteVisitForm.visitTime} onChange={setSiteVisitF('visitTime')} />
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="td-sv-loc">Location / Site Area</Label>
                   <Input id="td-sv-loc" value={siteVisitForm.location} onChange={setSiteVisitF('location')} placeholder="e.g. Block A, second floor" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="td-sv-work">Work Completed</Label>
                   <Textarea id="td-sv-work" value={siteVisitForm.workCompleted} onChange={setSiteVisitF('workCompleted')} rows={3} placeholder="What was finished today?" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
+                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="td-sv-labour">Labour Used</Label>
                     <Textarea id="td-sv-labour" value={siteVisitForm.labourUsed} onChange={setSiteVisitF('labourUsed')} rows={2} placeholder="e.g. 4 masons, 6 helpers" />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="td-sv-material">Material Used</Label>
                     <Textarea id="td-sv-material" value={siteVisitForm.materialUsed} onChange={setSiteVisitF('materialUsed')} rows={2} placeholder="e.g. 20 bags cement, 1 ton sand" />
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="td-sv-issues">Issues / Delays</Label>
                   <Textarea id="td-sv-issues" value={siteVisitForm.issues} onChange={setSiteVisitF('issues')} rows={2} placeholder="Any blockers or delays?" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="td-sv-next">Next-Day Plan</Label>
                   <Textarea id="td-sv-next" value={siteVisitForm.nextDayPlan} onChange={setSiteVisitF('nextDayPlan')} rows={2} placeholder="Plan for the next day" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <Label>Status</Label>
                   <Select value={siteVisitForm.status} onValueChange={setSiteVisitF('status')}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{SITE_VISIT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="td-sv-notes">Notes</Label>
                   <Textarea id="td-sv-notes" value={siteVisitForm.notes} onChange={setSiteVisitF('notes')} rows={2} />
                 </div>
               </div>
 
-              <div className="space-y-4 lg:border-l lg:border-border lg:pl-5">
+              <div className="min-w-0 space-y-4 lg:border-l lg:border-border lg:pl-5">
                 <div className="border-b border-border pb-2">
                   <p className="text-sm font-semibold text-emerald-700">Photos ({normalizeSiteVisitPhotos(siteVisitForm.photos).length})</p>
                 </div>
-                <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-center">
+                <div className="min-w-0 rounded-xl border border-dashed border-border bg-muted/20 p-4 text-center">
                   <Input
                     id="td-sv-photos"
                     type="file"
@@ -2976,7 +2977,7 @@ export default function TenderDetail() {
                   </div>
                 )}
                 {normalizeSiteVisitPhotos(siteVisitForm.photos).length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">
                     {normalizeSiteVisitPhotos(siteVisitForm.photos).map((photo) => (
                       <SiteVisitPhotoTile key={photo.id} photo={photo} onRemove={() => removeSiteVisitPhoto(photo.id)} editable />
                     ))}
@@ -2989,7 +2990,7 @@ export default function TenderDetail() {
               </div>
             </div>
           </div>
-          <SheetFooter className="px-4 py-4 border-t border-border bg-background sm:justify-end gap-2 sm:px-6">
+          <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
             <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setSiteVisitDialogOpen(false)}>Cancel</Button>
             <Button type="button" className="w-full sm:w-auto" onClick={saveSiteVisit} disabled={siteVisitPhotoUploading}>
               {editSiteVisit ? 'Save Changes' : 'Add Site Visit'}
@@ -3047,7 +3048,7 @@ function AwardWorkOrderSection({ details, timeline, isAdmin, onEdit }) {
         <CardHeader className="p-3 pb-2 md:p-5 md:pb-3">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-700 md:text-xs md:tracking-[0.22em]">Post Award</p>
+              <p className="text-[10px] font-medium tracking-normal text-emerald-700 sm:font-semibold sm:uppercase sm:tracking-[0.18em] md:text-xs md:tracking-[0.22em]">Post Award</p>
               <CardTitle className="mt-0.5 text-lg md:mt-1 md:text-xl">Award / Work Order</CardTitle>
               <p className="mt-1 text-xs leading-5 text-muted-foreground md:text-sm">
                 Track award details, work order information, contract period, securities, and project execution dates.
@@ -3123,11 +3124,11 @@ function AwardMetric({ icon: Icon, label, value, helper, tone, badgeClass }) {
         </div>
       )}
       <div className="min-w-0 flex-1 overflow-hidden">
-        <p className="break-words text-[11px] font-semibold uppercase leading-4 tracking-wide text-muted-foreground">{label}</p>
+        <p className="break-words text-xs font-medium leading-4 tracking-normal text-muted-foreground sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-wide">{label}</p>
         {badgeClass ? (
           <Badge variant="outline" className={`mt-1 max-w-full whitespace-normal break-words rounded-full px-2 py-0.5 text-xs leading-4 sm:mt-2 sm:px-2.5 sm:py-1 ${badgeClass}`}>{value}</Badge>
         ) : (
-          <p className={`mt-1 max-w-full break-words font-mono text-sm font-bold leading-5 tabular-nums [overflow-wrap:anywhere] sm:text-base ${toneClass}`}>{value || MISSING_VALUE}</p>
+          <p className={`mt-1 max-w-full break-words font-mono text-sm font-semibold leading-5 tabular-nums [overflow-wrap:anywhere] sm:text-base sm:font-bold ${toneClass}`}>{value || MISSING_VALUE}</p>
         )}
         {helper && <p className="mt-1 line-clamp-2 max-w-full break-words text-xs leading-4 text-muted-foreground [overflow-wrap:anywhere]">{helper}</p>}
       </div>
@@ -3150,7 +3151,7 @@ function AwardDetailCard({ title, icon: Icon, rows }) {
         <div className="divide-y divide-border/70">
         {rows.map(([label, value]) => (
           <div key={label} className="grid grid-cols-1 gap-1 py-2.5 first:pt-1 last:pb-0 sm:grid-cols-[190px_minmax(0,1fr)] sm:items-start sm:gap-4 sm:py-3">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs">{label}</p>
+            <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:text-xs sm:uppercase sm:tracking-wide">{label}</p>
             <p className={`min-w-0 break-words text-[13px] font-semibold leading-5 sm:text-sm ${value === MISSING_VALUE ? 'text-muted-foreground' : 'text-foreground'}`}>
               {value || MISSING_VALUE}
             </p>
@@ -3165,13 +3166,13 @@ function AwardDetailCard({ title, icon: Icon, rows }) {
 function AwardWorkOrderSheet({ open, onOpenChange, form, setField, onSave, isAdmin }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-3xl">
+      <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-3xl">
         <SheetHeader className="border-b border-border px-4 py-4 sm:px-6">
           <SheetTitle>Award / Work Order</SheetTitle>
           <SheetDescription>Update award, work order, contract period, securities, and execution details.</SheetDescription>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-          <div className="space-y-6">
+        <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
+          <div className="min-w-0 space-y-5 sm:space-y-6">
             <AwardFormGroup title="Award Details">
               <AwardSelectField label="Award status" value={form.awardStatus} onValueChange={setField('awardStatus')} options={AWARD_STATUSES} disabled={!isAdmin} />
               <AwardFormField label="Award date" type="date" value={form.awardDate} onChange={setField('awardDate')} disabled={!isAdmin} />
@@ -3209,7 +3210,7 @@ function AwardWorkOrderSheet({ open, onOpenChange, form, setField, onSave, isAdm
             </AwardFormGroup>
           </div>
         </div>
-        <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 sm:px-6">
+        <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:pb-4">
           <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button type="button" onClick={onSave} disabled={!isAdmin} className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
             <Save className="h-4 w-4" /> Save Award Details
@@ -3222,25 +3223,26 @@ function AwardWorkOrderSheet({ open, onOpenChange, form, setField, onSave, isAdm
 
 function AwardFormGroup({ title, children }) {
   return (
-    <section>
+    <section className="min-w-0">
       <h3 className="mb-3 text-sm font-semibold text-emerald-700">{title}</h3>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">{children}</div>
     </section>
   )
 }
 
 function AwardFormField({ label, className = '', ...props }) {
+  const inputClassName = props.type === 'date' ? 'mobile-date-input' : ''
   return (
-    <div className={`space-y-1.5 ${className}`}>
+    <div className={`min-w-0 space-y-1.5 ${className}`}>
       <Label>{label}</Label>
-      <Input {...props} />
+      <Input {...props} className={inputClassName} />
     </div>
   )
 }
 
 function AwardTextAreaField({ label, className = '', ...props }) {
   return (
-    <div className={`space-y-1.5 ${className}`}>
+    <div className={`min-w-0 space-y-1.5 ${className}`}>
       <Label>{label}</Label>
       <Textarea rows={3} {...props} />
     </div>
@@ -3249,7 +3251,7 @@ function AwardTextAreaField({ label, className = '', ...props }) {
 
 function AwardSelectField({ label, value, onValueChange, options, disabled }) {
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 space-y-1.5">
       <Label>{label}</Label>
       <Select value={value || ''} onValueChange={onValueChange} disabled={disabled}>
         <SelectTrigger><SelectValue /></SelectTrigger>
@@ -3379,8 +3381,8 @@ function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete, o
         {/* Header: date badge · title · time */}
         <div className="flex min-w-0 items-start gap-3">
           <div className="flex h-[62px] w-[58px] shrink-0 flex-col items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 shadow-sm shadow-emerald-900/5 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
-            <span className="font-mono text-2xl font-bold leading-none tabular-nums">{day}</span>
-            <span className="mt-1 text-[10px] font-bold uppercase leading-none tracking-wide">{month || 'DATE'}</span>
+            <span className="font-mono text-2xl font-semibold leading-none tabular-nums">{day}</span>
+            <span className="mt-1 text-[10px] font-semibold leading-none tracking-normal sm:uppercase sm:tracking-wide">{month || 'DATE'}</span>
             {year && <span className="mt-1 text-[9px] font-medium leading-none text-emerald-700/65 dark:text-emerald-300/70">{year}</span>}
           </div>
           <div className="min-w-0 flex-1">
@@ -3418,13 +3420,13 @@ function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete, o
           )}
           {issuesText && (
             <div className="rounded-xl border border-rose-200/70 bg-rose-50/60 p-3 dark:border-rose-900/40 dark:bg-rose-950/20">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">Issues / delays</p>
+              <p className="text-[11px] font-medium tracking-normal text-rose-700 dark:text-rose-300 sm:font-semibold sm:uppercase sm:tracking-wide">Issues / delays</p>
               <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-foreground">{issuesText}</p>
             </div>
           )}
           {nextDayText && (
             <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/70 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Next-day plan</p>
+              <p className="text-[11px] font-medium tracking-normal text-emerald-700 dark:text-emerald-300 sm:font-semibold sm:uppercase sm:tracking-wide">Next-day plan</p>
               <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-foreground">{nextDayText}</p>
             </div>
           )}
@@ -3552,7 +3554,7 @@ function SiteVisitViewDialog({ open, visit, tenderName, isAdmin, onOpenChange, o
             <SiteVisitDetailBox icon={CalendarDays} label="Visit Date" value={dateParts.label} />
             <SiteVisitDetailBox icon={Clock} label="Visit Time" value={visitTime || '\u2014'} />
             <div className="min-w-0 rounded-xl border border-border/80 bg-background p-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Status</p>
+              <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">Status</p>
               {visit.status ? (
                 <Badge variant="outline" className={`mt-2 rounded-full px-2.5 py-1 text-xs ${statusClass}`}>{visit.status}</Badge>
               ) : (
@@ -3684,7 +3686,7 @@ function SiteVisitDetailBox({ icon: Icon, label, value }) {
   const isEmpty = !value
   return (
     <div className="min-w-0 rounded-xl border border-border/80 bg-background p-3">
-      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="flex items-center gap-1.5 text-[11px] font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </p>
@@ -3704,7 +3706,7 @@ function SiteVisitDetailSection({ label, value, tone, className = '' }) {
 
   return (
     <div className={`min-w-0 rounded-xl border p-3 ${toneClass} ${className}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">{label}</p>
       <p className={`mt-1 whitespace-pre-wrap break-words text-sm leading-5 ${isEmpty ? 'text-muted-foreground' : 'text-foreground'}`}>{display}</p>
     </div>
   )
@@ -3715,7 +3717,7 @@ function SiteVisitField({ label, value, compact = false }) {
   const display = isEmpty ? '-' : value
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">{label}</p>
       <p className={`mt-0.5 whitespace-pre-wrap break-words ${compact ? 'text-xs' : 'text-sm'} text-foreground`}>{display}</p>
     </div>
   )
@@ -3749,7 +3751,7 @@ function BoqMetric({ icon: Icon, label, value, tone }) {
       label={label}
       value={value}
       tone={tone || 'emerald'}
-      valueClassName={`text-sm sm:text-xl ${valueClasses[tone] || valueClasses.emerald}`}
+      valueClassName={`text-sm font-semibold sm:text-xl ${valueClasses[tone] || valueClasses.emerald}`}
     />
   )
 }
@@ -3785,8 +3787,8 @@ function MobileBoqStat({ label, value, tone, large = false }) {
             : 'text-foreground'
   return (
     <div className="min-w-0">
-      <p className={`${large ? 'text-xs font-medium text-foreground sm:text-sm' : 'text-sm text-muted-foreground'}`}>{label}</p>
-      <p className={`mt-1 break-words font-mono ${large ? 'text-sm font-semibold sm:text-lg' : 'text-base'} leading-5 tabular-nums [overflow-wrap:anywhere] ${toneClass}`}>
+      <p className={`${large ? 'text-xs font-medium text-foreground sm:text-sm' : 'text-xs font-medium text-muted-foreground sm:text-sm sm:font-normal'}`}>{label}</p>
+      <p className={`mt-1 break-words font-mono ${large ? 'text-sm font-semibold sm:text-lg' : 'text-sm font-semibold sm:text-base'} leading-5 tabular-nums [overflow-wrap:anywhere] ${toneClass}`}>
         {value}
       </p>
     </div>
@@ -3806,7 +3808,7 @@ function formatPlainNumber(value) {
 function DetailRow({ icon: Icon, label, children, note, className = '' }) {
   return (
     <div className={`rounded-lg border bg-background px-3 py-2.5 ${className}`}>
-      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
         <Icon className="h-3.5 w-3.5 flex-shrink-0" />
         <span>{label}</span>
       </div>
@@ -3895,7 +3897,7 @@ function PaymentSummaryRow({ label, value, tone }) {
 function OverviewInfo({ icon: Icon, label, value }) {
   return (
     <div className="rounded-xl border bg-background/80 p-3">
-      <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="flex items-center gap-2 text-[11px] font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
         <Icon className="h-3.5 w-3.5" />
         <span>{label}</span>
       </div>
@@ -4032,11 +4034,11 @@ function TenderOverviewDashboard({
                 <OverviewInfo icon={LinkIcon} label="Linked Pay Order" value={linkedPayOrderDisplay || '-'} />
               </div>
             </div>
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 lg:w-80">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Progress</p>
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3.5 sm:p-4 lg:w-80">
+              <p className="text-xs font-medium tracking-normal text-emerald-800 sm:font-semibold sm:uppercase sm:tracking-wide">Progress</p>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div>
-                  <p className="text-3xl font-bold tracking-tight text-emerald-900">{dashboardProgress}%</p>
+                  <p className="text-2xl font-semibold tracking-tight text-emerald-900 sm:text-3xl sm:font-bold">{dashboardProgress}%</p>
                   <p className="mt-1 text-sm text-emerald-800/80">{progressMessage}</p>
                 </div>
                 <Badge variant={projectHealthTone === 'profit' ? 'success' : projectHealthTone === 'loss' ? 'destructive' : 'warning'}>{projectHealth}</Badge>
@@ -4247,7 +4249,7 @@ function ExpensesFinanceSection({
           </div>
         </div>
         {isAdmin && (
-          <Button className="h-11 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:w-auto" onClick={() => openExpDialog()}>
+          <Button className="h-10 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={() => openExpDialog()}>
             <Plus className="h-4 w-4" /> Add Expense
           </Button>
         )}
@@ -4265,17 +4267,17 @@ function ExpensesFinanceSection({
         <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(170px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={expenseSearch} onChange={(event) => setExpenseSearch(event.target.value)} placeholder="Search expenses..." className="h-11 pl-9" />
+            <Input value={expenseSearch} onChange={(event) => setExpenseSearch(event.target.value)} placeholder="Search expenses..." className="h-10 pl-9 sm:h-11" />
           </div>
           <BillSelect label="Category" value={expenseCategoryFilter} onValueChange={setExpenseCategoryFilter} options={['All', ...expenseCategoryOptions]} />
           <BillDateFilter label="Date From" value={expenseDateFrom} onChange={(event) => setExpenseDateFrom(event.target.value)} />
           <BillDateFilter label="Date To" value={expenseDateTo} onChange={(event) => setExpenseDateTo(event.target.value)} />
           {expenseFiltersActive && (
-            <Button type="button" variant="outline" className="h-11" onClick={clearExpenseFilters}>
+            <Button type="button" variant="outline" className="h-10 sm:h-11" onClick={clearExpenseFilters}>
               <Clock className="h-4 w-4" /> Clear filters
             </Button>
           )}
-          <Button type="button" variant="outline" className="h-11" onClick={exportFilteredExpenses} disabled={filteredExpenses.length === 0}>
+          <Button type="button" variant="outline" className="h-10 sm:h-11" onClick={exportFilteredExpenses} disabled={filteredExpenses.length === 0}>
             <Download className="h-4 w-4" /> Export CSV
           </Button>
         </div>
@@ -4398,7 +4400,7 @@ function ExpenseStatusBadge({ status }) {
 
 function ExpenseMobileCard({ expense, isAdmin, onView, onEdit, onDelete }) {
   return (
-    <div className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
+    <div className="rounded-2xl border border-border/80 bg-background p-3.5 shadow-sm sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-base font-semibold text-foreground">{expense.description || '-'}</p>
@@ -4407,7 +4409,7 @@ function ExpenseMobileCard({ expense, isAdmin, onView, onEdit, onDelete }) {
             <ExpenseStatusBadge status={getExpenseStatusLabel(expense)} />
           </div>
         </div>
-        <p className="shrink-0 font-mono text-sm font-bold tabular-nums text-slate-950">{formatCurrency(Number(expense.amount) || 0)}</p>
+        <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-slate-950">{formatCurrency(Number(expense.amount) || 0)}</p>
       </div>
       <p className="mt-3 text-sm text-muted-foreground">{formatDate(expense.date)}</p>
       {expense.note && <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-muted-foreground">{expense.note}</p>}
@@ -4429,7 +4431,7 @@ function ExpenseViewDialog({ expense, onOpenChange }) {
           <DialogDescription>Expense details, category, amount, and notes.</DialogDescription>
         </DialogHeader>
         {expense && (
-          <div className="grid gap-3 text-sm sm:grid-cols-2">
+          <div className="grid min-w-0 gap-3 text-sm sm:grid-cols-2">
             <BillDetail label="Date" value={formatDate(expense.date)} />
             <BillDetail label="Amount" value={formatCurrency(Number(expense.amount) || 0)} />
             <BillDetail label="Category" value={expense.category || '-'} />
@@ -4611,7 +4613,7 @@ function BillsInvoicesSection({
             </div>
           </div>
           {isAdmin && (
-            <Button className="h-11 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:w-auto" onClick={openAddBill}>
+            <Button className="h-10 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={openAddBill}>
               <Plus className="h-4 w-4" /> {addLabel}
             </Button>
           )}
@@ -4627,16 +4629,16 @@ function BillsInvoicesSection({
           <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search by bill no..." className="h-11 pl-9" />
+              <Input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search by bill no..." className="h-10 pl-9 sm:h-11" />
             </div>
             <BillSelect label="Type" value={typeFilter} onValueChange={setTypeFilter} options={['All', ...billTypeOptions]} />
             <BillSelect label="Status" value={statusFilter} onValueChange={setStatusFilter} options={['All', ...billStatusOptions]} />
             <BillDateFilter label="Date From" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
             <BillDateFilter label="Date To" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-            <Button type="button" variant="outline" className="h-11" onClick={exportBills} disabled={filteredBills.length === 0}>
+            <Button type="button" variant="outline" className="h-10 sm:h-11" onClick={exportBills} disabled={filteredBills.length === 0}>
               <Download className="h-4 w-4" /> Export
             </Button>
-            <Button type="button" variant="outline" className="h-11 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={clearFilters}>
+            <Button type="button" variant="outline" className="h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 sm:h-11" onClick={clearFilters}>
               <ChevronDown className="h-4 w-4" /> Filters
             </Button>
           </div>
@@ -4728,9 +4730,9 @@ function BillsInvoicesSection({
             <DialogTitle>{editingBill ? 'Edit Bill / Invoice' : 'Add Bill / RA Bill'}</DialogTitle>
             <DialogDescription>Record submitted, approved, received, deductions, and receivable details.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
             <BillField label="Bill No." value={billForm.no} onChange={setBillFormValue('no')} disabled={!isAdmin} placeholder="BILL-12" />
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label>Type</Label>
               <Select value={billForm.type} onValueChange={setBillFormValue('type')} disabled={!isAdmin}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -4738,7 +4740,7 @@ function BillsInvoicesSection({
               </Select>
             </div>
             <BillField label="Date" type="date" value={billForm.date} onChange={setBillFormValue('date')} disabled={!isAdmin} />
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label>Status</Label>
               <Select value={billForm.status} onValueChange={setBillFormValue('status')} disabled={!isAdmin}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -4749,7 +4751,7 @@ function BillsInvoicesSection({
             <BillField label="Approved Amount" type="number" value={billForm.approvedAmount} onChange={setBillFormValue('approvedAmount')} disabled={!isAdmin} />
             <BillField label="Received Amount" type="number" value={billForm.receivedAmount} onChange={setBillFormValue('receivedAmount')} disabled={!isAdmin} />
             <BillField label="Deductions" type="number" value={billForm.deductions} onChange={setBillFormValue('deductions')} disabled={!isAdmin} />
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="min-w-0 space-y-1.5 sm:col-span-2">
               <Label>Remarks / Notes</Label>
               <Textarea value={billForm.remarks} onChange={setBillFormValue('remarks')} rows={3} placeholder="Add remarks or notes" disabled={!isAdmin} />
             </div>
@@ -4795,17 +4797,17 @@ function BillSummaryCard({ icon: Icon, label, value, helper, tone }) {
       value={formatCurrency(value || 0)}
       helper={helper}
       tone={tone || 'emerald'}
-      valueClassName={`text-lg sm:text-xl ${valueTone[tone] || valueTone.emerald}`}
+      valueClassName={`text-base font-semibold sm:text-xl ${valueTone[tone] || valueTone.emerald}`}
     />
   )
 }
 
 function BillSelect({ label, value, onValueChange, options }) {
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 space-y-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 bg-background"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="h-10 bg-background sm:h-11"><SelectValue /></SelectTrigger>
         <SelectContent>
           {options.map((option) => (
             <SelectItem key={option} value={option}>{option === 'All' ? `All ${label}s` : option}</SelectItem>
@@ -4818,9 +4820,9 @@ function BillSelect({ label, value, onValueChange, options }) {
 
 function BillDateFilter({ label, value, onChange }) {
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 space-y-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
-      <Input type="date" value={value} onChange={onChange} className="h-11 bg-background" />
+      <Input type="date" value={value} onChange={onChange} className="mobile-date-input bg-background" />
     </div>
   )
 }
@@ -4864,7 +4866,7 @@ function BillInvoiceStatusBadge({ status }) {
 function BillsMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
   const amounts = getBillAmounts(bill)
   return (
-    <div className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
+    <div className="rounded-2xl border border-border/80 bg-background p-3.5 shadow-sm sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-mono text-base font-semibold text-emerald-700">{getBillTitle(bill, '-')}</p>
@@ -4901,7 +4903,7 @@ function BillViewDialog({ bill, onOpenChange }) {
           <DialogDescription>Bill / invoice details and payment status.</DialogDescription>
         </DialogHeader>
         {bill && (
-          <div className="grid gap-3 text-sm sm:grid-cols-2">
+          <div className="grid min-w-0 gap-3 text-sm sm:grid-cols-2">
             <BillDetail label="Type" value={bill.type || 'Running Bill'} />
             <BillDetail label="Status" value={bill.status || 'Draft'} />
             <BillDetail label="Date" value={formatDate(getBillDate(bill))} />
@@ -4923,7 +4925,7 @@ function BillViewDialog({ bill, onOpenChange }) {
 function BillDetail({ label, value }) {
   return (
     <div className="rounded-xl border border-border/80 bg-slate-50/70 p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">{label}</p>
       <p className="mt-1 break-words text-sm font-medium text-foreground">{value || '-'}</p>
     </div>
   )
@@ -5076,7 +5078,7 @@ function RABillsSection({
             </div>
           </div>
           {isAdmin && (
-            <Button className="h-11 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:w-auto" onClick={openAddRaBill}>
+            <Button className="h-10 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={openAddRaBill}>
               <Plus className="h-4 w-4" /> {addLabel}
             </Button>
           )}
@@ -5092,15 +5094,15 @@ function RABillsSection({
           <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search by RA bill no..." className="h-11 pl-9" />
+              <Input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search by RA bill no..." className="h-10 pl-9 sm:h-11" />
             </div>
             <BillSelect label="Status" value={statusFilter} onValueChange={setStatusFilter} options={['All', ...raStatusOptions]} />
             <BillDateFilter label="Date From" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
             <BillDateFilter label="Date To" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-            <Button type="button" variant="outline" className="h-11" onClick={exportRaBills} disabled={filteredRaBills.length === 0}>
+            <Button type="button" variant="outline" className="h-10 sm:h-11" onClick={exportRaBills} disabled={filteredRaBills.length === 0}>
               <Download className="h-4 w-4" /> Export CSV
             </Button>
-            <Button type="button" variant="outline" className="h-11 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={clearRaFilters}>
+            <Button type="button" variant="outline" className="h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 sm:h-11" onClick={clearRaFilters}>
               <ChevronDown className="h-4 w-4" /> Clear filters
             </Button>
           </div>
@@ -5190,21 +5192,21 @@ function RABillsSection({
             <DialogTitle>{editingRaBill ? 'Edit RA Bill' : 'Add RA Bill'}</DialogTitle>
             <DialogDescription>Record running account bill approvals, payments, deductions, and receivables.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
             <BillField label="RA Bill No." value={raBillForm.no} onChange={setRaBillFormValue('no')} disabled={!isAdmin} placeholder="RA-06" />
             <BillField label="RA Bill Date" type="date" value={raBillForm.date} onChange={setRaBillFormValue('date')} disabled={!isAdmin} />
             <BillField label="Submitted Amount" type="number" value={raBillForm.amount} onChange={setRaBillFormValue('amount')} disabled={!isAdmin} />
             <BillField label="Approved Amount" type="number" value={raBillForm.approvedAmount} onChange={setRaBillFormValue('approvedAmount')} disabled={!isAdmin} />
             <BillField label="Received Amount" type="number" value={raBillForm.receivedAmount} onChange={setRaBillFormValue('receivedAmount')} disabled={!isAdmin} />
             <BillField label="Deductions" type="number" value={raBillForm.deductions} onChange={setRaBillFormValue('deductions')} disabled={!isAdmin} />
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="min-w-0 space-y-1.5 sm:col-span-2">
               <Label>Status</Label>
               <Select value={raBillForm.status} onValueChange={setRaBillFormValue('status')} disabled={!isAdmin}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{raStatusOptions.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="min-w-0 space-y-1.5 sm:col-span-2">
               <Label>Remarks / Notes</Label>
               <Textarea value={raBillForm.remarks} onChange={setRaBillFormValue('remarks')} rows={3} placeholder="Add remarks or notes" disabled={!isAdmin} />
             </div>
@@ -5238,7 +5240,7 @@ function RABillsSection({
 function RABillMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
   const amounts = getBillAmounts(bill)
   return (
-    <div className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
+    <div className="rounded-2xl border border-border/80 bg-background p-3.5 shadow-sm sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-mono text-base font-semibold text-emerald-700">{getBillTitle(bill, '-')}</p>
@@ -5272,7 +5274,7 @@ function RABillViewDialog({ bill, onOpenChange }) {
           <DialogDescription>RA bill approvals, payments, deductions, and receivable details.</DialogDescription>
         </DialogHeader>
         {bill && (
-          <div className="grid gap-3 text-sm sm:grid-cols-2">
+          <div className="grid min-w-0 gap-3 text-sm sm:grid-cols-2">
             <BillDetail label="Status" value={bill.status || 'Draft'} />
             <BillDetail label="Date" value={formatDate(getBillDate(bill))} />
             <BillDetail label="Submitted" value={formatCurrency(amounts.submitted)} />
@@ -5320,7 +5322,7 @@ function LegacyBillFinanceSection({
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
         </div>
         {isAdmin && (
-          <Button className="h-11 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:h-10 sm:w-auto" onClick={onAdd}>
+          <Button className="h-10 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto" onClick={onAdd}>
             <Plus className="h-4 w-4" /> {addLabel}
           </Button>
         )}
@@ -5405,9 +5407,9 @@ function LegacyBillFinanceSection({
                         </TableCell>
                         <TableCell>
                           <div className="space-y-2">
-                            <Input type="date" value={bill[dateKey] || ''} onChange={(e) => onUpdate(bill.id, { [dateKey]: e.target.value })} disabled={!isAdmin} className="h-9" />
+                            <Input type="date" value={bill[dateKey] || ''} onChange={(e) => onUpdate(bill.id, { [dateKey]: e.target.value })} disabled={!isAdmin} className="mobile-date-input" />
                             {paidDateKey && (
-                              <Input type="date" value={bill[paidDateKey] || ''} onChange={(e) => onUpdate(bill.id, { [paidDateKey]: e.target.value })} disabled={!isAdmin} className="h-9" aria-label="Paid date" />
+                              <Input type="date" value={bill[paidDateKey] || ''} onChange={(e) => onUpdate(bill.id, { [paidDateKey]: e.target.value })} disabled={!isAdmin} className="mobile-date-input" aria-label="Paid date" />
                             )}
                           </div>
                         </TableCell>
@@ -5456,21 +5458,21 @@ function MobileBillCard({ bill, isAdmin, onUpdate, onRemove, dateKey, paidDateKe
       <CardContent className="space-y-3 p-3.5 md:p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bill No.</p>
+            <p className="text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">Bill No.</p>
             <Input value={bill.no || bill.billNo || ''} onChange={(e) => onUpdate(bill.id, { no: e.target.value })} disabled={!isAdmin} placeholder="Bill no." className="mt-1 h-9 font-mono" />
           </div>
           <BillStatusBadge status={bill.status || 'Draft'} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5">
             <Label className="text-xs">Type</Label>
             <Select value={bill.type || 'Running Bill'} onValueChange={(value) => onUpdate(bill.id, { type: value })} disabled={!isAdmin}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>{BILL_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5">
             <Label className="text-xs">Status</Label>
             <Select value={bill.status || 'Draft'} onValueChange={(value) => onUpdate(bill.id, { status: value })} disabled={!isAdmin}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
@@ -5612,7 +5614,7 @@ function DocumentsManager({
   return (
     <>
     <Card className="rounded-xl border-border/80 shadow-sm">
-      <CardHeader className="p-4 pb-4 md:p-6 md:pb-4">
+      <CardHeader className="p-3.5 pb-3.5 md:p-6 md:pb-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2 text-xl">
@@ -5623,13 +5625,13 @@ function DocumentsManager({
             </p>
           </div>
           {isAdmin && (
-            <Button onClick={handleAddDocument} className="h-11 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 md:h-10 md:w-auto">
+            <Button onClick={handleAddDocument} className="h-10 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 md:w-auto">
               <Plus className="h-4 w-4" /> Upload Document
             </Button>
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 p-4 pt-0 md:space-y-5 md:p-6 md:pt-0">
+      <CardContent className="space-y-3.5 p-3.5 pt-0 md:space-y-5 md:p-6 md:pt-0">
         <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-5">
           <DocumentStat icon={FolderOpen} label="Total Documents" value={documents.length} tone="emerald" />
           <DocumentStat icon={ImageIcon} label="Images" value={documentStats.Image || 0} tone="green" />
@@ -5642,7 +5644,7 @@ function DocumentsManager({
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder="Search documents..." className="h-11 bg-background pl-9" />
+              <Input value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder="Search documents..." className="h-10 bg-background pl-9 md:h-11" />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin lg:pb-0">
               {DOCUMENT_TYPE_FILTERS.map((type) => (
@@ -5702,15 +5704,15 @@ function DocumentsManager({
     </Card>
 
     <Sheet open={documentSheetOpen} onOpenChange={setDocumentSheetOpen}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+      <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-lg">
         <SheetHeader className="border-b border-border px-4 py-4 sm:px-6">
           <SheetTitle>{editingDocument ? 'Edit Document' : 'Add Document'}</SheetTitle>
           <SheetDescription>
             Upload a tender file and save the metadata. Document cards stay compact in the grid.
           </SheetDescription>
         </SheetHeader>
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4">
+        <div className="min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
+          <div className="min-w-0 rounded-xl border border-dashed border-border bg-muted/20 p-4">
             <Label htmlFor="td-document-upload" className="text-sm font-medium">Upload file / image</Label>
             <Input
               id="td-document-upload"
@@ -5728,7 +5730,7 @@ function DocumentsManager({
               <p className="mt-2 text-xs text-muted-foreground">Uploading {documentUploadProgress[documentForm.id] ?? 0}%...</p>
             )}
             {(documentForm.url || documentForm.fileName) && (
-              <div className="mt-3 rounded-lg bg-background p-3 text-xs text-muted-foreground">
+              <div className="mt-3 min-w-0 rounded-lg bg-background p-3 text-xs text-muted-foreground">
                 <p className="truncate font-medium text-foreground" title={documentForm.fileName || documentForm.title}>
                   {documentForm.fileName || documentForm.title || 'Uploaded file'}
                 </p>
@@ -5738,7 +5740,7 @@ function DocumentsManager({
             )}
           </div>
 
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="td-document-title">Title</Label>
             <Input
               id="td-document-title"
@@ -5748,7 +5750,7 @@ function DocumentsManager({
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5">
             <Label>Category</Label>
             <Select value={documentForm.type || 'Other'} onValueChange={setDocumentFormValue('type')}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -5760,7 +5762,7 @@ function DocumentsManager({
             </Select>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="td-document-url">URL</Label>
             <Input
               id="td-document-url"
@@ -5772,7 +5774,7 @@ function DocumentsManager({
             <p className="text-xs text-muted-foreground">Optional. Full URLs are only shown here, not on document cards.</p>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="td-document-notes">Notes</Label>
             <Textarea
               id="td-document-notes"
@@ -5783,7 +5785,7 @@ function DocumentsManager({
             />
           </div>
         </div>
-        <SheetFooter className="gap-2 border-t border-border px-4 py-4 sm:px-6">
+        <SheetFooter className="gap-2 border-t border-border px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:pb-4">
           <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setDocumentSheetOpen(false)}>Cancel</Button>
           <Button type="button" className="w-full sm:w-auto" onClick={saveDocumentForm} disabled={!isAdmin}>
             {editingDocument ? 'Save Document' : 'Add Document'}
@@ -5822,14 +5824,14 @@ function DocumentCard({ item, isAdmin, onDelete, tenderName, onEdit }) {
 
   return (
     <Card className="min-w-0 self-start overflow-hidden rounded-xl border-border/80 shadow-sm transition hover:shadow-md">
-      <CardContent className="min-w-0 space-y-3.5 p-3.5 md:space-y-4 md:p-4">
+      <CardContent className="min-w-0 space-y-3 p-3.5 md:space-y-4 md:p-4">
         <div className="aspect-[16/10] overflow-hidden rounded-xl border border-border/80 bg-muted/30">
           {isImage ? (
             <img src={item.url} alt={title} className="h-full w-full object-cover" loading="lazy" />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-background shadow-sm">
-                <Icon className="h-7 w-7" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background shadow-sm sm:h-14 sm:w-14">
+                <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
               </div>
               <DocumentKindBadge kind={kind} />
             </div>
@@ -5913,9 +5915,9 @@ function BillAmountField({ value, onChange, disabled }) {
 
 function BillField({ label, value, onChange, disabled, type = 'text', placeholder }) {
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <Input type={type} value={value ?? ''} onChange={(event) => onChange(event.target.value)} disabled={disabled} placeholder={placeholder} className={type === 'number' ? 'font-mono tabular-nums' : ''} />
+      <Input type={type} value={value ?? ''} onChange={(event) => onChange(event.target.value)} disabled={disabled} placeholder={placeholder} className={type === 'date' ? 'mobile-date-input' : type === 'number' ? 'font-mono tabular-nums' : ''} />
     </div>
   )
 }
@@ -5929,7 +5931,7 @@ function MobileBillAmount({ label, value, tone }) {
         : 'text-foreground'
   return (
     <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">{label}</p>
       <p className={`mt-1 font-mono text-sm font-semibold tabular-nums ${toneClass}`}>{formatCurrency(value)}</p>
     </div>
   )

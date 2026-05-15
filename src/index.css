@@ -121,6 +121,60 @@
 }
 
 @layer utilities {
+  .expense-date-input,
+  .mobile-date-input {
+    box-sizing: border-box;
+    height: 2.5rem;
+    min-height: 0;
+    max-height: 2.5rem;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    padding: 0 0.75rem;
+    text-align: left;
+    font-size: 1rem !important;
+    line-height: 2.5rem !important;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .expense-date-input::-webkit-date-and-time-value,
+  .mobile-date-input::-webkit-date-and-time-value {
+    margin: 0;
+    min-height: 0;
+    height: auto;
+    padding: 0;
+    text-align: left;
+    line-height: 2.5rem;
+  }
+  .expense-date-input::-webkit-datetime-edit,
+  .expense-date-input::-webkit-datetime-edit-fields-wrapper,
+  .mobile-date-input::-webkit-datetime-edit,
+  .mobile-date-input::-webkit-datetime-edit-fields-wrapper {
+    min-height: 0;
+    padding: 0;
+    line-height: 2.5rem;
+  }
+  .expense-date-input::-webkit-calendar-picker-indicator,
+  .mobile-date-input::-webkit-calendar-picker-indicator {
+    margin: 0;
+    padding: 0;
+  }
+  @media (min-width: 640px) {
+    .expense-date-input,
+    .mobile-date-input {
+      height: 2.75rem;
+      max-height: 2.75rem;
+      line-height: 2.75rem !important;
+    }
+    .expense-date-input::-webkit-date-and-time-value,
+    .expense-date-input::-webkit-datetime-edit,
+    .expense-date-input::-webkit-datetime-edit-fields-wrapper,
+    .mobile-date-input::-webkit-date-and-time-value,
+    .mobile-date-input::-webkit-datetime-edit,
+    .mobile-date-input::-webkit-datetime-edit-fields-wrapper {
+      line-height: 2.75rem;
+    }
+  }
   .animate-fade-in {
     animation: fade-in 0.2s ease-out;
   }

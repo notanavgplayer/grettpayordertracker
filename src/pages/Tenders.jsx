@@ -797,14 +797,14 @@ export default function Tenders() {
               </Select>
               <Input
                 type="date"
-                className="h-10 min-w-0"
+                className="mobile-date-input"
                 value={submissionFrom}
                 onChange={(e) => setSubmissionFrom(e.target.value)}
                 aria-label="Submission date from"
               />
               <Input
                 type="date"
-                className="h-10 min-w-0"
+                className="mobile-date-input"
                 value={submissionTo}
                 onChange={(e) => setSubmissionTo(e.target.value)}
                 aria-label="Submission date to"
@@ -1342,6 +1342,7 @@ export default function Tenders() {
                   type="date"
                   value={form.submissionDate}
                   onChange={setF("submissionDate")}
+                  className="mobile-date-input"
                 />
               </div>
               <div className="space-y-1.5">
@@ -1351,6 +1352,7 @@ export default function Tenders() {
                   type="date"
                   value={form.openingDate}
                   onChange={setF("openingDate")}
+                  className="mobile-date-input"
                 />
               </div>
             </div>

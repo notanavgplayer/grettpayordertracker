@@ -333,7 +333,7 @@ function DocumentPreview({ document, imageFailed, setImageFailed }) {
   const imageUrl = getDocumentUrl(document)
   const isImage = isImageDocument(document) && imageUrl && !imageFailed
   return (
-    <div className="aspect-[4/3] overflow-hidden rounded-xl border border-border/80 bg-muted/40 sm:aspect-video">
+    <div className="aspect-[16/11] overflow-hidden rounded-xl border border-border/80 bg-muted/40 sm:aspect-video">
       {isImage ? (
         <img
           src={imageUrl}
@@ -343,9 +343,9 @@ function DocumentPreview({ document, imageFailed, setImageFailed }) {
           onError={() => setImageFailed(true)}
         />
       ) : (
-        <div className="flex h-full flex-col items-center justify-center gap-2.5 text-muted-foreground">
-          <div className={`flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm ${getKindIconClass(document.kind)}`}>
-            <Icon className="h-6 w-6" />
+        <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground sm:gap-2.5">
+          <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm sm:h-14 sm:w-14 ${getKindIconClass(document.kind)}`}>
+            <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
           <DocumentBadge className={getKindBadgeClass(document.kind)}>{document.kind}</DocumentBadge>
         </div>
@@ -358,17 +358,17 @@ function DocumentCard({ document, isAdmin, onPreview, onEdit, onDelete }) {
   const [imageFailed, setImageFailed] = useState(false)
   return (
     <Card className="min-w-0 self-start overflow-hidden rounded-xl border bg-card shadow-sm transition hover:border-emerald-200 hover:shadow-md dark:hover:border-emerald-900">
-      <CardContent className="min-w-0 space-y-3 p-3.5">
+      <CardContent className="min-w-0 space-y-2.5 p-3 sm:space-y-3 sm:p-3.5">
         <DocumentPreview document={document} imageFailed={imageFailed} setImageFailed={setImageFailed} />
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 space-y-1.5 sm:space-y-2">
           <div className="min-w-0 space-y-1.5">
-            <p className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-foreground" title={document.title}>{document.title}</p>
-            <div className="flex min-w-0 flex-wrap gap-1.5">
+            <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground" title={document.title}>{document.title}</p>
+            <div className="flex min-w-0 flex-wrap gap-1">
               <DocumentBadge className={getKindBadgeClass(document.kind)}>{document.kind}</DocumentBadge>
               <DocumentBadge className={getCategoryBadgeClass(document.category)}>{safeText(document.category, 'Other')}</DocumentBadge>
             </div>
           </div>
-          <div className="min-w-0 rounded-lg bg-muted/30 px-3 py-2 text-xs leading-5 text-muted-foreground">
+          <div className="min-w-0 rounded-lg bg-muted/30 px-2.5 py-1.5 text-xs leading-5 text-muted-foreground sm:px-3 sm:py-2">
             <Link to={`/tenders/${document.tenderId}`} className="block truncate font-medium text-foreground hover:text-emerald-700" title={document.tenderName}>
               {document.tenderName}
             </Link>
@@ -376,7 +376,7 @@ function DocumentCard({ document, isAdmin, onPreview, onEdit, onDelete }) {
               {document.tenderNit || document.tenderAgency || 'Linked tender'}
             </p>
           </div>
-          <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-2 text-[11px] text-muted-foreground">
+          <div className="flex items-center justify-between gap-2 border-t border-border/70 pt-1.5 text-[11px] text-muted-foreground sm:gap-3 sm:pt-2">
             <span className="inline-flex min-w-0 items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
               <span className="truncate">{formatSafeDate(document.uploadedAt)}</span>
@@ -393,24 +393,24 @@ function DocumentCard({ document, isAdmin, onPreview, onEdit, onDelete }) {
 function DocumentActions({ document, isAdmin, onPreview, onEdit, onDelete }) {
   return (
     <div className="grid grid-cols-4 overflow-hidden rounded-lg border border-border/80 bg-background">
-      <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80" onClick={() => onPreview(document)} aria-label="Preview document">
+      <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80 px-2" onClick={() => onPreview(document)} aria-label="Preview document">
         <Eye className="h-3.5 w-3.5" />
       </Button>
       {document.url ? (
-        <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80" asChild>
+        <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80 px-2" asChild>
           <a href={document.url} download={document.fileName || document.title} aria-label="Download document">
             <Download className="h-3.5 w-3.5" />
           </a>
         </Button>
       ) : (
-        <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80" disabled aria-label="Download unavailable">
+        <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80 px-2" disabled aria-label="Download unavailable">
           <Download className="h-3.5 w-3.5" />
         </Button>
       )}
-      <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80" onClick={() => onEdit(document)} disabled={!isAdmin} aria-label="Edit document">
+      <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80 px-2" onClick={() => onEdit(document)} disabled={!isAdmin} aria-label="Edit document">
         <Pencil className="h-3.5 w-3.5" />
       </Button>
-      <Button type="button" variant="ghost" className="h-9 rounded-none text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => onDelete(document)} disabled={!isAdmin} aria-label="Delete document">
+      <Button type="button" variant="ghost" className="h-9 rounded-none px-2 text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => onDelete(document)} disabled={!isAdmin} aria-label="Delete document">
         <Trash2 className="h-3.5 w-3.5" />
       </Button>
     </div>
@@ -752,7 +752,7 @@ export default function Documents() {
       </Card>
 
       {loading ? (
-        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, index) => (
             <Card key={index} className="h-60 animate-pulse rounded-xl bg-muted/40" />
           ))}
@@ -770,14 +770,14 @@ export default function Documents() {
       ) : viewMode === 'list' ? (
         <>
           <DocumentsTable documents={filteredDocuments} isAdmin={isAdmin} onPreview={preview} onEdit={openEditDocument} onDelete={setDeleteTarget} />
-          <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:hidden">
+          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 sm:gap-4 lg:hidden">
             {filteredDocuments.map((document) => (
               <DocumentCard key={document.key} document={document} isAdmin={isAdmin} onPreview={preview} onEdit={openEditDocument} onDelete={setDeleteTarget} />
             ))}
           </div>
         </>
       ) : (
-        <div className="grid min-w-0 grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid min-w-0 grid-cols-1 items-start gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-4">
           {filteredDocuments.map((document) => (
             <DocumentCard key={document.key} document={document} isAdmin={isAdmin} onPreview={preview} onEdit={openEditDocument} onDelete={setDeleteTarget} />
           ))}
@@ -785,14 +785,14 @@ export default function Documents() {
       )}
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-xl">
+        <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-xl">
           <SheetHeader className="border-b border-border px-4 py-4 sm:px-6">
             <SheetTitle>{editingDocument ? 'Edit Document' : 'Upload Document'}</SheetTitle>
             <SheetDescription>
               Select a tender, upload the file, and save its metadata in that tender's document list.
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
+          <div className="min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
             <div className="space-y-1.5">
               <Label>Tender / Project</Label>
               <Select value={documentForm.tenderId || ''} onValueChange={setFormValue('tenderId')} disabled={!!editingDocument}>
@@ -807,7 +807,7 @@ export default function Documents() {
               {selectedTender?.nit ? <p className="truncate text-xs text-muted-foreground">NIT / Ref: {selectedTender.nit}</p> : null}
             </div>
 
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4">
+            <div className="min-w-0 rounded-xl border border-dashed border-border bg-muted/20 p-4">
               <Label htmlFor="document-upload" className="text-sm font-medium">Upload file / image</Label>
               <Input
                 id="document-upload"
@@ -823,7 +823,7 @@ export default function Documents() {
               />
               {uploading ? <p className="mt-2 text-xs text-muted-foreground">Uploading {uploadProgress}%...</p> : null}
               {(documentForm.fileName || documentForm.url) ? (
-                <div className="mt-3 rounded-lg bg-background p-3 text-xs text-muted-foreground">
+                <div className="mt-3 min-w-0 rounded-lg bg-background p-3 text-xs text-muted-foreground">
                   <p className="truncate font-semibold text-foreground" title={documentForm.fileName || documentForm.title}>
                     {documentForm.fileName || documentForm.title || 'Uploaded file'}
                   </p>
@@ -853,7 +853,7 @@ export default function Documents() {
               <Textarea id="document-notes" value={documentForm.notes} onChange={setFormValue('notes')} rows={4} placeholder="Optional notes about this file" />
             </div>
           </div>
-          <SheetFooter className="gap-2 border-t border-border px-4 py-4 sm:px-6">
+          <SheetFooter className="gap-2 border-t border-border px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:pb-4">
             <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
             <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={saveDocument} disabled={!isAdmin || uploading}>
               {editingDocument ? 'Save Document' : 'Upload Document'}
@@ -871,14 +871,14 @@ export default function Documents() {
       />
 
       <Dialog open={!!previewDocument} onOpenChange={() => setPreviewDocument(null)}>
-        <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
+        <DialogContent className="max-h-[92vh] max-w-4xl overflow-x-hidden overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{previewDocument?.title || 'Document preview'}</DialogTitle>
             <DialogDescription>{previewDocument?.tenderName || 'Linked tender document'}</DialogDescription>
           </DialogHeader>
           {previewDocument?.url ? (
-            <div className="overflow-hidden rounded-xl border border-border bg-muted/20">
-              <img src={previewDocument.url} alt={previewDocument.title} className="max-h-[70vh] w-full object-contain" />
+            <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-muted/20">
+              <img src={previewDocument.url} alt={previewDocument.title} className="max-h-[70vh] w-full max-w-full object-contain" />
             </div>
           ) : null}
           <DialogFooter>
@@ -916,7 +916,7 @@ function DateField({ label, value, onChange }) {
   return (
     <div className="min-w-0 space-y-1">
       <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
-      <Input type="date" value={value} onChange={(event) => onChange(event.target.value)} className="h-10 min-w-0" />
+      <Input type="date" value={value} onChange={(event) => onChange(event.target.value)} className="mobile-date-input" />
     </div>
   )
 }
