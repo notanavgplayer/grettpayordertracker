@@ -293,49 +293,49 @@ export default function Expenses() {
 
       {/* Expense Sheet */}
       <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
-          <SheetHeader className="px-6 py-4 border-b border-border">
+        <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-md">
+          <SheetHeader className="border-b border-border px-4 py-4 sm:px-6">
             <SheetTitle>{editItem ? 'Edit Expense' : 'New Expense'}</SheetTitle>
             <SheetDescription>
               {editItem ? 'Update expense details.' : 'Record a new project expense.'}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <div className="space-y-1.5">
+          <div className="min-w-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-4 py-4 sm:space-y-4 sm:px-6 sm:py-5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="e-desc">Description <span className="text-destructive">*</span></Label>
-              <Input id="e-desc" value={form.description} onChange={setF('description')} placeholder="What was this expense for?" />
+              <Input id="e-desc" value={form.description} onChange={setF('description')} placeholder="What was this expense for?" className="h-10 w-full min-w-0 text-sm sm:h-11" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <div className="min-w-0 space-y-1.5">
                 <Label>Category</Label>
                 <Select value={form.category} onValueChange={setF('category')}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 w-full min-w-0 text-sm sm:h-11"><SelectValue /></SelectTrigger>
                   <SelectContent>{EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="e-amt">Amount (PKR)</Label>
-                <Input id="e-amt" type="number" value={form.amount} onChange={setF('amount')} placeholder="0" className="font-mono tabular-nums" />
+                <Input id="e-amt" type="number" value={form.amount} onChange={setF('amount')} placeholder="0" className="h-10 w-full min-w-0 font-mono text-sm tabular-nums sm:h-11" />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="e-date">Date</Label>
-                <Input id="e-date" type="date" value={form.date} onChange={setF('date')} />
+                <Input id="e-date" type="date" value={form.date} onChange={setF('date')} className="expense-date-input" />
               </div>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="e-tender">Related Tender</Label>
-                <Input id="e-tender" value={form.tenderId} onChange={setF('tenderId')} placeholder="Tender / NIT" />
+                <Input id="e-tender" value={form.tenderId} onChange={setF('tenderId')} placeholder="Tender / NIT" className="h-10 w-full min-w-0 text-sm sm:h-11" />
               </div>
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="e-note">Notes</Label>
-              <Textarea id="e-note" value={form.note} onChange={setF('note')} rows={3} />
+              <Textarea id="e-note" value={form.note} onChange={setF('note')} rows={3} className="min-h-24 text-sm sm:min-h-28" />
             </div>
           </div>
-          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>
+          <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
+            <Button variant="outline" className="h-10 sm:h-11" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button className="h-10 sm:h-11" onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editItem ? 'Save Changes' : 'Add Expense'}
             </Button>

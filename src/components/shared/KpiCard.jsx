@@ -47,7 +47,7 @@ export default function KpiCard({
         )}
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-start justify-between gap-2">
-            <p className="min-w-0 break-words text-[11px] font-semibold uppercase leading-4 tracking-wide text-muted-foreground">
+            <p className="min-w-0 break-words text-xs font-medium leading-4 tracking-normal text-muted-foreground sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-wide">
               {label}
             </p>
             {badge ? (
@@ -58,14 +58,14 @@ export default function KpiCard({
           </div>
           <p
             className={cn(
-              "mt-1 max-w-full break-words font-mono text-xl font-bold leading-6 tabular-nums text-foreground [overflow-wrap:anywhere] sm:text-2xl sm:leading-7",
+              "mt-1 max-w-full break-words font-mono text-xl font-semibold leading-6 tabular-nums text-foreground [overflow-wrap:anywhere] sm:text-2xl sm:font-bold sm:leading-7",
               valueClassName,
             )}
           >
             {value ?? "-"}
           </p>
           {helper ? (
-            <p className="mt-1 max-w-full break-words text-xs leading-4 text-muted-foreground">
+            <p className="mt-1 max-w-full break-words text-xs font-normal leading-4 text-muted-foreground">
               {helper}
             </p>
           ) : null}

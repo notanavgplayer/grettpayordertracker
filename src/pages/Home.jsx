@@ -769,8 +769,8 @@ export default function Home() {
             <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/60 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Total Receivable</p>
-                  <p className="mt-2 max-w-full break-words text-3xl font-semibold leading-tight text-emerald-950 [overflow-wrap:anywhere] dark:text-emerald-100">
+                  <p className="text-xs font-medium tracking-normal text-emerald-700 dark:text-emerald-300 sm:font-semibold sm:uppercase sm:tracking-wide">Total Receivable</p>
+                  <p className="mt-2 max-w-full break-words text-2xl font-semibold leading-tight text-emerald-950 [overflow-wrap:anywhere] dark:text-emerald-100 sm:text-3xl">
                     {formatCurrency(receivable)}
                   </p>
                   <p className="mt-1 text-xs text-emerald-800/75 dark:text-emerald-100/70">

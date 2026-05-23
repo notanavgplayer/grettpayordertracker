@@ -201,9 +201,9 @@ export default function Todo() {
 
       {isAdmin && (
         <Card className="overflow-hidden rounded-xl border shadow-sm">
-          <CardContent className="p-4 sm:p-5">
-            <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-[minmax(320px,1fr)_240px_180px_auto] 2xl:items-end">
-              <div className="min-w-0 space-y-2 lg:col-span-2 2xl:col-span-1">
+          <CardContent className="p-3.5 sm:p-5">
+            <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 2xl:grid-cols-[minmax(320px,1fr)_240px_180px_auto] 2xl:items-end">
+              <div className="min-w-0 space-y-1.5 sm:space-y-2 lg:col-span-2 2xl:col-span-1">
                 <label className="text-xs font-medium text-muted-foreground" htmlFor="todo-title">
                   Task
                 </label>
@@ -215,22 +215,22 @@ export default function Todo() {
                     value={text}
                     onChange={(event) => setText(event.target.value)}
                     onKeyDown={(event) => event.key === "Enter" && handleAdd()}
-                    className="h-11 w-full min-w-0 rounded-xl pl-10 text-sm shadow-none sm:h-12 sm:rounded-lg"
+                    className="h-10 w-full min-w-0 rounded-xl pl-10 text-sm shadow-none sm:h-12 sm:rounded-lg"
                     aria-label="Task title"
                   />
                 </div>
               </div>
 
-              <div className="min-w-0 space-y-2">
+              <div className="min-w-0 space-y-1.5 sm:space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Priority</p>
-                <div className="grid h-11 w-full min-w-0 grid-cols-3 rounded-xl border bg-background p-1 sm:h-12 sm:rounded-lg 2xl:w-[240px]">
+                <div className="grid h-10 w-full min-w-0 grid-cols-3 rounded-xl border bg-background p-1 sm:h-12 sm:rounded-lg 2xl:w-[240px]">
                   {PRIORITIES.map((priorityOption) => (
                     <button
                       key={priorityOption}
                       type="button"
                       onClick={() => setPriority(priorityOption)}
                       className={cn(
-                        "rounded-md px-3 text-sm font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "rounded-md px-2.5 text-sm font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3",
                         priority === priorityOption
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "text-foreground hover:bg-accent"
@@ -243,7 +243,7 @@ export default function Todo() {
                 </div>
               </div>
 
-              <div className="min-w-0 space-y-2">
+              <div className="min-w-0 space-y-1.5 sm:space-y-2">
                 <label className="text-xs font-medium text-muted-foreground" htmlFor="todo-due-date">
                   Due date
                 </label>
@@ -252,7 +252,7 @@ export default function Todo() {
                   type="date"
                   value={dueDate}
                   onChange={(event) => setDueDate(event.target.value)}
-                  className="block h-11 w-full min-w-0 max-w-full appearance-none rounded-xl text-left text-sm shadow-none sm:h-12 sm:rounded-lg 2xl:w-[180px]"
+                  className="block h-10 w-full min-w-0 max-w-full appearance-none rounded-xl text-left text-sm shadow-none sm:h-12 sm:rounded-lg 2xl:w-[180px]"
                   aria-label="Due date"
                 />
               </div>
@@ -260,7 +260,7 @@ export default function Todo() {
               <Button
                 onClick={handleAdd}
                 disabled={adding || !text.trim()}
-                className="h-11 w-full rounded-xl bg-emerald-600 px-5 shadow-sm hover:bg-emerald-700 sm:h-12 sm:rounded-lg lg:self-end"
+                className="h-10 w-full rounded-xl bg-emerald-600 px-5 shadow-sm hover:bg-emerald-700 sm:h-12 sm:rounded-lg lg:self-end"
               >
                 {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Add Task
