@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp, deleteField } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
@@ -32,9 +32,21 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', note: '' }
+const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', calculationMethod: 'manual', amountBasis: 'manual', percentage: '', date: '', note: '' }
 const EMPTY_PO = { po: '', bank: '', amount: '', purpose: 'Bid Security', status: 'Pending', submitted: '', notes: '' }
 const SITE_VISIT_STATUSES = ['Completed', 'Partial', 'Issue']
+const EXPENSE_CALC_SOURCE_PREFIX = 'tdx'
+const UNSUPPORTED_EXPENSE_DOC_FIELDS = [
+  'calculationMethod',
+  'amountBasis',
+  'baseAmount',
+  'percentage',
+  'calculatedAmount',
+  'grossAmount',
+  'deductionAmount',
+  'netAmount',
+  'deductionType',
+]
 const EMPTY_SITE_VISIT = {
   id: '',
   visitDate: '',
@@ -289,6 +301,149 @@ function getAwardTimelineSummary(details = {}) {
   return { label: `${diffDays} days remaining`, helper: `Expected ${formatDate(details.expectedCompletionDate)}`, tone: 'profit' }
 }
 
+function firstFiniteAmount(...values) {
+  for (const value of values) {
+    if (value === '' || value === null || value === undefined) continue
+    const number = Number(value)
+    if (Number.isFinite(number)) return number
+  }
+  return 0
+}
+
+function optionalFiniteAmount(value) {
+  if (value === '' || value === null || value === undefined) return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function compactFiniteAmount(value) {
+  const number = optionalFiniteAmount(value)
+  if (number === null) return ''
+  return Number(number.toFixed(6)).toString()
+}
+
+function getTenderGrossNetValues(tender = {}) {
+  const grossValue = firstFiniteAmount(
+    tender.grossValue,
+    tender.contractValue,
+    tender.quotedAmount,
+    tender.estimatedCost,
+    tender.value,
+    tender.amount,
+    0
+  )
+  const netValue = optionalFiniteAmount(tender.netValue) ?? optionalFiniteAmount(tender.netAmount) ?? optionalFiniteAmount(tender.receivedAmount)
+  return {
+    grossValue,
+    netValue,
+    difference: netValue === null ? null : grossValue - netValue,
+  }
+}
+
+function getExpensePreviewBaseAmount(amountBasis, tenderValues = {}) {
+  if (amountBasis === 'gross') return firstFiniteAmount(tenderValues.grossValue, 0)
+  if (amountBasis === 'net') return firstFiniteAmount(tenderValues.netValue, 0)
+  return null
+}
+
+function getExpenseCalcSource(expense = {}) {
+  if (typeof expense.source !== 'string' || !expense.source.startsWith(`${EXPENSE_CALC_SOURCE_PREFIX}|`)) return {}
+  const [, methodCode, basisCode, percentageValue, baseAmountValue, calculatedAmountValue] = expense.source.split('|')
+  const amountBasis = basisCode === 'g' ? 'gross' : basisCode === 'n' ? 'net' : 'manual'
+  return {
+    calculationMethod: methodCode === 'p' ? 'percentage' : 'manual',
+    amountBasis,
+    percentage: amountBasis === 'manual' ? null : optionalFiniteAmount(percentageValue),
+    baseAmount: amountBasis === 'manual' ? null : optionalFiniteAmount(baseAmountValue),
+    calculatedAmount: optionalFiniteAmount(calculatedAmountValue),
+  }
+}
+
+function normalizeExpenseCalculation(expense = {}, tenderValues = {}) {
+  const parsed = getExpenseCalcSource(expense)
+  const calculationMethod = (expense.calculationMethod || parsed.calculationMethod) === 'percentage' ? 'percentage' : 'manual'
+  const rawBasis = expense.amountBasis || parsed.amountBasis
+  const amountBasis = ['gross', 'net', 'manual'].includes(rawBasis) ? rawBasis : 'manual'
+  const amount = firstFiniteAmount(expense.amount, parsed.calculatedAmount, 0)
+  const baseCandidate = optionalFiniteAmount(expense.baseAmount) ?? parsed.baseAmount ?? getExpensePreviewBaseAmount(amountBasis, tenderValues)
+  const baseAmount = amountBasis === 'manual' ? null : optionalFiniteAmount(baseCandidate)
+  const enteredPercentage = optionalFiniteAmount(expense.percentage) ?? parsed.percentage ?? optionalFiniteAmount(expense.previewPercentage)
+  let percentage = amountBasis === 'manual' ? null : enteredPercentage
+  let calculatedAmount = amount
+
+  if (calculationMethod === 'percentage') {
+    percentage = optionalFiniteAmount(enteredPercentage) ?? 0
+    calculatedAmount = baseAmount && baseAmount > 0 ? (baseAmount * percentage) / 100 : amount
+  } else if (amountBasis !== 'manual') {
+    percentage = baseAmount && baseAmount > 0 ? (amount / baseAmount) * 100 : null
+  }
+
+  const safeCalculatedAmount = Number.isFinite(calculatedAmount) ? calculatedAmount : amount
+  return {
+    calculationMethod,
+    amountBasis,
+    baseAmount,
+    percentage: Number.isFinite(percentage) ? percentage : null,
+    calculatedAmount: safeCalculatedAmount,
+    amount: safeCalculatedAmount,
+  }
+}
+
+function encodeExpenseCalcSource(calculation = {}) {
+  const methodCode = calculation.calculationMethod === 'percentage' ? 'p' : 'm'
+  const basisCode = calculation.amountBasis === 'gross' ? 'g' : calculation.amountBasis === 'net' ? 'n' : 'm'
+  return [
+    EXPENSE_CALC_SOURCE_PREFIX,
+    methodCode,
+    basisCode,
+    compactFiniteAmount(calculation.percentage),
+    compactFiniteAmount(calculation.baseAmount),
+    compactFiniteAmount(calculation.calculatedAmount),
+  ].join('|')
+}
+
+function hydrateExpenseCalculation(expense = {}, tenderValues = {}) {
+  const calculation = normalizeExpenseCalculation(expense, tenderValues)
+  return {
+    ...expense,
+    calculationMethod: calculation.calculationMethod,
+    amountBasis: calculation.amountBasis,
+    baseAmount: calculation.baseAmount,
+    percentage: calculation.percentage,
+    calculatedAmount: calculation.calculatedAmount,
+  }
+}
+
+function getUnsupportedExpenseFieldDeletes(expense = {}) {
+  return Object.fromEntries(
+    UNSUPPORTED_EXPENSE_DOC_FIELDS
+      .filter((field) => field in expense)
+      .map((field) => [field, deleteField()])
+  )
+}
+
+function getExpenseBasisLabel(amountBasis) {
+  if (amountBasis === 'gross') return 'Gross'
+  if (amountBasis === 'net') return 'Net'
+  return 'Manual'
+}
+
+function formatExpensePercent(value) {
+  if (value === '' || value === null || value === undefined) return '—'
+  const number = Number(value)
+  return Number.isFinite(number) ? `${number.toFixed(2)}%` : '—'
+}
+
+function getExpenseCalculationPreview(expense = {}, tenderValues = {}) {
+  return normalizeExpenseCalculation(expense, tenderValues)
+}
+
+function formatPreviewPercent(value) {
+  if (value === '' || value === null || value === undefined) return '—'
+  const number = Number(value)
+  return Number.isFinite(number) ? `${number.toFixed(2)}%` : '—'
+}
+
 export default function TenderDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -307,6 +462,9 @@ export default function TenderDetail() {
   const [expSaving, setExpSaving] = useState(false)
   const [deleteExpId, setDeleteExpId] = useState(null)
   const [expRefresh, setExpRefresh] = useState(0)
+  const [grossNetDialogOpen, setGrossNetDialogOpen] = useState(false)
+  const [grossNetForm, setGrossNetForm] = useState({ grossValue: '', netValue: '' })
+  const [grossNetSaving, setGrossNetSaving] = useState(false)
   const [viewExpense, setViewExpense] = useState(null)
   const [expenseSearch, setExpenseSearch] = useState('')
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('All')
@@ -374,7 +532,7 @@ export default function TenderDetail() {
       try {
         const q1 = query(collection(db, 'expenses'), where('tenderRef', '==', id))
         const snap = await getDocs(q1)
-        setExpenses(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+        setExpenses(snap.docs.map((d) => hydrateExpenseCalculation({ id: d.id, ...d.data() })))
       } catch (err) {
         console.error('Failed to load expenses:', err)
         toast.error('Failed to load expenses')
@@ -447,10 +605,48 @@ export default function TenderDetail() {
   )
   const heldByAgency = bidSecurityHeld + perfGuaranteeHeld
 
+  const openGrossNetDialog = () => {
+    const values = getTenderGrossNetValues(form)
+    setGrossNetForm({
+      grossValue: String(values.grossValue || ''),
+      netValue: values.netValue === null ? '' : String(values.netValue),
+    })
+    setGrossNetDialogOpen(true)
+  }
+
+  const saveGrossNetValues = async () => {
+    setGrossNetSaving(true)
+    try {
+      const grossValue = firstFiniteAmount(grossNetForm.grossValue, getTenderGrossNetValues(form).grossValue, 0)
+      const netValue = optionalFiniteAmount(grossNetForm.netValue)
+      const payload = { grossValue, netValue, updatedAt: serverTimestamp() }
+      await updateDoc(doc(db, 'tenders', id), payload)
+      setForm((previous) => ({ ...previous, grossValue, netValue }))
+      setTender((previous) => previous ? { ...previous, grossValue, netValue } : previous)
+      setGrossNetDialogOpen(false)
+      toast.success('Gross / Net values updated')
+    } catch (error) {
+      console.error('Failed to save gross/net values:', error)
+      toast.error('Failed to save Gross / Net values')
+    } finally {
+      setGrossNetSaving(false)
+    }
+  }
+
   const openExpDialog = (item = null) => {
     setEditExp(item)
+    const calculation = normalizeExpenseCalculation(item || {}, getTenderGrossNetValues(form))
     setExpForm(item
-      ? { description: item.description || '', category: item.category || EXPENSE_CATEGORIES[0], amount: item.amount || '', date: item.date || '', note: item.note || '' }
+      ? {
+          description: item.description || '',
+          category: item.category || EXPENSE_CATEGORIES[0],
+          amount: item.amount ?? calculation.amount,
+          calculationMethod: calculation.calculationMethod,
+          amountBasis: calculation.amountBasis,
+          percentage: calculation.percentage ?? '',
+          date: item.date || '',
+          note: item.note || '',
+        }
       : { ...EMPTY_EXP, date: new Date().toISOString().slice(0, 10) })
     setExpDialogOpen(true)
   }
@@ -459,27 +655,38 @@ export default function TenderDetail() {
     if (!expForm.description) { toast.error('Description is required'); return }
     setExpSaving(true)
     try {
+      const calculation = normalizeExpenseCalculation(expForm, getTenderGrossNetValues(form))
       const payload = {
         description: expForm.description,
         category: expForm.category,
-        amount: Number(expForm.amount) || 0,
+        amount: Number(calculation.amount) || 0,
         date: expForm.date || new Date().toISOString().slice(0, 10),
         note: expForm.note || '',
         tenderId: (tender?.nit || id),
         tenderRef: id,
-        source: 'tender-detail',
+        source: encodeExpenseCalcSource(calculation),
         updatedAt: serverTimestamp(),
       }
+      const uiExpense = hydrateExpenseCalculation({ ...payload, ...calculation }, getTenderGrossNetValues(form))
       if (editExp) {
-        await updateDoc(doc(db, 'expenses', editExp.id), payload)
+        await updateDoc(doc(db, 'expenses', editExp.id), { ...payload, ...getUnsupportedExpenseFieldDeletes(editExp) })
+        setExpenses((previous) => previous.map((expense) => (
+          expense.id === editExp.id ? { ...expense, ...uiExpense } : expense
+        )))
         toast.success('Expense updated')
       } else {
-        await addDoc(collection(db, 'expenses'), { ...payload, createdAt: serverTimestamp() })
+        const ref = await addDoc(collection(db, 'expenses'), { ...payload, createdAt: serverTimestamp() })
+        setExpenses((previous) => [{ id: ref.id, ...uiExpense }, ...previous])
         toast.success('Expense added')
       }
       setExpDialogOpen(false)
-      setExpRefresh((n) => n + 1)
-    } catch {
+    } catch (error) {
+      console.error('Tender Detail expense save failed', {
+        error,
+        message: error?.message,
+        code: error?.code,
+        expenseForm: expForm,
+      })
       toast.error('Failed to save expense')
     } finally {
       setExpSaving(false)
@@ -491,14 +698,27 @@ export default function TenderDetail() {
     try {
       await deleteDoc(doc(db, 'expenses', deleteExpId))
       toast.success('Expense deleted')
+      setExpenses((previous) => previous.filter((expense) => expense.id !== deleteExpId))
       setDeleteExpId(null)
-      setExpRefresh((n) => n + 1)
     } catch {
       toast.error('Failed to delete')
     }
   }
 
-  const setExpF = (k) => (e) => setExpForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
+  const setExpF = (k) => (e) => {
+    const value = e.target?.value ?? e
+    setExpForm((previous) => {
+      const next = { ...previous, [k]: value }
+      const method = next.calculationMethod === 'percentage' ? 'percentage' : 'manual'
+      const basis = ['gross', 'net', 'manual'].includes(next.amountBasis) ? next.amountBasis : 'manual'
+      if (method === 'percentage' && basis !== 'manual' && ['calculationMethod', 'amountBasis', 'percentage'].includes(k)) {
+        const baseAmount = getExpensePreviewBaseAmount(basis, getTenderGrossNetValues(form))
+        const percentage = firstFiniteAmount(next.percentage, 0)
+        next.amount = baseAmount ? String((baseAmount * percentage) / 100) : '0'
+      }
+      return next
+    })
+  }
 
   // --- Pay Order CRUD (writes to payOrders collection with tenderRef=id) ---
   const openPoDialog = (item = null, defaultPurpose = null) => {
@@ -1119,6 +1339,7 @@ export default function TenderDetail() {
   const raBillPaid = (form.raBills || []).filter((b) => b.status === 'Paid').reduce((s, b) => s + (Number(b.amount) || 0), 0)
   const paidBillCount = (form.bills || []).filter((b) => b.status === 'Paid').length + (form.raBills || []).filter((b) => b.status === 'Paid').length
   const contractValue = Number(form.value) || 0
+  const tenderGrossNetValues = getTenderGrossNetValues(form)
   const totalExpenses = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
   const totalReceived = billPaid + raBillPaid
   const receivable = Math.max(contractValue - totalReceived, 0)
@@ -1195,13 +1416,18 @@ export default function TenderDetail() {
   })
   const expenseFiltersActive = Boolean(expenseSearch || expenseCategoryFilter !== 'All' || expenseDateFrom || expenseDateTo)
   const exportFilteredExpenses = () => {
-    const headers = ['Date', 'Description', 'Category', 'Notes', 'Amount', 'Status / Type']
+    const headers = ['Date', 'Description', 'Category', 'Notes', 'Amount', 'Calculation Method', 'Based On', 'Base Amount', 'Percentage', 'Calculated Amount', 'Status / Type']
     const rows = filteredExpenses.map((expense) => [
       expense.date || '-',
       expense.description || '-',
       expense.category || '-',
       expense.note || '-',
       Number(expense.amount) || 0,
+      expense.calculationMethod || 'manual',
+      getExpenseBasisLabel(expense.amountBasis),
+      expense.baseAmount ?? '',
+      expense.percentage ?? '',
+      expense.calculatedAmount ?? (Number(expense.amount) || 0),
       getExpenseStatusLabel(expense),
     ])
     const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
@@ -1330,6 +1556,7 @@ export default function TenderDetail() {
       date: item.updatedAt || item.addedAt,
     })),
   ].filter(Boolean).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 6)
+  const expenseCalculationPreview = getExpenseCalculationPreview(expForm, tenderGrossNetValues)
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-4 pb-[calc(env(safe-area-inset-bottom)+120px)] md:space-y-5 md:pb-0">
@@ -2299,6 +2526,8 @@ export default function TenderDetail() {
             heldByAgency={heldByAgency}
             bidSecurityAtRisk={bidSecurityAtRisk}
             sunkCost={sunkCost}
+            tenderGrossNetValues={tenderGrossNetValues}
+            openGrossNetDialog={openGrossNetDialog}
             isAdmin={isAdmin}
             openExpDialog={openExpDialog}
             setDeleteExpId={setDeleteExpId}
@@ -2745,7 +2974,7 @@ export default function TenderDetail() {
 
       {/* Expense Dialog */}
       <Dialog open={expDialogOpen} onOpenChange={setExpDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editExp ? 'Edit Expense' : 'Add Expense'}</DialogTitle>
             <DialogDescription>
@@ -2765,8 +2994,56 @@ export default function TenderDetail() {
               </Select>
             </div>
             <div className="min-w-0 space-y-1.5">
+              <Label>Calculation Method</Label>
+              <Select value={expForm.calculationMethod || 'manual'} onValueChange={setExpF('calculationMethod')}>
+                <SelectTrigger className="h-10 w-full min-w-0 text-sm sm:h-11"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">Manual Amount</SelectItem>
+                  <SelectItem value="percentage">Percentage</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0 space-y-1.5">
+              <Label>Calculate From</Label>
+              <Select value={expForm.amountBasis || 'manual'} onValueChange={setExpF('amountBasis')}>
+                <SelectTrigger className="h-10 w-full min-w-0 text-sm sm:h-11"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gross">Gross Value</SelectItem>
+                  <SelectItem value="net">Net Value</SelectItem>
+                  <SelectItem value="manual">Manual / Not Based</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0 space-y-1.5">
+              <Label htmlFor="td-exp-percentage">Percentage</Label>
+              <Input
+                id="td-exp-percentage"
+                type="number"
+                value={expForm.percentage ?? ''}
+                onChange={setExpF('percentage')}
+                placeholder="0"
+                disabled={expForm.calculationMethod !== 'percentage'}
+                className="h-10 w-full min-w-0 font-mono text-sm tabular-nums sm:h-11"
+              />
+            </div>
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="td-exp-amt">Amount (PKR)</Label>
-              <Input id="td-exp-amt" type="number" value={expForm.amount} onChange={setExpF('amount')} placeholder="0" className="h-10 w-full min-w-0 font-mono text-sm tabular-nums sm:h-11" />
+              <Input
+                id="td-exp-amt"
+                type="number"
+                value={expForm.amount}
+                onChange={setExpF('amount')}
+                readOnly={expForm.calculationMethod === 'percentage' && expForm.amountBasis !== 'manual'}
+                placeholder="0"
+                className="h-10 w-full min-w-0 font-mono text-sm tabular-nums sm:h-11"
+              />
+            </div>
+            <div className="min-w-0 space-y-1.5 sm:col-span-2">
+              <div className="grid grid-cols-1 gap-2 rounded-xl border bg-muted/20 p-3 text-sm sm:grid-cols-3">
+                <CalculationPreview label="Base Amount" value={expenseCalculationPreview.baseAmount ? formatCurrency(expenseCalculationPreview.baseAmount) : '—'} />
+                <CalculationPreview label="Percentage" value={formatPreviewPercent(expenseCalculationPreview.percentage)} />
+                <CalculationPreview label="Calculated Amount" value={formatCurrency(expenseCalculationPreview.calculatedAmount)} />
+              </div>
             </div>
             <div className="min-w-0 space-y-1.5">
               <Label htmlFor="td-exp-date">Date</Label>
@@ -2782,6 +3059,46 @@ export default function TenderDetail() {
             <Button type="button" className="h-10 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={saveExpense} disabled={expSaving}>
               {expSaving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editExp ? 'Save Changes' : 'Add Expense'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={grossNetDialogOpen} onOpenChange={setGrossNetDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Gross / Net</DialogTitle>
+            <DialogDescription>Set tender-level values used by expense calculation previews.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="td-gross-value">Gross Value</Label>
+              <Input
+                id="td-gross-value"
+                type="number"
+                value={grossNetForm.grossValue}
+                onChange={(event) => setGrossNetForm((previous) => ({ ...previous, grossValue: event.target.value }))}
+                placeholder="0"
+                className="font-mono tabular-nums"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="td-net-value">Net Value</Label>
+              <Input
+                id="td-net-value"
+                type="number"
+                value={grossNetForm.netValue}
+                onChange={(event) => setGrossNetForm((previous) => ({ ...previous, netValue: event.target.value }))}
+                placeholder="Not set"
+                className="font-mono tabular-nums"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setGrossNetDialogOpen(false)}>Cancel</Button>
+            <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={saveGrossNetValues} disabled={grossNetSaving}>
+              {grossNetSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Save Values
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -4246,6 +4563,8 @@ function ExpensesFinanceSection({
   heldByAgency,
   bidSecurityAtRisk,
   sunkCost,
+  tenderGrossNetValues,
+  openGrossNetDialog,
   isAdmin,
   openExpDialog,
   setDeleteExpId,
@@ -4283,6 +4602,28 @@ function ExpensesFinanceSection({
           </Button>
         )}
       </div>
+
+      <section className="rounded-2xl border border-border/80 bg-slate-50/40 p-4 shadow-sm md:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Contract Financial Basis</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Used for Gross/Net based expense percentage calculations.
+            </p>
+          </div>
+          {isAdmin && (
+            <Button type="button" variant="outline" size="sm" className="w-full shrink-0 sm:w-auto" onClick={openGrossNetDialog}>
+              <Pencil className="h-3.5 w-3.5" /> Edit Gross / Net
+            </Button>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <GrossNetSummaryCard icon={DollarSign} label="Gross Value" value={formatCurrency(tenderGrossNetValues.grossValue)} helper="Tender full value" tone="emerald" />
+          <GrossNetSummaryCard icon={Banknote} label="Net Value" value={tenderGrossNetValues.netValue === null ? 'Not set' : formatCurrency(tenderGrossNetValues.netValue)} helper="After deductions" tone="blue" />
+          <GrossNetSummaryCard icon={Receipt} label="Difference / Deduction" value={tenderGrossNetValues.difference === null ? '—' : formatCurrency(tenderGrossNetValues.difference)} helper="Gross minus net" tone="amber" />
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <ExpenseSummaryCard icon={WalletCards} label="Total Expenses" value={expenseTotal} helper="All recorded expenses" tone="emerald" />
@@ -4341,15 +4682,17 @@ function ExpensesFinanceSection({
             ))}
           </div>
 
-          <div className="hidden overflow-hidden rounded-2xl border border-border/80 bg-background shadow-sm md:block">
-            <Table>
+          <div className="hidden overflow-x-auto rounded-2xl border border-border/80 bg-background shadow-sm md:block">
+            <Table className="min-w-[1040px]">
               <TableHeader>
                 <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
-                  <TableHead className="pl-6 text-xs font-semibold uppercase text-slate-500">Date</TableHead>
+                  <TableHead className="w-[130px] whitespace-nowrap pl-6 text-xs font-semibold uppercase text-slate-500">Date</TableHead>
                   <TableHead className="text-xs font-semibold uppercase text-slate-500">Description</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-slate-500">Category</TableHead>
+                  <TableHead className="w-[170px] text-xs font-semibold uppercase text-slate-500">Category</TableHead>
                   <TableHead className="text-xs font-semibold uppercase text-slate-500">Notes</TableHead>
                   <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Amount</TableHead>
+                  <TableHead className="w-[105px] text-xs font-semibold uppercase text-slate-500">Based On</TableHead>
+                  <TableHead className="w-[90px] text-right text-xs font-semibold uppercase text-slate-500">%</TableHead>
                   <TableHead className="text-xs font-semibold uppercase text-slate-500">Status / Type</TableHead>
                   <TableHead className="pr-6 text-right text-xs font-semibold uppercase text-slate-500">Actions</TableHead>
                 </TableRow>
@@ -4357,15 +4700,17 @@ function ExpensesFinanceSection({
               <TableBody>
                 {filteredExpenses.map((expense) => (
                   <TableRow key={expense.id} className="h-16 border-border/70 hover:bg-slate-50/50">
-                    <TableCell className="pl-6 text-sm text-slate-700">{formatDate(expense.date)}</TableCell>
+                    <TableCell className="whitespace-nowrap pl-6 text-sm text-slate-700">{formatDate(expense.date)}</TableCell>
                     <TableCell className="max-w-[260px] text-sm font-medium text-foreground">
                       <span className="line-clamp-2">{expense.description || '-'}</span>
                     </TableCell>
-                    <TableCell><ExpenseCategoryBadge category={expense.category || 'Miscellaneous'} /></TableCell>
+                    <TableCell className="max-w-[170px]"><ExpenseCategoryBadge category={expense.category || 'Miscellaneous'} /></TableCell>
                     <TableCell className="max-w-[260px] text-sm text-muted-foreground">
                       <span className="line-clamp-2">{expense.note || '-'}</span>
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm font-semibold tabular-nums text-slate-950">{formatCurrency(Number(expense.amount) || 0)}</TableCell>
+                    <TableCell><AmountBasisBadge basis={expense.amountBasis} compact /></TableCell>
+                    <TableCell className="whitespace-nowrap text-right font-mono text-sm tabular-nums text-muted-foreground">{formatExpensePercent(expense.percentage)}</TableCell>
                     <TableCell><ExpenseStatusBadge status={getExpenseStatusLabel(expense)} /></TableCell>
                     <TableCell className="pr-6">
                       <div className="flex justify-end gap-2">
@@ -4393,6 +4738,56 @@ function ExpenseSummaryCard({ icon: Icon, label, value, helper, tone }) {
   return <BillSummaryCard icon={Icon} label={label} value={value} helper={helper} tone={tone} />
 }
 
+function GrossNetSummaryCard({ icon: Icon, label, value, helper, tone }) {
+  const tones = {
+    emerald: 'bg-emerald-50 text-emerald-700',
+    blue: 'bg-blue-50 text-blue-700',
+    amber: 'bg-amber-50 text-amber-700',
+  }
+  const valueTone = {
+    emerald: 'text-emerald-700',
+    blue: 'text-blue-700',
+    amber: 'text-amber-700',
+  }
+  return (
+    <div className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${tones[tone] || tones.emerald}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+          <p className={`mt-1 break-words font-mono text-lg font-bold tabular-nums ${valueTone[tone] || valueTone.emerald}`}>{value}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CalculationPreview({ label, value }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 break-words font-mono text-sm font-semibold tabular-nums text-foreground">{value}</p>
+    </div>
+  )
+}
+
+function AmountBasisBadge({ basis, compact = false }) {
+  const normalized = ['gross', 'net', 'manual'].includes(basis) ? basis : 'manual'
+  const className = normalized === 'gross'
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : normalized === 'net'
+      ? 'border-blue-200 bg-blue-50 text-blue-700'
+      : 'border-slate-200 bg-slate-50 text-slate-700'
+  return (
+    <Badge variant="outline" className={`max-w-full shrink-0 rounded-full ${compact ? 'px-2 py-0.5 text-[11px]' : ''} ${className}`}>
+      {getExpenseBasisLabel(normalized)}
+    </Badge>
+  )
+}
+
 function getExpenseStatusLabel(expense = {}) {
   return expense.status || expense.type || 'Paid'
 }
@@ -4410,7 +4805,7 @@ function ExpenseCategoryBadge({ category }) {
           : normalized.includes('Tender')
             ? 'border-rose-200 bg-rose-50 text-rose-700'
             : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  return <Badge variant="outline" className={`shrink-0 rounded-full ${className}`}>{normalized}</Badge>
+  return <Badge variant="outline" className={`max-w-full shrink-0 truncate rounded-full ${className}`}>{normalized}</Badge>
 }
 
 function ExpenseStatusBadge({ status }) {
@@ -4428,15 +4823,20 @@ function ExpenseStatusBadge({ status }) {
 }
 
 function ExpenseMobileCard({ expense, isAdmin, onView, onEdit, onDelete }) {
+  const basisLabel = getExpenseBasisLabel(expense.amountBasis)
+  const percentLabel = formatExpensePercent(expense.percentage)
   return (
     <div className="rounded-2xl border border-border/80 bg-background p-3.5 shadow-sm sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-base font-semibold text-foreground">{expense.description || '-'}</p>
+          <p className="break-words text-base font-semibold text-foreground">{expense.description || '-'}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <ExpenseCategoryBadge category={expense.category || 'Miscellaneous'} />
             <ExpenseStatusBadge status={getExpenseStatusLabel(expense)} />
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Based on: <span className="font-medium text-slate-700">{basisLabel}</span> &middot; <span className="font-mono tabular-nums">{percentLabel}</span>
+          </p>
         </div>
         <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-slate-950">{formatCurrency(Number(expense.amount) || 0)}</p>
       </div>
