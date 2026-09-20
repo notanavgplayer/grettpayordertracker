@@ -1,17 +1,9 @@
--- Run this in Supabase SQL Editor after creating a public bucket named:
+-- Run this in Supabase SQL Editor after creating a PRIVATE bucket named:
 -- tender-documents
 --
--- This app currently uploads directly from the browser with the anon key.
--- That means inserts must be allowed for anon users on this bucket.
-
-create policy "Allow public reads for tender documents"
-on storage.objects
-for select
-to anon
-using (bucket_id = 'tender-documents');
-
-create policy "Allow browser uploads for tender documents"
-on storage.objects
-for insert
-to anon
-with check (bucket_id = 'tender-documents');
+-- Do not create anon or authenticated policies for this bucket. Firebase callable
+-- functions verify the current Firestore role and use the Supabase service role
+-- only on the server to issue short-lived signed upload/download URLs.
+--
+-- Existing public objects require a reviewed migration before changing the live
+-- bucket. See docs/DEPLOYMENT.md; this file intentionally grants no public access.

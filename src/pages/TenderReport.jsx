@@ -4,18 +4,13 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { ArrowLeft, Printer } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { sumReceived } from '@/lib/financials'
 import LoadState from '@/components/shared/LoadState'
 import PageHeader from '@/components/shared/PageHeader'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-
-function paidTotal(items) {
-  return (items || [])
-    .filter((item) => item.status === 'Paid')
-    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-}
 
 export default function TenderReport() {
   const { id } = useParams()
@@ -56,8 +51,8 @@ export default function TenderReport() {
     if (!tender) return null
     const contractValue = Number(tender.value) || 0
     const totalExpenses = expenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0)
-    const billPaid = paidTotal(tender.bills)
-    const raBillPaid = paidTotal(tender.raBills)
+    const billPaid = sumReceived(tender.bills)
+    const raBillPaid = sumReceived(tender.raBills)
     const totalReceived = billPaid + raBillPaid
     return {
       contractValue,

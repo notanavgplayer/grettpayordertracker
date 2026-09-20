@@ -220,11 +220,11 @@ export default function Settings() {
                 {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-medium">Dark Mode</p>
+                <p id="dark-mode-label" className="text-sm font-medium">Dark Mode</p>
                 <p className="text-xs text-muted-foreground">Toggle between light and dark theme</p>
               </div>
             </div>
-            <Switch checked={isDark} onCheckedChange={toggleTheme} />
+            <Switch checked={isDark} onCheckedChange={toggleTheme} aria-labelledby="dark-mode-label" />
           </div>
         </CardContent>
       </Card>

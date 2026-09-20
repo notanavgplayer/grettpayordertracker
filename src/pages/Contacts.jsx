@@ -35,6 +35,11 @@ import {
 import { toast } from 'sonner'
 
 const EMPTY = { name: '', role: '', organization: '', category: 'Agency Officer', phone: '', whatsapp: '', email: '', address: '', notes: '' }
+const CONTACT_FIELDS = Object.keys(EMPTY)
+
+function contactPayload(value = {}) {
+  return Object.fromEntries(CONTACT_FIELDS.map((key) => [key, value[key] ?? EMPTY[key]]))
+}
 const TYPE_FILTERS = ['All', 'Agency', 'Vendor', 'Bank', 'Officer', 'Contractor']
 
 function getContactType(contact = {}) {
@@ -125,7 +130,7 @@ export default function Contacts() {
 
   const openDialog = (item = null) => {
     setEditItem(item)
-    setForm(item ? { ...EMPTY, ...item } : { ...EMPTY })
+    setForm(item ? contactPayload(item) : { ...EMPTY })
     setDialogOpen(true)
   }
 
@@ -133,8 +138,9 @@ export default function Contacts() {
     if (!form.name) { toast.error('Name is required'); return }
     setSaving(true)
     try {
-      if (editItem) { await update(editItem.id, form); toast.success('Contact updated'); setSelected({ id: editItem.id, ...form }) }
-      else { await add(form); toast.success('Contact added') }
+      const payload = contactPayload(form)
+      if (editItem) { await update(editItem.id, payload); toast.success('Contact updated'); setSelected({ ...payload, id: editItem.id }) }
+      else { await add(payload); toast.success('Contact added') }
       setDialogOpen(false)
     } catch (err) {
       console.error('Failed to save contact:', err)
@@ -303,43 +309,43 @@ export default function Contacts() {
           <DialogHeader><DialogTitle>{editItem ? 'Edit Contact' : 'New Contact'}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>Full Name *</Label>
-              <Input value={form.name} onChange={setF('name')} placeholder="e.g. Ahmed Khan" />
+              <Label htmlFor="contact-name">Full Name *</Label>
+              <Input id="contact-name" value={form.name} onChange={setF('name')} placeholder="e.g. Ahmed Khan" required aria-invalid={!form.name} />
             </div>
             <div className="space-y-1.5">
-              <Label>Role / Title</Label>
-              <Input value={form.role} onChange={setF('role')} placeholder="e.g. Project Manager" />
+              <Label htmlFor="contact-role">Role / Title</Label>
+              <Input id="contact-role" value={form.role} onChange={setF('role')} placeholder="e.g. Project Manager" />
             </div>
             <div className="space-y-1.5">
-              <Label>Category</Label>
+              <Label htmlFor="contact-category">Category</Label>
               <Select value={form.category} onValueChange={setF('category')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="contact-category"><SelectValue /></SelectTrigger>
                 <SelectContent>{CONTACT_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>Organization</Label>
-              <Input value={form.organization} onChange={setF('organization')} />
+              <Label htmlFor="contact-organization">Organization</Label>
+              <Input id="contact-organization" value={form.organization} onChange={setF('organization')} />
             </div>
             <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input value={form.phone} onChange={setF('phone')} type="tel" placeholder="+92 300 0000000" />
+              <Label htmlFor="contact-phone">Phone</Label>
+              <Input id="contact-phone" value={form.phone} onChange={setF('phone')} type="tel" placeholder="+92 300 0000000" />
             </div>
             <div className="space-y-1.5">
-              <Label>WhatsApp</Label>
-              <Input value={form.whatsapp} onChange={setF('whatsapp')} type="tel" placeholder="Same as phone if blank" />
+              <Label htmlFor="contact-whatsapp">WhatsApp</Label>
+              <Input id="contact-whatsapp" value={form.whatsapp} onChange={setF('whatsapp')} type="tel" placeholder="Same as phone if blank" />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>Email</Label>
-              <Input value={form.email} onChange={setF('email')} type="email" />
+              <Label htmlFor="contact-email">Email</Label>
+              <Input id="contact-email" value={form.email} onChange={setF('email')} type="email" />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>Address</Label>
-              <Input value={form.address} onChange={setF('address')} />
+              <Label htmlFor="contact-address">Address</Label>
+              <Input id="contact-address" value={form.address} onChange={setF('address')} />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>Notes</Label>
-              <Textarea value={form.notes} onChange={setF('notes')} rows={3} />
+              <Label htmlFor="contact-notes">Notes</Label>
+              <Textarea id="contact-notes" value={form.notes} onChange={setF('notes')} rows={3} />
             </div>
           </div>
           <DialogFooter>

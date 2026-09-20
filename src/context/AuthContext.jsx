@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from 'react'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { onIdTokenChanged, signOut } from 'firebase/auth'
+import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 
 const AuthContext = createContext(null)
@@ -9,29 +9,25 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [userDoc, setUserDoc] = useState(null)
-  const [claimAdmin, setClaimAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+    let unsubscribeProfile = null
+    let generation = 0
+    const unsub = onIdTokenChanged(auth, async (firebaseUser) => {
+      const currentGeneration = ++generation
+      unsubscribeProfile?.()
+      unsubscribeProfile = null
+      setLoading(true)
+      setUserDoc(null)
       if (firebaseUser) {
         setUser(firebaseUser)
-        // Read custom claims first — admin status is mirrored from the
-        // user doc by the Cloud Function in functions/index.js.
-        try {
-          const token = await firebaseUser.getIdTokenResult()
-          setClaimAdmin(!!token.claims?.admin)
-        } catch (err) {
-          console.error('Failed to read auth claims:', err)
-          setClaimAdmin(false)
-        }
-        // Load or create user document (used for displayName + as
-        // fallback for the role during the claim-propagation window).
+        // The current user document is authoritative for role and profile.
         try {
           const ref = doc(db, 'users', firebaseUser.uid)
           const snap = await getDoc(ref)
           if (snap.exists()) {
-            setUserDoc(snap.data())
+            if (generation === currentGeneration) setUserDoc(snap.data())
           } else {
             const newDoc = {
               email: firebaseUser.email,
@@ -40,8 +36,12 @@ export function AuthProvider({ children }) {
               createdAt: serverTimestamp(),
             }
             await setDoc(ref, newDoc)
-            setUserDoc(newDoc)
+            if (generation === currentGeneration) setUserDoc(newDoc)
           }
+          unsubscribeProfile = onSnapshot(ref, (profileSnapshot) => {
+            if (generation !== currentGeneration) return
+            setUserDoc(profileSnapshot.exists() ? profileSnapshot.data() : null)
+          }, (err) => console.error('Failed to watch user document:', err))
         } catch (err) {
           console.error('Failed to load user document:', err)
           setUserDoc(null)
@@ -49,18 +49,21 @@ export function AuthProvider({ children }) {
       } else {
         setUser(null)
         setUserDoc(null)
-        setClaimAdmin(false)
       }
-      setLoading(false)
+      if (generation === currentGeneration) setLoading(false)
     })
-    return unsub
+    return () => {
+      generation += 1
+      unsubscribeProfile?.()
+      unsub()
+    }
   }, [])
 
   const logout = () => signOut(auth)
 
-  const isAdmin = claimAdmin || userDoc?.role === 'admin'
+  const isAdmin = userDoc?.role === 'admin'
   const displayName = userDoc?.displayName || user?.email || ''
-  const role = claimAdmin ? 'admin' : (userDoc?.role || 'viewer')
+  const role = userDoc?.role || 'viewer'
 
   return (
     <AuthContext.Provider value={{ user, userDoc, loading, logout, isAdmin, displayName, role }}>

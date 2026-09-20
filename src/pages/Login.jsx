@@ -7,7 +7,7 @@ import { useTheme } from '@/context/ThemeContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Loader2, Lock, Moon, Sun, Mail, KeyRound, ShieldCheck, ArrowRight, Building2 } from 'lucide-react'
 
@@ -84,9 +84,9 @@ export default function Login() {
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/30 ring-1 ring-white/10">
               <Building2 className="h-7 w-7 text-amber-400" strokeWidth={2.25} />
             </div>
-            <h2 className="text-base font-semibold tracking-tight text-foreground">
+            <h1 className="text-base font-semibold tracking-tight text-foreground">
               Grett Engineering Solutions
-            </h2>
+            </h1>
             <p className="mt-0.5 text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
               Pay Order Tracker
             </p>
@@ -94,7 +94,7 @@ export default function Login() {
 
           <Card className="border-border/60 bg-card/80 shadow-2xl shadow-primary/5 backdrop-blur-xl">
             <CardHeader className="space-y-1.5 pb-4">
-              <CardTitle className="text-2xl font-bold tracking-tight">Welcome back</CardTitle>
+              <h2 className="font-display text-2xl font-bold tracking-tight">Welcome back</h2>
               <CardDescription>
                 Sign in to your account to continue. Restricted to authorized personnel.
               </CardDescription>

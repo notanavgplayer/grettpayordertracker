@@ -295,6 +295,7 @@ export default function NotificationsBell() {
             <div className="border-t border-border p-3 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-4 sm:pt-3">
               <button
                 type="button"
+                onClick={() => { setOpen(false); navigate('/activity') }}
                 className="h-9 w-full rounded-xl border border-border bg-background text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-11"
               >
                 View all notifications

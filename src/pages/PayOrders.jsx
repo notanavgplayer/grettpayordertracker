@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useId } from "react";
 import { useCollection, useFirestoreCRUD } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
 import { exportPayOrdersCSV, exportPayOrdersPDF } from "@/lib/export";
@@ -11,10 +11,9 @@ import {
 } from "@/lib/utils";
 import {
   doc as fsDoc,
-  updateDoc,
-  addDoc as fsAddDoc,
   collection as fsCollection,
   serverTimestamp as fsServerTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { logActivity } from "@/lib/activity";
@@ -189,11 +188,11 @@ export default function PayOrders() {
   );
   const { data: tenders } = useCollection("tenders", "createdAt", "desc");
   const { data: banks } = useCollection("banks", "createdAt", "asc");
-  const { add, update, remove } = useFirestoreCRUD("payOrders");
+  const { remove } = useFirestoreCRUD("payOrders");
   const {
     add: addLog,
     remove: removeLog,
-  } = useFirestoreCRUD("activityLog");
+  } = useFirestoreCRUD("activityLog", { addUpdatedAt: false });
   const { add: addBank } = useFirestoreCRUD("banks");
   const { isAdmin, displayName } = useAuth();
 
@@ -350,15 +349,25 @@ export default function PayOrders() {
       toast.error("PO number is required");
       return;
     }
+    if (form.amount === "" || !Number.isFinite(Number(form.amount)) || Number(form.amount) < 0) {
+      toast.error("Amount must be a non-negative number");
+      return;
+    }
     setSaving(true);
     try {
+      const batch = writeBatch(db);
       let tenderRef = form.tenderRef || "";
       let tenderName = form.tender || "";
       let nit = form.nit || "";
       let agency = form.agency || "";
       const amountNum = Number(form.amount) || 0;
 
-      if (tenderMode === "new" && newTenderFields.name.trim()) {
+      if (tenderMode === "none") {
+        tenderRef = "";
+        tenderName = "";
+        nit = "";
+        agency = "";
+      } else if (tenderMode === "new" && newTenderFields.name.trim()) {
         const stub = {
           name: newTenderFields.name.trim(),
           nit: newTenderFields.nit.trim(),
@@ -371,7 +380,8 @@ export default function PayOrders() {
           createdAt: fsServerTimestamp(),
           updatedAt: fsServerTimestamp(),
         };
-        const ref = await fsAddDoc(fsCollection(db, "tenders"), stub);
+        const ref = fsDoc(fsCollection(db, "tenders"));
+        batch.set(ref, stub);
         tenderRef = ref.id;
         tenderName = stub.name;
         nit = nit || stub.nit;
@@ -384,12 +394,10 @@ export default function PayOrders() {
           agency = agency || t.agency || "";
           // Write bidSecurity on tender if this PO is Bid Security
           if (form.purpose === "Bid Security" && amountNum > 0) {
-            try {
-              await updateDoc(fsDoc(db, "tenders", tenderRef), {
-                bidSecurity: amountNum,
-                updatedAt: fsServerTimestamp(),
-              });
-            } catch {}
+            batch.update(fsDoc(db, "tenders", tenderRef), {
+              bidSecurity: amountNum,
+              updatedAt: fsServerTimestamp(),
+            });
           }
         }
       }
@@ -403,7 +411,11 @@ export default function PayOrders() {
         agency,
       });
       if (editItem) {
-        await update(editItem.id, data);
+        batch.update(fsDoc(db, "payOrders", editItem.id), {
+          ...data,
+          updatedAt: fsServerTimestamp(),
+        });
+        await batch.commit();
         logActivity({
           type: "payOrder",
           action: "updated",
@@ -414,7 +426,14 @@ export default function PayOrders() {
         });
         toast.success("Pay order updated");
       } else {
-        const newId = await add(data);
+        const payOrderDoc = fsDoc(fsCollection(db, "payOrders"));
+        const newId = payOrderDoc.id;
+        batch.set(payOrderDoc, {
+          ...data,
+          createdAt: fsServerTimestamp(),
+          updatedAt: fsServerTimestamp(),
+        });
+        await batch.commit();
         logActivity({
           type: "payOrder",
           action: "created",
@@ -1798,11 +1817,12 @@ export default function PayOrders() {
 }
 
 function Field({ label, className, inputClassName, ...props }) {
+  const id = useId();
   const fieldClassName = props.type === "date" ? `mobile-date-input ${className || ""}` : className;
   return (
     <div className="min-w-0 space-y-1.5">
-      <Label>{label}</Label>
-      <Input className={fieldClassName} {...props} />
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} className={fieldClassName} {...props} />
     </div>
   );
 }

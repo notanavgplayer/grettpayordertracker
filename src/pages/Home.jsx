@@ -55,6 +55,7 @@ import {
   shouldShowTaskOverdue,
   sortByField,
 } from '@/lib/utils'
+import { tenderBillTotals, tenderContractValue } from '@/lib/financials'
 
 const TENDER_STATUS_COLORS = {
   Bidding: '#d97706',
@@ -303,14 +304,8 @@ export default function Home() {
   const wonTenderIds = new Set(wonTenders.map((t) => t.id))
 
   const tenderFinancials = wonTenders.reduce((totals, tender) => {
-    const contractValue = Number(tender.value) || 0
-    const billPaid = (tender.bills || [])
-      .filter((b) => b.status === 'Paid')
-      .reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
-    const raBillPaid = (tender.raBills || [])
-      .filter((b) => b.status === 'Paid')
-      .reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
-    const totalReceived = billPaid + raBillPaid
+    const contractValue = tenderContractValue(tender)
+    const totalReceived = tenderBillTotals(tender).totalReceived
     return {
       contractValue: totals.contractValue + contractValue,
       totalReceived: totals.totalReceived + totalReceived,

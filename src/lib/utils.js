@@ -79,8 +79,11 @@ export function calculateTenderFinancials(tender = {}) {
 
 export function formatDate(dateStr) {
   if (!dateStr) return '—'
-  const d = new Date(dateStr)
-  if (isNaN(d)) return dateStr
+  let value = dateStr
+  if (typeof value?.toDate === 'function') value = value.toDate()
+  else if (typeof value === 'object' && Number.isFinite(value?.seconds)) value = new Date(value.seconds * 1000)
+  const d = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 

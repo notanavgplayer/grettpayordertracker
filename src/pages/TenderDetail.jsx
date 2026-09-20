@@ -1,11 +1,14 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp, deleteField } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp, deleteField, writeBatch } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
-import { hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
+import { getTenderDocumentUrl, hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
 import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinancials, getTenderDisplayStatus, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
+import { nullableNumber, safeHttpUrl, stripUndefined } from '@/lib/data'
+import { billAmounts, billDate } from '@/lib/financials'
+import { rowsToCSV } from '@/lib/csv'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -167,27 +170,46 @@ function daysSince(dateValue) {
 }
 
 function cleanTenderPayload(form, fallbackValue, fallbackTenderFee) {
-  const { id: _id, ...payload } = form
+  const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...payload } = form
   const data = {
     ...payload,
     value: Number(fallbackValue) || 0,
-    estimatedCost: payload.estimatedCost === '' || payload.estimatedCost === undefined ? null : Number(payload.estimatedCost) || 0,
-    quotedAmount: payload.quotedAmount === '' || payload.quotedAmount === undefined ? null : Number(payload.quotedAmount) || 0,
+    estimatedCost: nullableNumber(payload.estimatedCost),
+    quotedAmount: nullableNumber(payload.quotedAmount),
     tenderFee: Number(fallbackTenderFee) || 0,
+    documents: sanitizeStoredAssets(payload.documents || []),
+    siteVisits: (payload.siteVisits || []).map((visit) => ({
+      ...visit,
+      photos: sanitizeStoredAssets(visit.photos || []),
+    })),
   }
   return stripUndefined(data)
 }
 
-function stripUndefined(value) {
-  if (Array.isArray(value)) return value.map(stripUndefined)
-  if (value && typeof value === 'object' && !(value instanceof Date)) {
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([, v]) => v !== undefined)
-        .map(([k, v]) => [k, stripUndefined(v)])
-    )
+function sanitizeStoredAssets(items = []) {
+  return items.map((item) => {
+    if (item?.storagePath) return { ...item, url: '', fileUrl: '', urlExpiresAt: null }
+    const url = safeHttpUrl(item?.url || item?.fileUrl || '')
+    return { ...item, url, fileUrl: url }
+  })
+}
+
+async function hydrateStoredAssets(tender) {
+  const urlCache = new Map()
+  const resolveAsset = async (asset) => {
+    if (!asset?.storagePath) return asset
+    if (!urlCache.has(asset.storagePath)) {
+      urlCache.set(asset.storagePath, getTenderDocumentUrl(asset.storagePath).catch(() => ''))
+    }
+    const url = await urlCache.get(asset.storagePath)
+    return url ? { ...asset, url, fileUrl: url, urlExpiresAt: Date.now() + 14 * 60 * 1000 } : asset
   }
-  return value
+  const documents = await Promise.all((tender.documents || []).map(resolveAsset))
+  const siteVisits = await Promise.all((tender.siteVisits || []).map(async (visit) => ({
+    ...visit,
+    photos: await Promise.all((visit.photos || []).map(resolveAsset)),
+  })))
+  return { ...tender, documents, siteVisits }
 }
 
 function toBillNumber(value) {
@@ -197,16 +219,11 @@ function toBillNumber(value) {
 }
 
 function getBillAmounts(bill = {}) {
-  const submitted = toBillNumber(bill.submittedAmount ?? bill.amount) ?? 0
-  const approved = toBillNumber(bill.approvedAmount) ?? submitted
-  const received = toBillNumber(bill.receivedAmount) ?? (bill.status === 'Paid' ? approved : 0)
-  const deductions = toBillNumber(bill.deductions) ?? Math.max(submitted - approved, 0)
-  const balance = Math.max(approved - received, 0)
-  return { submitted, approved, received, deductions, balance }
+  return billAmounts(bill)
 }
 
 function getBillDate(bill = {}) {
-  return bill.date || bill.submitted || bill.paid || ''
+  return billDate(bill)
 }
 
 function getBillTitle(bill = {}, fallback = 'Bill') {
@@ -505,41 +522,88 @@ export default function TenderDetail() {
   const [activeTenderTab, setActiveTenderTab] = useState('overview')
   const autoSaveTimerRef = useRef(null)
   const autoSavePayloadRef = useRef({})
+  const tenderIdRef = useRef(id)
+  const loadGenerationRef = useRef(0)
 
   useEffect(() => {
+    const generation = ++loadGenerationRef.current
+    tenderIdRef.current = id
+    setLoading(true)
+    setTender(null)
+    setExpenses([])
+    setLinkedPOs([])
     const load = async () => {
       try {
         const snap = await getDoc(doc(db, 'tenders', id))
+        if (generation !== loadGenerationRef.current) return
         if (!snap.exists()) { navigate('/tenders'); return }
-        const data = { id: snap.id, ...snap.data() }
+        const data = await hydrateStoredAssets({ ...snap.data(), id: snap.id })
         setTender(data)
         setForm(data)
       } catch {
+        if (generation !== loadGenerationRef.current) return
         toast.error('Failed to load tender')
       } finally {
-        setLoading(false)
+        if (generation === loadGenerationRef.current) setLoading(false)
       }
     }
     load()
   }, [id, navigate])
 
-  useEffect(() => () => {
+  const flushAutoSave = useCallback(async () => {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    const payload = { ...autoSavePayloadRef.current }
+    if (Object.keys(payload).length === 0) {
+      setAutoSaving(false)
+      return true
+    }
+    setAutoSaving(true)
+    try {
+      await updateDoc(doc(db, 'tenders', tenderIdRef.current), { ...payload, updatedAt: serverTimestamp() })
+      for (const [key, value] of Object.entries(payload)) {
+        if (autoSavePayloadRef.current[key] === value) delete autoSavePayloadRef.current[key]
+      }
+      setTender((prev) => prev ? { ...prev, ...payload } : prev)
+      setAutoSaveError(false)
+      return true
+    } catch (err) {
+      console.error('Failed to auto-save tender work item:', err)
+      setAutoSaveError(true)
+      setDirty(true)
+      toast.error('Auto-save failed. Try Save Changes before leaving.')
+      return false
+    } finally {
+      setAutoSaving(false)
+    }
   }, [])
+
+  useEffect(() => {
+    const warnBeforeUnload = (event) => {
+      if (Object.keys(autoSavePayloadRef.current).length === 0) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warnBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', warnBeforeUnload)
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+      if (Object.keys(autoSavePayloadRef.current).length > 0) void flushAutoSave()
+    }
+  }, [flushAutoSave])
 
   useEffect(() => {
     const loadExpenses = async () => {
       try {
         const q1 = query(collection(db, 'expenses'), where('tenderRef', '==', id))
         const snap = await getDocs(q1)
-        setExpenses(snap.docs.map((d) => hydrateExpenseCalculation({ id: d.id, ...d.data() })))
+        setExpenses(snap.docs.map((d) => hydrateExpenseCalculation({ ...d.data(), id: d.id })))
       } catch (err) {
         console.error('Failed to load expenses:', err)
         toast.error('Failed to load expenses')
       }
     }
     loadExpenses()
-  }, [id, saving, expRefresh])
+  }, [id, expRefresh])
 
   useEffect(() => {
     const loadPOs = async () => {
@@ -547,24 +611,23 @@ export default function TenderDetail() {
       try {
         // Primary: exact tenderRef match
         const snap = await getDocs(query(collection(db, 'payOrders'), where('tenderRef', '==', id)))
-        let matched = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        // Fallback: legacy data without tenderRef — match by NIT/name/linkedPO
-        if (matched.length === 0) {
-          const all = await getDocs(collection(db, 'payOrders'))
-          const nit = (tender.nit || '').trim()
-          const linkedPO = (tender.linkedPO || '').trim()
-          const name = (tender.name || '').trim()
-          matched = all.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => {
-            if (p.tenderRef) return false
-            const pNit = (p.nit || '').trim()
-            const pPO = (p.po || '').trim()
-            const pTender = (p.tender || '').trim()
-            return (nit && pNit && pNit === nit) ||
-                   (linkedPO && pPO && pPO === linkedPO) ||
-                   (name && pTender && pTender === name)
-          })
-        }
-        setLinkedPOs(matched)
+        const matched = snap.docs.map((d) => ({ ...d.data(), id: d.id }))
+        // Include unmatched legacy records even when canonical matches exist.
+        const all = await getDocs(collection(db, 'payOrders'))
+        const nit = (tender.nit || '').trim()
+        const linkedPO = (tender.linkedPO || '').trim()
+        const name = (tender.name || '').trim()
+        const legacy = all.docs.map((d) => ({ ...d.data(), id: d.id })).filter((p) => {
+          if (p.tenderRef) return false
+          const pNit = (p.nit || '').trim()
+          const pPO = (p.po || '').trim()
+          const pTender = (p.tender || '').trim()
+          return (nit && pNit && pNit === nit) ||
+                 (linkedPO && pPO && pPO === linkedPO) ||
+                 (name && pTender && pTender === name)
+        })
+        const byId = new Map([...matched, ...legacy].map((payOrder) => [payOrder.id, payOrder]))
+        setLinkedPOs([...byId.values()])
       } catch (err) {
         console.error('Failed to load linked pay orders:', err)
         toast.error('Failed to load pay orders')
@@ -745,20 +808,21 @@ export default function TenderDetail() {
         nit: tender?.nit || '',
         agency: tender?.agency || '',
         tenderRef: id,
-        bidResult: 'N/A',
+        bidResult: editPo?.bidResult || 'N/A',
         updatedAt: serverTimestamp(),
       }
+      const batch = writeBatch(db)
       if (editPo) {
-        await updateDoc(doc(db, 'payOrders', editPo.id), payload)
-        toast.success('Pay order updated')
+        batch.update(doc(db, 'payOrders', editPo.id), payload)
       } else {
-        await addDoc(collection(db, 'payOrders'), { ...payload, createdAt: serverTimestamp() })
-        toast.success('Pay order added')
+        batch.set(doc(collection(db, 'payOrders')), { ...payload, createdAt: serverTimestamp() })
       }
       // Mirror bid security amount to tender doc for display
       if (poForm.purpose === 'Bid Security' && amountNum > 0) {
-        try { await updateDoc(doc(db, 'tenders', id), { bidSecurity: amountNum, updatedAt: serverTimestamp() }) } catch {}
+        batch.update(doc(db, 'tenders', id), { bidSecurity: amountNum, updatedAt: serverTimestamp() })
       }
+      await batch.commit()
+      toast.success(editPo ? 'Pay order updated' : 'Pay order added')
       setPoDialogOpen(false)
       setPoRefresh((n) => n + 1)
     } catch {
@@ -787,36 +851,25 @@ export default function TenderDetail() {
 
   const scheduleAutoSave = (patch) => {
     if (!isAdmin) return
+    const sanitizedPatch = {
+      ...patch,
+      ...(patch.documents ? { documents: sanitizeStoredAssets(patch.documents) } : {}),
+      ...(patch.siteVisits ? { siteVisits: patch.siteVisits.map((visit) => ({ ...visit, photos: sanitizeStoredAssets(visit.photos || []) })) } : {}),
+    }
     autoSavePayloadRef.current = {
       ...autoSavePayloadRef.current,
-      ...stripUndefined(patch),
+      ...stripUndefined(sanitizedPatch),
     }
     setAutoSaving(true)
     setAutoSaveError(false)
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
-    autoSaveTimerRef.current = setTimeout(async () => {
-      const payload = autoSavePayloadRef.current
-      autoSavePayloadRef.current = {}
-      try {
-        await updateDoc(doc(db, 'tenders', id), { ...payload, updatedAt: serverTimestamp() })
-        setTender((prev) => prev ? { ...prev, ...payload } : prev)
-      } catch (err) {
-        console.error('Failed to auto-save tender work item:', err)
-        setAutoSaveError(true)
-        setDirty(true)
-        toast.error('Auto-save failed. Try Save Changes before leaving.')
-      } finally {
-        setAutoSaving(false)
-      }
-    }, 700)
+    autoSaveTimerRef.current = setTimeout(() => void flushAutoSave(), 700)
   }
 
   const updateAutosavedForm = (key, value) => {
-    setForm((prev) => {
-      const nextValue = typeof value === 'function' ? value(prev[key], prev) : value
-      scheduleAutoSave({ [key]: nextValue })
-      return { ...prev, [key]: nextValue }
-    })
+    const nextValue = typeof value === 'function' ? value(form[key], form) : value
+    setForm((prev) => ({ ...prev, [key]: nextValue }))
+    scheduleAutoSave({ [key]: nextValue })
   }
 
   const updateTenderStatus = (status) => {
@@ -847,6 +900,7 @@ export default function TenderDetail() {
   const save = async () => {
     setSaving(true)
     try {
+      await flushAutoSave()
       const tenderFeeNum = Number(form.tenderFee) || 0
       const data = cleanTenderPayload(form, form.value, tenderFeeNum)
       if (data.status !== 'Completed') {
@@ -863,7 +917,9 @@ export default function TenderDetail() {
         }]
       }
 
-      // Sync tender fee expense
+      // Commit the tender, its fee expense, and deterministic lifecycle updates
+      // together so a network failure cannot leave partially updated records.
+      const batch = writeBatch(db)
       const existingExpId = tender.tenderFeeExpenseId
       const expPayload = {
         description: `Tender fee — ${form.name || 'Untitled'}`,
@@ -876,45 +932,37 @@ export default function TenderDetail() {
         tenderRef: id,
         updatedAt: serverTimestamp(),
       }
-      try {
-        if (tenderFeeNum > 0 && existingExpId) {
-          await updateDoc(doc(db, 'expenses', existingExpId), expPayload)
-        } else if (tenderFeeNum > 0 && !existingExpId) {
-          const ref = await addDoc(collection(db, 'expenses'), { ...expPayload, createdAt: serverTimestamp() })
-          data.tenderFeeExpenseId = ref.id
-        } else if (tenderFeeNum <= 0 && existingExpId) {
-          await deleteDoc(doc(db, 'expenses', existingExpId))
-          data.tenderFeeExpenseId = null
-        }
-      } catch (e) {
-        // non-fatal — continue with tender save
+      if (tenderFeeNum > 0 && existingExpId) {
+        batch.update(doc(db, 'expenses', existingExpId), expPayload)
+      } else if (tenderFeeNum > 0 && !existingExpId) {
+        const ref = doc(collection(db, 'expenses'))
+        batch.set(ref, { ...expPayload, createdAt: serverTimestamp() })
+        data.tenderFeeExpenseId = ref.id
+      } else if (tenderFeeNum <= 0 && existingExpId) {
+        batch.delete(doc(db, 'expenses', existingExpId))
+        data.tenderFeeExpenseId = null
       }
 
-      await updateDoc(doc(db, 'tenders', id), { ...data, updatedAt: serverTimestamp() })
-
-      // Lifecycle automation: auto-update linked POs based on tender outcome
+      let transitionedPayOrders = 0
       if (tender.status !== form.status) {
+        // Awarding a tender holds its active guarantees. Lost/cancelled tenders
+        // deliberately do not mark money returned: that requires confirmation
+        // that a refund actually occurred.
         const transitions = {
-          Lost: { purposes: ['Bid Security', 'Performance Guarantee'], newStatus: 'Returned', from: ['Pending', 'Submitted', 'Held'] },
-          Cancelled: { purposes: ['Bid Security', 'Performance Guarantee'], newStatus: 'Returned', from: ['Pending', 'Submitted', 'Held'] },
           Awarded: { purposes: ['Bid Security', 'Performance Guarantee'], newStatus: 'Held', from: ['Pending', 'Submitted'] },
         }
         const rule = transitions[form.status]
         if (rule) {
           const affected = linkedPOs.filter((p) => rule.purposes.includes(p.purpose) && rule.from.includes(p.status))
-          if (affected.length > 0) {
-            try {
-              await Promise.all(affected.map((p) =>
-                updateDoc(doc(db, 'payOrders', p.id), { status: rule.newStatus, updatedAt: serverTimestamp() })
-              ))
-              toast.info(`${affected.length} pay order(s) marked ${rule.newStatus}`)
-              setPoRefresh((n) => n + 1)
-            } catch (err) {
-              console.error('Failed to update linked pay orders:', err)
-              toast.warning('Tender saved, but linked pay orders could not be auto-updated')
-            }
-          }
+          affected.forEach((p) => batch.update(doc(db, 'payOrders', p.id), { status: rule.newStatus, updatedAt: serverTimestamp() }))
+          transitionedPayOrders = affected.length
         }
+      }
+      batch.update(doc(db, 'tenders', id), { ...data, updatedAt: serverTimestamp() })
+      await batch.commit()
+      if (transitionedPayOrders > 0) {
+        toast.info(`${transitionedPayOrders} pay order(s) marked Held`)
+        setPoRefresh((n) => n + 1)
       }
 
       setTender(data)
@@ -1430,7 +1478,7 @@ export default function TenderDetail() {
       expense.calculatedAmount ?? (Number(expense.amount) || 0),
       getExpenseStatusLabel(expense),
     ])
-    const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
+    const csv = rowsToCSV(headers, rows, new Set([2, 6, 8, 9, 10, 11]))
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -5003,7 +5051,7 @@ function BillsInvoicesSection({
         bill.status || 'Draft',
       ]
     })
-    const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
+    const csv = rowsToCSV(headers, rows, new Set([4, 5, 6, 7, 8]))
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -5469,7 +5517,7 @@ function RABillsSection({
         bill.status || 'Draft',
       ]
     })
-    const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
+    const csv = rowsToCSV(headers, rows, new Set([4, 5, 6, 7, 8]))
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -6343,10 +6391,11 @@ function BillAmountField({ value, onChange, disabled }) {
 }
 
 function BillField({ label, value, onChange, disabled, type = 'text', placeholder }) {
+  const id = useId()
   return (
     <div className="min-w-0 space-y-1.5">
-      <Label className="text-xs">{label}</Label>
-      <Input type={type} value={value ?? ''} onChange={(event) => onChange(event.target.value)} disabled={disabled} placeholder={placeholder} className={type === 'date' ? 'mobile-date-input' : type === 'number' ? 'font-mono tabular-nums' : ''} />
+      <Label htmlFor={id} className="text-xs">{label}</Label>
+      <Input id={id} type={type} value={value ?? ''} onChange={(event) => onChange(event.target.value)} disabled={disabled} placeholder={placeholder} className={type === 'date' ? 'mobile-date-input' : type === 'number' ? 'font-mono tabular-nums' : ''} />
     </div>
   )
 }

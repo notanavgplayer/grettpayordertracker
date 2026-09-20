@@ -1,5 +1,7 @@
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from './firebase'
+import { rowsToCSV } from './csv'
+import { documentData, serializeBackupValue } from './data'
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob)
@@ -8,10 +10,6 @@ function downloadBlob(blob, filename) {
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
-}
-
-function escapeCSV(val) {
-  return `"${String(val ?? '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`
 }
 
 function escapeHtml(val) {
@@ -23,12 +21,6 @@ function escapeHtml(val) {
     .replace(/'/g, '&#39;')
 }
 
-function toCSV(headers, rows) {
-  return [headers, ...rows]
-    .map((row) => row.map(escapeCSV).join(','))
-    .join('\n')
-}
-
 export function exportPayOrdersCSV(payOrders) {
   if (!payOrders.length) return false
   const headers = ['PO Number', 'Bank', 'NIT / Ref', 'Tender / Project', 'Agency', 'Amount (PKR)', 'Date Submitted', 'Status', 'Bid Result', 'Notes']
@@ -36,7 +28,7 @@ export function exportPayOrdersCSV(payOrders) {
     p.po, p.bank, p.nit, p.tender, p.agency,
     p.amount, p.submitted, p.status, p.bidResult, p.notes,
   ])
-  const csv = toCSV(headers, rows)
+  const csv = rowsToCSV(headers, rows, new Set([5]))
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
   downloadBlob(blob, `pay-orders-${new Date().toISOString().slice(0, 10)}.csv`)
   return true
@@ -46,7 +38,7 @@ export function exportTendersCSV(tenders) {
   if (!tenders.length) return false
   const headers = ['Name', 'NIT / Ref', 'Agency', 'Value (PKR)', 'Status', 'Submission Date', 'Opening Date', 'Linked PO']
   const rows = tenders.map((t) => [t.name, t.nit, t.agency, t.value, t.status, t.submissionDate, t.openingDate, t.linkedPO])
-  const csv = toCSV(headers, rows)
+  const csv = rowsToCSV(headers, rows, new Set([3]))
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
   downloadBlob(blob, `tenders-${new Date().toISOString().slice(0, 10)}.csv`)
   return true
@@ -56,7 +48,7 @@ export function exportExpensesCSV(expenses) {
   if (!expenses.length) return false
   const headers = ['Description', 'Category', 'Amount (PKR)', 'Date', 'Related Tender', 'Notes']
   const rows = expenses.map((e) => [e.description, e.category, e.amount, e.date, e.tenderId, e.note])
-  const csv = toCSV(headers, rows)
+  const csv = rowsToCSV(headers, rows, new Set([2]))
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
   downloadBlob(blob, `expenses-${new Date().toISOString().slice(0, 10)}.csv`)
   return true
@@ -127,16 +119,33 @@ export function exportPayOrdersPDF(payOrders) {
 export async function exportAllDataJSON(userEmail) {
   const collections = [
     'tenders', 'payOrders', 'todos', 'notes', 'expenses',
-    'contacts', 'checklistTemplates', 'tenderFees', 'activityLog',
+    'contacts', 'calendarEvents', 'banks', 'users',
+    'checklistTemplates', 'tenderFees', 'activityLog',
   ]
   const backup = {
-    _exportedAt: new Date().toISOString(),
-    _exportedBy: userEmail,
+    _meta: {
+      format: 'grett-firestore-export',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      exportedBy: userEmail,
+      scope: 'Firestore documents and storage object manifest only',
+      restoreWarning: 'Firebase Auth accounts, environment configuration and file bytes are not included.',
+    },
+    storageManifest: [],
   }
   for (const col of collections) {
     const snap = await getDocs(collection(db, col))
-    backup[col] = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    backup[col] = snap.docs.map((snapshot) => serializeBackupValue(documentData(snapshot)))
   }
+  backup.storageManifest = (backup.tenders || []).flatMap((tender) => (
+    (tender.documents || []).map((document) => ({
+      tenderId: tender.id,
+      documentId: document.id || null,
+      objectPath: document.objectPath || document.path || null,
+      url: document.url || null,
+      fileName: document.fileName || document.title || null,
+    }))
+  ))
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
   downloadBlob(blob, `grett-backup-${new Date().toISOString().slice(0, 10)}.json`)
   return true

@@ -92,6 +92,7 @@ export default function Sidebar({ onClose, collapsed = false, onSignOut }) {
                 <Tooltip key={to} disableHoverableContent={!collapsed}>
                   <TooltipTrigger asChild>
                     <NavLink
+                      aria-label={collapsed ? label : undefined}
                       to={to}
                       onClick={onClose}
                       className={({ isActive }) =>

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/context/AuthContext'
@@ -27,6 +27,25 @@ const Search = lazy(() => import('@/pages/Search'))
 const Settings = lazy(() => import('@/pages/Settings'))
 const DataHealth = lazy(() => import('@/pages/DataHealth'))
 
+const ROUTE_TITLES = {
+  '/': 'Sign in', '/home': 'Home', '/pay-orders': 'Pay Orders', '/tenders': 'Tenders',
+  '/reports': 'Reports', '/calendar': 'Calendar', '/expenses': 'Expenses', '/documents': 'Documents',
+  '/contacts': 'Contacts', '/notes': 'Notes', '/todo': 'To-Do', '/activity': 'Activity',
+  '/search': 'Search', '/settings': 'Settings', '/data-health': 'Data Health',
+}
+
+function RouteEffects() {
+  const location = useLocation()
+  useEffect(() => {
+    const title = location.pathname.startsWith('/tenders/')
+      ? (location.pathname.endsWith('/report') ? 'Tender Report' : 'Tender Details')
+      : ROUTE_TITLES[location.pathname] || 'Page not found'
+    document.title = `${title} · Grett Pay Order Tracker`
+    window.requestAnimationFrame(() => document.getElementById('main')?.focus())
+  }, [location.pathname])
+  return null
+}
+
 function AppLayout({ children }) {
   const location = useLocation()
   return (
@@ -45,6 +64,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
+          <RouteEffects />
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/home" element={<AppLayout><Home /></AppLayout>} />

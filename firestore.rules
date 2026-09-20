@@ -14,15 +14,13 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // Hybrid admin check: prefers the custom claim (set by the Cloud Function
-    // in functions/index.js), but falls back to the user doc during the
-    // propagation window. Tighten to claim-only once all admin tokens have
-    // refreshed.
+    // The current user document is authoritative. Custom claims are mirrored
+    // for other trusted services, but are deliberately not sufficient here:
+    // an old ID token must not preserve access after an administrator demotion.
     function isAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.admin == true
-        || (userDocExists() && getUserDoc().data.role == 'admin')
-      );
+      return isAuthenticated()
+        && userDocExists()
+        && getUserDoc().data.role == 'admin';
     }
 
     // ---- helpers used by validators ---------------------------------------
@@ -132,6 +130,7 @@ service cloud.firestore {
     function validTender(d) {
       return d.keys().hasOnly([
           'name','nit','agency','value','tenderFee','bidSecurity',
+          'estimatedCost','quotedAmount','grossValue','netValue','awardWorkOrder','siteVisits',
           'id','source','tenderRef',
           'status','submissionDate','openingDate','linkedPO','notes',
           'contact','contactPerson','checklist','bills','raBills','boqItems','documents','statusHistory',
@@ -154,24 +153,70 @@ service cloud.firestore {
         && (!('completionSnapshot' in d) || d.completionSnapshot == null || d.completionSnapshot is map)
         && (!('contactPerson' in d) || d.contactPerson is map)
         && optStrOrNull(d, 'tenderFeeExpenseId', 100)
-        && optNum(d, 'value')
-        && optNum(d, 'tenderFee')
-        && optNum(d, 'bidSecurity')
+        && (!( 'value' in d) || (d.value is number && d.value >= 0))
+        && (!( 'estimatedCost' in d) || d.estimatedCost == null || (d.estimatedCost is number && d.estimatedCost >= 0))
+        && (!( 'quotedAmount' in d) || d.quotedAmount == null || (d.quotedAmount is number && d.quotedAmount >= 0))
+        && (!( 'grossValue' in d) || d.grossValue == null || d.grossValue is number)
+        && (!( 'netValue' in d) || d.netValue == null || d.netValue is number)
+        && (!( 'tenderFee' in d) || (d.tenderFee is number && d.tenderFee >= 0))
+        && (!( 'bidSecurity' in d) || (d.bidSecurity is number && d.bidSecurity >= 0))
         && optList(d, 'checklist')
         && optList(d, 'bills')
         && optList(d, 'raBills')
         && optList(d, 'boqItems')
         && optList(d, 'documents')
+        && optList(d, 'siteVisits')
         && optList(d, 'statusHistory')
+        && (!( 'awardWorkOrder' in d) || d.awardWorkOrder == null || d.awardWorkOrder is map)
         && (!('status' in d) || d.status is string);
+    }
+    function validTenderUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly([
+          'name','nit','agency','value','tenderFee','bidSecurity',
+          'estimatedCost','quotedAmount','grossValue','netValue','awardWorkOrder','siteVisits',
+          'status','submissionDate','openingDate','linkedPO','notes',
+          'contact','contactPerson','checklist','bills','raBills','boqItems','documents','statusHistory',
+          'tenderFeeExpenseId','completionDate','completionRemarks','completionSnapshot',
+          'updatedAt','updatedBy'
+        ])
+        && (!changed.hasAny(['name']) || isStr(request.resource.data.name, 500))
+        && (!changed.hasAny(['nit']) || isStr(request.resource.data.nit, 200))
+        && (!changed.hasAny(['agency']) || isStr(request.resource.data.agency, 300))
+        && (!changed.hasAny(['value']) || (request.resource.data.value is number && request.resource.data.value >= 0))
+        && (!changed.hasAny(['tenderFee']) || (request.resource.data.tenderFee is number && request.resource.data.tenderFee >= 0))
+        && (!changed.hasAny(['bidSecurity']) || (request.resource.data.bidSecurity is number && request.resource.data.bidSecurity >= 0))
+        && (!changed.hasAny(['estimatedCost']) || request.resource.data.estimatedCost == null || (request.resource.data.estimatedCost is number && request.resource.data.estimatedCost >= 0))
+        && (!changed.hasAny(['quotedAmount']) || request.resource.data.quotedAmount == null || (request.resource.data.quotedAmount is number && request.resource.data.quotedAmount >= 0))
+        && (!changed.hasAny(['grossValue']) || request.resource.data.grossValue == null || request.resource.data.grossValue is number)
+        && (!changed.hasAny(['netValue']) || request.resource.data.netValue == null || request.resource.data.netValue is number)
+        && (!changed.hasAny(['submissionDate']) || isStr(request.resource.data.submissionDate, 30))
+        && (!changed.hasAny(['openingDate']) || isStr(request.resource.data.openingDate, 30))
+        && (!changed.hasAny(['linkedPO']) || isStr(request.resource.data.linkedPO, 100))
+        && (!changed.hasAny(['notes']) || isStr(request.resource.data.notes, 10000))
+        && (!changed.hasAny(['contact']) || isStr(request.resource.data.contact, 300))
+        && (!changed.hasAny(['completionDate']) || isStr(request.resource.data.completionDate, 30))
+        && (!changed.hasAny(['completionRemarks']) || isStr(request.resource.data.completionRemarks, 10000))
+        && (!changed.hasAny(['tenderFeeExpenseId']) || request.resource.data.tenderFeeExpenseId == null || isStr(request.resource.data.tenderFeeExpenseId, 100))
+        && (!changed.hasAny(['status']) || request.resource.data.status is string)
+        && (!changed.hasAny(['contactPerson']) || request.resource.data.contactPerson is map)
+        && (!changed.hasAny(['completionSnapshot']) || request.resource.data.completionSnapshot == null || request.resource.data.completionSnapshot is map)
+        && (!changed.hasAny(['awardWorkOrder']) || request.resource.data.awardWorkOrder == null || request.resource.data.awardWorkOrder is map)
+        && (!changed.hasAny(['checklist']) || request.resource.data.checklist is list)
+        && (!changed.hasAny(['bills']) || request.resource.data.bills is list)
+        && (!changed.hasAny(['raBills']) || request.resource.data.raBills is list)
+        && (!changed.hasAny(['boqItems']) || request.resource.data.boqItems is list)
+        && (!changed.hasAny(['documents']) || request.resource.data.documents is list)
+        && (!changed.hasAny(['siteVisits']) || request.resource.data.siteVisits is list)
+        && (!changed.hasAny(['statusHistory']) || request.resource.data.statusHistory is list);
     }
     match /tenders/{d} {
       allow read:   if isAdmin();
       allow create: if isAdmin() && validTender(request.resource.data);
-      // Existing tender records may contain legacy fields/shapes. Keep strict
-      // validation on new records, but do not block admins from updating older
-      // tenders whose full stored document no longer matches the current schema.
-      allow update: if isAdmin();
+      // Validate only fields changed by this request. This preserves immutable
+      // unknown fields on legacy records while preventing clients from adding
+      // or modifying fields outside the supported schema.
+      allow update: if isAdmin() && validTenderUpdate();
       allow delete: if isAdmin();
     }
 
@@ -256,7 +301,10 @@ service cloud.firestore {
     match /todos/{d} {
       allow read:   if isAdmin();
       allow create: if isAdmin() && validTodo(request.resource.data);
-      allow update: if isAdmin() && validTodo(request.resource.data);
+      allow update: if isAdmin() && (
+        validTodo(request.resource.data)
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done','completed','status','updatedAt','updatedBy'])
+      );
       allow delete: if isAdmin();
     }
 

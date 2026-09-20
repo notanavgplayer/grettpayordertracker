@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Search as SearchIcon, FileStack, FileText, StickyNote, CheckSquare, Receipt, Loader2, Clock, X, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '@/context/AuthContext'
 
 const SCOPES = ['All', 'Tenders', 'Pay Orders', 'Tasks', 'Documents', 'Notes']
 const COLLECTIONS = ['tenders', 'payOrders', 'todos', 'notes', 'expenses']
@@ -82,18 +83,22 @@ const SCOPE_TO_TYPES = {
 
 const MAX_RECENT = 8
 
-function loadRecent() {
-  try { return JSON.parse(localStorage.getItem('grett-recent-searches') || '[]') } catch { return [] }
+function recentKey(userId) {
+  return `grett-recent-searches:${userId || 'anonymous'}`
 }
 
-function saveRecent(query) {
-  const prev = loadRecent().filter((q) => q !== query)
+function loadRecent(userId) {
+  try { return JSON.parse(localStorage.getItem(recentKey(userId)) || '[]') } catch { return [] }
+}
+
+function saveRecent(userId, query) {
+  const prev = loadRecent(userId).filter((q) => q !== query)
   const next = [query, ...prev].slice(0, MAX_RECENT)
-  try { localStorage.setItem('grett-recent-searches', JSON.stringify(next)) } catch {}
+  try { localStorage.setItem(recentKey(userId), JSON.stringify(next)) } catch {}
 }
 
-function clearRecent() {
-  try { localStorage.removeItem('grett-recent-searches') } catch {}
+function clearRecent(userId) {
+  try { localStorage.removeItem(recentKey(userId)) } catch {}
 }
 
 function flattenSearchText(value) {
@@ -130,15 +135,22 @@ function decorateRecords(collectionName, records = []) {
 }
 
 export default function Search() {
+  const { user } = useAuth()
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [scope, setScope] = useState('All')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
-  const [recentSearches, setRecentSearches] = useState(loadRecent)
+  const [recentSearches, setRecentSearches] = useState(() => loadRecent(user?.uid))
   const debounceRef = useRef(null)
   const cacheRef = useRef(null)
+  const requestRef = useRef(0)
+
+  useEffect(() => {
+    setRecentSearches(loadRecent(user?.uid))
+    cacheRef.current = null
+  }, [user?.uid])
 
   const loadSearchData = useCallback(async () => {
     if (cacheRef.current) return cacheRef.current
@@ -163,6 +175,7 @@ export default function Search() {
   }, [])
 
   const doSearch = useCallback(async (q, sc) => {
+    const requestId = ++requestRef.current
     const trimmed = q.trim()
     if (trimmed.length < 2) {
       setResults([])
@@ -176,6 +189,7 @@ export default function Search() {
 
     try {
       const indexed = await loadSearchData()
+      if (requestId !== requestRef.current) return
       const lower = trimmed.toLowerCase()
       const types = SCOPE_TO_TYPES[sc] || SCOPE_TO_TYPES.All
       const found = types
@@ -184,20 +198,25 @@ export default function Search() {
         .map((record) => ({ ...record, _cfg: RESULT_CONFIG[record._type] }))
 
       setResults(found)
-      saveRecent(trimmed)
-      setRecentSearches(loadRecent())
+      saveRecent(user?.uid, trimmed)
+      setRecentSearches(loadRecent(user?.uid))
     } catch (err) {
       console.error('Search failed:', err)
       toast.error('Search failed')
-      setResults([])
+      if (requestId === requestRef.current) setResults([])
     } finally {
-      setLoading(false)
+      if (requestId === requestRef.current) setLoading(false)
     }
-  }, [loadSearchData])
+  }, [loadSearchData, user?.uid])
 
   useEffect(() => {
     doSearch(debouncedQuery, scope)
   }, [debouncedQuery, scope, doSearch])
+
+  useEffect(() => () => {
+    clearTimeout(debounceRef.current)
+    requestRef.current += 1
+  }, [])
 
   const handleChange = (event) => {
     const value = event.target.value
@@ -216,11 +235,13 @@ export default function Search() {
   }
 
   const handleClearRecent = () => {
-    clearRecent()
+    clearRecent(user?.uid)
     setRecentSearches([])
   }
 
   const clearSearch = () => {
+    clearTimeout(debounceRef.current)
+    requestRef.current += 1
     setQuery('')
     setDebouncedQuery('')
     setResults([])

@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useCollection, useFirestoreCRUD } from "@/hooks/useFirestore";
+import { useCollection } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
+import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import {
   formatDate,
   formatCurrencyPrecise,
@@ -194,12 +196,6 @@ export default function Tenders() {
     "createdAt",
     "desc",
   );
-  const { add, update, remove } = useFirestoreCRUD("tenders");
-  const {
-    add: addExpense,
-    update: updateExpense,
-    remove: removeExpense,
-  } = useFirestoreCRUD("expenses");
   const { isAdmin, displayName } = useAuth();
 
   const [search, setSearch] = useState("");
@@ -486,6 +482,20 @@ export default function Tenders() {
       toast.error("Tender name is required");
       return;
     }
+    const invalidMoneyField = [
+      ["Tender value", form.value, false],
+      ["Estimated cost", form.estimatedCost, true],
+      ["Quoted amount", form.quotedAmount, true],
+      ["Tender fee", form.tenderFee, true],
+    ].find(([, raw, optional]) => !(optional && raw === "") && (!Number.isFinite(Number(raw)) || Number(raw) < 0));
+    if (invalidMoneyField) {
+      toast.error(`${invalidMoneyField[0]} must be a non-negative number.`);
+      return;
+    }
+    if (editItem && form.status === "Completed" && editItem.status !== "Completed") {
+      toast.error("Complete this tender from its detail page so the completion snapshot is recorded.");
+      return;
+    }
 
     // Duplicate NIT detection
     if (form.nit && !editItem) {
@@ -558,23 +568,30 @@ export default function Tenders() {
           ];
         }
 
-        // Handle expense sync
+        const batch = writeBatch(db);
+        const tenderDoc = doc(db, "tenders", editItem.id);
+
+        // Handle expense sync in the same commit as the tender.
         const existingExpId = editItem.tenderFeeExpenseId;
         if (tenderFeeNum > 0 && existingExpId) {
-          try {
-            await updateExpense(existingExpId, buildExpense(editItem.id));
-          } catch {}
+          batch.update(doc(db, "expenses", existingExpId), {
+            ...buildExpense(editItem.id),
+            updatedAt: serverTimestamp(),
+          });
         } else if (tenderFeeNum > 0 && !existingExpId) {
-          const expId = await addExpense(buildExpense(editItem.id));
-          data.tenderFeeExpenseId = expId;
+          const expenseDoc = doc(collection(db, "expenses"));
+          data.tenderFeeExpenseId = expenseDoc.id;
+          batch.set(expenseDoc, {
+            ...buildExpense(editItem.id),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
         } else if (tenderFeeNum <= 0 && existingExpId) {
-          try {
-            await removeExpense(existingExpId);
-          } catch {}
+          batch.delete(doc(db, "expenses", existingExpId));
           data.tenderFeeExpenseId = null;
         }
-
-        await update(editItem.id, data);
+        batch.update(tenderDoc, { ...data, updatedAt: serverTimestamp() });
+        await batch.commit();
         logActivity({
           type: "tender",
           action: "updated",
@@ -584,11 +601,20 @@ export default function Tenders() {
         });
         toast.success("Tender updated");
       } else {
-        const newId = await add(data);
+        const batch = writeBatch(db);
+        const tenderDoc = doc(collection(db, "tenders"));
+        const newId = tenderDoc.id;
         if (tenderFeeNum > 0) {
-          const expId = await addExpense(buildExpense(newId));
-          await update(newId, { tenderFeeExpenseId: expId });
+          const expenseDoc = doc(collection(db, "expenses"));
+          data.tenderFeeExpenseId = expenseDoc.id;
+          batch.set(expenseDoc, {
+            ...buildExpense(newId),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
         }
+        batch.set(tenderDoc, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        await batch.commit();
         logActivity({
           type: "tender",
           action: "created",
@@ -606,12 +632,12 @@ export default function Tenders() {
 
   const handleDelete = async () => {
     const t = tenders.find((x) => x.id === deleteId);
+    const batch = writeBatch(db);
     if (t?.tenderFeeExpenseId) {
-      try {
-        await removeExpense(t.tenderFeeExpenseId);
-      } catch {}
+      batch.delete(doc(db, "expenses", t.tenderFeeExpenseId));
     }
-    await remove(deleteId);
+    batch.delete(doc(db, "tenders", deleteId));
+    await batch.commit();
     logActivity({
       type: "tender",
       action: "deleted",

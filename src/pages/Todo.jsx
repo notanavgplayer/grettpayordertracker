@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { doc, updateDoc } from "firebase/firestore";
+import { deleteField, doc, updateDoc } from "firebase/firestore";
 import {
   AlertTriangle,
   Calendar,
@@ -100,7 +100,11 @@ export default function Todo() {
   const toggleDone = async (todo) => {
     const nextDone = !isTaskDone(todo);
     try {
-      await updateDoc(doc(db, "todos", todo.id), { done: nextDone });
+      await updateDoc(doc(db, "todos", todo.id), {
+        done: nextDone,
+        ...(Object.hasOwn(todo, 'completed') ? { completed: deleteField() } : {}),
+        ...(Object.hasOwn(todo, 'status') ? { status: deleteField() } : {}),
+      });
       logActivity({
         type: "todo",
         action: nextDone ? "completed" : "reopened",

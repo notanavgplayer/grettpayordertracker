@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFirestoreCRUD, useCollection } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
-import { cn, formatDate, isTaskDone } from "@/lib/utils";
+import { cn, formatDate, isTaskDone, isActionableTenderStatus } from "@/lib/utils";
 import PageHeader from "@/components/shared/PageHeader";
 import KpiCard from "@/components/shared/KpiCard";
 import { Button } from "@/components/ui/button";
@@ -194,7 +194,7 @@ export default function Calendar() {
           date: submissionDate,
           title: tenderTitle,
           description: tender.agency || tender.nit || "Tender submission deadline",
-          type: submissionDate < todayStr ? "overdue" : "submission",
+          type: submissionDate < todayStr && isActionableTenderStatus(tender.status) ? "overdue" : "submission",
           sourceType: "submission",
           entityId: tender.id,
           actionLabel: "View tender",
@@ -223,6 +223,22 @@ export default function Calendar() {
           date: siteVisitDate,
           title: tenderTitle,
           description: "Site visit",
+          type: "siteVisit",
+          sourceType: "siteVisit",
+          entityId: tender.id,
+          actionLabel: "View tender",
+          sortRank: 5,
+        });
+      }
+
+      for (const [index, visit] of (tender.siteVisits || []).entries()) {
+        const visitDate = firstValidDateFrom(visit, ["date", "visitDate", "siteVisitDate"]);
+        if (!visitDate) continue;
+        events.push({
+          id: `site-visit-${tender.id}-${visit.id || index}`,
+          date: visitDate,
+          title: visit.location || tenderTitle,
+          description: visit.purpose || visit.workCompleted || "Site visit",
           type: "siteVisit",
           sourceType: "siteVisit",
           entityId: tender.id,
@@ -628,20 +644,20 @@ export default function Calendar() {
           </DialogHeader>
           <div className="min-w-0 space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Title *</Label>
-              <Input value={form.title} onChange={(event) => setForm((previous) => ({ ...previous, title: event.target.value }))} placeholder="Event title" />
+              <Label htmlFor="calendar-event-title">Title *</Label>
+              <Input id="calendar-event-title" value={form.title} onChange={(event) => setForm((previous) => ({ ...previous, title: event.target.value }))} placeholder="Event title" required aria-invalid={!form.title} />
             </div>
             <div className="space-y-1.5">
-              <Label>Date *</Label>
-              <Input type="date" value={form.date} onChange={(event) => setForm((previous) => ({ ...previous, date: event.target.value }))} className="mobile-date-input" />
+              <Label htmlFor="calendar-event-date">Date *</Label>
+              <Input id="calendar-event-date" type="date" value={form.date} onChange={(event) => setForm((previous) => ({ ...previous, date: event.target.value }))} className="mobile-date-input" required aria-invalid={!form.date} />
             </div>
             <div className="space-y-1.5">
-              <Label>Type</Label>
-              <Input value={form.eventType} onChange={(event) => setForm((previous) => ({ ...previous, eventType: event.target.value }))} placeholder="e.g. Meeting, Site Visit" />
+              <Label htmlFor="calendar-event-type">Type</Label>
+              <Input id="calendar-event-type" value={form.eventType} onChange={(event) => setForm((previous) => ({ ...previous, eventType: event.target.value }))} placeholder="e.g. Meeting, Site Visit" />
             </div>
             <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Textarea value={form.notes} onChange={(event) => setForm((previous) => ({ ...previous, notes: event.target.value }))} rows={3} />
+              <Label htmlFor="calendar-event-notes">Notes</Label>
+              <Textarea id="calendar-event-notes" value={form.notes} onChange={(event) => setForm((previous) => ({ ...previous, notes: event.target.value }))} rows={3} />
             </div>
           </div>
           <DialogFooter className="gap-2">

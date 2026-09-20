@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Calendar, Download, ExternalLink, Eye, FileArchive, FileSpreadsheet, FileText,
@@ -9,7 +9,9 @@ import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { useCollection, useFirestoreCRUD } from '@/hooks/useFirestore'
 import { uid } from '@/lib/utils'
-import { hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
+import { rowsToCSV } from '@/lib/csv'
+import { safeHttpUrl } from '@/lib/data'
+import { getTenderDocumentUrl, hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
 import Breadcrumbs from '@/components/shared/Breadcrumbs'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import KpiCard from '@/components/shared/KpiCard'
@@ -173,7 +175,7 @@ function getDocumentTitle(document = {}) {
 }
 
 function getDocumentUrl(document = {}) {
-  return document.fileUrl || document.url || document.publicUrl || document.downloadUrl || ''
+  return safeHttpUrl(document.fileUrl || document.url || document.publicUrl || document.downloadUrl || '')
 }
 
 function getDocumentCategory(document = {}) {
@@ -223,10 +225,6 @@ function buildDocuments(tenders = []) {
   })
 }
 
-function escapeCSV(value) {
-  return `"${String(value ?? '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`
-}
-
 function exportDocumentsCSV(documents) {
   if (!documents.length) {
     toast.error('No documents to export')
@@ -244,7 +242,7 @@ function exportDocumentsCSV(documents) {
     document.url,
     document.notes,
   ])
-  const csv = [headers, ...rows].map((row) => row.map(escapeCSV).join(',')).join('\n')
+  const csv = rowsToCSV(headers, rows)
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -276,13 +274,14 @@ function emptyDocumentForm() {
 
 function makeDocumentPayload(form) {
   const category = form.category || 'Other'
+  const storedUrl = form.storagePath ? '' : safeHttpUrl(form.url)
   return {
     id: form.id || uid(),
     title: form.title || form.fileName || category || 'Untitled document',
     name: form.fileName || form.title || '',
     fileName: form.fileName || '',
-    url: form.url || '',
-    fileUrl: form.url || '',
+    url: storedUrl,
+    fileUrl: storedUrl,
     type: category,
     category,
     notes: form.notes || '',
@@ -503,7 +502,23 @@ export default function Documents() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [previewDocument, setPreviewDocument] = useState(null)
 
-  const documents = useMemo(() => buildDocuments(tenders), [tenders])
+  const rawDocuments = useMemo(() => buildDocuments(tenders), [tenders])
+  const [signedUrls, setSignedUrls] = useState({})
+  useEffect(() => {
+    let active = true
+    const paths = [...new Set(rawDocuments.map((document) => document.storagePath).filter(Boolean))]
+    if (!paths.length) { setSignedUrls({}); return undefined }
+    Promise.allSettled(paths.map(async (path) => [path, await getTenderDocumentUrl(path)]))
+      .then((results) => {
+        if (!active) return
+        setSignedUrls(Object.fromEntries(results.filter((result) => result.status === 'fulfilled').map((result) => result.value)))
+      })
+    return () => { active = false }
+  }, [rawDocuments])
+  const documents = useMemo(() => rawDocuments.map((document) => {
+    const signedUrl = document.storagePath ? signedUrls[document.storagePath] : ''
+    return signedUrl ? { ...document, url: signedUrl, fileUrl: signedUrl } : document
+  }), [rawDocuments, signedUrls])
   const tenderOptions = useMemo(() => tenders.map((tender) => ({ id: tender.id, name: getTenderName(tender), nit: getTenderNit(tender) })), [tenders])
   const categories = useMemo(() => {
     const values = new Set(DOCUMENT_CATEGORIES)

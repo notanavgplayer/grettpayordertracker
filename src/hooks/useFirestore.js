@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { sortByField } from '@/lib/utils'
+import { documentData } from '@/lib/data'
 import { toast } from 'sonner'
 
 export function useCollection(collectionName, orderField = 'createdAt', orderDir = 'desc') {
@@ -19,8 +20,9 @@ export function useCollection(collectionName, orderField = 'createdAt', orderDir
     const unsub = onSnapshot(
       collectionRef,
       (snap) => {
-        const records = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        const records = snap.docs.map(documentData)
         setData(sortByField(records, orderField, orderDir))
+        setError(null)
         setLoading(false)
       },
       (err) => {
@@ -61,15 +63,16 @@ function friendlyFirestoreError(e, verb) {
   }
 }
 
-export function useFirestoreCRUD(collectionName) {
+export function useFirestoreCRUD(collectionName, { addUpdatedAt = true } = {}) {
   const add = useCallback(
     async (data) => {
       try {
-        const ref = await addDoc(collection(db, collectionName), {
+        const payload = {
           ...data,
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
+          ...(addUpdatedAt ? { updatedAt: serverTimestamp() } : {}),
+        }
+        const ref = await addDoc(collection(db, collectionName), payload)
         return ref.id
       } catch (e) {
         console.error(`add(${collectionName}):`, e)
@@ -77,7 +80,7 @@ export function useFirestoreCRUD(collectionName) {
         throw e
       }
     },
-    [collectionName]
+    [addUpdatedAt, collectionName]
   )
 
   const update = useCallback(
@@ -114,5 +117,5 @@ export function useFirestoreCRUD(collectionName) {
 
 export async function fetchCollection(collectionName) {
   const snap = await getDocs(collection(db, collectionName))
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return snap.docs.map(documentData)
 }

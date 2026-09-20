@@ -6,8 +6,16 @@
     "node": "20"
   },
   "main": "index.js",
+  "scripts": {
+    "check": "node --check index.js",
+    "restore:dry-run": "node scripts/restore-backup.js",
+    "migrate:dry-run": "node scripts/migrate-references.js"
+  },
   "dependencies": {
-    "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.1.0"
+    "firebase-admin": "14.4.0",
+    "firebase-functions": "7.4.0"
+  },
+  "overrides": {
+    "uuid": "11.1.1"
   }
 }

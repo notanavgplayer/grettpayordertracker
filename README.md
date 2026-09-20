@@ -1,144 +1,78 @@
-# Grett Engineering Solutions — Pay Order Tracker
-## Setup & Deployment Guide
+# Grett Pay Order Tracker
 
----
+Private React application for managing tenders, pay orders, expenses, contacts, tasks, documents, and operational reports.
 
-## Step 1 — Create a Firebase Project
+## Technology
 
-1. Go to https://console.firebase.google.com
-2. Click **Add Project** → name it `grett-pay-tracker` (or anything you like)
-3. Disable Google Analytics if you don't need it → **Create Project**
+- React 18 and React Router
+- Vite and Tailwind CSS
+- Firebase Authentication, Firestore, and Cloud Functions
+- Private Supabase Storage objects accessed through short-lived signed URLs
+- Netlify hosting
 
----
+## Local setup
 
-## Step 2 — Enable Authentication
+Requirements: Node.js 20 and npm. Java 21 is also required for Firestore emulator tests.
 
-1. In Firebase Console → **Build → Authentication → Get Started**
-2. Under **Sign-in method**, enable **Email/Password**
-3. Go to **Users → Add User**
-4. Enter your email and a strong password → **Add User**
-   - Only users you add here can log in. Nobody else can access the tracker.
+1. Copy `.env.example` to `.env.local` and replace every placeholder.
+2. Install application dependencies with `npm ci`.
+3. Install function dependencies with `npm --prefix functions ci`.
+4. Start the application with `npm run dev`.
 
----
+Firebase web configuration identifies the Firebase project and is safe to send to the browser. Authorization is enforced by Authentication, Firestore rules, and callable functions. Never put Firebase Admin credentials or the Supabase service-role key in a `VITE_` variable.
 
-## Step 3 — Create Firestore Database
+## Checks
 
-1. In Firebase Console → **Build → Firestore Database → Create Database**
-2. Choose **Start in production mode** → select a region close to Pakistan (e.g. `asia-south1` — Mumbai)
-3. After it's created, go to the **Rules** tab
-4. Replace the rules with the contents of `firestore.rules` from this project
-5. Click **Publish**
-
----
-
-## Step 4 — Get Your Firebase Config
-
-1. In Firebase Console → **Project Settings** (gear icon) → **Your Apps**
-2. Click **Add App → Web** → name it `grett-tracker` → **Register App**
-3. Copy the `firebaseConfig` object shown
-4. Open `js/firebase-config.js` in this project
-5. Replace the placeholder values with your actual config values
-
-Example:
-```js
-const firebaseConfig = {
-  apiKey:            "AIzaSyABC123...",
-  authDomain:        "grett-pay-tracker.firebaseapp.com",
-  projectId:         "grett-pay-tracker",
-  storageBucket:     "grett-pay-tracker.appspot.com",
-  messagingSenderId: "123456789",
-  appId:             "1:123456789:web:abc123"
-};
+```text
+npm run lint
+npm test
+npm run test:rules
+npm run check:csp
+npm run build
+npm audit
+npm --prefix functions run check
+npm --prefix functions audit
 ```
 
----
+`npm run test:rules` starts the Firestore emulator and requires Java. The combined `npm run check` command runs linting, unit tests, CSP verification, and the production build.
 
-## Step 4.5 — Deploy Cloud Functions (admin claim sync)
+## Authorization
 
-Admin authorization is enforced via a Firebase Auth custom claim
-(`admin: true`) which is mirrored from the `role` field on `users/{uid}`
-by a Cloud Function. Deploy it once:
+The current `users/{uid}.role` value is authoritative. Firestore rules and callable storage functions read that document for each protected operation. A Cloud Function mirrors the role to a custom Auth claim for trusted integrations, but a cached claim alone cannot authorize Firestore access after demotion.
 
-```
-npm install -g firebase-tools           # if not already
-firebase login
-cd functions && npm install && cd ..
-firebase deploy --only functions
-firebase deploy --only firestore:rules
-```
+New user profiles may create themselves only as `viewer`. An existing administrator must promote a user by changing their profile role. Do not manually grant claims as a substitute for the profile role.
 
-The function runs whenever a user doc is created or its `role` changes
-and calls `admin.auth().setCustomUserClaims(uid, { admin: ... })`.
-Existing admin users will need to sign out and back in once for their
-ID token to pick up the new claim — the AuthContext also keeps the
-user-doc role as a propagation-window fallback.
+## Document storage
 
-> Note: web Firebase API keys (the values in `.env.example`) are not
-> secrets — they are public project identifiers. Security comes from
-> Firestore rules and Auth, not from hiding the keys.
+The `tender-documents` Supabase bucket must be private. The browser asks Firebase callable functions for signed upload or download credentials. Configure the function secrets `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
 
----
+Configure the browser with the public Supabase URL and anon/publishable key from `.env.example`. Apply `supabase-storage-policies.sql`; do not add anonymous object-read policies.
 
-## Step 5 — Deploy to Netlify
+## Deployment
 
-1. Push this entire folder to a GitHub repository
-   - Create a new repo on https://github.com (e.g. `grett-pay-tracker`) — make it **Private**
-   - Upload all files or use Git:
-     ```
-     git init
-     git add .
-     git commit -m "Initial commit"
-     git remote add origin https://github.com/YOUR_USERNAME/grett-pay-tracker.git
-     git push -u origin main
-     ```
+The coordinated deployment order, migration dry runs, backup prerequisites, environment variables, and rollback notes are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Deploy rules, functions, indexes/storage policy, and the frontend in the documented order because older frontend document URLs must remain readable during the transition.
 
-2. Go to https://app.netlify.com → **Add New Site → Import from Git**
-3. Connect your GitHub account → select the repo
-4. Leave build settings empty (no build command needed)
-5. Click **Deploy Site**
-6. Once deployed, Netlify gives you a URL like `https://grett-tracker.netlify.app`
-7. You can set a custom domain in Netlify settings if you have one
+The site is a private business application and ships with `noindex`. `netlify.toml` is the only hosting-header source and includes the CSP hash verified from the final build.
 
----
+## Backup and recovery
 
-## Step 6 — Test It
+The Settings export is a versioned business-data export with a storage manifest. It does not contain Firebase Auth credentials, Firebase project configuration, or document file bytes. Use the Admin SDK restore script in dry-run mode first:
 
-1. Visit your Netlify URL
-2. You should see the **Sign In** page
-3. Enter the email and password you created in Firebase Authentication
-4. You should land on the **Dashboard**
-
----
-
-## Adding More Users
-
-To give access to another person (e.g. an accountant or partner):
-1. Firebase Console → Authentication → Users → Add User
-2. Enter their email and a password
-3. Share the credentials with them securely
-
----
-
-## File Structure
-
-```
-grett-tracker/
-├── index.html          ← Login page
-├── dashboard.html      ← Main tracker (protected)
-├── netlify.toml        ← Netlify routing config
-├── firestore.rules     ← Firestore security rules
-├── css/
-│   └── style.css       ← All styles
-└── js/
-    ├── firebase-config.js  ← ⚠️ Fill this in with your config
-    └── app.js              ← All app logic
+```text
+node functions/scripts/restore-backup.js path/to/export.json
+node functions/scripts/restore-backup.js path/to/export.json --apply
 ```
 
----
+Keep independent provider-level backups for Auth configuration and private storage files. Full recovery requires both the versioned Firestore export and those provider backups.
 
-## Security Notes
+## Repository layout
 
-- Nobody can access the dashboard without logging in — Firebase Auth handles this
-- Firestore rules block all reads/writes from unauthenticated requests
-- Keep your GitHub repo **Private** so your Firebase config isn't publicly exposed
-- Never share your Firebase config publicly
+```text
+src/                    React pages, components, hooks, and domain helpers
+functions/              Firebase callable functions and admin scripts
+test/                   Unit and Firestore-rules regression tests
+scripts/                Build and security-header verification
+docs/DEPLOYMENT.md      Deployment, migration, and recovery runbook
+firestore.rules         Current-role authorization and write validation
+netlify.toml            Hosting redirects and security headers
+```

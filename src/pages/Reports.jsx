@@ -26,6 +26,8 @@ import {
   formatDate,
   getTenderDisplayStatus,
 } from "@/lib/utils";
+import { billAmounts, billDate, billNumber, tenderContractValue } from "@/lib/financials";
+import { rowsToCSV } from "@/lib/csv";
 import EmptyState from "@/components/shared/EmptyState";
 import KpiCard from "@/components/shared/KpiCard";
 import PageHeader from "@/components/shared/PageHeader";
@@ -124,22 +126,8 @@ function normalizePhotos(photos) {
   return [];
 }
 
-function getBillAmount(bill = {}, keys) {
-  for (const key of keys) {
-    const value = Number(bill[key]);
-    if (Number.isFinite(value) && value > 0) return value;
-  }
-  return 0;
-}
-
 function getBillBalance(bill = {}) {
-  const approved = getBillAmount(bill, ["approvedAmount", "approved", "amount", "submittedAmount"]);
-  const received = getBillAmount(bill, ["receivedAmount", "received", "paidAmount", "paid"]);
-  return Math.max(approved - received, 0);
-}
-
-function csvEscape(value) {
-  return `"${String(value ?? "").replace(/"/g, '""').replace(/[\r\n]+/g, " ")}"`;
+  return billAmounts(bill).balance;
 }
 
 function downloadRowsCSV(report, rows) {
@@ -147,10 +135,10 @@ function downloadRowsCSV(report, rows) {
     toast.error("No rows to export");
     return false;
   }
-  const csv = [
+  const csv = rowsToCSV(
     report.columns.map((column) => column.label),
-    ...rows.map((row) => report.columns.map((column) => row[column.key] ?? "")),
-  ].map((row) => row.map(csvEscape).join(",")).join("\n");
+    rows.map((row) => report.columns.map((column) => row[column.key] ?? "")),
+  );
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -210,9 +198,9 @@ function buildReportRows({ tenders, payOrders, expenses, documents, bills, siteV
       name: getTenderName(tender),
       agency: safeText(tender.agency),
       status: getTenderDisplayStatus(tender),
-      workOrder: safeText(tender.workOrderNo || tender.workOrder || tender.awardRef),
-      value: formatCurrencyPrecise(tender.value || tender.quotedAmount, 0),
-      handoverDate: formatDate(tender.siteHandoverDate),
+      workOrder: safeText(tender.awardWorkOrder?.workOrderNumber || tender.workOrderNo || tender.workOrder || tender.awardRef),
+      value: formatCurrencyPrecise(tenderContractValue(tender), 0),
+      handoverDate: formatDate(tender.awardWorkOrder?.siteHandoverDate || tender.siteHandoverDate),
     }));
 
   const boqProfit = tenders.map((tender) => {
@@ -221,7 +209,7 @@ function buildReportRows({ tenders, payOrders, expenses, documents, bills, siteV
       .filter((expense) => expense.tenderRef === tender.id || expense.tenderId === tender.id || expense.tenderId === tender.nit)
       .reduce((sum, expense) => sum + toNumber(expense.amount), 0);
     const received = [...asArray(tender.bills), ...asArray(tender.raBills)]
-      .reduce((sum, bill) => sum + getBillAmount(bill, ["receivedAmount", "received", "paidAmount", "paid"]), 0);
+      .reduce((sum, bill) => sum + billAmounts(bill).received, 0);
     return {
       _tenderId: tender.id,
       _date: tender.submissionDate,
@@ -239,15 +227,15 @@ function buildReportRows({ tenders, payOrders, expenses, documents, bills, siteV
 
   const billRows = bills.map((bill) => ({
     _tenderId: bill.tenderId,
-    _date: bill.submittedDate || bill.date,
+    _date: billDate(bill),
     _status: bill.status || bill.type || "Bill",
     _category: bill.reportType,
-    billNo: safeText(bill.billNo || bill.number || bill.invoiceNo || bill.id),
+    billNo: safeText(billNumber(bill) || bill.number || bill.invoiceNo || bill.id),
     type: bill.reportType,
     tender: bill.tenderName,
-    submitted: formatCurrencyPrecise(getBillAmount(bill, ["submittedAmount", "submitted", "amount"]), 0),
-    approved: formatCurrencyPrecise(getBillAmount(bill, ["approvedAmount", "approved", "amount"]), 0),
-    received: formatCurrencyPrecise(getBillAmount(bill, ["receivedAmount", "received", "paidAmount", "paid"]), 0),
+    submitted: formatCurrencyPrecise(billAmounts(bill).submitted, 0),
+    approved: formatCurrencyPrecise(billAmounts(bill).approved, 0),
+    received: formatCurrencyPrecise(billAmounts(bill).received, 0),
     balance: formatCurrencyPrecise(getBillBalance(bill), 0),
     status: safeText(bill.status || bill.paymentStatus),
   }));
@@ -269,14 +257,14 @@ function buildReportRows({ tenders, payOrders, expenses, documents, bills, siteV
     .filter((bill) => getBillBalance(bill) > 0)
     .map((bill) => ({
       _tenderId: bill.tenderId,
-      _date: bill.submittedDate || bill.date,
+      _date: billDate(bill),
       _status: bill.status || bill.type || "Receivable",
       _category: "Receivable",
-      billNo: safeText(bill.billNo || bill.number || bill.invoiceNo || bill.id),
+      billNo: safeText(billNumber(bill) || bill.number || bill.invoiceNo || bill.id),
       type: bill.reportType,
       tender: bill.tenderName,
-      approved: formatCurrencyPrecise(getBillAmount(bill, ["approvedAmount", "approved", "amount"]), 0),
-      received: formatCurrencyPrecise(getBillAmount(bill, ["receivedAmount", "received", "paidAmount", "paid"]), 0),
+      approved: formatCurrencyPrecise(billAmounts(bill).approved, 0),
+      received: formatCurrencyPrecise(billAmounts(bill).received, 0),
       balance: formatCurrencyPrecise(getBillBalance(bill), 0),
       status: safeText(bill.status || bill.paymentStatus),
     }));
