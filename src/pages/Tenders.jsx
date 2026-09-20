@@ -625,6 +625,13 @@ export default function Tenders() {
         toast.success("Tender created");
       }
       setDialogOpen(false);
+    } catch (error) {
+      console.error("Failed to save tender:", error);
+      toast.error(
+        error?.code === "permission-denied"
+          ? "Your account does not have permission to save tenders. The Firestore rules or administrator role may need updating."
+          : "Tender could not be saved. Please check your connection and try again.",
+      );
     } finally {
       setSaving(false);
     }
