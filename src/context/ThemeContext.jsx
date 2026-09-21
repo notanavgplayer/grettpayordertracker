@@ -17,7 +17,7 @@ export function ThemeProvider({ children }) {
     if (theme === 'dark') root.classList.add('dark')
     else root.classList.remove('dark')
     root.style.colorScheme = theme
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111820' : '#F3F6F8')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#101820' : '#F3F6F8')
     try { localStorage.setItem('grett-theme', theme) } catch {}
   }, [theme])
 

@@ -100,8 +100,8 @@ export default function Sidebar({ onClose, collapsed = false, onSignOut }) {
                           'relative flex min-h-10 items-center gap-3 rounded-xl border-0 px-3 py-2.5 text-sm font-medium outline-none ring-0 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500/30',
                           collapsed && 'justify-center px-2',
                           isActive
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/35 dark:text-emerald-300'
-                            : 'bg-transparent text-slate-600 shadow-none hover:bg-slate-50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900/60 dark:hover:text-slate-100'
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-sidebar-accent dark:text-primary'
+                            : 'bg-transparent text-slate-600 shadow-none hover:bg-slate-50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-secondary dark:hover:text-slate-100'
                         )
                       }
                     >
