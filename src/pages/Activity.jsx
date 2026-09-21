@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useCollection } from "@/hooks/useFirestore";
+import { usePaginatedCollection } from "@/hooks/useFirestore";
 import PageHeader from "@/components/shared/PageHeader";
 import EmptyState from "@/components/shared/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +25,9 @@ import {
   Upload,
   Users,
   WalletCards,
+  Loader2,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const TYPE_META = {
   tender: { icon: FileStack, label: "Tender", tone: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900/60" },
@@ -222,7 +224,7 @@ function getStats(logs) {
 }
 
 export default function ActivityPage() {
-  const { data: logs, loading, error } = useCollection("activityLog", "createdAt", "desc");
+  const { data: logs, loading, loadingMore, error, hasMore, loadMore, retry } = usePaginatedCollection("activityLog", "createdAt", "desc", 50);
   const [filter, setFilter] = useState("All");
 
   const filtered = useMemo(
@@ -233,20 +235,20 @@ export default function ActivityPage() {
   const stats = useMemo(() => getStats(logs), [logs]);
 
   if (loading) return <PageTableSkeleton rows={8} cols={5} metrics={0} />;
-  if (error) return <LoadState title="Activity could not be loaded" error={error} />;
+  if (error && logs.length === 0) return <LoadState title="Activity could not be loaded" error={error} retry={retry} />;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <PageHeader
         title="Activity Log"
-        description="Track recent actions and system updates"
+        description="Track recent actions and load older history when needed"
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <ActivitySummaryCard icon={Clock3} label="Today's Activity" value={stats.today} helper="Actions recorded today" tone="emerald" />
-        <ActivitySummaryCard icon={Activity} label="This Week" value={stats.week} helper="Last 7 days" tone="blue" />
-        <ActivitySummaryCard icon={FileStack} label="Tender Updates" value={stats.tenders} helper="Tender audit events" tone="amber" />
-        <ActivitySummaryCard icon={WalletCards} label="Pay Order Updates" value={stats.payOrders} helper="PO audit events" tone="green" />
+        <ActivitySummaryCard icon={Clock3} label="Today's Activity" value={stats.today} helper="Within loaded history" tone="emerald" />
+        <ActivitySummaryCard icon={Activity} label="This Week" value={stats.week} helper="Within loaded history" tone="blue" />
+        <ActivitySummaryCard icon={FileStack} label="Tender Updates" value={stats.tenders} helper="Within loaded history" tone="amber" />
+        <ActivitySummaryCard icon={WalletCards} label="Pay Order Updates" value={stats.payOrders} helper="Within loaded history" tone="green" />
       </div>
 
       <Card className="rounded-xl shadow-sm">
@@ -255,7 +257,7 @@ export default function ActivityPage() {
             <div>
               <CardTitle className="text-base">Audit Trail</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                {filtered.length} {filtered.length === 1 ? "entry" : "entries"} shown
+                {filtered.length} loaded {filtered.length === 1 ? "entry" : "entries"} shown
               </p>
             </div>
             <div className="flex gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:pb-0" role="group" aria-label="Activity filter">
@@ -301,6 +303,17 @@ export default function ActivityPage() {
                   </div>
                 </section>
               ))}
+            </div>
+          )}
+          {(hasMore || loadingMore || error) && logs.length > 0 && (
+            <div className="mt-6 flex flex-col items-center gap-2 border-t pt-4">
+              {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+              {hasMore && (
+                <Button type="button" variant="outline" onClick={loadMore} disabled={loadingMore}>
+                  {loadingMore && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loadingMore ? "Loading…" : "Load 50 more"}
+                </Button>
+              )}
             </div>
           )}
         </CardContent>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Calendar, Download, ExternalLink, Eye, FileArchive, FileSpreadsheet, FileText,
@@ -734,7 +734,7 @@ export default function Documents() {
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.35fr)_minmax(132px,.75fr)_minmax(150px,.85fr)_minmax(180px,1fr)_minmax(138px,.7fr)_minmax(138px,.7fr)] 2xl:grid-cols-[minmax(260px,1.4fr)_minmax(135px,.72fr)_minmax(160px,.8fr)_minmax(220px,1fr)_minmax(140px,.65fr)_minmax(140px,.65fr)_auto_auto] 2xl:items-end">
             <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search documents..." className="h-10 pl-9" />
+              <Input aria-label="Search documents" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search documents..." className="h-10 pl-9" />
             </div>
             <FilterSelect label="File Type" value={typeFilter} onValueChange={setTypeFilter} options={TYPE_FILTERS} />
             <FilterSelect label="Category" value={categoryFilter} onValueChange={setCategoryFilter} options={categories} />
@@ -813,9 +813,9 @@ export default function Documents() {
           </SheetHeader>
           <div className="min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
             <div className="space-y-1.5">
-              <Label>Tender / Project</Label>
+              <Label htmlFor="document-tender">Tender / Project</Label>
               <Select value={documentForm.tenderId || ''} onValueChange={setFormValue('tenderId')} disabled={!!editingDocument}>
-                <SelectTrigger><SelectValue placeholder="Select tender / project" /></SelectTrigger>
+                <SelectTrigger id="document-tender"><SelectValue placeholder="Select tender / project" /></SelectTrigger>
                 <SelectContent>
                   {tenderOptions.map((tender) => (
                     <SelectItem key={tender.id} value={tender.id}>{tender.name}</SelectItem>
@@ -857,9 +857,9 @@ export default function Documents() {
               <Input id="document-title" value={documentForm.title} onChange={setFormValue('title')} placeholder="e.g. Site Visit - Foundation Work" />
             </div>
             <div className="space-y-1.5">
-              <Label>Category</Label>
+              <Label htmlFor="document-category">Category</Label>
               <Select value={documentForm.category || 'Other'} onValueChange={setFormValue('category')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="document-category"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {DOCUMENT_CATEGORIES.map((category) => (
                     <SelectItem key={category} value={category}>{category}</SelectItem>
@@ -916,11 +916,12 @@ export default function Documents() {
 }
 
 function FilterSelect({ label, value, onValueChange, options, renderLabel }) {
+  const id = useId()
   return (
     <div className="min-w-0 space-y-1">
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      <Label htmlFor={id} className="text-xs font-medium text-muted-foreground">{label}</Label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-10 min-w-0"><SelectValue /></SelectTrigger>
+        <SelectTrigger id={id} className="h-10 min-w-0"><SelectValue /></SelectTrigger>
         <SelectContent>
           {options.map((option) => (
             <SelectItem key={option} value={option}>{renderLabel ? renderLabel(option) : option}</SelectItem>
@@ -932,10 +933,11 @@ function FilterSelect({ label, value, onValueChange, options, renderLabel }) {
 }
 
 function DateField({ label, value, onChange }) {
+  const id = useId()
   return (
     <div className="min-w-0 space-y-1">
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
-      <Input type="date" value={value} onChange={(event) => onChange(event.target.value)} className="mobile-date-input" />
+      <Label htmlFor={id} className="text-xs font-medium text-muted-foreground">{label}</Label>
+      <Input id={id} type="date" value={value} onChange={(event) => onChange(event.target.value)} className="mobile-date-input" />
     </div>
   )
 }

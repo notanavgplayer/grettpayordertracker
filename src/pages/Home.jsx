@@ -56,6 +56,7 @@ import {
   sortByField,
 } from '@/lib/utils'
 import { tenderBillTotals, tenderContractValue } from '@/lib/financials'
+import { getAtRiskPayOrders } from '@/lib/payOrderMetrics'
 
 const TENDER_STATUS_COLORS = {
   Bidding: '#d97706',
@@ -305,7 +306,7 @@ export default function Home() {
   const activeTenders = tenders.filter((t) => !['Completed', 'Lost', 'Cancelled'].includes(t.status))
   const inProgressTenders = tenders.filter((t) => t.status === 'In Progress')
   const wonTenders = tenders.filter((t) => ['Awarded', 'In Progress', 'Completed'].includes(t.status))
-  const atRisk = payOrders.filter((p) => p.status === 'Submitted' && p.bidResult === 'Awaiting')
+  const atRisk = getAtRiskPayOrders(payOrders, tenders)
   const openTodos = todos.filter((t) => !isTaskDone(t))
   const wonTenderIds = new Set(wonTenders.map((t) => t.id))
 

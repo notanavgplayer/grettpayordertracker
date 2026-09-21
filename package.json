@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test",
+    "test": "npm run test:unit && npm run test:ui",
+    "test:unit": "node --test test/domain.test.js test/firestore.rules.test.js",
+    "test:ui": "vitest run",
     "test:rules": "npx --yes firebase-tools@15.30.2 emulators:exec --only firestore \"npm test\"",
     "check:csp": "node scripts/check-csp.mjs",
     "check": "npm run lint && npm test && npm run check:csp && npm run build",
@@ -49,6 +51,9 @@
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "6.1.1",
@@ -56,8 +61,10 @@
     "eslint": "^9.13.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",
+    "jsdom": "^28.1.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
-    "vite": "8.3.0"
+    "vite": "8.3.0",
+    "vitest": "^4.1.11"
   }
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   AlertDialog, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription,
@@ -9,6 +9,10 @@ import { Button } from '@/components/ui/button'
 export default function ConfirmDelete({ open, onOpenChange, onConfirm, title = 'Delete item', description = 'This action cannot be undone.' }) {
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (open) setError('')
+  }, [open])
 
   const confirm = async () => {
     setDeleting(true)

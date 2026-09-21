@@ -16,6 +16,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getAtRiskPayOrders } from "@/lib/payOrderMetrics";
 import { logActivity } from "@/lib/activity";
 import StatusBadge from "@/components/shared/StatusBadge";
 import EmptyState from "@/components/shared/EmptyState";
@@ -299,8 +300,7 @@ export default function PayOrders() {
 
   // Summary stats
   const total = payOrders.reduce((s, p) => s + (Number(p.amount) || 0), 0);
-  const atRisk = payOrders.filter((p) => p.status === "Submitted").length;
-  const returned = payOrders.filter((p) => p.status === "Returned").length;
+  const atRisk = getAtRiskPayOrders(payOrders, tenders).length;
   const encashed = payOrders.filter((p) => p.status === "Encashed").length;
 
   // Chart data
@@ -576,12 +576,12 @@ export default function PayOrders() {
     <>
       <div className="grid gap-3">
         <div className="space-y-1.5">
-          <Label className="text-xs">Bank</Label>
+          <Label htmlFor="po-filter-bank" className="text-xs">Bank</Label>
           <Select
             value={draftFilters.bank}
             onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, bank: value }))}
           >
-            <SelectTrigger className="h-10 md:h-9">
+            <SelectTrigger id="po-filter-bank" className="h-10 md:h-9">
               <SelectValue placeholder="All banks" />
             </SelectTrigger>
             <SelectContent>
@@ -594,12 +594,12 @@ export default function PayOrders() {
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label className="text-xs">Status</Label>
+            <Label htmlFor="po-filter-status" className="text-xs">Status</Label>
             <Select
               value={draftFilters.status}
               onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, status: value }))}
             >
-              <SelectTrigger className="h-10 md:h-9">
+              <SelectTrigger id="po-filter-status" className="h-10 md:h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -611,12 +611,12 @@ export default function PayOrders() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Bid Result</Label>
+            <Label htmlFor="po-filter-result" className="text-xs">Bid Result</Label>
             <Select
               value={draftFilters.bidResult}
               onValueChange={(value) => setDraftFilters((filters) => ({ ...filters, bidResult: value }))}
             >
-              <SelectTrigger className="h-10 md:h-9">
+              <SelectTrigger id="po-filter-result" className="h-10 md:h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -693,14 +693,14 @@ export default function PayOrders() {
           icon={FileText}
           label="Total Entries"
           value={payOrders.length}
-          helper={`${returned} returned`}
+          helper="All pay order records"
           tone="blue"
         />
         <PayOrderKpiCard
           icon={AlertCircle}
           label="At Risk"
           value={atRisk}
-          helper={atRisk > 0 ? "Submitted, awaiting result" : "All clear"}
+          helper={atRisk > 0 ? "Due within 7 days, result pending" : "No pending results due soon"}
           tone="amber"
         />
         <PayOrderKpiCard
@@ -1376,7 +1376,7 @@ export default function PayOrders() {
                 className="font-mono"
               />
               <div className="space-y-1.5">
-                <Label>Bank</Label>
+                <Label htmlFor="po-bank">Bank</Label>
                 <Select
                   value={form.bank}
                   onValueChange={(v) => {
@@ -1388,7 +1388,7 @@ export default function PayOrders() {
                     setForm((p) => ({ ...p, bank: v }));
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="po-bank">
                     <SelectValue placeholder="Select bank" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1427,12 +1427,12 @@ export default function PayOrders() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Purpose</Label>
+              <Label htmlFor="po-purpose">Purpose</Label>
               <Select
                 value={form.purpose || "Bid Security"}
                 onValueChange={setF("purpose")}
               >
-                <SelectTrigger>
+                <SelectTrigger id="po-purpose">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1445,9 +1445,9 @@ export default function PayOrders() {
               </Select>
             </div>
             <div className="min-w-0 space-y-2 rounded-md border border-border p-3">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Attach to tender
-              </Label>
+              </p>
               <div className="flex flex-wrap gap-2">
                 {[
                   ["none", "None"],
@@ -1622,9 +1622,9 @@ export default function PayOrders() {
             />
             <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Status</Label>
+                <Label htmlFor="po-status">Status</Label>
                 <Select value={form.status} onValueChange={setF("status")}>
-                  <SelectTrigger>
+                  <SelectTrigger id="po-status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1637,12 +1637,12 @@ export default function PayOrders() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Bid Result</Label>
+                <Label htmlFor="po-result">Bid Result</Label>
                 <Select
                   value={form.bidResult}
                   onValueChange={setF("bidResult")}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="po-result">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1656,8 +1656,8 @@ export default function PayOrders() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Textarea
+              <Label htmlFor="po-notes">Notes</Label>
+              <Textarea id="po-notes"
                 value={form.notes}
                 onChange={setF("notes")}
                 rows={4}

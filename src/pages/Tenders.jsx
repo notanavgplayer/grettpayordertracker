@@ -798,6 +798,7 @@ export default function Tenders() {
               <div className="relative min-w-0">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
+                  aria-label="Search tenders"
                   placeholder="Search tenders..."
                   className="h-10 min-w-0 pl-9"
                   value={search}
@@ -805,7 +806,7 @@ export default function Tenders() {
                 />
               </div>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="h-10 min-w-0">
+                <SelectTrigger className="h-10 min-w-0" aria-label="Filter by status">
                   <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -818,7 +819,7 @@ export default function Tenders() {
                 </SelectContent>
               </Select>
               <Select value={filterAgency} onValueChange={setFilterAgency}>
-                <SelectTrigger className="h-10 min-w-0">
+                <SelectTrigger className="h-10 min-w-0" aria-label="Filter by agency">
                   <SelectValue placeholder="Agency" />
                 </SelectTrigger>
                 <SelectContent>
@@ -845,7 +846,7 @@ export default function Tenders() {
                 aria-label="Submission date to"
               />
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="h-10 min-w-0">
+                <SelectTrigger className="h-10 min-w-0" aria-label="Sort tenders">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1344,9 +1345,9 @@ export default function Tenders() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Status</Label>
+                <Label htmlFor="t-status">Status</Label>
                 <Select value={form.status} onValueChange={setF("status")}>
-                  <SelectTrigger>
+                  <SelectTrigger id="t-status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

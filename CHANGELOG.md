@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased] — 2026-09-21
+
+### Reliability and usability
+
+- Added tested, reusable tender expense, pay-order, site-visit, award/work-order, bill, and RA-bill editors.
+- Added non-negative financial validation that preserves explicit zero values and focuses invalid fields.
+- Added cursor pagination for the activity history and safe retry behavior for failed reads and deletes.
+- Added accessible labels to important forms, searches, filters, and inline tender fields.
+- Corrected the pay-order “At Risk” metric to count linked tenders due within seven days whose bid result is pending.
+- Clarified that the Settings export contains Firestore business data and a storage manifest, rather than user accounts or stored file bytes.
+- Added focused UI regression tests and included them in the standard project check.
+
 ## [Unreleased] — 2026-04-18
 
 ### Accessibility (Group 1)

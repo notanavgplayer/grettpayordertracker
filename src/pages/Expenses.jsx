@@ -96,10 +96,15 @@ export default function Expenses() {
   }
 
   const handleSave = async () => {
-    if (!form.description.trim()) { setFormError('Description is required.'); return }
+    if (!form.description.trim()) {
+      setFormError('Description is required.')
+      window.requestAnimationFrame(() => document.getElementById('e-desc')?.focus())
+      return
+    }
     const amount = nonNegativeNumber(form.amount)
     if (amount === null) {
       setFormError('Amount must be a non-negative number.')
+      window.requestAnimationFrame(() => document.getElementById('e-amt')?.focus())
       return
     }
     setFormError('')

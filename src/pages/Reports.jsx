@@ -728,9 +728,9 @@ export default function Reports() {
         <CardContent className="px-4 pb-4 sm:px-5">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.4fr)_repeat(4,minmax(150px,1fr))]">
             <div className="space-y-1.5 min-w-0">
-              <Label className="text-xs font-medium text-muted-foreground">Tender / Project</Label>
+              <Label htmlFor="report-tender" className="text-xs font-medium text-muted-foreground">Tender / Project</Label>
               <Select value={filters.tenderId} onValueChange={(value) => setFilter("tenderId", value)}>
-                <SelectTrigger className="h-10 min-w-0">
+                <SelectTrigger id="report-tender" className="h-10 min-w-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -752,9 +752,9 @@ export default function Reports() {
               <Input id="report-date-to" className="mobile-date-input" type="date" value={filters.dateTo} onChange={(event) => setFilter("dateTo", event.target.value)} />
             </div>
             <div className="space-y-1.5 min-w-0">
-              <Label className="text-xs font-medium text-muted-foreground">Status</Label>
+              <Label htmlFor="report-status" className="text-xs font-medium text-muted-foreground">Status</Label>
               <Select value={filters.status} onValueChange={(value) => setFilter("status", value)}>
-                <SelectTrigger className="h-10 min-w-0">
+                <SelectTrigger id="report-status" className="h-10 min-w-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -766,9 +766,9 @@ export default function Reports() {
               </Select>
             </div>
             <div className="space-y-1.5 min-w-0">
-              <Label className="text-xs font-medium text-muted-foreground">Category / Type</Label>
+              <Label htmlFor="report-category" className="text-xs font-medium text-muted-foreground">Category / Type</Label>
               <Select value={filters.category} onValueChange={(value) => setFilter("category", value)}>
-                <SelectTrigger className="h-10 min-w-0">
+                <SelectTrigger id="report-category" className="h-10 min-w-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

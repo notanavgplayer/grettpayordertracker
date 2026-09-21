@@ -25,6 +25,13 @@ import Breadcrumbs from '@/components/shared/Breadcrumbs'
 import StatusBadge from '@/components/shared/StatusBadge'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import KpiCard from '@/components/shared/KpiCard'
+import TenderExpenseDialog from '@/components/tenders/TenderExpenseDialog'
+import TenderPayOrderSheet from '@/components/tenders/TenderPayOrderSheet'
+import SiteVisitSheet from '@/components/tenders/SiteVisitSheet'
+import AwardWorkOrderSheet from '@/components/tenders/AwardWorkOrderSheet'
+import BillEditorDialog from '@/components/tenders/BillEditorDialog'
+import { getInvalidBillAmount } from '@/lib/billValidation'
+import { getInvalidAwardField } from '@/lib/awardValidation'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   ArrowLeft, Save, Plus, Trash2, Pencil, Loader2, CheckSquare, CheckCircle,
@@ -799,12 +806,21 @@ export default function TenderDetail() {
     setPoDialogOpen(true)
   }
   const savePo = async () => {
-    if (!poForm.po) { toast.error('PO number is required'); return }
+    if (!poForm.po.trim()) {
+      toast.error('PO number is required')
+      window.requestAnimationFrame(() => document.getElementById('td-po-num')?.focus())
+      return
+    }
+    const amountNum = nonNegativeNumber(poForm.amount)
+    if (amountNum === null) {
+      toast.error('Amount must be a non-negative number')
+      window.requestAnimationFrame(() => document.getElementById('td-po-amt')?.focus())
+      return
+    }
     setPoSaving(true)
     try {
-      const amountNum = Number(poForm.amount) || 0
       const payload = {
-        po: poForm.po,
+        po: poForm.po.trim(),
         bank: poForm.bank || '',
         amount: amountNum,
         purpose: poForm.purpose || 'Other',
@@ -1367,6 +1383,12 @@ export default function TenderDetail() {
     })
   }
   const saveAwardDetails = () => {
+    const invalidField = getInvalidAwardField(awardForm)
+    if (invalidField) {
+      toast.error(invalidField.message)
+      document.getElementById(invalidField.id)?.focus()
+      return
+    }
     const next = {
       ...awardForm,
       expectedCompletionDate: awardForm.expectedCompletionDate || addDaysToDate(awardForm.startDate, awardForm.completionPeriod),
@@ -1758,28 +1780,28 @@ export default function TenderDetail() {
                   )}
                 </DetailRow>
                 <DetailRow icon={Hash} label="NIT / Reference">
-                  {detailsEditing ? <Input value={form.nit || ''} onChange={(e) => updateForm('nit', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.nit || '-'}</DetailValue>}
+                  {detailsEditing ? <Input aria-label="NIT or reference" value={form.nit || ''} onChange={(e) => updateForm('nit', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.nit || '-'}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={Banknote} label="Value (PKR)">
-                  {detailsEditing ? <Input type="number" value={form.value || ''} onChange={(e) => updateForm('value', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.value || '-'}</DetailValue>}
+                  {detailsEditing ? <Input aria-label="Tender value" type="number" min="0" value={form.value || ''} onChange={(e) => updateForm('value', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.value || '-'}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={Banknote} label="Estimated Cost (PKR)" note="Official department / NIT estimate.">
-                  {detailsEditing ? <Input type="number" value={form.estimatedCost ?? ''} onChange={(e) => updateForm('estimatedCost', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.estimatedCost || '-'}</DetailValue>}
+                  {detailsEditing ? <Input aria-label="Estimated cost" type="number" min="0" value={form.estimatedCost ?? ''} onChange={(e) => updateForm('estimatedCost', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.estimatedCost || '-'}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={WalletCards} label="Quoted Amount (PKR)" note="Submitted financial bid amount.">
-                  {detailsEditing ? <Input type="number" value={form.quotedAmount ?? ''} onChange={(e) => updateForm('quotedAmount', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.quotedAmount || '-'}</DetailValue>}
+                  {detailsEditing ? <Input aria-label="Quoted amount" type="number" min="0" value={form.quotedAmount ?? ''} onChange={(e) => updateForm('quotedAmount', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.quotedAmount || '-'}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={Receipt} label="Tender Fee (PKR)" note="Automatically tracked as an expense.">
-                  {detailsEditing ? <Input type="number" value={form.tenderFee || ''} onChange={(e) => updateForm('tenderFee', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.tenderFee || '-'}</DetailValue>}
+                  {detailsEditing ? <Input aria-label="Tender fee" type="number" min="0" value={form.tenderFee || ''} onChange={(e) => updateForm('tenderFee', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.tenderFee || '-'}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={Landmark} label="Procuring Agency" className="md:col-span-2 xl:col-span-1">
-                  {detailsEditing ? <Input value={form.agency || ''} onChange={(e) => updateForm('agency', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.agency || '-'}</DetailValue>}
+                  {detailsEditing ? <Input aria-label="Agency or department" value={form.agency || ''} onChange={(e) => updateForm('agency', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.agency || '-'}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={CalendarDays} label="Submission Date">
-                  {detailsEditing ? <Input type="date" value={form.submissionDate || ''} onChange={(e) => updateForm('submissionDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{formatDate(form.submissionDate)}</DetailValue>}
+                  {detailsEditing ? <Input aria-label="Submission date" type="date" value={form.submissionDate || ''} onChange={(e) => updateForm('submissionDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{formatDate(form.submissionDate)}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={CalendarDays} label="Opening Date">
-                  {detailsEditing ? <Input type="date" value={form.openingDate || ''} onChange={(e) => updateForm('openingDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{formatDate(form.openingDate)}</DetailValue>}
+                  {detailsEditing ? <Input aria-label="Opening date" type="date" value={form.openingDate || ''} onChange={(e) => updateForm('openingDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{formatDate(form.openingDate)}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={LinkIcon} label="Linked Pay Order">
                   <p className="truncate text-sm font-medium leading-5 md:text-base" title={linkedPayOrderDisplay}>
@@ -1788,7 +1810,7 @@ export default function TenderDetail() {
                   <p className="mt-0.5 text-xs text-muted-foreground">Managed from linked Pay Orders.</p>
                 </DetailRow>
                 <DetailRow icon={CalendarDays} label="Completion Date">
-                  {detailsEditing ? <Input type="date" value={form.completionDate || ''} onChange={(e) => updateForm('completionDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{formatDate(form.completionDate)}</DetailValue>}
+                  {detailsEditing ? <Input aria-label="Completion date" type="date" value={form.completionDate || ''} onChange={(e) => updateForm('completionDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{formatDate(form.completionDate)}</DetailValue>}
                 </DetailRow>
               </div>
             </CardContent>
@@ -2788,8 +2810,9 @@ export default function TenderDetail() {
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {['name', 'phone', 'email', 'role'].map((field) => (
                 <div key={field} className="min-w-0 space-y-1.5">
-                  <Label className="capitalize">{field}</Label>
+                  <Label htmlFor={`contact-${field}`} className="capitalize">{field}</Label>
                   <Input
+                    id={`contact-${field}`}
                     value={(form.contactPerson || {})[field] || ''}
                     onChange={(e) => updateAutosavedForm('contactPerson', { ...(form.contactPerson || {}), [field]: e.target.value })}
                     disabled={!isAdmin}
@@ -2797,8 +2820,9 @@ export default function TenderDetail() {
                 </div>
               ))}
               <div className="min-w-0 space-y-1.5 sm:col-span-2">
-                <Label>Notes</Label>
+                <Label htmlFor="contact-notes">Notes</Label>
                 <Textarea
+                  id="contact-notes"
                   value={(form.contactPerson || {}).notes || ''}
                   onChange={(e) => updateAutosavedForm('contactPerson', { ...(form.contactPerson || {}), notes: e.target.value })}
                   disabled={!isAdmin}
@@ -3027,97 +3051,21 @@ export default function TenderDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Expense Dialog */}
-      <Dialog open={expDialogOpen} onOpenChange={setExpDialogOpen}>
-        <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editExp ? 'Edit Expense' : 'Add Expense'}</DialogTitle>
-            <DialogDescription>
-              {editExp ? 'Update expense details.' : 'Record a new expense for this tender.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4">
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor="td-exp-desc">Description <span className="text-destructive">*</span></Label>
-              <Input id="td-exp-desc" value={expForm.description} onChange={setExpF('description')} placeholder="What was this expense for?" className="h-10 w-full min-w-0 text-sm sm:h-11" />
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label>Category</Label>
-              <Select value={expForm.category} onValueChange={setExpF('category')}>
-                <SelectTrigger className="h-10 w-full min-w-0 text-sm sm:h-11"><SelectValue /></SelectTrigger>
-                <SelectContent>{EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label>Calculation Method</Label>
-              <Select value={expForm.calculationMethod || 'manual'} onValueChange={setExpF('calculationMethod')}>
-                <SelectTrigger className="h-10 w-full min-w-0 text-sm sm:h-11"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">Manual Amount</SelectItem>
-                  <SelectItem value="percentage">Percentage</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label>Calculate From</Label>
-              <Select value={expForm.amountBasis || 'manual'} onValueChange={setExpF('amountBasis')}>
-                <SelectTrigger className="h-10 w-full min-w-0 text-sm sm:h-11"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gross">Gross Value</SelectItem>
-                  <SelectItem value="net">Net Value</SelectItem>
-                  <SelectItem value="manual">Manual / Not Based</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor="td-exp-percentage">Percentage</Label>
-              <Input
-                id="td-exp-percentage"
-                type="number"
-                value={expForm.percentage ?? ''}
-                onChange={setExpF('percentage')}
-                placeholder="0"
-                disabled={expForm.calculationMethod !== 'percentage'}
-                className="h-10 w-full min-w-0 font-mono text-sm tabular-nums sm:h-11"
-              />
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor="td-exp-amt">Amount (PKR)</Label>
-              <Input
-                id="td-exp-amt"
-                type="number"
-                value={expForm.amount}
-                onChange={setExpF('amount')}
-                readOnly={expForm.calculationMethod === 'percentage' && expForm.amountBasis !== 'manual'}
-                placeholder="0"
-                className="h-10 w-full min-w-0 font-mono text-sm tabular-nums sm:h-11"
-              />
-            </div>
-            <div className="min-w-0 space-y-1.5 sm:col-span-2">
-              <div className="grid grid-cols-1 gap-2 rounded-xl border bg-muted/20 p-3 text-sm sm:grid-cols-3">
-                <CalculationPreview label="Base Amount" value={expenseCalculationPreview.baseAmount ? formatCurrency(expenseCalculationPreview.baseAmount) : '—'} />
-                <CalculationPreview label="Percentage" value={formatPreviewPercent(expenseCalculationPreview.percentage)} />
-                <CalculationPreview label="Calculated Amount" value={formatCurrency(expenseCalculationPreview.calculatedAmount)} />
-              </div>
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor="td-exp-date">Date</Label>
-              <Input id="td-exp-date" type="date" value={expForm.date} onChange={setExpF('date')} className="expense-date-input" />
-            </div>
-            <div className="min-w-0 space-y-1.5 sm:col-span-2">
-              <Label htmlFor="td-exp-note">Notes</Label>
-              <Textarea id="td-exp-note" value={expForm.note} onChange={setExpF('note')} rows={3} className="min-h-24 text-sm sm:min-h-28" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" className="h-10 w-full sm:h-11 sm:w-auto" onClick={() => setExpDialogOpen(false)}>Cancel</Button>
-            <Button type="button" className="h-10 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={saveExpense} disabled={expSaving}>
-              {expSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {editExp ? 'Save Changes' : 'Add Expense'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TenderExpenseDialog
+        open={expDialogOpen}
+        onOpenChange={setExpDialogOpen}
+        editing={Boolean(editExp)}
+        form={expForm}
+        setField={setExpF}
+        categories={EXPENSE_CATEGORIES}
+        preview={{
+          baseAmount: expenseCalculationPreview.baseAmount ? formatCurrency(expenseCalculationPreview.baseAmount) : '—',
+          percentage: formatPreviewPercent(expenseCalculationPreview.percentage),
+          calculatedAmount: formatCurrency(expenseCalculationPreview.calculatedAmount),
+        }}
+        onSave={saveExpense}
+        saving={expSaving}
+      />
 
       <Dialog open={grossNetDialogOpen} onOpenChange={setGrossNetDialogOpen}>
         <DialogContent className="max-w-md">
@@ -3168,69 +3116,18 @@ export default function TenderDetail() {
         description="This will permanently remove this expense record."
       />
 
-      {/* Pay Order Sheet */}
-      <Sheet open={poDialogOpen} onOpenChange={setPoDialogOpen}>
-        <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-md">
-          <SheetHeader className="px-4 py-4 border-b border-border sm:px-6">
-            <SheetTitle>{editPo ? 'Edit Pay Order' : 'New Pay Order'}</SheetTitle>
-            <SheetDescription>
-              {editPo ? 'Update pay order details.' : 'Attach a pay order to this tender. It will also appear in the global Pay Orders list.'}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
-            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="min-w-0 space-y-1.5">
-                <Label htmlFor="td-po-num">PO Number <span className="text-destructive">*</span></Label>
-                <Input id="td-po-num" value={poForm.po} onChange={setPoF('po')} className="font-mono" placeholder="PO-2024-001" />
-              </div>
-              <div className="min-w-0 space-y-1.5">
-                <Label>Bank</Label>
-                <Select value={poForm.bank} onValueChange={setPoF('bank')}>
-                  <SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger>
-                  <SelectContent>{BANKS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="min-w-0 space-y-1.5">
-                <Label htmlFor="td-po-amt">Amount (PKR)</Label>
-                <Input id="td-po-amt" type="number" value={poForm.amount} onChange={setPoF('amount')} placeholder="0" className="font-mono tabular-nums" />
-              </div>
-              <div className="min-w-0 space-y-1.5">
-                <Label htmlFor="td-po-sub">Submitted</Label>
-                <Input id="td-po-sub" type="date" value={poForm.submitted} onChange={setPoF('submitted')} className="mobile-date-input" />
-              </div>
-            </div>
-            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="min-w-0 space-y-1.5">
-                <Label>Purpose</Label>
-                <Select value={poForm.purpose} onValueChange={setPoF('purpose')}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{PO_PURPOSES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="min-w-0 space-y-1.5">
-                <Label>Status</Label>
-                <Select value={poForm.status} onValueChange={setPoF('status')}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{PO_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor="td-po-notes">Notes</Label>
-              <Textarea id="td-po-notes" value={poForm.notes} onChange={setPoF('notes')} rows={3} />
-            </div>
-          </div>
-          <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setPoDialogOpen(false)}>Cancel</Button>
-            <Button className="w-full sm:w-auto" onClick={savePo} disabled={poSaving}>
-              {poSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {editPo ? 'Save Changes' : 'Add Pay Order'}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <TenderPayOrderSheet
+        open={poDialogOpen}
+        onOpenChange={setPoDialogOpen}
+        editing={Boolean(editPo)}
+        form={poForm}
+        setField={setPoF}
+        banks={BANKS}
+        purposes={PO_PURPOSES}
+        statuses={PO_STATUSES}
+        onSave={savePo}
+        saving={poSaving}
+      />
 
       <ConfirmDelete
         open={!!deletePoId}
@@ -3267,136 +3164,25 @@ export default function TenderDetail() {
         setField={setAwardField}
         onSave={saveAwardDetails}
         isAdmin={isAdmin}
+        statuses={AWARD_STATUSES}
       />
 
-      {/* Site Visit Sheet */}
-      <Sheet open={siteVisitDialogOpen} onOpenChange={setSiteVisitDialogOpen}>
-        <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-2xl">
-          <SheetHeader className="px-4 py-4 border-b border-border sm:px-6">
-            <SheetTitle>{editSiteVisit ? 'Edit Site Visit' : 'New Site Visit'}</SheetTitle>
-            <SheetDescription>
-              {editSiteVisit ? 'Update site visit details.' : 'Record daily progress, labour, materials, and issues.'}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
-            <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[1fr_0.95fr]">
-              <div className="min-w-0 space-y-4">
-                <div className="border-b border-border pb-2">
-                  <p className="text-sm font-semibold text-emerald-700">Visit Details</p>
-                </div>
-                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="min-w-0 space-y-1.5">
-                    <Label htmlFor="td-sv-date">Visit Date <span className="text-destructive">*</span></Label>
-                    <Input id="td-sv-date" type="date" value={siteVisitForm.visitDate} onChange={setSiteVisitF('visitDate')} className="mobile-date-input" />
-                  </div>
-                  <div className="min-w-0 space-y-1.5">
-                    <Label htmlFor="td-sv-time">Visit Time</Label>
-                    <Input id="td-sv-time" type="time" value={siteVisitForm.visitTime} onChange={setSiteVisitF('visitTime')} />
-                  </div>
-                </div>
-                <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor="td-sv-loc">Location / Site Area</Label>
-                  <Input id="td-sv-loc" value={siteVisitForm.location} onChange={setSiteVisitF('location')} placeholder="e.g. Block A, second floor" />
-                </div>
-                <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor="td-sv-work">Work Completed</Label>
-                  <Textarea id="td-sv-work" value={siteVisitForm.workCompleted} onChange={setSiteVisitF('workCompleted')} rows={3} placeholder="What was finished today?" />
-                </div>
-                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="min-w-0 space-y-1.5">
-                    <Label htmlFor="td-sv-labour">Labour Used</Label>
-                    <Textarea id="td-sv-labour" value={siteVisitForm.labourUsed} onChange={setSiteVisitF('labourUsed')} rows={2} placeholder="e.g. 4 masons, 6 helpers" />
-                  </div>
-                  <div className="min-w-0 space-y-1.5">
-                    <Label htmlFor="td-sv-material">Material Used</Label>
-                    <Textarea id="td-sv-material" value={siteVisitForm.materialUsed} onChange={setSiteVisitF('materialUsed')} rows={2} placeholder="e.g. 20 bags cement, 1 ton sand" />
-                  </div>
-                </div>
-                <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor="td-sv-issues">Issues / Delays</Label>
-                  <Textarea id="td-sv-issues" value={siteVisitForm.issues} onChange={setSiteVisitF('issues')} rows={2} placeholder="Any blockers or delays?" />
-                </div>
-                <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor="td-sv-next">Next-Day Plan</Label>
-                  <Textarea id="td-sv-next" value={siteVisitForm.nextDayPlan} onChange={setSiteVisitF('nextDayPlan')} rows={2} placeholder="Plan for the next day" />
-                </div>
-                <div className="min-w-0 space-y-1.5">
-                  <Label>Status</Label>
-                  <Select value={siteVisitForm.status} onValueChange={setSiteVisitF('status')}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{SITE_VISIT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor="td-sv-notes">Notes</Label>
-                  <Textarea id="td-sv-notes" value={siteVisitForm.notes} onChange={setSiteVisitF('notes')} rows={2} />
-                </div>
-              </div>
-
-              <div className="min-w-0 space-y-4 lg:border-l lg:border-border lg:pl-5">
-                <div className="border-b border-border pb-2">
-                  <p className="text-sm font-semibold text-emerald-700">Photos ({normalizeSiteVisitPhotos(siteVisitForm.photos).length})</p>
-                </div>
-                <div className="min-w-0 rounded-xl border border-dashed border-border bg-muted/20 p-4 text-center">
-                  <Input
-                    id="td-sv-photos"
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                    multiple
-                    className="sr-only"
-                    disabled={!isAdmin || siteVisitPhotoUploading}
-                    onChange={async (event) => {
-                      const files = Array.from(event.target.files || [])
-                      event.target.value = ''
-                      await uploadSiteVisitPhotos(files)
-                    }}
-                  />
-                  <Label
-                    htmlFor="td-sv-photos"
-                    role="button"
-                    tabIndex={siteVisitPhotoUploading || !isAdmin ? -1 : 0}
-                    onKeyDown={(event) => {
-                      if ((event.key === 'Enter' || event.key === ' ') && !siteVisitPhotoUploading && isAdmin) {
-                        event.preventDefault()
-                        document.getElementById('td-sv-photos')?.click()
-                      }
-                    }}
-                    className={`flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg py-6 text-sm transition hover:bg-background/60 ${
-                      siteVisitPhotoUploading || !isAdmin ? 'pointer-events-none opacity-60' : ''
-                    }`}
-                  >
-                    {siteVisitPhotoUploading ? <Loader2 className="h-6 w-6 animate-spin text-emerald-600" /> : <Upload className="h-6 w-6 text-emerald-600" />}
-                    <span className="font-semibold text-foreground">{siteVisitPhotoUploading ? `Uploading ${siteVisitPhotoProgress}%` : 'Upload Photos'}</span>
-                    <span className="text-xs text-muted-foreground">{isAdmin ? 'Click to select multiple JPG, PNG, or WEBP images' : 'Only admins can upload photos'}</span>
-                  </Label>
-                </div>
-                {siteVisitPhotoError && (
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                    {siteVisitPhotoError}
-                  </div>
-                )}
-                {normalizeSiteVisitPhotos(siteVisitForm.photos).length > 0 ? (
-                  <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">
-                    {normalizeSiteVisitPhotos(siteVisitForm.photos).map((photo) => (
-                      <SiteVisitPhotoTile key={photo.id} photo={photo} onRemove={() => removeSiteVisitPhoto(photo.id)} editable />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-border/80 bg-background p-4 text-sm text-muted-foreground">
-                    No photos attached yet. You can save the visit without photos.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
-            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setSiteVisitDialogOpen(false)}>Cancel</Button>
-            <Button type="button" className="w-full sm:w-auto" onClick={saveSiteVisit} disabled={siteVisitPhotoUploading}>
-              {editSiteVisit ? 'Save Changes' : 'Add Site Visit'}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <SiteVisitSheet
+        open={siteVisitDialogOpen}
+        onOpenChange={setSiteVisitDialogOpen}
+        editing={Boolean(editSiteVisit)}
+        form={siteVisitForm}
+        setField={setSiteVisitF}
+        statuses={SITE_VISIT_STATUSES}
+        isAdmin={isAdmin}
+        uploading={siteVisitPhotoUploading}
+        uploadProgress={siteVisitPhotoProgress}
+        uploadError={siteVisitPhotoError}
+        onUpload={uploadSiteVisitPhotos}
+        photos={normalizeSiteVisitPhotos(siteVisitForm.photos)}
+        renderPhoto={(photo) => <SiteVisitPhotoTile key={photo.id} photo={photo} onRemove={() => removeSiteVisitPhoto(photo.id)} editable />}
+        onSave={saveSiteVisit}
+      />
 
       <ConfirmDelete
         open={!!deleteSiteVisitId}
@@ -3559,104 +3345,6 @@ function AwardDetailCard({ title, icon: Icon, rows }) {
         </div>
       </CardContent>
     </Card>
-  )
-}
-
-function AwardWorkOrderSheet({ open, onOpenChange, form, setField, onSave, isAdmin }) {
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-3xl">
-        <SheetHeader className="border-b border-border px-4 py-4 sm:px-6">
-          <SheetTitle>Award / Work Order</SheetTitle>
-          <SheetDescription>Update award, work order, contract period, securities, and execution details.</SheetDescription>
-        </SheetHeader>
-        <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
-          <div className="min-w-0 space-y-5 sm:space-y-6">
-            <AwardFormGroup title="Award Details">
-              <AwardSelectField label="Award status" value={form.awardStatus} onValueChange={setField('awardStatus')} options={AWARD_STATUSES} disabled={!isAdmin} />
-              <AwardFormField label="Award date" type="date" value={form.awardDate} onChange={setField('awardDate')} disabled={!isAdmin} />
-              <AwardFormField label="Work order number" value={form.workOrderNumber} onChange={setField('workOrderNumber')} disabled={!isAdmin} />
-              <AwardFormField label="Work order date" type="date" value={form.workOrderDate} onChange={setField('workOrderDate')} disabled={!isAdmin} />
-              <AwardFormField label="Contract value" type="number" value={form.contractValue} onChange={setField('contractValue')} disabled={!isAdmin} />
-              <AwardFormField label="Department / agency reference" value={form.departmentReference} onChange={setField('departmentReference')} disabled={!isAdmin} />
-            </AwardFormGroup>
-
-            <AwardFormGroup title="Contract Period">
-              <AwardFormField label="Start date" type="date" value={form.startDate} onChange={setField('startDate')} disabled={!isAdmin} />
-              <AwardFormField label="Completion period (days)" type="number" value={form.completionPeriod} onChange={setField('completionPeriod')} disabled={!isAdmin} />
-              <AwardFormField label="Expected completion date" type="date" value={form.expectedCompletionDate} onChange={setField('expectedCompletionDate')} disabled={!isAdmin} />
-              <AwardFormField label="Actual completion date" type="date" value={form.actualCompletionDate} onChange={setField('actualCompletionDate')} disabled={!isAdmin} />
-              <AwardSelectField label="Extension granted" value={form.extensionGranted} onValueChange={setField('extensionGranted')} options={['No', 'Yes']} disabled={!isAdmin} />
-              <AwardFormField label="Extension days" type="number" value={form.extensionDays} onChange={setField('extensionDays')} disabled={!isAdmin} />
-              <AwardTextAreaField label="Extension remarks" value={form.extensionRemarks} onChange={setField('extensionRemarks')} disabled={!isAdmin} className="sm:col-span-2" />
-            </AwardFormGroup>
-
-            <AwardFormGroup title="Securities / Deductions">
-              <AwardFormField label="Performance security amount" type="number" value={form.performanceSecurityAmount} onChange={setField('performanceSecurityAmount')} disabled={!isAdmin} />
-              <AwardFormField label="Performance security type" value={form.performanceSecurityType} onChange={setField('performanceSecurityType')} disabled={!isAdmin} />
-              <AwardFormField label="Performance security expiry date" type="date" value={form.performanceSecurityExpiryDate} onChange={setField('performanceSecurityExpiryDate')} disabled={!isAdmin} />
-              <AwardFormField label="Retention percentage" type="number" value={form.retentionPercentage} onChange={setField('retentionPercentage')} disabled={!isAdmin} />
-              <AwardFormField label="Retention amount" type="number" value={form.retentionAmount} onChange={setField('retentionAmount')} disabled={!isAdmin} />
-              <AwardFormField label="Mobilization advance" type="number" value={form.mobilizationAdvance} onChange={setField('mobilizationAdvance')} disabled={!isAdmin} />
-            </AwardFormGroup>
-
-            <AwardFormGroup title="Execution Details">
-              <AwardFormField label="Site handover date" type="date" value={form.siteHandoverDate} onChange={setField('siteHandoverDate')} disabled={!isAdmin} />
-              <AwardFormField label="Engineer / department contact" value={form.engineerContact} onChange={setField('engineerContact')} disabled={!isAdmin} />
-              <AwardFormField label="Contractor representative" value={form.contractorRepresentative} onChange={setField('contractorRepresentative')} disabled={!isAdmin} />
-              <AwardFormField label="Current execution status" value={form.executionStatus} onChange={setField('executionStatus')} disabled={!isAdmin} />
-              <AwardTextAreaField label="Remarks / notes" value={form.remarks} onChange={setField('remarks')} disabled={!isAdmin} className="sm:col-span-2" />
-            </AwardFormGroup>
-          </div>
-        </div>
-        <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:pb-4">
-          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" onClick={onSave} disabled={!isAdmin} className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
-            <Save className="h-4 w-4" /> Save Award Details
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-function AwardFormGroup({ title, children }) {
-  return (
-    <section className="min-w-0">
-      <h3 className="mb-3 text-sm font-semibold text-emerald-700">{title}</h3>
-      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">{children}</div>
-    </section>
-  )
-}
-
-function AwardFormField({ label, className = '', ...props }) {
-  const inputClassName = props.type === 'date' ? 'mobile-date-input' : ''
-  return (
-    <div className={`min-w-0 space-y-1.5 ${className}`}>
-      <Label>{label}</Label>
-      <Input {...props} className={inputClassName} />
-    </div>
-  )
-}
-
-function AwardTextAreaField({ label, className = '', ...props }) {
-  return (
-    <div className={`min-w-0 space-y-1.5 ${className}`}>
-      <Label>{label}</Label>
-      <Textarea rows={3} {...props} />
-    </div>
-  )
-}
-
-function AwardSelectField({ label, value, onValueChange, options, disabled }) {
-  return (
-    <div className="min-w-0 space-y-1.5">
-      <Label>{label}</Label>
-      <Select value={value || ''} onValueChange={onValueChange} disabled={disabled}>
-        <SelectTrigger><SelectValue /></SelectTrigger>
-        <SelectContent>{options.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
-      </Select>
-    </div>
   )
 }
 
@@ -4692,7 +4380,7 @@ function ExpensesFinanceSection({
         <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(170px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={expenseSearch} onChange={(event) => setExpenseSearch(event.target.value)} placeholder="Search expenses..." className="h-10 pl-9 sm:h-11" />
+            <Input aria-label="Search tender expenses" type="search" value={expenseSearch} onChange={(event) => setExpenseSearch(event.target.value)} placeholder="Search expenses..." className="h-10 pl-9 sm:h-11" />
           </div>
           <BillSelect label="Category" value={expenseCategoryFilter} onValueChange={setExpenseCategoryFilter} options={['All', ...expenseCategoryOptions]} />
           <BillDateFilter label="Date From" value={expenseDateFrom} onChange={(event) => setExpenseDateFrom(event.target.value)} />
@@ -4816,15 +4504,6 @@ function GrossNetSummaryCard({ icon: Icon, label, value, helper, tone }) {
           <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
         </div>
       </div>
-    </div>
-  )
-}
-
-function CalculationPreview({ label, value }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 break-words font-mono text-sm font-semibold tabular-nums text-foreground">{value}</p>
     </div>
   )
 }
@@ -5019,6 +4698,12 @@ function BillsInvoicesSection({
     setBillFormOpen(true)
   }
   const saveBillForm = () => {
+    const invalidField = getInvalidBillAmount(billForm)
+    if (invalidField) {
+      toast.error(`${invalidField.label} must be a valid non-negative number.`)
+      document.getElementById(invalidField.id)?.focus()
+      return
+    }
     const payload = {
       no: billForm.no || '',
       type: billForm.type || 'Running Bill',
@@ -5113,7 +4798,7 @@ function BillsInvoicesSection({
           <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search by bill no..." className="h-10 pl-9 sm:h-11" />
+              <Input aria-label="Search bills" type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search by bill no..." className="h-10 pl-9 sm:h-11" />
             </div>
             <BillSelect label="Type" value={typeFilter} onValueChange={setTypeFilter} options={['All', ...billTypeOptions]} />
             <BillSelect label="Status" value={statusFilter} onValueChange={setStatusFilter} options={['All', ...billStatusOptions]} />
@@ -5208,46 +4893,17 @@ function BillsInvoicesSection({
         )}
       </div>
 
-      <Dialog open={billFormOpen} onOpenChange={setBillFormOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingBill ? 'Edit Bill / Invoice' : 'Add Bill / RA Bill'}</DialogTitle>
-            <DialogDescription>Record submitted, approved, received, deductions, and receivable details.</DialogDescription>
-          </DialogHeader>
-          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-            <BillField label="Bill No." value={billForm.no} onChange={setBillFormValue('no')} disabled={!isAdmin} placeholder="BILL-12" />
-            <div className="min-w-0 space-y-1.5">
-              <Label>Type</Label>
-              <Select value={billForm.type} onValueChange={setBillFormValue('type')} disabled={!isAdmin}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{billTypeOptions.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <BillField label="Date" type="date" value={billForm.date} onChange={setBillFormValue('date')} disabled={!isAdmin} />
-            <div className="min-w-0 space-y-1.5">
-              <Label>Status</Label>
-              <Select value={billForm.status} onValueChange={setBillFormValue('status')} disabled={!isAdmin}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{billStatusOptions.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <BillField label="Submitted Amount" type="number" value={billForm.amount} onChange={setBillFormValue('amount')} disabled={!isAdmin} />
-            <BillField label="Approved Amount" type="number" value={billForm.approvedAmount} onChange={setBillFormValue('approvedAmount')} disabled={!isAdmin} />
-            <BillField label="Received Amount" type="number" value={billForm.receivedAmount} onChange={setBillFormValue('receivedAmount')} disabled={!isAdmin} />
-            <BillField label="Deductions" type="number" value={billForm.deductions} onChange={setBillFormValue('deductions')} disabled={!isAdmin} />
-            <div className="min-w-0 space-y-1.5 sm:col-span-2">
-              <Label>Remarks / Notes</Label>
-              <Textarea value={billForm.remarks} onChange={setBillFormValue('remarks')} rows={3} placeholder="Add remarks or notes" disabled={!isAdmin} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setBillFormOpen(false)}>Cancel</Button>
-            <Button type="button" className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto" onClick={saveBillForm} disabled={!isAdmin}>
-              {editingBill ? 'Save Changes' : 'Add Bill'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BillEditorDialog
+        open={billFormOpen}
+        onOpenChange={setBillFormOpen}
+        editing={Boolean(editingBill)}
+        form={billForm}
+        setField={setBillFormValue}
+        typeOptions={billTypeOptions}
+        statusOptions={billStatusOptions}
+        isAdmin={isAdmin}
+        onSave={saveBillForm}
+      />
 
       <BillViewDialog bill={viewingBill} onOpenChange={(open) => !open && setViewingBill(null)} />
       <ConfirmDelete
@@ -5287,11 +4943,12 @@ function BillSummaryCard({ icon: Icon, label, value, helper, tone }) {
 }
 
 function BillSelect({ label, value, onValueChange, options }) {
+  const id = useId()
   return (
     <div className="min-w-0 space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label htmlFor={id} className="text-xs text-muted-foreground">{label}</Label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-10 bg-background sm:h-11"><SelectValue /></SelectTrigger>
+        <SelectTrigger id={id} className="h-10 bg-background sm:h-11"><SelectValue /></SelectTrigger>
         <SelectContent>
           {options.map((option) => (
             <SelectItem key={option} value={option}>{option === 'All' ? `All ${label}s` : option}</SelectItem>
@@ -5303,10 +4960,11 @@ function BillSelect({ label, value, onValueChange, options }) {
 }
 
 function BillDateFilter({ label, value, onChange }) {
+  const id = useId()
   return (
     <div className="min-w-0 space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      <Input type="date" value={value} onChange={onChange} className="mobile-date-input bg-background" />
+      <Label htmlFor={id} className="text-xs text-muted-foreground">{label}</Label>
+      <Input id={id} type="date" value={value} onChange={onChange} className="mobile-date-input bg-background" />
     </div>
   )
 }
@@ -5486,6 +5144,12 @@ function RABillsSection({
     setRaBillFormOpen(true)
   }
   const saveRaBillForm = () => {
+    const invalidField = getInvalidBillAmount(raBillForm, 'ra-bill')
+    if (invalidField) {
+      toast.error(`${invalidField.label} must be a valid non-negative number.`)
+      document.getElementById(invalidField.id)?.focus()
+      return
+    }
     const payload = {
       no: raBillForm.no || '',
       type: 'Running Bill',
@@ -5578,7 +5242,7 @@ function RABillsSection({
           <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search by RA bill no..." className="h-10 pl-9 sm:h-11" />
+              <Input aria-label="Search RA bills" type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search by RA bill no..." className="h-10 pl-9 sm:h-11" />
             </div>
             <BillSelect label="Status" value={statusFilter} onValueChange={setStatusFilter} options={['All', ...raStatusOptions]} />
             <BillDateFilter label="Date From" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
@@ -5670,39 +5334,17 @@ function RABillsSection({
         )}
       </div>
 
-      <Dialog open={raBillFormOpen} onOpenChange={setRaBillFormOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingRaBill ? 'Edit RA Bill' : 'Add RA Bill'}</DialogTitle>
-            <DialogDescription>Record running account bill approvals, payments, deductions, and receivables.</DialogDescription>
-          </DialogHeader>
-          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-            <BillField label="RA Bill No." value={raBillForm.no} onChange={setRaBillFormValue('no')} disabled={!isAdmin} placeholder="RA-06" />
-            <BillField label="RA Bill Date" type="date" value={raBillForm.date} onChange={setRaBillFormValue('date')} disabled={!isAdmin} />
-            <BillField label="Submitted Amount" type="number" value={raBillForm.amount} onChange={setRaBillFormValue('amount')} disabled={!isAdmin} />
-            <BillField label="Approved Amount" type="number" value={raBillForm.approvedAmount} onChange={setRaBillFormValue('approvedAmount')} disabled={!isAdmin} />
-            <BillField label="Received Amount" type="number" value={raBillForm.receivedAmount} onChange={setRaBillFormValue('receivedAmount')} disabled={!isAdmin} />
-            <BillField label="Deductions" type="number" value={raBillForm.deductions} onChange={setRaBillFormValue('deductions')} disabled={!isAdmin} />
-            <div className="min-w-0 space-y-1.5 sm:col-span-2">
-              <Label>Status</Label>
-              <Select value={raBillForm.status} onValueChange={setRaBillFormValue('status')} disabled={!isAdmin}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{raStatusOptions.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0 space-y-1.5 sm:col-span-2">
-              <Label>Remarks / Notes</Label>
-              <Textarea value={raBillForm.remarks} onChange={setRaBillFormValue('remarks')} rows={3} placeholder="Add remarks or notes" disabled={!isAdmin} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setRaBillFormOpen(false)}>Cancel</Button>
-            <Button type="button" className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto" onClick={saveRaBillForm} disabled={!isAdmin}>
-              {editingRaBill ? 'Save Changes' : 'Add RA Bill'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BillEditorDialog
+        open={raBillFormOpen}
+        onOpenChange={setRaBillFormOpen}
+        editing={Boolean(editingRaBill)}
+        form={raBillForm}
+        setField={setRaBillFormValue}
+        statusOptions={raStatusOptions}
+        isAdmin={isAdmin}
+        onSave={saveRaBillForm}
+        variant="ra-bill"
+      />
 
       <RABillViewDialog bill={viewingRaBill} onOpenChange={(open) => !open && setViewingRaBill(null)} />
       <ConfirmDelete
@@ -5937,6 +5579,8 @@ function LegacyBillFinanceSection({
 
 function MobileBillCard({ bill, isAdmin, onUpdate, onRemove, dateKey, paidDateKey }) {
   const amounts = getBillAmounts(bill)
+  const typeId = useId()
+  const statusId = useId()
   return (
     <Card className="rounded-xl shadow-sm">
       <CardContent className="space-y-3 p-3.5 md:p-4">
@@ -5950,16 +5594,16 @@ function MobileBillCard({ bill, isAdmin, onUpdate, onRemove, dateKey, paidDateKe
 
         <div className="grid grid-cols-2 gap-3">
           <div className="min-w-0 space-y-1.5">
-            <Label className="text-xs">Type</Label>
+            <Label htmlFor={typeId} className="text-xs">Type</Label>
             <Select value={bill.type || 'Running Bill'} onValueChange={(value) => onUpdate(bill.id, { type: value })} disabled={!isAdmin}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger id={typeId} className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>{BILL_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="min-w-0 space-y-1.5">
-            <Label className="text-xs">Status</Label>
+            <Label htmlFor={statusId} className="text-xs">Status</Label>
             <Select value={bill.status || 'Draft'} onValueChange={(value) => onUpdate(bill.id, { status: value })} disabled={!isAdmin}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger id={statusId} className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Array.from(new Set([bill.status, ...BILL_STATUS_OPTIONS].filter(Boolean))).map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}
               </SelectContent>
@@ -6128,7 +5772,7 @@ function DocumentsManager({
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder="Search documents..." className="h-10 bg-background pl-9 md:h-11" />
+              <Input aria-label="Search tender documents" type="search" value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder="Search documents..." className="h-10 bg-background pl-9 md:h-11" />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin lg:pb-0">
               {DOCUMENT_TYPE_FILTERS.map((type) => (
@@ -6235,9 +5879,9 @@ function DocumentsManager({
           </div>
 
           <div className="min-w-0 space-y-1.5">
-            <Label>Category</Label>
+            <Label htmlFor="td-document-category">Category</Label>
             <Select value={documentForm.type || 'Other'} onValueChange={setDocumentFormValue('type')}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="td-document-category"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {DOCUMENT_CATEGORIES.map((category) => (
                   <SelectItem key={category} value={category}>{category}</SelectItem>

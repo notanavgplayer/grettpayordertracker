@@ -38,6 +38,10 @@ export default function Settings() {
   const [exportingBackup, setExportingBackup] = useState(false)
 
   useEffect(() => {
+    setNewDisplayName(displayName)
+  }, [displayName])
+
+  useEffect(() => {
     if (isAdmin) {
       setLoadingUsers(true)
       getDocs(collection(db, 'users'))
@@ -233,12 +237,12 @@ export default function Settings() {
         <Card className="rounded-xl border-border/80 bg-card shadow-sm">
           <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
             <CardTitle className="flex items-center gap-2 text-base"><Download className="h-4 w-4 text-emerald-600" /> Data Backup</CardTitle>
-            <CardDescription>Export all your data as a JSON backup file</CardDescription>
+            <CardDescription>Export Firestore business records and a storage-file manifest. File contents and user accounts are not included.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={doExport} disabled={exportingBackup} variant="outline" className="h-10 w-full sm:h-11 sm:w-auto">
               {exportingBackup ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Export Full Backup (JSON)
+              Export Business Data (JSON)
             </Button>
           </CardContent>
         </Card>
