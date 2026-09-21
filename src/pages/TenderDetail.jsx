@@ -1652,7 +1652,7 @@ export default function TenderDetail() {
         ]}
         className="mb-2 sm:hidden"
       />
-      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-2xl border border-border/80 bg-card p-3.5 shadow-sm md:hidden">
+      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-xl border border-border/80 bg-card p-3.5 md:hidden">
         <div className="aspect-square overflow-hidden rounded-lg border bg-emerald-50 dark:bg-emerald-950/30">
           <div className="relative h-full w-full">
             <div className="absolute bottom-4 left-4 h-8 w-14 rounded-t-full border-t-4 border-emerald-600" />
@@ -1742,7 +1742,7 @@ export default function TenderDetail() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
         <div className="space-y-5">
           <Tabs value={activeTenderTab} onValueChange={setActiveTenderTab} className="flex min-w-0 flex-col gap-4 md:gap-5">
-          <Card className="order-1 rounded-2xl border-border/80 bg-background shadow-sm">
+          <Card className="order-1 rounded-xl border-border/80 bg-background">
             <CardHeader className="p-4 pb-3 md:p-5 md:pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -1817,7 +1817,7 @@ export default function TenderDetail() {
           </Card>
 
       {/* Tabs */}
-        <TabsList className="order-2 -mx-1 flex h-auto max-w-full justify-start gap-1.5 overflow-x-auto whitespace-nowrap rounded-none border-b bg-transparent px-1 pb-0 [scrollbar-width:none] md:mx-0 md:gap-2 md:rounded-lg md:border md:bg-muted/40 md:p-1.5 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
+        <TabsList className="sticky top-0 z-20 order-2 -mx-1 flex h-auto max-w-full justify-start gap-1.5 overflow-x-auto whitespace-nowrap rounded-none border-b bg-background/95 px-1 pb-0 backdrop-blur [scrollbar-width:none] md:mx-0 md:gap-2 md:rounded-lg md:border md:bg-background/95 md:p-1.5 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
           {compactTabs.map(([value, label]) => (
             <TabsTrigger
               key={value}
@@ -1873,7 +1873,7 @@ export default function TenderDetail() {
           />
           {false && (
           <>
-          <Card className="overflow-hidden border-emerald-100 shadow-sm dark:border-emerald-900/40">
+          <Card className="overflow-hidden border-emerald-100 dark:border-emerald-900/40">
             <CardContent className="p-3.5 md:p-5">
               <div className="grid gap-4 md:gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="min-w-0 space-y-3 md:space-y-4">
@@ -1915,7 +1915,7 @@ export default function TenderDetail() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm">
+          <Card>
             <CardHeader className="p-4 pb-3 md:p-6 md:pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -1966,7 +1966,7 @@ export default function TenderDetail() {
           </Card>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <Card className="shadow-sm">
+            <Card>
               <CardHeader className="p-4 pb-3 md:p-6 md:pb-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -2032,7 +2032,7 @@ export default function TenderDetail() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm">
+            <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <WalletCards className="h-4 w-4 text-emerald-600" /> Payment Summary
@@ -2134,7 +2134,7 @@ export default function TenderDetail() {
                 />
               )}
             />
-            <Card className="shadow-sm">
+            <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <History className="h-4 w-4 text-emerald-600" /> Tender Timeline
@@ -2207,7 +2207,7 @@ export default function TenderDetail() {
             <BoqMetric icon={PieChart} label="Profit Margin" value={boqProfitMargin === null ? '-' : `${boqProfitMargin}%`} tone="violet" />
           </div>
 
-          <Card className="shadow-sm">
+          <Card>
             <CardContent className="space-y-4 p-3.5 md:space-y-5 md:p-5">
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                 {isAdmin && (
@@ -2248,7 +2248,7 @@ export default function TenderDetail() {
                     const profitLoss = actualCost === null ? null : quotedAmount - actualCost
                     const isEditing = editingBoqItemId === item.id
                     return (
-                      <div key={item.id} className="rounded-xl border bg-card p-3 shadow-sm min-[430px]:p-3.5">
+                      <div key={item.id} className="rounded-xl border bg-card p-3 min-[430px]:p-3.5">
                         <div className="flex items-start gap-3">
                           <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 font-mono text-base font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
                             {index + 1}
@@ -2629,17 +2629,17 @@ export default function TenderDetail() {
             <Card><CardContent className="p-4 text-center">
               <p className="text-lg font-mono tabular-nums font-bold text-rose-600 dark:text-rose-400">{formatCurrency(sunkCost)}</p>
               <p className="text-xs text-muted-foreground">Sunk cost</p>
-              <p className="text-[10px] text-muted-foreground/70 mt-0.5">expenses + forfeited</p>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">expenses + forfeited</p>
             </CardContent></Card>
             <Card><CardContent className="p-4 text-center">
               <p className="text-lg font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400">{formatCurrency(bidSecurityAtRisk)}</p>
               <p className="text-xs text-muted-foreground">At risk</p>
-              <p className="text-[10px] text-muted-foreground/70 mt-0.5">bid security pending</p>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">bid security pending</p>
             </CardContent></Card>
             <Card><CardContent className="p-4 text-center">
               <p className="text-lg font-mono tabular-nums font-bold text-blue-600 dark:text-blue-400">{formatCurrency(heldByAgency)}</p>
               <p className="text-xs text-muted-foreground">Held by agency</p>
-              <p className="text-[10px] text-muted-foreground/70 mt-0.5">refundable on release</p>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">refundable on release</p>
             </CardContent></Card>
           </div>
 
@@ -2665,7 +2665,7 @@ export default function TenderDetail() {
                   {/* Mobile cards */}
                   <div className="space-y-3 md:hidden">
                     {expenses.map((e) => (
-                      <div key={e.id} className="rounded-xl border border-border bg-card p-3.5 shadow-sm">
+                      <div key={e.id} className="rounded-xl border border-border bg-card p-3.5">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-foreground break-words">{e.description || '—'}</p>
@@ -2836,7 +2836,7 @@ export default function TenderDetail() {
         </div>
 
         <aside className="space-y-4 xl:sticky xl:top-4">
-          <Card className="rounded-2xl border-border/80 shadow-sm">
+          <Card className="rounded-xl border-border/80">
             <CardHeader className="p-4 pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
@@ -2846,7 +2846,7 @@ export default function TenderDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 p-4 pt-0">
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
                 <div className="flex items-end justify-between gap-3">
                   <div>
                     <p className="text-3xl font-semibold leading-none text-emerald-700 dark:text-emerald-300">{dashboardProgress}%</p>
@@ -2864,7 +2864,7 @@ export default function TenderDetail() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-border/80 shadow-sm">
+          <Card className="rounded-xl border-border/80">
             <CardHeader className="p-4 pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <CalendarDays className="h-4 w-4 text-emerald-600" /> Important Dates
@@ -2877,7 +2877,7 @@ export default function TenderDetail() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-border/80 shadow-sm">
+          <Card className="rounded-xl border-border/80">
             <CardHeader className="p-4 pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Banknote className="h-4 w-4 text-emerald-600" /> Financial Snapshot
@@ -2892,7 +2892,7 @@ export default function TenderDetail() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-border/80 shadow-sm">
+          <Card className="rounded-xl border-border/80">
             <CardHeader className="p-4 pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <History className="h-4 w-4 text-emerald-600" /> Recent Activity
@@ -2902,7 +2902,7 @@ export default function TenderDetail() {
               {recentActivity.length === 0 && <p className="rounded-xl border border-dashed py-6 text-center text-sm text-muted-foreground">No activity yet.</p>}
               {recentActivity.map((activity) => (
                 <div key={activity.id} className="flex gap-3 rounded-xl border border-border/70 bg-muted/10 p-3 text-sm">
-                  <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-background text-emerald-700 shadow-sm">
+                  <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-background text-emerald-700">
                     <activity.icon className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
@@ -3208,9 +3208,9 @@ function AwardWorkOrderSection({ details, timeline, isAdmin, onEdit }) {
 
   if (!hasDetails) {
     return (
-      <Card className="rounded-2xl border-border/80 shadow-sm">
+      <Card className="rounded-xl border-border/80">
         <CardContent className="flex flex-col items-center justify-center px-5 py-12 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
             <ClipboardList className="h-6 w-6" />
           </div>
           <h2 className="mt-4 text-lg font-semibold">No award or work order details added yet</h2>
@@ -3229,11 +3229,11 @@ function AwardWorkOrderSection({ details, timeline, isAdmin, onEdit }) {
 
   return (
     <div className="space-y-4">
-      <Card className="rounded-2xl border-border/80 shadow-sm">
+      <Card className="rounded-xl border-border/80">
         <CardHeader className="p-3 pb-2 md:p-5 md:pb-3">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-[10px] font-medium tracking-normal text-emerald-700 sm:font-semibold sm:uppercase sm:tracking-[0.18em] md:text-xs md:tracking-[0.22em]">Post Award</p>
+              <p className="text-xs font-medium tracking-normal text-emerald-700 sm:font-semibold sm:uppercase sm:tracking-[0.18em] md:text-xs md:tracking-[0.22em]">Post Award</p>
               <CardTitle className="mt-0.5 text-lg md:mt-1 md:text-xl">Award / Work Order</CardTitle>
               <p className="mt-1 text-xs leading-5 text-muted-foreground md:text-sm">
                 Track award details, work order information, contract period, securities, and project execution dates.
@@ -3302,14 +3302,14 @@ function AwardMetric({ icon: Icon, label, value, helper, tone, badgeClass }) {
       ? 'bg-amber-50 text-amber-700'
       : 'bg-emerald-50 text-emerald-700'
   return (
-    <div className="flex h-full min-h-0 max-w-full min-w-0 items-start gap-3 rounded-xl border border-border/80 bg-card p-3 shadow-sm sm:p-4">
+    <div className="flex h-full min-h-0 max-w-full min-w-0 items-start gap-3 rounded-xl border border-border/80 bg-card p-3 sm:p-4">
       {Icon && (
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 ${iconClass}`}>
           <Icon className="h-4 w-4" />
         </div>
       )}
       <div className="min-w-0 flex-1 overflow-hidden">
-        <p className="break-words text-xs font-medium leading-4 tracking-normal text-muted-foreground sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-wide">{label}</p>
+        <p className="break-words text-xs font-medium leading-4 tracking-normal text-muted-foreground sm:text-xs sm:font-semibold sm:uppercase sm:tracking-wide">{label}</p>
         {badgeClass ? (
           <Badge variant="outline" className={`mt-1 max-w-full whitespace-normal break-words rounded-full px-2 py-0.5 text-xs leading-4 sm:mt-2 sm:px-2.5 sm:py-1 ${badgeClass}`}>{value}</Badge>
         ) : (
@@ -3323,7 +3323,7 @@ function AwardMetric({ icon: Icon, label, value, helper, tone, badgeClass }) {
 
 function AwardDetailCard({ title, icon: Icon, rows }) {
   return (
-    <Card className="rounded-2xl border-border/80 shadow-sm">
+    <Card className="rounded-xl border-border/80">
       <CardHeader className="p-3 pb-1.5 sm:p-4 sm:pb-2">
         <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 sm:h-8 sm:w-8">
@@ -3336,7 +3336,7 @@ function AwardDetailCard({ title, icon: Icon, rows }) {
         <div className="divide-y divide-border/70">
         {rows.map(([label, value]) => (
           <div key={label} className="grid grid-cols-1 gap-1 py-2.5 first:pt-1 last:pb-0 sm:grid-cols-[190px_minmax(0,1fr)] sm:items-start sm:gap-4 sm:py-3">
-            <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:text-xs sm:uppercase sm:tracking-wide">{label}</p>
+            <p className="text-xs font-medium tracking-normal text-muted-foreground sm:text-xs sm:uppercase sm:tracking-wide">{label}</p>
             <p className={`min-w-0 break-words text-[13px] font-semibold leading-5 sm:text-sm ${value === MISSING_VALUE ? 'text-muted-foreground' : 'text-foreground'}`}>
               {value || MISSING_VALUE}
             </p>
@@ -3463,13 +3463,13 @@ function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete, o
   const photos = normalizeSiteVisitPhotos(visit.photos)
 
   return (
-    <Card className="min-w-0 self-start overflow-hidden border-border/80 shadow-sm transition-shadow hover:shadow-md">
+    <Card className="min-w-0 self-start overflow-hidden border-border/80 transition-shadow hover:shadow-md">
       <CardContent className="min-w-0 space-y-3.5 p-3.5 sm:p-4">
         {/* Header: date badge · title · time */}
         <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-[62px] w-[58px] shrink-0 flex-col items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 shadow-sm shadow-emerald-900/5 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+          <div className="flex h-[62px] w-[58px] shrink-0 flex-col items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 shadow-emerald-900/5 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
             <span className="font-mono text-2xl font-semibold leading-none tabular-nums">{day}</span>
-            <span className="mt-1 text-[10px] font-semibold leading-none tracking-normal sm:uppercase sm:tracking-wide">{month || 'DATE'}</span>
+            <span className="mt-1 text-xs font-semibold leading-none tracking-normal sm:uppercase sm:tracking-wide">{month || 'DATE'}</span>
             {year && <span className="mt-1 text-[9px] font-medium leading-none text-emerald-700/65 dark:text-emerald-300/70">{year}</span>}
           </div>
           <div className="min-w-0 flex-1">
@@ -3481,7 +3481,7 @@ function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete, o
             )}
           </div>
           {getSiteVisitTime(visit) && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/80 bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/80 bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground">
               <Clock className="h-3 w-3" />
               {getSiteVisitTime(visit)}
             </span>
@@ -3507,13 +3507,13 @@ function SiteVisitCard({ visit, tenderName, isAdmin, onView, onEdit, onDelete, o
           )}
           {issuesText && (
             <div className="rounded-xl border border-rose-200/70 bg-rose-50/60 p-3 dark:border-rose-900/40 dark:bg-rose-950/20">
-              <p className="text-[11px] font-medium tracking-normal text-rose-700 dark:text-rose-300 sm:font-semibold sm:uppercase sm:tracking-wide">Issues / delays</p>
+              <p className="text-xs font-medium tracking-normal text-rose-700 dark:text-rose-300 sm:font-semibold sm:uppercase sm:tracking-wide">Issues / delays</p>
               <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-foreground">{issuesText}</p>
             </div>
           )}
           {nextDayText && (
             <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/70 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-              <p className="text-[11px] font-medium tracking-normal text-emerald-700 dark:text-emerald-300 sm:font-semibold sm:uppercase sm:tracking-wide">Next-day plan</p>
+              <p className="text-xs font-medium tracking-normal text-emerald-700 dark:text-emerald-300 sm:font-semibold sm:uppercase sm:tracking-wide">Next-day plan</p>
               <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-foreground">{nextDayText}</p>
             </div>
           )}
@@ -3602,12 +3602,12 @@ function SiteVisitPhotoTile({ photo, editable = false, onRemove, onOpen }) {
       </button>
       {editable && (
       <div className="min-w-0 px-2 py-1.5">
-        <p className="truncate text-[11px] font-medium text-foreground" title={photo.name}>{photo.name || 'Photo'}</p>
-        {formatPhotoSize(photo.size) && <p className="text-[10px] text-muted-foreground">{formatPhotoSize(photo.size)}</p>}
+        <p className="truncate text-xs font-medium text-foreground" title={photo.name}>{photo.name || 'Photo'}</p>
+        {formatPhotoSize(photo.size) && <p className="text-xs text-muted-foreground">{formatPhotoSize(photo.size)}</p>}
       </div>
       )}
       {editable && (
-        <Button type="button" variant="secondary" size="icon-sm" className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full bg-background/90 text-rose-600 shadow-sm hover:bg-rose-50" onClick={onRemove} aria-label="Remove photo">
+        <Button type="button" variant="secondary" size="icon-sm" className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full bg-background/90 text-rose-600 hover:bg-rose-50" onClick={onRemove} aria-label="Remove photo">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       )}
@@ -3641,7 +3641,7 @@ function SiteVisitViewDialog({ open, visit, tenderName, isAdmin, onOpenChange, o
             <SiteVisitDetailBox icon={CalendarDays} label="Visit Date" value={dateParts.label} />
             <SiteVisitDetailBox icon={Clock} label="Visit Time" value={visitTime || '\u2014'} />
             <div className="min-w-0 rounded-xl border border-border/80 bg-background p-3">
-              <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">Status</p>
+              <p className="text-xs font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">Status</p>
               {visit.status ? (
                 <Badge variant="outline" className={`mt-2 rounded-full px-2.5 py-1 text-xs ${statusClass}`}>{visit.status}</Badge>
               ) : (
@@ -3773,7 +3773,7 @@ function SiteVisitDetailBox({ icon: Icon, label, value }) {
   const isEmpty = !value
   return (
     <div className="min-w-0 rounded-xl border border-border/80 bg-background p-3">
-      <p className="flex items-center gap-1.5 text-[11px] font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">
+      <p className="flex items-center gap-1.5 text-xs font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </p>
@@ -3793,7 +3793,7 @@ function SiteVisitDetailSection({ label, value, tone, className = '' }) {
 
   return (
     <div className={`min-w-0 rounded-xl border p-3 ${toneClass} ${className}`}>
-      <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">{label}</p>
+      <p className="text-xs font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">{label}</p>
       <p className={`mt-1 whitespace-pre-wrap break-words text-sm leading-5 ${isEmpty ? 'text-muted-foreground' : 'text-foreground'}`}>{display}</p>
     </div>
   )
@@ -3804,7 +3804,7 @@ function SiteVisitField({ label, value, compact = false }) {
   const display = isEmpty ? '-' : value
   return (
     <div>
-      <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">{label}</p>
+      <p className="text-xs font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">{label}</p>
       <p className={`mt-0.5 whitespace-pre-wrap break-words ${compact ? 'text-xs' : 'text-sm'} text-foreground`}>{display}</p>
     </div>
   )
@@ -3894,8 +3894,8 @@ function formatPlainNumber(value) {
 
 function DetailRow({ icon: Icon, label, children, note, className = '' }) {
   return (
-    <div className={`min-w-0 rounded-xl border border-border/80 bg-card px-3 py-3 shadow-sm ${className}`}>
-      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">
+    <div className={`min-w-0 rounded-xl border border-border/80 bg-card px-3 py-3 ${className}`}>
+      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium tracking-normal text-muted-foreground sm:font-semibold sm:uppercase sm:tracking-wide">
         <Icon className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/80" />
         <span>{label}</span>
       </div>
@@ -3984,7 +3984,7 @@ function PaymentSummaryRow({ label, value, tone }) {
 function OverviewInfo({ icon: Icon, label, value }) {
   return (
     <div className="rounded-xl border bg-background/80 p-3">
-      <div className="flex items-center gap-2 text-[11px] font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
+      <div className="flex items-center gap-2 text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
         <Icon className="h-3.5 w-3.5" />
         <span>{label}</span>
       </div>
@@ -3997,7 +3997,7 @@ function OverviewInfo({ icon: Icon, label, value }) {
 
 function OverviewListCard({ icon: Icon, title, empty, items, renderItem }) {
   return (
-    <Card className="shadow-sm">
+    <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Icon className="h-4 w-4 text-emerald-600" /> {title}
@@ -4104,7 +4104,7 @@ function TenderOverviewDashboard({
 
       <OverviewSection title="Execution Progress" icon={CheckSquare}>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
             <p className="text-xs font-medium tracking-normal text-emerald-800 sm:font-semibold sm:uppercase sm:tracking-wide">Current progress</p>
             <div className="mt-3 flex items-end justify-between gap-3">
               <div>
@@ -4232,7 +4232,7 @@ function OverviewGroupHeading({ title, helper }) {
 
 function OverviewSection({ title, icon: Icon, children }) {
   return (
-    <Card className="rounded-2xl border-border/80 bg-background shadow-sm">
+    <Card className="rounded-xl border-border/80 bg-background">
       <CardHeader className="p-4 pb-3 md:p-5 md:pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Icon className="h-4 w-4 text-emerald-600" /> {title}
@@ -4272,7 +4272,7 @@ function OverviewCount({ label, value, helper }) {
 function OverviewPreviewCard({ icon: Icon, title, empty, tab, action, onViewTab, children }) {
   const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : []
   return (
-    <Card className="rounded-2xl border-border/80 bg-background shadow-sm">
+    <Card className="rounded-xl border-border/80 bg-background">
       <CardHeader className="flex flex-row items-center justify-between gap-3 p-4 pb-3 md:p-5 md:pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Icon className="h-4 w-4 text-emerald-600" /> {title}
@@ -4281,7 +4281,7 @@ function OverviewPreviewCard({ icon: Icon, title, empty, tab, action, onViewTab,
           <button
             type="button"
             onClick={() => onViewTab?.(tab)}
-            className="h-8 rounded-lg border border-emerald-200 bg-background px-3 text-xs font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50"
+            className="h-8 rounded-lg border border-emerald-200 bg-background px-3 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
           >
             {action}
           </button>
@@ -4327,9 +4327,9 @@ function ExpensesFinanceSection({
 }) {
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-4 rounded-2xl border border-border/80 bg-background p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:p-5">
+      <div className="flex flex-col gap-4 rounded-xl border border-border/80 bg-background p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
         <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
             <Receipt className="h-6 w-6" />
           </div>
           <div>
@@ -4340,13 +4340,13 @@ function ExpensesFinanceSection({
           </div>
         </div>
         {isAdmin && (
-          <Button className="h-10 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={() => openExpDialog()}>
+          <Button className="h-10 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={() => openExpDialog()}>
             <Plus className="h-4 w-4" /> Add Expense
           </Button>
         )}
       </div>
 
-      <section className="rounded-2xl border border-border/80 bg-slate-50/40 p-4 shadow-sm md:p-5">
+      <section className="rounded-xl border border-border/80 bg-slate-50/40 p-4 md:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Contract Financial Basis</h3>
@@ -4376,7 +4376,7 @@ function ExpensesFinanceSection({
         <ExpenseSummaryCard icon={Trash2} label="Sunk Cost / Non-Recoverable" value={sunkCost} helper="Non-recoverable expenses" tone="red" />
       </div>
 
-      <div className="rounded-2xl border border-border/80 bg-background p-3 shadow-sm md:p-4">
+      <div className="rounded-xl border border-border/80 bg-background p-3 md:p-4">
         <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(170px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -4397,8 +4397,8 @@ function ExpensesFinanceSection({
       </div>
 
       {expenses.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+        <div className="rounded-xl border border-dashed border-border bg-background p-8 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
             <Receipt className="h-7 w-7" />
           </div>
           <p className="mt-4 text-base font-semibold text-foreground">No expenses added yet</p>
@@ -4412,7 +4412,7 @@ function ExpensesFinanceSection({
           )}
         </div>
       ) : filteredExpenses.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
+        <div className="rounded-xl border border-dashed border-border bg-background p-8 text-center">
           <Search className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-3 text-sm font-medium">No expenses match these filters.</p>
           <p className="mt-1 text-sm text-muted-foreground">Try a different search, category, or date range.</p>
@@ -4425,7 +4425,7 @@ function ExpensesFinanceSection({
             ))}
           </div>
 
-          <div className="hidden overflow-x-auto rounded-2xl border border-border/80 bg-background shadow-sm md:block">
+          <div className="hidden overflow-x-auto rounded-xl border border-border/80 bg-background md:block">
             <Table className="min-w-[1040px]">
               <TableHeader>
                 <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
@@ -4493,9 +4493,9 @@ function GrossNetSummaryCard({ icon: Icon, label, value, helper, tone }) {
     amber: 'text-amber-700',
   }
   return (
-    <div className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
+    <div className="rounded-xl border border-border/80 bg-background p-4">
       <div className="flex items-center gap-3">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${tones[tone] || tones.emerald}`}>
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${tones[tone] || tones.emerald}`}>
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
@@ -4516,7 +4516,7 @@ function AmountBasisBadge({ basis, compact = false }) {
       ? 'border-blue-200 bg-blue-50 text-blue-700'
       : 'border-slate-200 bg-slate-50 text-slate-700'
   return (
-    <Badge variant="outline" className={`max-w-full shrink-0 rounded-full ${compact ? 'px-2 py-0.5 text-[11px]' : ''} ${className}`}>
+    <Badge variant="outline" className={`max-w-full shrink-0 rounded-full ${compact ? 'px-2 py-0.5 text-xs' : ''} ${className}`}>
       {getExpenseBasisLabel(normalized)}
     </Badge>
   )
@@ -4560,7 +4560,7 @@ function ExpenseMobileCard({ expense, isAdmin, onView, onEdit, onDelete }) {
   const basisLabel = getExpenseBasisLabel(expense.amountBasis)
   const percentLabel = formatExpensePercent(expense.percentage)
   return (
-    <div className="rounded-2xl border border-border/80 bg-background p-3.5 shadow-sm sm:p-4">
+    <div className="rounded-xl border border-border/80 bg-background p-3.5 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="break-words text-base font-semibold text-foreground">{expense.description || '-'}</p>
@@ -4771,9 +4771,9 @@ function BillsInvoicesSection({
   return (
     <>
       <div className="space-y-5">
-        <div className="flex flex-col gap-4 rounded-2xl border border-border/80 bg-background p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:p-5">
+        <div className="flex flex-col gap-4 rounded-xl border border-border/80 bg-background p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
               <Receipt className="h-6 w-6" />
             </div>
             <div>
@@ -4782,7 +4782,7 @@ function BillsInvoicesSection({
             </div>
           </div>
           {isAdmin && (
-            <Button className="h-10 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={openAddBill}>
+            <Button className="h-10 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={openAddBill}>
               <Plus className="h-4 w-4" /> {addLabel}
             </Button>
           )}
@@ -4794,7 +4794,7 @@ function BillsInvoicesSection({
           ))}
         </div>
 
-        <div className="rounded-2xl border border-border/80 bg-background p-3 shadow-sm md:p-4">
+        <div className="rounded-xl border border-border/80 bg-background p-3 md:p-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -4814,8 +4814,8 @@ function BillsInvoicesSection({
         </div>
 
         {bills.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+          <div className="rounded-xl border border-dashed border-border bg-background p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
               <Receipt className="h-7 w-7" />
             </div>
             <p className="mt-4 text-base font-semibold text-foreground">{emptyTitle}</p>
@@ -4829,7 +4829,7 @@ function BillsInvoicesSection({
             )}
           </div>
         ) : filteredBills.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
+          <div className="rounded-xl border border-dashed border-border bg-background p-8 text-center">
             <Search className="mx-auto h-8 w-8 text-muted-foreground" />
             <p className="mt-3 text-sm font-medium">No bills match these filters.</p>
             <p className="mt-1 text-sm text-muted-foreground">Try a different bill number, type, status, or date range.</p>
@@ -4842,7 +4842,7 @@ function BillsInvoicesSection({
               ))}
             </div>
 
-            <div className="hidden overflow-hidden rounded-2xl border border-border/80 bg-background shadow-sm md:block">
+            <div className="hidden overflow-hidden rounded-xl border border-border/80 bg-background md:block">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
@@ -5008,7 +5008,7 @@ function BillInvoiceStatusBadge({ status }) {
 function BillsMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
   const amounts = getBillAmounts(bill)
   return (
-    <div className="rounded-2xl border border-border/80 bg-background p-3.5 shadow-sm sm:p-4">
+    <div className="rounded-xl border border-border/80 bg-background p-3.5 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-mono text-base font-semibold text-emerald-700">{getBillTitle(bill, '-')}</p>
@@ -5215,9 +5215,9 @@ function RABillsSection({
   return (
     <>
       <div className="space-y-5">
-        <div className="flex flex-col gap-4 rounded-2xl border border-border/80 bg-background p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:p-5">
+        <div className="flex flex-col gap-4 rounded-xl border border-border/80 bg-background p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
               <FileText className="h-6 w-6" />
             </div>
             <div>
@@ -5226,7 +5226,7 @@ function RABillsSection({
             </div>
           </div>
           {isAdmin && (
-            <Button className="h-10 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={openAddRaBill}>
+            <Button className="h-10 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:h-11 sm:w-auto" onClick={openAddRaBill}>
               <Plus className="h-4 w-4" /> {addLabel}
             </Button>
           )}
@@ -5238,7 +5238,7 @@ function RABillsSection({
           ))}
         </div>
 
-        <div className="rounded-2xl border border-border/80 bg-background p-3 shadow-sm md:p-4">
+        <div className="rounded-xl border border-border/80 bg-background p-3 md:p-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.4fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] lg:items-end">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -5257,8 +5257,8 @@ function RABillsSection({
         </div>
 
         {bills.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+          <div className="rounded-xl border border-dashed border-border bg-background p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
               <FileText className="h-7 w-7" />
             </div>
             <p className="mt-4 text-base font-semibold text-foreground">{emptyTitle}</p>
@@ -5272,7 +5272,7 @@ function RABillsSection({
             )}
           </div>
         ) : filteredRaBills.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-background p-8 text-center shadow-sm">
+          <div className="rounded-xl border border-dashed border-border bg-background p-8 text-center">
             <Search className="mx-auto h-8 w-8 text-muted-foreground" />
             <p className="mt-3 text-sm font-medium">No RA bills match these filters.</p>
             <p className="mt-1 text-sm text-muted-foreground">Try a different RA bill number, status, or date range.</p>
@@ -5285,7 +5285,7 @@ function RABillsSection({
               ))}
             </div>
 
-            <div className="hidden overflow-hidden rounded-2xl border border-border/80 bg-background shadow-sm md:block">
+            <div className="hidden overflow-hidden rounded-xl border border-border/80 bg-background md:block">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
@@ -5366,7 +5366,7 @@ function RABillsSection({
 function RABillMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
   const amounts = getBillAmounts(bill)
   return (
-    <div className="rounded-2xl border border-border/80 bg-background p-3.5 shadow-sm sm:p-4">
+    <div className="rounded-xl border border-border/80 bg-background p-3.5 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-mono text-base font-semibold text-emerald-700">{getBillTitle(bill, '-')}</p>
@@ -5495,7 +5495,7 @@ function LegacyBillFinanceSection({
             ))}
           </div>
 
-          <Card className="hidden overflow-hidden rounded-xl shadow-sm md:block">
+          <Card className="hidden overflow-hidden rounded-xl md:block">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -5582,7 +5582,7 @@ function MobileBillCard({ bill, isAdmin, onUpdate, onRemove, dateKey, paidDateKe
   const typeId = useId()
   const statusId = useId()
   return (
-    <Card className="rounded-xl shadow-sm">
+    <Card className="rounded-xl">
       <CardContent className="space-y-3 p-3.5 md:p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -5741,7 +5741,7 @@ function DocumentsManager({
 
   return (
     <>
-    <Card className="rounded-xl border-border/80 shadow-sm">
+    <Card className="rounded-xl border-border/80">
       <CardHeader className="p-3.5 pb-3.5 md:p-6 md:pb-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
@@ -5753,7 +5753,7 @@ function DocumentsManager({
             </p>
           </div>
           {isAdmin && (
-            <Button onClick={handleAddDocument} className="h-10 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 md:w-auto">
+            <Button onClick={handleAddDocument} className="h-10 w-full bg-emerald-600 text-white hover:bg-emerald-700 md:w-auto">
               <Plus className="h-4 w-4" /> Upload Document
             </Button>
           )}
@@ -5782,7 +5782,7 @@ function DocumentsManager({
                   onClick={() => setDocumentTypeFilter(type)}
                   className={`h-9 flex-shrink-0 rounded-full border px-3 text-sm font-medium transition-colors ${
                     documentTypeFilter === type
-                      ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                      ? 'border-emerald-600 bg-emerald-600 text-white'
                       : 'border-border bg-background text-muted-foreground hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
                   }`}
                 >
@@ -5795,7 +5795,7 @@ function DocumentsManager({
 
         {documents.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-muted/10 p-8 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
               <FolderOpen className="h-7 w-7" />
             </div>
             <p className="mt-4 text-base font-semibold text-foreground">No documents uploaded yet.</p>
@@ -5951,14 +5951,14 @@ function DocumentCard({ item, isAdmin, onDelete, tenderName, onEdit }) {
   const date = item.uploadedAt || item.addedAt
 
   return (
-    <Card className="min-w-0 self-start overflow-hidden rounded-xl border-border/80 shadow-sm transition hover:shadow-md">
+    <Card className="min-w-0 self-start overflow-hidden rounded-xl border-border/80 transition hover:shadow-md">
       <CardContent className="min-w-0 space-y-3 p-3.5 md:space-y-4 md:p-4">
         <div className="aspect-[16/10] overflow-hidden rounded-xl border border-border/80 bg-muted/30">
           {isImage ? (
             <img src={item.url} alt={title} className="h-full w-full object-cover" loading="lazy" />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background shadow-sm sm:h-14 sm:w-14">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-background sm:h-14 sm:w-14">
                 <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
               </div>
               <DocumentKindBadge kind={kind} />
@@ -6060,7 +6060,7 @@ function MobileBillAmount({ label, value, tone }) {
         : 'text-foreground'
   return (
     <div>
-      <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">{label}</p>
+      <p className="text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">{label}</p>
       <p className={`mt-1 font-mono text-sm font-semibold tabular-nums ${toneClass}`}>{formatCurrency(value)}</p>
     </div>
   )

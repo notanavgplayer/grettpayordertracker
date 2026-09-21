@@ -351,7 +351,7 @@ export default function DataHealth() {
         <SummaryCard icon={CheckCircle2} label="Clean Records" value={summary.cleanRecords} tone="green" className="col-span-2 lg:col-span-1" />
       </div>
 
-      <Card className="rounded-xl border-border/80 shadow-sm">
+      <Card className="rounded-xl border-border/80">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <DatabaseZap size={18} className="text-emerald-600" />
@@ -461,7 +461,7 @@ function IssueRow({ issue, repairing, onRepair }) {
 function IssueCard({ issue, repairing, onRepair }) {
   const MetaIcon = SEVERITY_META[issue.severity]?.icon || FileText
   return (
-    <Card className="rounded-xl border-border/80 shadow-sm">
+    <Card className="rounded-xl border-border/80">
       <CardContent className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">

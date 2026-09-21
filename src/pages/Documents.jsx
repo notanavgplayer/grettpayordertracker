@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   Calendar, Download, ExternalLink, Eye, FileArchive, FileSpreadsheet, FileText,
   FileType, FolderOpen, Grid2X2, Image as ImageIcon, List, Pencil, Plus, Search,
-  Trash2, Upload, X,
+  Trash2, Upload, X, MoreHorizontal,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
@@ -28,6 +28,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 const TYPE_FILTERS = ['All', 'Image', 'PDF', 'Excel', 'Word', 'Other']
 const DOCUMENT_CATEGORIES = [
@@ -344,7 +345,7 @@ function DocumentPreview({ document, imageFailed, setImageFailed }) {
         />
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground sm:gap-2.5">
-          <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm sm:h-14 sm:w-14 ${getKindIconClass(document.kind)}`}>
+          <div className={`flex h-12 w-12 items-center justify-center rounded-xl sm:h-14 sm:w-14 ${getKindIconClass(document.kind)}`}>
             <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
           <DocumentBadge className={getKindBadgeClass(document.kind)}>{document.kind}</DocumentBadge>
@@ -357,7 +358,7 @@ function DocumentPreview({ document, imageFailed, setImageFailed }) {
 function DocumentCard({ document, isAdmin, onPreview, onEdit, onDelete }) {
   const [imageFailed, setImageFailed] = useState(false)
   return (
-    <Card className="min-w-0 self-start overflow-hidden rounded-xl border bg-card shadow-sm transition hover:border-emerald-200 hover:shadow-md dark:hover:border-emerald-900">
+    <Card className="min-w-0 self-start overflow-hidden rounded-xl border bg-card transition hover:border-emerald-200 hover:shadow-md dark:hover:border-emerald-900">
       <CardContent className="min-w-0 space-y-2.5 p-3 sm:space-y-3 sm:p-3.5">
         <DocumentPreview document={document} imageFailed={imageFailed} setImageFailed={setImageFailed} />
         <div className="min-w-0 space-y-1.5 sm:space-y-2">
@@ -372,11 +373,11 @@ function DocumentCard({ document, isAdmin, onPreview, onEdit, onDelete }) {
             <Link to={`/tenders/${document.tenderId}`} className="block truncate font-medium text-foreground hover:text-emerald-700" title={document.tenderName}>
               {document.tenderName}
             </Link>
-            <p className="truncate text-[11px] text-muted-foreground" title={document.tenderNit || document.tenderAgency}>
+            <p className="truncate text-xs text-muted-foreground" title={document.tenderNit || document.tenderAgency}>
               {document.tenderNit || document.tenderAgency || 'Linked tender'}
             </p>
           </div>
-          <div className="flex items-center justify-between gap-2 border-t border-border/70 pt-1.5 text-[11px] text-muted-foreground sm:gap-3 sm:pt-2">
+          <div className="flex items-center justify-between gap-2 border-t border-border/70 pt-1.5 text-xs text-muted-foreground sm:gap-3 sm:pt-2">
             <span className="inline-flex min-w-0 items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
               <span className="truncate">{formatSafeDate(document.uploadedAt)}</span>
@@ -392,34 +393,29 @@ function DocumentCard({ document, isAdmin, onPreview, onEdit, onDelete }) {
 
 function DocumentActions({ document, isAdmin, onPreview, onEdit, onDelete }) {
   return (
-    <div className="grid grid-cols-4 overflow-hidden rounded-lg border border-border/80 bg-background">
-      <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80 px-2" onClick={() => onPreview(document)} aria-label="Preview document">
-        <Eye className="h-3.5 w-3.5" />
+    <div className="flex items-center gap-2 border-t border-border/70 pt-3">
+      <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => onPreview(document)}>
+        <Eye className="h-4 w-4" /> Preview
       </Button>
-      {document.url ? (
-        <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80 px-2" asChild>
-          <a href={document.url} download={document.fileName || document.title} aria-label="Download document">
-            <Download className="h-3.5 w-3.5" />
-          </a>
-        </Button>
-      ) : (
-        <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80 px-2" disabled aria-label="Download unavailable">
-          <Download className="h-3.5 w-3.5" />
-        </Button>
-      )}
-      <Button type="button" variant="ghost" className="h-9 rounded-none border-r border-border/80 px-2" onClick={() => onEdit(document)} disabled={!isAdmin} aria-label="Edit document">
-        <Pencil className="h-3.5 w-3.5" />
-      </Button>
-      <Button type="button" variant="ghost" className="h-9 rounded-none px-2 text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => onDelete(document)} disabled={!isAdmin} aria-label="Delete document">
-        <Trash2 className="h-3.5 w-3.5" />
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="More document actions"><MoreHorizontal className="h-4 w-4" /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem asChild disabled={!document.url}>
+            <a href={document.url || undefined} download={document.fileName || document.title}><Download /> Download</a>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onEdit(document)} disabled={!isAdmin}><Pencil /> Edit details</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onDelete(document)} disabled={!isAdmin} className="text-destructive focus:text-destructive"><Trash2 /> Delete</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }
 
 function DocumentsTable({ documents, isAdmin, onPreview, onEdit, onDelete }) {
   return (
-    <Card className="hidden overflow-hidden rounded-xl border bg-card shadow-sm lg:block">
+    <Card className="hidden overflow-hidden rounded-xl border bg-card lg:block">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] text-sm">
           <thead className="bg-muted/35 text-xs uppercase text-muted-foreground">
@@ -715,28 +711,38 @@ export default function Documents() {
         title="Documents"
         description="Manage tender documents, images, BOQs, work orders, letters, drawings, and supporting records across all projects."
         actions={(
-          <Button onClick={openAddDocument} disabled={!isAdmin} className="h-11 w-full gap-2 rounded-lg bg-emerald-600 px-4 text-white shadow-sm hover:bg-emerald-700 sm:w-auto">
+          <Button onClick={openAddDocument} disabled={!isAdmin} className="h-11 w-full gap-2 rounded-lg bg-emerald-600 px-4 text-white hover:bg-emerald-700 sm:w-auto">
             <Plus className="h-4 w-4" /> Upload Document
           </Button>
         )}
       />
 
-      <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={FolderOpen} label="Total Documents" value={stats.total} helper="All tenders" />
         <StatCard icon={ImageIcon} label="Images" value={stats.images} helper={stats.total ? `${Math.round((stats.images / stats.total) * 100)}% of total` : 'No images yet'} tone="blue" />
         <StatCard icon={FileText} label="PDFs" value={stats.pdfs} helper={stats.total ? `${Math.round((stats.pdfs / stats.total) * 100)}% of total` : 'No PDFs yet'} tone="rose" />
         <StatCard icon={FolderOpen} label="Linked Tenders" value={stats.linkedTenders} helper="Across all documents" tone="violet" />
-        <StatCard icon={Upload} label="Recent Uploads" value={stats.recent} helper="Last 30 days" tone="amber" />
       </div>
 
-      <Card className="rounded-xl border bg-card shadow-sm">
+      <Card className="rounded-xl border bg-card">
         <CardContent className="space-y-3 p-3.5 sm:p-4">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.35fr)_minmax(132px,.75fr)_minmax(150px,.85fr)_minmax(180px,1fr)_minmax(138px,.7fr)_minmax(138px,.7fr)] 2xl:grid-cols-[minmax(260px,1.4fr)_minmax(135px,.72fr)_minmax(160px,.8fr)_minmax(220px,1fr)_minmax(140px,.65fr)_minmax(140px,.65fr)_auto_auto] 2xl:items-end">
+          <div className="grid gap-3 md:grid-cols-[minmax(240px,1fr)_minmax(150px,220px)_auto] md:items-end">
             <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input aria-label="Search documents" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search documents..." className="h-10 pl-9" />
             </div>
             <FilterSelect label="File Type" value={typeFilter} onValueChange={setTypeFilter} options={TYPE_FILTERS} />
+            <Button type="button" variant="outline" className="h-10 w-full gap-2 whitespace-nowrap md:w-auto" onClick={() => exportDocumentsCSV(filteredDocuments)}>
+              <Download className="h-4 w-4" /> Export CSV
+            </Button>
+          </div>
+          <details className="group rounded-lg border border-border/70 bg-muted/15">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-medium text-foreground marker:hidden">
+              <span>More filters</span>
+              <span className="text-xs font-normal text-muted-foreground group-open:hidden">Category, tender, and date</span>
+              <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">Hide filters</span>
+            </summary>
+            <div className="grid gap-3 border-t border-border/70 p-3 md:grid-cols-2 xl:grid-cols-4">
             <FilterSelect label="Category" value={categoryFilter} onValueChange={setCategoryFilter} options={categories} />
             <FilterSelect
               label="Tender / Project"
@@ -747,13 +753,11 @@ export default function Documents() {
             />
             <DateField label="Date From" value={dateFrom} onChange={setDateFrom} />
             <DateField label="Date To" value={dateTo} onChange={setDateTo} />
-            <Button type="button" variant="outline" className="h-10 w-full gap-2 whitespace-nowrap 2xl:w-auto" onClick={resetFilters} disabled={!hasFilters}>
+            <Button type="button" variant="outline" className="h-10 w-full gap-2 whitespace-nowrap md:w-auto" onClick={resetFilters} disabled={!hasFilters}>
               <X className="h-4 w-4" /> Clear
             </Button>
-            <Button type="button" variant="outline" className="h-10 w-full gap-2 whitespace-nowrap 2xl:w-auto" onClick={() => exportDocumentsCSV(filteredDocuments)}>
-              <Download className="h-4 w-4" /> Export CSV
-            </Button>
-          </div>
+            </div>
+          </details>
           <div className="flex flex-col gap-2 border-t border-border/70 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">Showing {filteredDocuments.length} of {documents.length} documents</p>
             <div className="inline-flex w-fit overflow-hidden rounded-lg border border-border/80 bg-background">
@@ -780,7 +784,7 @@ export default function Documents() {
         <EmptyDocuments isAdmin={isAdmin} onAdd={openAddDocument} />
       ) : filteredDocuments.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-muted/10 px-4 py-10 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 dark:bg-slate-900/60 dark:text-slate-300">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-900/60 dark:text-slate-300">
             <FolderOpen className="h-7 w-7" />
           </div>
           <p className="mt-4 text-base font-semibold text-foreground">No matching documents</p>
@@ -945,7 +949,7 @@ function DateField({ label, value, onChange }) {
 function EmptyDocuments({ isAdmin, onAdd }) {
   return (
     <div className="rounded-xl border border-dashed border-border bg-muted/10 px-4 py-10 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
         <FolderOpen className="h-7 w-7" />
       </div>
       <p className="mt-4 text-base font-semibold text-foreground">No documents uploaded yet</p>

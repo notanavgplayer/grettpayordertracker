@@ -52,6 +52,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const breadcrumbs = getPageBreadcrumbs(location.pathname)
+  const mobilePageTitle = breadcrumbs?.at(-1)?.label || (location.pathname.startsWith('/tenders/') ? 'Tender details' : 'Pay Order Tracker')
 
   useEffect(() => {
     try { localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0') } catch {}
@@ -125,8 +126,8 @@ export default function Layout({ children }) {
                 </svg>
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold leading-tight">Grett Engineering Solutions</p>
-                <p className="truncate text-xs text-muted-foreground">Pay Order Tracker</p>
+                <p className="truncate text-sm font-semibold leading-tight">{mobilePageTitle}</p>
+                <p className="truncate text-xs text-muted-foreground">Grett Engineering Solutions</p>
               </div>
             </div>
 
@@ -167,7 +168,7 @@ export default function Layout({ children }) {
             id="main" tabIndex={-1}
             className="flex-1 overflow-y-auto overscroll-contain scrollbar-thin outline-none"
           >
-            <div className="mx-auto w-full px-4 py-4 lg:px-6 lg:py-6">
+            <div className="page-shell px-4 py-4 lg:px-6 lg:py-6">
               {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
               {children}
             </div>

@@ -251,7 +251,7 @@ export default function ActivityPage() {
         <ActivitySummaryCard icon={WalletCards} label="Pay Order Updates" value={stats.payOrders} helper="Within loaded history" tone="green" />
       </div>
 
-      <Card className="rounded-xl shadow-sm">
+      <Card className="rounded-xl">
         <CardHeader className="border-b p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -268,7 +268,7 @@ export default function ActivityPage() {
                   onClick={() => setFilter(option)}
                   className={`h-9 shrink-0 rounded-full px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     filter === option
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
                   }`}
                   aria-pressed={filter === option}
@@ -331,7 +331,7 @@ function ActivitySummaryCard({ icon: Icon, label, value, helper, tone }) {
   };
 
   return (
-    <Card className={`rounded-xl shadow-sm ${toneClasses[tone] || toneClasses.emerald}`}>
+    <Card className={`rounded-xl ${toneClasses[tone] || toneClasses.emerald}`}>
       <CardContent className="flex items-center gap-3 p-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/70 dark:bg-background/30">
           <Icon className="h-5 w-5" />
@@ -356,13 +356,13 @@ function TimelineItem({ log }) {
 
   return (
     <article className="relative pl-12">
-      <div className="absolute left-0 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full border bg-background shadow-sm" aria-hidden="true">
+      <div className="absolute left-0 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full border bg-background" aria-hidden="true">
         <span className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full ring-2 ring-background ${actionMeta.dot}`}>
           <ActionIcon className="h-2.5 w-2.5 text-white" />
         </span>
         <TypeIcon className="h-4 w-4 text-muted-foreground" />
       </div>
-      <div className="rounded-xl border bg-card p-3.5 shadow-sm transition-colors hover:bg-accent/30">
+      <div className="rounded-xl border bg-card p-3.5 transition-colors hover:bg-accent/30">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">

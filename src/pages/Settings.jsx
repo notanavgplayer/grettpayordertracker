@@ -107,10 +107,10 @@ export default function Settings() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 sm:space-y-6">
-      <PageHeader title="Settings" description="Manage account, preferences, users, and app configuration" />
+    <div className="page-shell-compact grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2">
+      <PageHeader className="lg:col-span-2" title="Settings" description="Manage account, preferences, users, and app configuration" />
 
-      <Card className="rounded-xl border-border/80 bg-card shadow-sm">
+      <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
           <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4 text-emerald-600" /> Account</CardTitle>
           <CardDescription>Update your profile details and account identity.</CardDescription>
@@ -155,7 +155,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-xl border-border/80 bg-card shadow-sm">
+      <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
           <CardTitle className="text-base">Change Password</CardTitle>
           <CardDescription>Keep your account secure with a strong password.</CardDescription>
@@ -212,7 +212,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-xl border-border/80 bg-card shadow-sm">
+      <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
           <CardTitle className="text-base">Appearance</CardTitle>
           <CardDescription>Choose the visual theme for your workspace.</CardDescription>
@@ -234,7 +234,7 @@ export default function Settings() {
       </Card>
 
       {isAdmin && (
-        <Card className="rounded-xl border-border/80 bg-card shadow-sm">
+        <Card className="rounded-xl border-border/80 bg-card">
           <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
             <CardTitle className="flex items-center gap-2 text-base"><Download className="h-4 w-4 text-emerald-600" /> Data Backup</CardTitle>
             <CardDescription>Export Firestore business records and a storage-file manifest. File contents and user accounts are not included.</CardDescription>
@@ -249,7 +249,7 @@ export default function Settings() {
       )}
 
       {isAdmin && (
-        <Card className="rounded-xl border-border/80 bg-card shadow-sm">
+        <Card className="rounded-xl border-border/80 bg-card lg:col-span-2">
           <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
             <CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-emerald-600" /> User Management</CardTitle>
             <CardDescription>Manage roles for all users in the system</CardDescription>
@@ -260,7 +260,7 @@ export default function Settings() {
             ) : (
               <div className="space-y-3">
                 {users.map((u) => (
-                  <div key={u.id} className="rounded-xl border border-border/80 bg-background p-3.5 shadow-sm sm:p-4">
+                  <div key={u.id} className="rounded-xl border border-border/80 bg-background p-3.5 sm:p-4">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarFallback className="bg-emerald-100 text-xs font-semibold text-emerald-700">{getInitials(u.displayName || u.email || '')}</AvatarFallback>

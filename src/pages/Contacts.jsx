@@ -6,6 +6,7 @@ import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import LoadState from '@/components/shared/LoadState'
+import { PageTableSkeleton } from '@/components/shared/LoadingSkeletons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,7 +15,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   Plus,
@@ -151,7 +152,7 @@ export default function Contacts() {
 
   const setF = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
 
-  if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+  if (loading) return <PageTableSkeleton rows={7} cols={5} metrics={4} />
   if (error) return <LoadState title="Could not load contacts" error={error} />
 
   return (
@@ -160,28 +161,27 @@ export default function Contacts() {
         title="Contacts"
         description="Manage agencies, vendors, banks, and project contacts"
         actions={isAdmin && (
-          <Button onClick={() => openDialog()} className="bg-emerald-600 text-white shadow-sm hover:bg-emerald-700">
+          <Button onClick={() => openDialog()} className="bg-emerald-600 text-white hover:bg-emerald-700">
             <Plus className="h-4 w-4" /> Add Contact
           </Button>
         )}
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <SummaryCard icon={Users} label="Total Contacts" value={stats.total} tone="emerald" />
         <SummaryCard icon={Building2} label="Agencies" value={stats.agencies} tone="green" />
         <SummaryCard icon={Briefcase} label="Vendors" value={stats.vendors} tone="blue" />
         <SummaryCard icon={Landmark} label="Banks" value={stats.banks} tone="amber" />
-        <SummaryCard icon={UserRound} label="Recent Contacts" value={stats.recent} tone="purple" className="col-span-2 lg:col-span-1" />
       </div>
 
-      <Card className="border-border/80 shadow-sm">
+      <Card className="border-border/80">
         <CardContent className="space-y-4 p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search contacts..."
-                className="h-11 pl-9"
+                className="h-10 pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -206,7 +206,7 @@ export default function Contacts() {
                 onClick={() => setTypeFilter(type)}
                 className={`h-9 flex-shrink-0 rounded-full border px-3 text-sm font-medium transition-colors ${
                   typeFilter === type
-                    ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
                     : 'border-border bg-background text-muted-foreground hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
                 }`}
               >
@@ -247,7 +247,7 @@ export default function Contacts() {
 
           {selected && (
             <div className="lg:col-span-1">
-              <Card className="sticky top-4 border-border/80 shadow-sm">
+              <Card className="sticky top-4 border-border/80">
                 <CardContent className="p-5">
                   <div className="mb-5 flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
@@ -306,10 +306,13 @@ export default function Contacts() {
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editItem ? 'Edit Contact' : 'New Contact'}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
+      <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
+        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+          <SheetHeader className="border-b px-4 py-4 text-left sm:px-6">
+            <SheetTitle>{editItem ? 'Edit Contact' : 'New Contact'}</SheetTitle>
+            <SheetDescription>Keep contact details and communication information together.</SheetDescription>
+          </SheetHeader>
+          <div className="grid flex-1 grid-cols-1 gap-4 overflow-y-auto px-4 py-5 sm:grid-cols-2 sm:px-6">
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="contact-name">Full Name *</Label>
               <Input id="contact-name" value={form.name} onChange={setF('name')} placeholder="e.g. Ahmed Khan" required aria-invalid={!form.name} />
@@ -350,15 +353,15 @@ export default function Contacts() {
               <Textarea id="contact-notes" value={form.notes} onChange={setF('notes')} rows={3} />
             </div>
           </div>
-          <DialogFooter>
+          <SheetFooter className="border-t bg-background px-4 py-4 sm:px-6">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editItem ? 'Save Changes' : 'Add Contact'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={async () => { await remove(deleteId); toast.success('Contact deleted'); setSelected(null); setDeleteId(null) }} title="Delete contact" description="This will permanently delete this contact." />
     </div>
@@ -375,7 +378,7 @@ function SummaryCard({ icon: Icon, label, value, tone, className = '' }) {
   }
 
   return (
-    <Card className={`border-border/80 shadow-sm ${className}`}>
+    <Card className={`border-border/80 ${className}`}>
       <CardContent className="flex items-center gap-3 p-4">
         <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${tones[tone] || tones.emerald}`}>
           <Icon className="h-5 w-5" />
@@ -402,7 +405,7 @@ function TypeBadge({ contact }) {
 
 function ContactTable({ contacts, selected, isAdmin, onSelect, onEdit, onDelete }) {
   return (
-    <Card className="hidden overflow-hidden border-border/80 shadow-sm md:block">
+    <Card className="hidden overflow-hidden border-border/80 md:block">
       <Table>
         <TableHeader className="bg-muted/40">
           <TableRow>
@@ -471,7 +474,7 @@ function MobileContactCards({ contacts, selected, isAdmin, onSelect, onEdit, onD
           key={contact.id}
           role="button"
           tabIndex={0}
-          className={`border-border/80 shadow-sm transition hover:shadow-md ${selected?.id === contact.id ? 'ring-2 ring-emerald-500' : ''}`}
+          className={`border-border/80 transition hover:shadow-md ${selected?.id === contact.id ? 'ring-2 ring-emerald-500' : ''}`}
           onClick={() => onSelect(contact)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {

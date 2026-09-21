@@ -87,7 +87,7 @@ export default function Login() {
             <h1 className="text-base font-semibold tracking-tight text-foreground">
               Grett Engineering Solutions
             </h1>
-            <p className="mt-0.5 text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+            <p className="mt-0.5 text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground">
               Pay Order Tracker
             </p>
           </div>

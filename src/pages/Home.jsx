@@ -198,8 +198,8 @@ function AttentionItem({ icon: Icon, type, title, description, dueDate, status, 
       </span>
       <span className="min-w-0 flex-1">
         <span className="mb-1 flex flex-wrap items-center gap-2">
-          {type && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{type}</span>}
-          {priority && <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', priorityClass)}>{priority}</span>}
+          {type && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{type}</span>}
+          {priority && <span className={cn('rounded-full border px-2 py-0.5 text-xs font-semibold', priorityClass)}>{priority}</span>}
         </span>
         <span className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{title}</span>
         {description && <span className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{description}</span>}
@@ -219,7 +219,7 @@ function AttentionItem({ icon: Icon, type, title, description, dueDate, status, 
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full min-w-0 items-start gap-3 rounded-xl border bg-background p-3.5 text-left shadow-sm transition-colors hover:border-emerald-200 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="flex w-full min-w-0 items-start gap-3 rounded-xl border bg-background p-3.5 text-left transition-colors hover:border-emerald-200 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         {content}
       </button>
@@ -227,7 +227,7 @@ function AttentionItem({ icon: Icon, type, title, description, dueDate, status, 
   }
 
   return (
-    <div className="flex min-w-0 items-start gap-3 rounded-xl border bg-background p-3.5 shadow-sm">
+    <div className="flex min-w-0 items-start gap-3 rounded-xl border bg-background p-3.5">
       {content}
     </div>
   )
@@ -617,11 +617,11 @@ export default function Home() {
   ]
 
   return (
-    <div className="space-y-5 lg:space-y-6">
-      <section className="rounded-2xl border bg-card p-4 shadow-sm sm:p-5 lg:p-6">
+    <div className="space-y-6">
+      <section className="rounded-xl border bg-card p-4 sm:p-5 lg:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Daily Control Center</p>
+            <p className="text-xs font-semibold text-emerald-700">Daily control center</p>
             <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-[32px]">
               Dashboard
             </h1>
@@ -648,7 +648,7 @@ export default function Home() {
       </section>
 
       {urgentAlerts.length > 0 && !alertDismissed && (
-        <section className="relative overflow-hidden rounded-2xl border border-amber-300/70 bg-amber-50/70 p-4 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/20 sm:p-5">
+        <section className="relative overflow-hidden rounded-xl border border-amber-300/70 bg-amber-50/70 p-4 dark:border-amber-900/70 dark:bg-amber-950/20 sm:p-5">
           <button
             onClick={() => setAlertDismissed(true)}
             aria-label="Dismiss urgent deadline alerts"
@@ -685,7 +685,7 @@ export default function Home() {
                   <Link
                     key={t.id}
                     to={`/tenders/${t.id}`}
-                    className="flex min-w-0 items-start gap-3 rounded-xl border border-amber-200/80 bg-white/85 p-3.5 shadow-sm transition-colors hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:border-amber-900/60 dark:bg-background/70 dark:hover:bg-amber-950/30"
+                    className="flex min-w-0 items-start gap-3 rounded-xl border border-amber-200/80 bg-white/85 p-3.5 transition-colors hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:border-amber-900/60 dark:bg-background/70 dark:hover:bg-amber-950/30"
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-sm font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                       {index + 1}
@@ -723,17 +723,15 @@ export default function Home() {
         </section>
       )}
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-6">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         <DashboardMetric icon={FileStack} title="Active Tenders" value={activeTenders.length} href="/tenders" tone="primary" helper="Open pipeline" trend={activeTenders.length > 0 ? String(activeTenders.length) : null} trendPositive={activeTenders.length > 0} />
         <DashboardMetric icon={Clock} title="Due Soon" value={dueSoonCount} href="/calendar" tone={dueSoonCount > 0 ? 'warning' : 'success'} helper="Next 7 days" trend={dueSoonCount === 0 ? 'Clear' : String(dueSoonCount)} trendPositive={dueSoonCount === 0} />
         <DashboardMetric icon={Landmark} title="Pay Orders" value={payOrders.length} href="/pay-orders" tone="info" helper={`${atRisk.length} need action`} trend={atRisk.length > 0 ? String(atRisk.length) : '0'} trendPositive={atRisk.length === 0} />
         <DashboardMetric icon={Banknote} title="Receivables" value={formatCurrency(receivable)} href="/tenders" tone="info" helper="Won tenders" trendPositive={receivable === 0} />
-        <DashboardMetric icon={ReceiptText} title="Expenses" value={formatCurrency(totalExpenses)} href="/expenses" tone={totalExpenses > 0 ? 'warning' : 'success'} helper="Project expenses" trendPositive={false} />
-        <DashboardMetric icon={CheckSquare} title="Open Tasks" value={openTodos.length} href="/todo" tone="primary" helper={openTodos.length === 0 ? 'All tasks done' : 'Pending follow-ups'} trend={openTodos.length > 0 ? String(openTodos.length) : '0'} trendPositive={openTodos.length === 0} />
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-        <Card className="rounded-xl border shadow-sm">
+        <Card className="rounded-xl border">
           <CardHeader className="pb-3">
             <DashboardSectionHeader
               title="Action Required"
@@ -763,15 +761,15 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden rounded-xl border shadow-sm">
+        <Card className="overflow-hidden rounded-xl border">
           <CardHeader className="pb-3">
             <DashboardSectionHeader title="Financial Snapshot" description="Receivables, payments, expenses, and pending finance actions." />
           </CardHeader>
           <CardContent className="space-y-4 pt-0">
-            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/60 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
+            <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/60 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs font-medium tracking-normal text-emerald-700 dark:text-emerald-300 sm:font-semibold sm:uppercase sm:tracking-wide">Total Receivable</p>
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Total receivable</p>
                   <p className="mt-2 max-w-full break-words text-2xl font-semibold leading-tight text-emerald-950 [overflow-wrap:anywhere] dark:text-emerald-100 sm:text-3xl">
                     {formatCurrency(receivable)}
                   </p>
@@ -779,7 +777,7 @@ export default function Home() {
                     Received {formatCurrency(tenderFinancials.totalReceived)} against {formatCurrency(tenderFinancials.contractValue)} contract value.
                   </p>
                 </div>
-                <div className="rounded-xl border border-emerald-200 bg-white/75 px-3 py-2 text-sm font-semibold text-emerald-700 shadow-sm dark:border-emerald-900/60 dark:bg-background/60 dark:text-emerald-300">
+                <div className="rounded-xl border border-emerald-200 bg-white/75 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-background/60 dark:text-emerald-300">
                   {billingProgress === null ? '—' : `${billingProgress}% billed`}
                 </div>
               </div>
@@ -827,7 +825,7 @@ export default function Home() {
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <Card className="rounded-xl border shadow-sm xl:col-span-3">
+        <Card className="rounded-xl border xl:col-span-3">
           <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-3">
             <div>
               <CardTitle className="text-base">Tender Pipeline</CardTitle>
@@ -855,7 +853,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border shadow-sm xl:col-span-2">
+        <Card className="rounded-xl border xl:col-span-2">
           <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-3">
             <div>
               <CardTitle className="text-base">Pay Order Status</CardTitle>
@@ -898,7 +896,7 @@ export default function Home() {
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card className="overflow-hidden rounded-xl border shadow-sm">
+        <Card className="overflow-hidden rounded-xl border">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -935,7 +933,7 @@ export default function Home() {
                         key={t.id}
                         type="button"
                         onClick={() => navigate(`/tenders/${t.id}`)}
-                        className="w-full rounded-xl border bg-background p-3 text-left shadow-sm transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                        className="w-full rounded-xl border bg-background p-3 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                       >
                         <div className="flex min-w-0 items-start gap-3">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -945,7 +943,7 @@ export default function Home() {
                             <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{t.name || 'Untitled'}</p>
                             <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{t.agency || '—'}</p>
                             {(t.nit || t.ref) && (
-                              <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{t.nit || t.ref}</p>
+                              <p className="mt-1 truncate font-mono text-xs text-muted-foreground">{t.nit || t.ref}</p>
                             )}
                           </div>
                         </div>
@@ -1012,7 +1010,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden rounded-xl border shadow-sm">
+        <Card className="overflow-hidden rounded-xl border">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -1068,7 +1066,7 @@ export default function Home() {
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <Card className="rounded-xl border shadow-sm">
+        <Card className="rounded-xl border">
           <CardHeader className="pb-3">
             <DashboardSectionHeader title="Quick Links" description="Jump to important modules." />
           </CardHeader>
@@ -1079,7 +1077,7 @@ export default function Home() {
                 <Link
                   key={item.href}
                   to={item.href}
-                  className="flex min-w-0 items-center gap-3 rounded-xl border bg-background p-3 shadow-sm transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  className="flex min-w-0 items-center gap-3 rounded-xl border bg-background p-3 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
                     <Icon className="h-4 w-4" aria-hidden="true" />
@@ -1098,7 +1096,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border shadow-sm">
+        <Card className="rounded-xl border">
           <CardHeader className="pb-3">
             <DashboardSectionHeader title="Recent Activity" description="Latest tender, pay order, document, expense, bill, and site visit updates." />
           </CardHeader>
@@ -1117,7 +1115,7 @@ export default function Home() {
                     <li key={item.id}>
                       <Link
                         to={item.href}
-                        className="relative flex min-w-0 items-start gap-3 rounded-xl border bg-background p-3 shadow-sm transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                        className="relative flex min-w-0 items-start gap-3 rounded-xl border bg-background p-3 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                       >
                         <span className={cn('z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full', badgeClass)}>
                           <Icon className="h-4 w-4" aria-hidden="true" />
@@ -1125,10 +1123,10 @@ export default function Home() {
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-center gap-2">
                             <span className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{item.title}</span>
-                            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', badgeClass)}>{item.type}</span>
+                            <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', badgeClass)}>{item.type}</span>
                           </span>
                           <span className="mt-1 line-clamp-1 text-xs text-muted-foreground">{item.description}</span>
-                          <span className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                          <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                             <span>{formatDashboardDate(item.date)}</span>
                             {item.actor && <span>by {item.actor}</span>}
                           </span>

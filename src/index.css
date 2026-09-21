@@ -92,6 +92,7 @@
   }
   html {
     font-size: 14px;
+    background: oklch(var(--background));
   }
   body {
     @apply bg-background text-foreground;
@@ -171,9 +172,9 @@
   @media (min-width: 640px) {
     .expense-date-input,
     .mobile-date-input {
-      height: 2.75rem;
-      max-height: 2.75rem;
-      line-height: 2.75rem !important;
+      height: 2.5rem;
+      max-height: 2.5rem;
+      line-height: 2.5rem !important;
     }
     .expense-date-input::-webkit-date-and-time-value,
     .expense-date-input::-webkit-datetime-edit,
@@ -181,7 +182,7 @@
     .mobile-date-input::-webkit-date-and-time-value,
     .mobile-date-input::-webkit-datetime-edit,
     .mobile-date-input::-webkit-datetime-edit-fields-wrapper {
-      line-height: 2.75rem;
+      line-height: 2.5rem;
     }
   }
   .animate-fade-in {
@@ -207,5 +208,20 @@
   }
   .font-mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  .page-shell {
+    @apply mx-auto w-full max-w-[1536px];
+  }
+  .page-shell-standard {
+    @apply mx-auto w-full max-w-7xl;
+  }
+  .page-shell-compact {
+    @apply mx-auto w-full max-w-5xl;
+  }
+  .section-heading {
+    @apply font-display text-lg font-semibold leading-tight tracking-tight text-foreground;
+  }
+  .metadata-text {
+    @apply text-xs leading-5 text-muted-foreground;
   }
 }

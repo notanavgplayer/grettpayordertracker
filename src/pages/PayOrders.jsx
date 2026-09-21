@@ -674,7 +674,7 @@ export default function PayOrders() {
         actions={isAdmin && (
           <Button
             onClick={() => openDialog()}
-            className="h-10 w-full shrink-0 gap-2 rounded-lg bg-emerald-600 px-4 text-white shadow-sm hover:bg-emerald-700 sm:h-11 sm:w-auto sm:px-5"
+            className="h-10 w-full shrink-0 gap-2 rounded-lg bg-emerald-600 px-4 text-white hover:bg-emerald-700 sm:h-11 sm:w-auto sm:px-5"
           >
             <Plus className="h-4 w-4" />
             Add Pay Order
@@ -714,8 +714,14 @@ export default function PayOrders() {
 
       {/* Charts */}
       {payOrders.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <Card className="rounded-xl border bg-card shadow-sm">
+        <details className="group rounded-xl border border-border/80 bg-card">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 font-medium text-foreground marker:hidden sm:px-5">
+            <span className="inline-flex items-center gap-2"><BarChart3 className="h-4 w-4 text-muted-foreground" /> Performance insights</span>
+            <span className="text-xs font-normal text-muted-foreground group-open:hidden">Show charts</span>
+            <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">Hide charts</span>
+          </summary>
+          <div className="grid grid-cols-1 gap-4 border-t border-border/70 p-4 xl:grid-cols-2">
+          <Card className="rounded-xl border bg-card">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between gap-2 text-base">
                 <span>Status Distribution</span>
@@ -771,7 +777,7 @@ export default function PayOrders() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-          <Card className="rounded-xl border bg-card shadow-sm">
+          <Card className="rounded-xl border bg-card">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between gap-2 text-base">
                 <span>Bid Results</span>
@@ -812,7 +818,7 @@ export default function PayOrders() {
                       y="59%"
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      className="fill-muted-foreground text-[10px]"
+                      className="fill-muted-foreground text-xs"
                     >
                       Total
                     </text>
@@ -835,7 +841,8 @@ export default function PayOrders() {
               </div>
             </CardContent>
           </Card>
-        </div>
+          </div>
+        </details>
       )}
 
       <Tabs defaultValue="payorders">
@@ -1019,7 +1026,7 @@ export default function PayOrders() {
               {/* Mobile: card-per-row */}
               <div className="space-y-3 md:hidden">
                 {paginatedPayOrders.map((p) => (
-                  <Card key={p.id} className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                  <Card key={p.id} className="overflow-hidden rounded-xl border bg-card">
                     <CardContent className="space-y-3 p-3.5">
                       <div className="flex items-start gap-3">
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
@@ -1112,7 +1119,7 @@ export default function PayOrders() {
                 ))}
               </div>
 
-              <Card className="hidden overflow-hidden rounded-xl border bg-card shadow-sm md:block">
+              <Card className="hidden overflow-hidden rounded-xl border bg-card md:block">
                 <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -1205,7 +1212,7 @@ export default function PayOrders() {
                 </Table>
                 </div>
               </Card>
-              <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-3 py-3 text-sm text-muted-foreground shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-4">
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-3 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-4">
                 <span>{paginationText}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button

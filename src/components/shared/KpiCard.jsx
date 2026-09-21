@@ -28,7 +28,7 @@ export default function KpiCard({
   valueClassName,
 }) {
   return (
-    <Card className={cn("h-full overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm", className)}>
+    <Card className={cn("h-full overflow-hidden", className)}>
       <CardContent
         className={cn(
           "flex h-full min-w-0 items-start gap-3 p-4 sm:p-5",
@@ -38,7 +38,7 @@ export default function KpiCard({
         {Icon && (
           <div
             className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11",
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
               TONES[tone] || TONES.emerald,
             )}
           >
@@ -47,11 +47,11 @@ export default function KpiCard({
         )}
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-start justify-between gap-2">
-            <p className="min-w-0 break-words text-xs font-medium leading-4 tracking-normal text-muted-foreground sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-wide">
+            <p className="min-w-0 break-words text-xs font-medium leading-4 text-muted-foreground">
               {label}
             </p>
             {badge ? (
-              <span className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+              <span className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                 {badge}
               </span>
             ) : null}

@@ -55,7 +55,7 @@ export function TableSkeleton({ rows = 6, cols = 5 }) {
 /** Full-page skeleton: header + metric row + table. */
 export function PageTableSkeleton({ rows = 6, cols = 5, metrics = 4 }) {
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="page-shell space-y-6">
       <div className="space-y-2">
         <Skeleton className="h-7 w-48" />
         <Skeleton className="h-4 w-72" />

@@ -13,6 +13,7 @@ import {
   FolderOpen,
   Landmark,
   MapPin,
+  MoreHorizontal,
   Printer,
   Receipt,
   TrendingUp,
@@ -38,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -716,7 +718,7 @@ export default function Reports() {
         ))}
       </div>
 
-      <Card className="rounded-xl border bg-card shadow-sm print:hidden">
+      <Card className="rounded-xl border bg-card print:hidden">
         <CardHeader className="px-4 pb-2 pt-4 sm:px-5">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -799,7 +801,7 @@ export default function Reports() {
               return (
                 <Card
                   key={report.id}
-                  className={`rounded-xl border bg-card shadow-sm transition-all hover:border-emerald-200 hover:shadow-md dark:hover:border-emerald-900 ${
+                  className={`rounded-xl border bg-card transition-all hover:border-emerald-200 hover:shadow-md dark:hover:border-emerald-900 ${
                     isSelected ? "border-emerald-300 ring-2 ring-emerald-100 dark:border-emerald-800 dark:ring-emerald-950" : ""
                   }`}
                 >
@@ -818,16 +820,19 @@ export default function Reports() {
                         <p className="text-sm leading-snug text-muted-foreground">{report.description}</p>
                       </div>
                     </div>
-                    <div className="mt-auto grid grid-cols-1 gap-2 min-[390px]:grid-cols-2 lg:grid-cols-3">
-                      <Button variant="outline" size="sm" className="min-h-9 justify-center gap-1.5 rounded-lg px-2.5 text-sm sm:min-h-10 sm:gap-2 sm:px-3" onClick={() => previewReport(report)}>
+                    <div className="mt-auto flex items-center gap-2 border-t border-border/70 pt-3">
+                      <Button variant={isSelected ? "secondary" : "outline"} size="sm" className="flex-1 justify-center" onClick={() => previewReport(report)}>
                         <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Preview
                       </Button>
-                      <Button variant="outline" size="sm" className="min-h-9 justify-center gap-1.5 rounded-lg px-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-10 sm:gap-2 sm:px-3" onClick={() => exportReport(report)} disabled={rows.length === 0}>
-                        <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Export CSV
-                      </Button>
-                      <Button variant="outline" size="sm" className="min-h-9 justify-center gap-1.5 rounded-lg px-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-45 min-[390px]:col-span-2 sm:min-h-10 sm:gap-2 sm:px-3 lg:col-span-1" onClick={() => handlePrint(report)} disabled={rows.length === 0}>
-                        <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Print
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon-sm" aria-label={`More actions for ${report.name}`}><MoreHorizontal /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onSelect={() => exportReport(report)} disabled={rows.length === 0}><Download /> Export CSV</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handlePrint(report)} disabled={rows.length === 0}><Printer /> Print report</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </CardContent>
                 </Card>
@@ -837,7 +842,7 @@ export default function Reports() {
         </section>
       ))}
 
-      <Card id="report-preview" className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <Card id="report-preview" className="overflow-hidden rounded-xl border bg-card">
         <CardHeader className="border-b border-border bg-card/80 px-4 py-4 sm:px-5">
           <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
             <div>
@@ -846,7 +851,7 @@ export default function Reports() {
                 Previewing {selectedRows.length} {selectedRows.length === 1 ? "record" : "records"} with the current filters.
               </p>
             </div>
-            <Badge variant="outline" className="w-fit rounded-full px-2.5 py-1 text-[11px] text-muted-foreground">
+            <Badge variant="outline" className="w-fit rounded-full px-2.5 py-1 text-xs text-muted-foreground">
               Reports Preview
             </Badge>
           </div>
@@ -862,11 +867,11 @@ export default function Reports() {
             <div className="md:hidden">
               <div className="space-y-3 bg-muted/30 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
                 {selectedRows.slice(0, 25).map((row, index) => (
-                  <Card key={`${selectedReport.id}-card-${index}`} className="rounded-xl border bg-card shadow-sm">
+                  <Card key={`${selectedReport.id}-card-${index}`} className="rounded-xl border bg-card">
                     <CardContent className="space-y-2.5 p-3.5">
                       {selectedReport.columns.map((column) => (
                         <div key={column.key} className="grid grid-cols-[104px_minmax(0,1fr)] gap-3 text-sm min-[430px]:grid-cols-[124px_minmax(0,1fr)]">
-                          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{column.label}</span>
+                          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{column.label}</span>
                           <span className="min-w-0 break-words text-foreground">{safeText(row[column.key])}</span>
                         </div>
                       ))}

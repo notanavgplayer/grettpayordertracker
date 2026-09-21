@@ -207,7 +207,7 @@ export default function Todo() {
       </div>
 
       {isAdmin && (
-        <Card className="overflow-hidden rounded-xl border shadow-sm">
+        <Card className="overflow-hidden rounded-xl border">
           <CardContent className="p-3.5 sm:p-5">
             <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 2xl:grid-cols-[minmax(320px,1fr)_240px_180px_auto] 2xl:items-end">
               <div className="min-w-0 space-y-1.5 sm:space-y-2 lg:col-span-2 2xl:col-span-1">
@@ -222,7 +222,7 @@ export default function Todo() {
                     value={text}
                     onChange={(event) => setText(event.target.value)}
                     onKeyDown={(event) => event.key === "Enter" && handleAdd()}
-                    className="h-10 w-full min-w-0 rounded-xl pl-10 text-sm shadow-none sm:h-12 sm:rounded-lg"
+                    className="h-10 w-full min-w-0 rounded-lg pl-10 text-sm shadow-none sm:h-11 sm:rounded-lg"
                     aria-label="Task title"
                   />
                 </div>
@@ -230,7 +230,7 @@ export default function Todo() {
 
               <div className="min-w-0 space-y-1.5 sm:space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Priority</p>
-                <div className="grid h-10 w-full min-w-0 grid-cols-3 rounded-xl border bg-background p-1 sm:h-12 sm:rounded-lg 2xl:w-[240px]">
+                <div className="grid h-10 w-full min-w-0 grid-cols-3 rounded-lg border bg-background p-1 sm:h-11 sm:rounded-lg 2xl:w-[240px]">
                   {PRIORITIES.map((priorityOption) => (
                     <button
                       key={priorityOption}
@@ -239,7 +239,7 @@ export default function Todo() {
                       className={cn(
                         "rounded-md px-2.5 text-sm font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3",
                         priority === priorityOption
-                          ? "bg-primary text-primary-foreground shadow-sm"
+                          ? "bg-primary text-primary-foreground"
                           : "text-foreground hover:bg-accent"
                       )}
                       aria-pressed={priority === priorityOption}
@@ -259,7 +259,7 @@ export default function Todo() {
                   type="date"
                   value={dueDate}
                   onChange={(event) => setDueDate(event.target.value)}
-                  className="block h-10 w-full min-w-0 max-w-full appearance-none rounded-xl text-left text-sm shadow-none sm:h-12 sm:rounded-lg 2xl:w-[180px]"
+                  className="block h-10 w-full min-w-0 max-w-full appearance-none rounded-lg text-left text-sm shadow-none sm:h-11 sm:rounded-lg 2xl:w-[180px]"
                   aria-label="Due date"
                 />
               </div>
@@ -267,7 +267,7 @@ export default function Todo() {
               <Button
                 onClick={handleAdd}
                 disabled={adding || !text.trim()}
-                className="h-10 w-full rounded-xl bg-emerald-600 px-5 shadow-sm hover:bg-emerald-700 sm:h-12 sm:rounded-lg lg:self-end"
+                className="h-10 w-full rounded-lg bg-emerald-600 px-5 hover:bg-emerald-700 sm:h-11 sm:rounded-lg lg:self-end"
               >
                 {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Add Task
@@ -288,7 +288,7 @@ export default function Todo() {
                 filter === filterOption
                   ? filterOption === "Overdue"
                     ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
-                    : "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
               )}
               aria-pressed={filter === filterOption}
@@ -297,14 +297,14 @@ export default function Todo() {
             </button>
           ))}
         </div>
-        <div className="hidden items-center gap-2 rounded-full border bg-background px-3 py-2 text-xs text-muted-foreground shadow-sm sm:flex">
+        <div className="hidden items-center gap-2 rounded-full border bg-background px-3 py-2 text-xs text-muted-foreground sm:flex">
           <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
           Sort by: Due date
         </div>
       </div>
 
       {filtered.length === 0 ? (
-        <Card className="rounded-xl border shadow-sm">
+        <Card className="rounded-xl border">
           <CardContent className="p-8">
             <EmptyState
               icon={CheckSquare}
@@ -329,7 +329,7 @@ export default function Todo() {
                 <div
                   key={todo.id}
                   className={cn(
-                    "group flex items-start gap-3 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:bg-accent/30 sm:items-center sm:rounded-none sm:border-0 sm:px-5 sm:shadow-none",
+                    "group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-accent/30 sm:items-center sm:rounded-none sm:border-0 sm:px-5 sm:shadow-none",
                     isOverdue && !taskDone && "bg-red-50/60 hover:bg-red-50 dark:bg-red-950/10 dark:hover:bg-red-950/20"
                   )}
                 >

@@ -166,7 +166,7 @@ export default function Calendar() {
   const todayStr = toLocalDateString(now);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
-  const [view, setView] = useState("month");
+  const [view, setView] = useState(() => window.matchMedia?.("(max-width: 639px)").matches ? "list" : "month");
   const [selectedDay, setSelectedDay] = useState(todayStr);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editEvent, setEditEvent] = useState(null);
@@ -480,7 +480,7 @@ export default function Calendar() {
         description="Track submissions, openings, pay orders, and tasks"
         actions={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-            <div className="inline-flex w-full rounded-xl border bg-background p-1 shadow-sm sm:w-auto">
+            <div className="inline-flex w-full rounded-xl border bg-background p-1 sm:w-auto">
               {["month", "week", "list"].map((option) => (
                 <button
                   key={option}
@@ -488,7 +488,7 @@ export default function Calendar() {
                   onClick={() => setView(option)}
                   className={cn(
                     "flex-1 rounded-lg px-3 py-2 text-sm font-medium capitalize text-muted-foreground transition-colors sm:flex-none sm:py-1.5",
-                    view === option && "bg-primary text-primary-foreground shadow-sm",
+                    view === option && "bg-primary text-primary-foreground",
                   )}
                 >
                   {option}
@@ -507,10 +507,10 @@ export default function Calendar() {
         }
       />
 
-      <Card className="overflow-hidden rounded-2xl border-emerald-100 bg-gradient-to-br from-emerald-50 via-background to-background shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/20">
+      <Card className="overflow-hidden border-emerald-100 bg-emerald-50/50 dark:border-emerald-900/40 dark:bg-emerald-950/15">
         <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
           <div className="min-w-0">
-            <p className="text-xs font-medium tracking-normal text-emerald-700 dark:text-emerald-300 sm:font-semibold sm:uppercase sm:tracking-[0.18em]">Deadline Control Center</p>
+            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Deadline control center</p>
             <h2 className="mt-2 text-xl font-semibold tracking-tight text-foreground md:text-2xl">
               {allEvents.length} tracked date{allEvents.length === 1 ? "" : "s"} across tenders and projects
             </h2>
@@ -544,7 +544,7 @@ export default function Calendar() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <Card className="overflow-hidden rounded-2xl border shadow-sm">
+        <Card className="overflow-hidden">
           <CardHeader className="border-b bg-muted/20 p-4 md:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -568,7 +568,7 @@ export default function Calendar() {
               <>
                 <div className="grid grid-cols-7 rounded-t-lg border border-b-0 bg-muted/40">
                   {DAYS.map((day) => (
-                    <div key={day} className="px-1 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">
+                    <div key={day} className="px-1 py-2 text-center text-xs font-semibold text-muted-foreground">
                       {day}
                     </div>
                   ))}
@@ -607,7 +607,7 @@ export default function Calendar() {
                           {dayEvents.slice(0, 2).map((event) => {
                             const meta = EVENT_TYPES[event.type] || EVENT_TYPES.custom;
                             return (
-                              <div key={event.id} className={cn("hidden rounded-full px-2 py-0.5 text-[11px] font-medium sm:block", meta.pill)}>
+                              <div key={event.id} className={cn("hidden rounded-full px-2 py-0.5 text-xs font-medium sm:block", meta.pill)}>
                                 <span className="block truncate">{event.title}</span>
                               </div>
                             );
@@ -619,7 +619,7 @@ export default function Calendar() {
                             })}
                           </div>
                           {dayEvents.length > 2 && (
-                            <p className="hidden text-[11px] font-medium text-muted-foreground sm:block">+{dayEvents.length - 2} more</p>
+                            <p className="hidden text-xs font-medium text-muted-foreground sm:block">+{dayEvents.length - 2} more</p>
                           )}
                         </div>
                       </button>
@@ -686,7 +686,7 @@ export default function Calendar() {
 
 function MiniStat({ label, value }) {
   return (
-    <div className="rounded-xl border border-emerald-100 bg-white/75 p-3 shadow-sm dark:border-emerald-900/40 dark:bg-background/50">
+    <div className="rounded-xl border border-emerald-100 bg-white/75 p-3 dark:border-emerald-900/40 dark:bg-background/50">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-semibold leading-none text-emerald-700 dark:text-emerald-300">{value}</p>
     </div>
@@ -695,7 +695,7 @@ function MiniStat({ label, value }) {
 
 function SelectedDatePanel({ selectedDay, events, onOpen, onAdd }) {
   return (
-    <Card className="rounded-2xl border shadow-sm xl:sticky xl:top-4 xl:self-start">
+    <Card className="rounded-xl border xl:sticky xl:top-4 xl:self-start">
       <CardHeader className="border-b p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -770,7 +770,7 @@ function EventList({ events, emptyText, onOpen, grouped = false }) {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className={cn("h-6 rounded-full px-2 text-[11px]", meta.badge)}>
+                <Badge variant="outline" className={cn("h-6 rounded-full px-2 text-xs", meta.badge)}>
                   {isPast && event.type === "overdue" ? "Overdue" : meta.label}
                 </Badge>
                 <span className="text-xs text-muted-foreground">{formatDate(event.date)}</span>

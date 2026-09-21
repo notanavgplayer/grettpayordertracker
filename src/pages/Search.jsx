@@ -252,7 +252,7 @@ export default function Search() {
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader title="Search" description="Search across tenders, pay orders, tasks, documents, and notes" />
 
-      <Card className="rounded-xl border-border/80 shadow-sm">
+      <Card className="rounded-xl border-border/80">
         <CardContent className="space-y-4 p-4">
           <div className="relative">
             <SearchIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -280,7 +280,7 @@ export default function Search() {
                 onClick={() => handleScopeChange(item)}
                 className={`h-9 flex-shrink-0 rounded-full border px-3 text-sm font-medium transition-colors ${
                   scope === item
-                    ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
                     : 'border-border bg-background text-muted-foreground hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
                 }`}
                 aria-pressed={scope === item}
@@ -293,7 +293,7 @@ export default function Search() {
       </Card>
 
       {loading && (
-        <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-card p-4 text-sm text-muted-foreground shadow-sm">
+        <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-card p-4 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Searching...
         </div>
       )}
@@ -349,7 +349,7 @@ export default function Search() {
                 key={item}
                 type="button"
                 onClick={() => runRecent(item)}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground shadow-sm transition-colors hover:bg-muted"
+                className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
               >
                 <Clock className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
                 {item}
@@ -371,7 +371,7 @@ function SearchResultCard({ result }) {
 
   return (
     <Link to={cfg.href(result)} className="block">
-      <Card className="rounded-xl border-border/80 shadow-sm transition hover:border-emerald-200 hover:shadow-md">
+      <Card className="rounded-xl border-border/80 transition hover:border-emerald-200 hover:shadow-md">
         <CardContent className="flex items-start gap-4 p-4">
           <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700" aria-hidden="true">
             <Icon className="h-5 w-5" />
@@ -392,8 +392,8 @@ function SearchResultCard({ result }) {
 
 function SearchEmptyState({ icon: Icon, title, description }) {
   return (
-    <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center shadow-sm">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+    <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
         <Icon className="h-7 w-7" aria-hidden="true" />
       </div>
       <p className="mt-4 text-sm font-semibold text-foreground">{title}</p>

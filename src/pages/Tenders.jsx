@@ -746,16 +746,29 @@ export default function Tenders() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
-        {pipelineCards.map((card) => (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {pipelineCards.slice(0, 4).map((card) => (
           <KpiCard key={card.label} {...card} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {financeCards.map((card) => (
-          <KpiCard key={card.label} {...card} valueClassName="text-lg sm:text-xl" />
-        ))}
+      <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-card p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-5">
+        <div className="flex min-w-0 flex-wrap gap-2">
+          {pipelineCards.slice(4).map((card) => (
+            <span key={card.label} className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground">
+              <span>{card.label}</span>
+              <strong className="font-mono text-foreground">{card.value}</strong>
+            </span>
+          ))}
+        </div>
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-5 gap-y-3 sm:flex sm:flex-wrap sm:justify-end">
+          {financeCards.map((card) => (
+            <div key={card.label} className="min-w-0 sm:min-w-[128px]">
+              <p className="text-xs text-muted-foreground">{card.label}</p>
+              <p className="mt-0.5 truncate font-mono text-sm font-semibold text-foreground">{card.value}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Tender table */}
@@ -773,7 +786,7 @@ export default function Tenders() {
           }
         />
       ) : (
-        <Card className="overflow-hidden rounded-xl border shadow-sm">
+        <Card className="overflow-hidden rounded-xl border">
           <CardHeader className="space-y-4 border-b border-border bg-card/80 px-4 py-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -875,7 +888,7 @@ export default function Tenders() {
                     }`}
                   >
                     {s}
-                    <span className="ml-1.5 rounded-full bg-background/70 px-1.5 py-0.5 font-mono text-[10px] tabular-nums">
+                    <span className="ml-1.5 rounded-full bg-background/70 px-1.5 py-0.5 font-mono text-xs tabular-nums">
                       {stageCounts[s] ?? 0}
                     </span>
                   </button>
@@ -903,7 +916,7 @@ export default function Tenders() {
                         : "border-emerald-200 bg-emerald-50/70 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100";
 
                   return (
-                  <Card key={t.id} className="overflow-hidden rounded-xl border-border shadow-sm">
+                  <Card key={t.id} className="overflow-hidden rounded-xl border-border">
                     <CardContent className="space-y-3.5 p-4">
                       <div className="flex items-start justify-between gap-2.5">
                         <div className="min-w-0 flex-1">
@@ -930,7 +943,7 @@ export default function Tenders() {
                             >
                               <div className="grid grid-cols-2 gap-2.5">
                                 <div className="min-w-0 rounded-lg bg-white/60 px-2.5 py-2 dark:bg-background/30">
-                                  <p className="text-[11px] font-medium tracking-normal opacity-75 sm:uppercase sm:tracking-wide">
+                                  <p className="text-xs font-medium tracking-normal opacity-75 sm:uppercase sm:tracking-wide">
                                     Estimate
                                   </p>
                                   <p className="mt-1 truncate font-mono text-[13px] font-semibold tabular-nums text-foreground">
@@ -938,7 +951,7 @@ export default function Tenders() {
                                   </p>
                                 </div>
                                 <div className="min-w-0 rounded-lg bg-white/60 px-2.5 py-2 dark:bg-background/30">
-                                  <p className="text-[11px] font-medium tracking-normal opacity-75 sm:uppercase sm:tracking-wide">
+                                  <p className="text-xs font-medium tracking-normal opacity-75 sm:uppercase sm:tracking-wide">
                                     Quoted
                                   </p>
                                   <p className="mt-1 truncate font-mono text-[13px] font-semibold tabular-nums text-foreground">
@@ -947,7 +960,7 @@ export default function Tenders() {
                                 </div>
                               </div>
                               {financialSummary.percentText !== "—" && (
-                                <span className="mt-2.5 inline-flex rounded-full border border-current/20 bg-white/75 px-2.5 py-1 text-[11px] font-semibold leading-none dark:bg-background/40">
+                                <span className="mt-2.5 inline-flex rounded-full border border-current/20 bg-white/75 px-2.5 py-1 text-xs font-semibold leading-none dark:bg-background/40">
                                   {financialSummary.percentText}
                                 </span>
                               )}
@@ -998,7 +1011,7 @@ export default function Tenders() {
                       </div>
 
                       <div className="rounded-lg bg-muted/40 px-3 py-2">
-                        <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
+                        <p className="text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
                           Contract value
                         </p>
                         <p className="mt-1 font-mono text-base font-semibold leading-none tabular-nums text-foreground">
@@ -1014,7 +1027,7 @@ export default function Tenders() {
                               {formatDate(t.submissionDate) || "—"}
                             </span>
                             <span
-                              className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                              className={`ml-auto rounded-full px-2 py-0.5 text-xs font-semibold ${
                                 t.displayStatus === "Overdue"
                                   ? "bg-red-50 text-red-700"
                                   : "bg-emerald-50 text-emerald-700"
@@ -1023,12 +1036,12 @@ export default function Tenders() {
                               {getSubmissionDueLabel(t)}
                             </span>
                           </div>
-                          <p className="ml-[22px] mt-1 text-[11px] font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
+                          <p className="ml-[22px] mt-1 text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
                             Submission
                           </p>
                         </div>
                         <div className="min-w-0 rounded-lg bg-muted/35 px-3 py-2">
-                          <p className="text-[11px] font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
+                          <p className="text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
                             NIT / Ref
                           </p>
                           <p
