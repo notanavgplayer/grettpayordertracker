@@ -68,7 +68,7 @@ export default function AwardWorkOrderSheet({ open, onOpenChange, form, setField
 function FormGroup({ title, children }) {
   return (
     <section className="min-w-0">
-      <h3 className="mb-3 text-sm font-semibold text-emerald-700">{title}</h3>
+      <h3 className="mb-3 text-sm font-semibold text-emerald-700 dark:text-emerald-300">{title}</h3>
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">{children}</div>
     </section>
   )

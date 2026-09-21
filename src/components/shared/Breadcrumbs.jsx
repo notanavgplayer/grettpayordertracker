@@ -33,7 +33,7 @@ export default function Breadcrumbs({ items = [], className }) {
               {item.href && !isLast ? (
                 <Link
                   to={item.href}
-                  className="max-w-[8rem] truncate font-medium text-muted-foreground transition-colors hover:text-emerald-700 sm:max-w-none"
+                  className="max-w-[8rem] truncate font-medium text-muted-foreground transition-colors hover:text-emerald-700 dark:hover:text-emerald-300 sm:max-w-none"
                   title={title}
                 >
                   {item.label}

@@ -99,27 +99,27 @@ function getDocumentIcon(kind) {
 }
 
 function getKindBadgeClass(kind) {
-  if (kind === 'Image') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  if (kind === 'PDF') return 'border-rose-200 bg-rose-50 text-rose-700'
-  if (kind === 'Excel') return 'border-green-200 bg-green-50 text-green-700'
-  if (kind === 'Word') return 'border-blue-200 bg-blue-50 text-blue-700'
+  if (kind === 'Image') return 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+  if (kind === 'PDF') return 'border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'
+  if (kind === 'Excel') return 'border-green-200 dark:border-green-900/60 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300'
+  if (kind === 'Word') return 'border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
   return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
 }
 
 function getKindIconClass(kind) {
-  if (kind === 'Image') return 'bg-emerald-50 text-emerald-700'
-  if (kind === 'PDF') return 'bg-rose-50 text-rose-700'
-  if (kind === 'Excel') return 'bg-green-50 text-green-700'
-  if (kind === 'Word') return 'bg-blue-50 text-blue-700'
+  if (kind === 'Image') return 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+  if (kind === 'PDF') return 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'
+  if (kind === 'Excel') return 'bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300'
+  if (kind === 'Word') return 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
   return 'bg-slate-50 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
 }
 
 function getCategoryBadgeClass(category = '') {
   const value = category.toLowerCase()
-  if (value.includes('site') || value.includes('photo')) return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  if (value.includes('boq') || value.includes('tender') || value.includes('nit')) return 'border-blue-200 bg-blue-50 text-blue-700'
-  if (value.includes('drawing') || value.includes('material')) return 'border-cyan-200 bg-cyan-50 text-cyan-700'
-  if (value.includes('letter') || value.includes('work')) return 'border-amber-200 bg-amber-50 text-amber-700'
+  if (value.includes('site') || value.includes('photo')) return 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+  if (value.includes('boq') || value.includes('tender') || value.includes('nit')) return 'border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
+  if (value.includes('drawing') || value.includes('material')) return 'border-cyan-200 dark:border-cyan-900/60 bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300'
+  if (value.includes('letter') || value.includes('work')) return 'border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
   return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
 }
 
@@ -370,7 +370,7 @@ function DocumentCard({ document, isAdmin, onPreview, onEdit, onDelete }) {
             </div>
           </div>
           <div className="min-w-0 rounded-lg bg-muted/30 px-2.5 py-1.5 text-xs leading-5 text-muted-foreground sm:px-3 sm:py-2">
-            <Link to={`/tenders/${document.tenderId}`} className="block truncate font-medium text-foreground hover:text-emerald-700" title={document.tenderName}>
+            <Link to={`/tenders/${document.tenderId}`} className="block truncate font-medium text-foreground hover:text-emerald-700 dark:hover:text-emerald-300" title={document.tenderName}>
               {document.tenderName}
             </Link>
             <p className="truncate text-xs text-muted-foreground" title={document.tenderNit || document.tenderAgency}>
@@ -449,7 +449,7 @@ function DocumentsTable({ documents, isAdmin, onPreview, onEdit, onDelete }) {
                   <td className="px-4 py-3"><DocumentBadge className={getKindBadgeClass(document.kind)}>{document.kind}</DocumentBadge></td>
                   <td className="px-4 py-3"><DocumentBadge className={getCategoryBadgeClass(document.category)}>{document.category}</DocumentBadge></td>
                   <td className="px-4 py-3">
-                    <Link to={`/tenders/${document.tenderId}`} className="block max-w-[220px] truncate font-medium text-foreground hover:text-emerald-700">
+                    <Link to={`/tenders/${document.tenderId}`} className="block max-w-[220px] truncate font-medium text-foreground hover:text-emerald-700 dark:hover:text-emerald-300">
                       {document.tenderName}
                     </Link>
                   </td>
@@ -467,7 +467,7 @@ function DocumentsTable({ documents, isAdmin, onPreview, onEdit, onDelete }) {
                         <Button type="button" variant="outline" size="icon-sm" disabled aria-label="Download unavailable"><Download className="h-3.5 w-3.5" /></Button>
                       )}
                       <Button type="button" variant="outline" size="icon-sm" onClick={() => onEdit(document)} disabled={!isAdmin} aria-label="Edit document"><Pencil className="h-3.5 w-3.5" /></Button>
-                      <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => onDelete(document)} disabled={!isAdmin} aria-label="Delete document"><Trash2 className="h-3.5 w-3.5" /></Button>
+                      <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300" onClick={() => onDelete(document)} disabled={!isAdmin} aria-label="Delete document"><Trash2 className="h-3.5 w-3.5" /></Button>
                     </div>
                   </td>
                 </tr>

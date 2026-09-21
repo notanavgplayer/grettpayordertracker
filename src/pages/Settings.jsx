@@ -118,7 +118,7 @@ export default function Settings() {
         <CardContent className="space-y-4 sm:space-y-5">
           <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/20 p-3.5 sm:gap-4 sm:p-4">
             <Avatar className="h-12 w-12 flex-shrink-0">
-              <AvatarFallback className="bg-emerald-100 font-semibold text-emerald-700">{getInitials(displayName)}</AvatarFallback>
+              <AvatarFallback className="bg-emerald-100 dark:bg-emerald-950/60 font-semibold text-emerald-700 dark:text-emerald-300">{getInitials(displayName)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
@@ -220,7 +220,7 @@ export default function Settings() {
         <CardContent>
           <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/20 p-3.5 sm:gap-4 sm:p-4">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
                 {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
               </div>
               <div className="min-w-0">
@@ -263,7 +263,7 @@ export default function Settings() {
                   <div key={u.id} className="rounded-xl border border-border/80 bg-background p-3.5 sm:p-4">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-10 w-10 flex-shrink-0">
-                        <AvatarFallback className="bg-emerald-100 text-xs font-semibold text-emerald-700">{getInitials(u.displayName || u.email || '')}</AvatarFallback>
+                        <AvatarFallback className="bg-emerald-100 dark:bg-emerald-950/60 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{getInitials(u.displayName || u.email || '')}</AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-foreground">{u.displayName || u.email}</p>

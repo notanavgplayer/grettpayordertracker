@@ -40,17 +40,17 @@ const LEGACY_TENDER_FIELDS = new Set([
 const SEVERITY_META = {
   critical: {
     label: 'Critical',
-    badge: 'border-rose-200 bg-rose-50 text-rose-700',
+    badge: 'border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300',
     icon: ShieldAlert,
   },
   warning: {
     label: 'Warning',
-    badge: 'border-amber-200 bg-amber-50 text-amber-700',
+    badge: 'border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300',
     icon: AlertTriangle,
   },
   info: {
     label: 'Info',
-    badge: 'border-blue-200 bg-blue-50 text-blue-700',
+    badge: 'border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300',
     icon: FileText,
   },
 }

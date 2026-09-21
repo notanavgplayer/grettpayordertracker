@@ -68,10 +68,10 @@ function getContactTimestamp(contact = {}) {
 
 function getTypeClasses(type) {
   const tones = {
-    Agency: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    Vendor: 'border-blue-200 bg-blue-50 text-blue-700',
-    Bank: 'border-amber-200 bg-amber-50 text-amber-700',
-    Officer: 'border-purple-200 bg-purple-50 text-purple-700',
+    Agency: 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300',
+    Vendor: 'border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300',
+    Bank: 'border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300',
+    Officer: 'border-purple-200 dark:border-purple-900/60 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300',
     Contractor: 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300',
   }
   return tones[type] || 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
@@ -207,7 +207,7 @@ export default function Contacts() {
                 className={`h-9 flex-shrink-0 rounded-full border px-3 text-sm font-medium transition-colors ${
                   typeFilter === type
                     ? 'border-emerald-600 bg-emerald-600 text-white'
-                    : 'border-border bg-background text-muted-foreground hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
+                    : 'border-border bg-background text-muted-foreground hover:border-emerald-200 dark:hover:border-emerald-900/60 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300'
                 }`}
               >
                 {type}
@@ -252,7 +252,7 @@ export default function Contacts() {
                   <div className="mb-5 flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <Avatar className="h-12 w-12 flex-shrink-0">
-                        <AvatarFallback className="bg-emerald-100 text-sm font-semibold text-emerald-700">{getInitials(selected.name)}</AvatarFallback>
+                        <AvatarFallback className="bg-emerald-100 dark:bg-emerald-950/60 text-sm font-semibold text-emerald-700 dark:text-emerald-300">{getInitials(selected.name)}</AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
                         <p className="truncate font-semibold text-foreground">{selected.name}</p>
@@ -370,11 +370,11 @@ export default function Contacts() {
 
 function SummaryCard({ icon: Icon, label, value, tone, className = '' }) {
   const tones = {
-    emerald: 'bg-emerald-50 text-emerald-700',
-    green: 'bg-green-50 text-green-700',
-    blue: 'bg-blue-50 text-blue-700',
-    amber: 'bg-amber-50 text-amber-700',
-    purple: 'bg-purple-50 text-purple-700',
+    emerald: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300',
+    green: 'bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300',
+    blue: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300',
+    amber: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300',
+    purple: 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300',
   }
 
   return (
@@ -431,12 +431,12 @@ function ContactTable({ contacts, selected, isAdmin, onSelect, onEdit, onDelete 
                   onSelect(contact)
                 }
               }}
-              className={`cursor-pointer hover:bg-muted/35 ${selected?.id === contact.id ? 'bg-emerald-50/70' : ''}`}
+              className={`cursor-pointer hover:bg-muted/35 ${selected?.id === contact.id ? 'bg-emerald-50/70 dark:bg-emerald-950/30' : ''}`}
             >
               <TableCell>
                 <div className="flex min-w-[180px] items-center gap-3">
                   <Avatar className="h-9 w-9 flex-shrink-0">
-                    <AvatarFallback className="bg-emerald-100 text-xs font-semibold text-emerald-700">{getInitials(contact.name)}</AvatarFallback>
+                    <AvatarFallback className="bg-emerald-100 dark:bg-emerald-950/60 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{getInitials(contact.name)}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-foreground">{contact.name || 'Untitled Contact'}</p>
@@ -487,7 +487,7 @@ function MobileContactCards({ contacts, selected, isAdmin, onSelect, onEdit, onD
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
                 <Avatar className="h-11 w-11 flex-shrink-0">
-                  <AvatarFallback className="bg-emerald-100 text-sm font-semibold text-emerald-700">{getInitials(contact.name)}</AvatarFallback>
+                  <AvatarFallback className="bg-emerald-100 dark:bg-emerald-950/60 text-sm font-semibold text-emerald-700 dark:text-emerald-300">{getInitials(contact.name)}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
                   <p className="text-base font-semibold leading-snug text-foreground">{contact.name || 'Untitled Contact'}</p>
@@ -523,7 +523,7 @@ function MobileContactCards({ contacts, selected, isAdmin, onSelect, onEdit, onD
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(event) => event.stopPropagation()}
-                className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700"
+                className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-300"
               >
                 <MessageCircle className="h-4 w-4" /> WhatsApp
               </a>

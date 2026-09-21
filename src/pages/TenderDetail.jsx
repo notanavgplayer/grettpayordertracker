@@ -138,10 +138,10 @@ function getDocumentKind(document = {}) {
 
 function getDocumentTypeClasses(kind) {
   const tones = {
-    PDF: 'border-red-200 bg-red-50 text-red-700',
-    Image: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    Excel: 'border-green-200 bg-green-50 text-green-700',
-    Word: 'border-blue-200 bg-blue-50 text-blue-700',
+    PDF: 'border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300',
+    Image: 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300',
+    Excel: 'border-green-200 dark:border-green-900/60 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300',
+    Word: 'border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300',
     Other: 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300',
   }
   return tones[kind] || tones.Other
@@ -1746,7 +1746,7 @@ export default function TenderDetail() {
             <CardHeader className="p-4 pb-3 md:p-5 md:pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
                     <FileText className="h-4 w-4" />
                   </span>
                   Tender Details
@@ -2280,7 +2280,7 @@ export default function TenderDetail() {
                                 <Button
                                   variant="ghost"
                                   size="icon-sm"
-                                  className="h-8 w-8 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700"
+                                  className="h-8 w-8 text-muted-foreground hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300"
                                   onClick={() => setEditingBoqItemId(isEditing ? null : item.id)}
                                   aria-label={`${isEditing ? 'Finish editing' : 'Edit'} BOQ item ${index + 1}`}
                                 >
@@ -2289,7 +2289,7 @@ export default function TenderDetail() {
                                 <Button
                                   variant="ghost"
                                   size="icon-sm"
-                                  className="h-8 w-8 text-muted-foreground hover:bg-rose-50 hover:text-destructive"
+                                  className="h-8 w-8 text-muted-foreground hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-destructive"
                                   onClick={() => removeBoqItem(item.id)}
                                   aria-label={`Remove BOQ item ${index + 1}`}
                                 >
@@ -2376,7 +2376,7 @@ export default function TenderDetail() {
                                     <Button
                                       variant="ghost"
                                       size="icon-sm"
-                                      className="h-6 w-6 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30"
+                                      className="h-6 w-6 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300"
                                       onClick={() => setEditingBoqItemId(isEditing ? null : item.id)}
                                       aria-label={`${isEditing ? 'Finish editing' : 'Edit'} BOQ item ${index + 1}`}
                                       title={isEditing ? 'Done' : 'Edit item'}
@@ -2839,14 +2839,14 @@ export default function TenderDetail() {
           <Card className="rounded-xl border-border/80">
             <CardHeader className="p-4 pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
                   <TrendingUpIcon />
                 </span>
                 Project Status
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 p-4 pt-0">
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/30">
                 <div className="flex items-end justify-between gap-3">
                   <div>
                     <p className="text-3xl font-semibold leading-none text-emerald-700 dark:text-emerald-300">{dashboardProgress}%</p>
@@ -2902,7 +2902,7 @@ export default function TenderDetail() {
               {recentActivity.length === 0 && <p className="rounded-xl border border-dashed py-6 text-center text-sm text-muted-foreground">No activity yet.</p>}
               {recentActivity.map((activity) => (
                 <div key={activity.id} className="flex gap-3 rounded-xl border border-border/70 bg-muted/10 p-3 text-sm">
-                  <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-background text-emerald-700">
+                  <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-background text-emerald-700 dark:text-emerald-300">
                     <activity.icon className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
@@ -3210,7 +3210,7 @@ function AwardWorkOrderSection({ details, timeline, isAdmin, onEdit }) {
     return (
       <Card className="rounded-xl border-border/80">
         <CardContent className="flex flex-col items-center justify-center px-5 py-12 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
             <ClipboardList className="h-6 w-6" />
           </div>
           <h2 className="mt-4 text-lg font-semibold">No award or work order details added yet</h2>
@@ -3233,7 +3233,7 @@ function AwardWorkOrderSection({ details, timeline, isAdmin, onEdit }) {
         <CardHeader className="p-3 pb-2 md:p-5 md:pb-3">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs font-medium tracking-normal text-emerald-700 sm:font-semibold sm:uppercase sm:tracking-[0.18em] md:text-xs md:tracking-[0.22em]">Post Award</p>
+              <p className="text-xs font-medium tracking-normal text-emerald-700 dark:text-emerald-300 sm:font-semibold sm:uppercase sm:tracking-[0.18em] md:text-xs md:tracking-[0.22em]">Post Award</p>
               <CardTitle className="mt-0.5 text-lg md:mt-1 md:text-xl">Award / Work Order</CardTitle>
               <p className="mt-1 text-xs leading-5 text-muted-foreground md:text-sm">
                 Track award details, work order information, contract period, securities, and project execution dates.
@@ -3295,12 +3295,12 @@ function AwardWorkOrderSection({ details, timeline, isAdmin, onEdit }) {
 }
 
 function AwardMetric({ icon: Icon, label, value, helper, tone, badgeClass }) {
-  const toneClass = tone === 'loss' ? 'text-rose-700' : tone === 'accent' ? 'text-amber-700' : tone === 'profit' ? 'text-emerald-700' : 'text-foreground'
+  const toneClass = tone === 'loss' ? 'text-rose-700 dark:text-rose-300' : tone === 'accent' ? 'text-amber-700 dark:text-amber-300' : tone === 'profit' ? 'text-emerald-700 dark:text-emerald-300' : 'text-foreground'
   const iconClass = tone === 'loss'
-    ? 'bg-rose-50 text-rose-700'
+    ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'
     : tone === 'accent'
-      ? 'bg-amber-50 text-amber-700'
-      : 'bg-emerald-50 text-emerald-700'
+      ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
+      : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
   return (
     <div className="flex h-full min-h-0 max-w-full min-w-0 items-start gap-3 rounded-xl border border-border/80 bg-card p-3 sm:p-4">
       {Icon && (
@@ -3326,7 +3326,7 @@ function AwardDetailCard({ title, icon: Icon, rows }) {
     <Card className="rounded-xl border-border/80">
       <CardHeader className="p-3 pb-1.5 sm:p-4 sm:pb-2">
         <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 sm:h-8 sm:w-8">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 sm:h-8 sm:w-8">
             <Icon className="h-4 w-4" />
           </span>
           {title}
@@ -3555,7 +3555,7 @@ function SiteVisitPhotoStrip({ photos, onOpenPhoto }) {
   return (
     <div className="w-full rounded-xl border border-border/70 bg-muted/10 p-2.5 text-left">
       <div className="mb-2.5 flex items-center justify-between gap-2 text-xs">
-        <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+        <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300">
           <ImageIcon className="h-3.5 w-3.5" />
           Photos
         </span>
@@ -3607,7 +3607,7 @@ function SiteVisitPhotoTile({ photo, editable = false, onRemove, onOpen }) {
       </div>
       )}
       {editable && (
-        <Button type="button" variant="secondary" size="icon-sm" className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full bg-background/90 text-rose-600 hover:bg-rose-50" onClick={onRemove} aria-label="Remove photo">
+        <Button type="button" variant="secondary" size="icon-sm" className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full bg-background/90 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40" onClick={onRemove} aria-label="Remove photo">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       )}
@@ -4088,9 +4088,9 @@ function TenderOverviewDashboard({
     profitTone === 'loss'
       ? 'text-rose-600'
       : profitTone === 'profit'
-        ? 'text-emerald-700'
+        ? 'text-emerald-700 dark:text-emerald-300'
         : profitTone === 'neutral'
-          ? 'text-amber-700'
+          ? 'text-amber-700 dark:text-amber-300'
           : 'text-muted-foreground'
   const awardDetails = getAwardWorkOrderDetails(form)
   const awardTimeline = getAwardTimelineSummary(awardDetails)
@@ -4104,12 +4104,12 @@ function TenderOverviewDashboard({
 
       <OverviewSection title="Execution Progress" icon={CheckSquare}>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
-            <p className="text-xs font-medium tracking-normal text-emerald-800 sm:font-semibold sm:uppercase sm:tracking-wide">Current progress</p>
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+            <p className="text-xs font-medium tracking-normal text-emerald-800 dark:text-emerald-200 sm:font-semibold sm:uppercase sm:tracking-wide">Current progress</p>
             <div className="mt-3 flex items-end justify-between gap-3">
               <div>
-                <p className="text-3xl font-semibold leading-none text-emerald-800">{dashboardProgress}%</p>
-                <p className="mt-2 text-sm text-emerald-900/75">{progressMessage}</p>
+                <p className="text-3xl font-semibold leading-none text-emerald-800 dark:text-emerald-200">{dashboardProgress}%</p>
+                <p className="mt-2 text-sm text-emerald-900/75 dark:text-emerald-200/80">{progressMessage}</p>
               </div>
               <Badge variant={projectHealthTone === 'profit' ? 'success' : projectHealthTone === 'loss' ? 'destructive' : 'warning'}>{projectHealth}</Badge>
             </div>
@@ -4247,11 +4247,11 @@ function OverviewMetric({ label, value, tone, helper, valueClassName }) {
   const toneClass =
     valueClassName ||
     (tone === 'profit'
-      ? 'text-emerald-700'
+      ? 'text-emerald-700 dark:text-emerald-300'
       : tone === 'loss' || tone === 'expense'
         ? 'text-rose-600'
         : tone === 'accent'
-          ? 'text-blue-700'
+          ? 'text-blue-700 dark:text-blue-300'
           : 'text-foreground')
   return (
     <KpiCard
@@ -4281,7 +4281,7 @@ function OverviewPreviewCard({ icon: Icon, title, empty, tab, action, onViewTab,
           <button
             type="button"
             onClick={() => onViewTab?.(tab)}
-            className="h-8 rounded-lg border border-emerald-200 bg-background px-3 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
+            className="h-8 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-background px-3 text-xs font-medium text-emerald-700 dark:text-emerald-300 transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
           >
             {action}
           </button>
@@ -4329,7 +4329,7 @@ function ExpensesFinanceSection({
     <div className="space-y-5">
       <div className="flex flex-col gap-4 rounded-xl border border-border/80 bg-background p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
         <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
             <Receipt className="h-6 w-6" />
           </div>
           <div>
@@ -4398,7 +4398,7 @@ function ExpensesFinanceSection({
 
       {expenses.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-background p-8 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
             <Receipt className="h-7 w-7" />
           </div>
           <p className="mt-4 text-base font-semibold text-foreground">No expenses added yet</p>
@@ -4443,7 +4443,7 @@ function ExpensesFinanceSection({
               <TableBody>
                 {filteredExpenses.map((expense) => (
                   <TableRow key={expense.id} className="h-16 border-border/70 hover:bg-slate-50/50 dark:hover:bg-slate-900/35">
-                    <TableCell className="whitespace-nowrap pl-6 text-sm text-slate-700">{formatDate(expense.date)}</TableCell>
+                    <TableCell className="whitespace-nowrap pl-6 text-sm text-slate-700 dark:text-slate-300">{formatDate(expense.date)}</TableCell>
                     <TableCell className="max-w-[260px] text-sm font-medium text-foreground">
                       <span className="line-clamp-2">{expense.description || '-'}</span>
                     </TableCell>
@@ -4451,7 +4451,7 @@ function ExpensesFinanceSection({
                     <TableCell className="max-w-[260px] text-sm text-muted-foreground">
                       <span className="line-clamp-2">{expense.note || '-'}</span>
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm font-semibold tabular-nums text-slate-950">{formatCurrency(Number(expense.amount) || 0)}</TableCell>
+                    <TableCell className="text-right font-mono text-sm font-semibold tabular-nums text-slate-950 dark:text-slate-50">{formatCurrency(Number(expense.amount) || 0)}</TableCell>
                     <TableCell><AmountBasisBadge basis={expense.amountBasis} compact /></TableCell>
                     <TableCell className="whitespace-nowrap text-right font-mono text-sm tabular-nums text-muted-foreground">{formatExpensePercent(expense.percentage)}</TableCell>
                     <TableCell><ExpenseStatusBadge status={getExpenseStatusLabel(expense)} /></TableCell>
@@ -4459,7 +4459,7 @@ function ExpensesFinanceSection({
                       <div className="flex justify-end gap-2">
                         <Button type="button" variant="outline" size="icon-sm" onClick={() => setViewExpense(expense)} aria-label="View expense"><Eye className="h-3.5 w-3.5" /></Button>
                         {isAdmin && <Button type="button" variant="outline" size="icon-sm" onClick={() => openExpDialog(expense)} aria-label="Edit expense"><Pencil className="h-3.5 w-3.5" /></Button>}
-                        {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => setDeleteExpId(expense.id)} aria-label="Delete expense"><Trash2 className="h-3.5 w-3.5" /></Button>}
+                        {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300" onClick={() => setDeleteExpId(expense.id)} aria-label="Delete expense"><Trash2 className="h-3.5 w-3.5" /></Button>}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -4483,14 +4483,14 @@ function ExpenseSummaryCard({ icon: Icon, label, value, helper, tone }) {
 
 function GrossNetSummaryCard({ icon: Icon, label, value, helper, tone }) {
   const tones = {
-    emerald: 'bg-emerald-50 text-emerald-700',
-    blue: 'bg-blue-50 text-blue-700',
-    amber: 'bg-amber-50 text-amber-700',
+    emerald: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300',
+    blue: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300',
+    amber: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300',
   }
   const valueTone = {
-    emerald: 'text-emerald-700',
-    blue: 'text-blue-700',
-    amber: 'text-amber-700',
+    emerald: 'text-emerald-700 dark:text-emerald-300',
+    blue: 'text-blue-700 dark:text-blue-300',
+    amber: 'text-amber-700 dark:text-amber-300',
   }
   return (
     <div className="rounded-xl border border-border/80 bg-background p-4">
@@ -4511,9 +4511,9 @@ function GrossNetSummaryCard({ icon: Icon, label, value, helper, tone }) {
 function AmountBasisBadge({ basis, compact = false }) {
   const normalized = ['gross', 'net', 'manual'].includes(basis) ? basis : 'manual'
   const className = normalized === 'gross'
-    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    ? 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
     : normalized === 'net'
-      ? 'border-blue-200 bg-blue-50 text-blue-700'
+      ? 'border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
       : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
   return (
     <Badge variant="outline" className={`max-w-full shrink-0 rounded-full ${compact ? 'px-2 py-0.5 text-xs' : ''} ${className}`}>
@@ -4529,29 +4529,29 @@ function getExpenseStatusLabel(expense = {}) {
 function ExpenseCategoryBadge({ category }) {
   const normalized = category || 'Miscellaneous'
   const className = normalized === 'Printing & Documentation'
-    ? 'border-blue-200 bg-blue-50 text-blue-700'
+    ? 'border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
     : normalized === 'Miscellaneous'
       ? 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
       : normalized.includes('Fuel')
-        ? 'border-cyan-200 bg-cyan-50 text-cyan-700'
+        ? 'border-cyan-200 dark:border-cyan-900/60 bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300'
         : normalized.includes('Labour')
-          ? 'border-orange-200 bg-orange-50 text-orange-700'
+          ? 'border-orange-200 dark:border-orange-900/60 bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300'
           : normalized.includes('Tender')
-            ? 'border-rose-200 bg-rose-50 text-rose-700'
-            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            ? 'border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'
+            : 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
   return <Badge variant="outline" className={`max-w-full shrink-0 truncate rounded-full ${className}`}>{normalized}</Badge>
 }
 
 function ExpenseStatusBadge({ status }) {
   const normalized = status || 'Paid'
   const className = ['Paid', 'Recoverable'].includes(normalized)
-    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    ? 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
     : normalized === 'Held by Agency'
-      ? 'border-blue-200 bg-blue-50 text-blue-700'
+      ? 'border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
       : normalized === 'At Risk'
-        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        ? 'border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
         : ['Sunk Cost', 'Non-Recoverable'].includes(normalized)
-          ? 'border-rose-200 bg-rose-50 text-rose-700'
+          ? 'border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'
           : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
   return <Badge variant="outline" className={`shrink-0 rounded-full ${className}`}>{normalized}</Badge>
 }
@@ -4569,10 +4569,10 @@ function ExpenseMobileCard({ expense, isAdmin, onView, onEdit, onDelete }) {
             <ExpenseStatusBadge status={getExpenseStatusLabel(expense)} />
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Based on: <span className="font-medium text-slate-700">{basisLabel}</span> &middot; <span className="font-mono tabular-nums">{percentLabel}</span>
+            Based on: <span className="font-medium text-slate-700 dark:text-slate-300">{basisLabel}</span> &middot; <span className="font-mono tabular-nums">{percentLabel}</span>
           </p>
         </div>
-        <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-slate-950">{formatCurrency(Number(expense.amount) || 0)}</p>
+        <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-slate-950 dark:text-slate-50">{formatCurrency(Number(expense.amount) || 0)}</p>
       </div>
       <p className="mt-3 text-sm text-muted-foreground">{formatDate(expense.date)}</p>
       {expense.note && <p className="mt-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/40 text-sm text-muted-foreground">{expense.note}</p>}
@@ -4773,7 +4773,7 @@ function BillsInvoicesSection({
       <div className="space-y-5">
         <div className="flex flex-col gap-4 rounded-xl border border-border/80 bg-background p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
               <Receipt className="h-6 w-6" />
             </div>
             <div>
@@ -4807,7 +4807,7 @@ function BillsInvoicesSection({
             <Button type="button" variant="outline" className="h-10 sm:h-11" onClick={exportBills} disabled={filteredBills.length === 0}>
               <Download className="h-4 w-4" /> Export
             </Button>
-            <Button type="button" variant="outline" className="h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 sm:h-11" onClick={clearFilters}>
+            <Button type="button" variant="outline" className="h-10 border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 sm:h-11" onClick={clearFilters}>
               <ChevronDown className="h-4 w-4" /> Filters
             </Button>
           </div>
@@ -4815,7 +4815,7 @@ function BillsInvoicesSection({
 
         {bills.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-background p-8 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
               <Receipt className="h-7 w-7" />
             </div>
             <p className="mt-4 text-base font-semibold text-foreground">{emptyTitle}</p>
@@ -4863,9 +4863,9 @@ function BillsInvoicesSection({
                     const amounts = getBillAmounts(bill)
                     return (
                       <TableRow key={bill.id} className="h-16 border-border/70 hover:bg-slate-50/50 dark:hover:bg-slate-900/35">
-                        <TableCell className="pl-6 font-mono text-sm font-semibold text-emerald-700">{getBillTitle(bill, '-')}</TableCell>
+                        <TableCell className="pl-6 font-mono text-sm font-semibold text-emerald-700 dark:text-emerald-300">{getBillTitle(bill, '-')}</TableCell>
                         <TableCell><BillTypeBadge type={bill.type || 'Running Bill'} /></TableCell>
-                        <TableCell className="text-sm text-slate-700">{formatDate(getBillDate(bill))}</TableCell>
+                        <TableCell className="text-sm text-slate-700 dark:text-slate-300">{formatDate(getBillDate(bill))}</TableCell>
                         <BillMoneyCell value={amounts.submitted} />
                         <BillMoneyCell value={amounts.approved} />
                         <BillMoneyCell value={amounts.received} />
@@ -4876,7 +4876,7 @@ function BillsInvoicesSection({
                           <div className="flex justify-end gap-2">
                             <Button type="button" variant="outline" size="icon-sm" onClick={() => setViewingBill(bill)} aria-label="View bill"><Eye className="h-3.5 w-3.5" /></Button>
                             {isAdmin && <Button type="button" variant="outline" size="icon-sm" onClick={() => openEditBill(bill)} aria-label="Edit bill"><Pencil className="h-3.5 w-3.5" /></Button>}
-                            {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => setDeleteBillId(bill.id)} aria-label="Delete bill"><Trash2 className="h-3.5 w-3.5" /></Button>}
+                            {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300" onClick={() => setDeleteBillId(bill.id)} aria-label="Delete bill"><Trash2 className="h-3.5 w-3.5" /></Button>}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -4924,11 +4924,11 @@ function BillsInvoicesSection({
 
 function BillSummaryCard({ icon: Icon, label, value, helper, tone }) {
   const valueTone = {
-    emerald: 'text-emerald-700',
-    green: 'text-emerald-700',
-    blue: 'text-blue-700',
-    amber: 'text-amber-700',
-    red: 'text-rose-700',
+    emerald: 'text-emerald-700 dark:text-emerald-300',
+    green: 'text-emerald-700 dark:text-emerald-300',
+    blue: 'text-blue-700 dark:text-blue-300',
+    amber: 'text-amber-700 dark:text-amber-300',
+    red: 'text-rose-700 dark:text-rose-300',
   }
   return (
     <KpiCard
@@ -4971,7 +4971,7 @@ function BillDateFilter({ label, value, onChange }) {
 
 function BillMoneyCell({ value, strong = false }) {
   return (
-    <TableCell className={`text-right font-mono text-sm tabular-nums ${strong ? 'font-semibold text-slate-950' : 'text-slate-700'}`}>
+    <TableCell className={`text-right font-mono text-sm tabular-nums ${strong ? 'font-semibold text-slate-950 dark:text-slate-50' : 'text-slate-700 dark:text-slate-300'}`}>
       {formatCurrency(value || 0)}
     </TableCell>
   )
@@ -4981,10 +4981,10 @@ function BillTypeBadge({ type }) {
   const normalized = type || 'Running Bill'
   const className =
     normalized === 'Final Bill'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      ? 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
       : normalized === 'Invoice'
-        ? 'border-violet-200 bg-violet-50 text-violet-700'
-        : 'border-blue-200 bg-blue-50 text-blue-700'
+        ? 'border-violet-200 dark:border-violet-900/60 bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300'
+        : 'border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
   return <Badge variant="outline" className={`shrink-0 rounded-full ${className}`}>{normalized}</Badge>
 }
 
@@ -4992,15 +4992,15 @@ function BillInvoiceStatusBadge({ status }) {
   const normalized = status || 'Draft'
   const className =
     ['Paid', 'Approved'].includes(normalized)
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      ? 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
       : ['Partial', 'Partially Paid'].includes(normalized)
-        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        ? 'border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
         : ['Pending'].includes(normalized)
-          ? 'border-amber-200 bg-amber-50 text-amber-700'
+          ? 'border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
           : normalized === 'Rejected'
-            ? 'border-rose-200 bg-rose-50 text-rose-700'
+            ? 'border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'
             : ['Submitted', 'Under Review'].includes(normalized)
-              ? 'border-blue-200 bg-blue-50 text-blue-700'
+              ? 'border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
               : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
   return <Badge variant="outline" className={`shrink-0 rounded-full ${className}`}>{normalized}</Badge>
 }
@@ -5011,7 +5011,7 @@ function BillsMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
     <div className="rounded-xl border border-border/80 bg-background p-3.5 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-mono text-base font-semibold text-emerald-700">{getBillTitle(bill, '-')}</p>
+          <p className="font-mono text-base font-semibold text-emerald-700 dark:text-emerald-300">{getBillTitle(bill, '-')}</p>
           <p className="mt-1 text-sm text-muted-foreground">{formatDate(getBillDate(bill))}</p>
         </div>
         <BillInvoiceStatusBadge status={bill.status || 'Draft'} />
@@ -5217,7 +5217,7 @@ function RABillsSection({
       <div className="space-y-5">
         <div className="flex flex-col gap-4 rounded-xl border border-border/80 bg-background p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
               <FileText className="h-6 w-6" />
             </div>
             <div>
@@ -5250,7 +5250,7 @@ function RABillsSection({
             <Button type="button" variant="outline" className="h-10 sm:h-11" onClick={exportRaBills} disabled={filteredRaBills.length === 0}>
               <Download className="h-4 w-4" /> Export CSV
             </Button>
-            <Button type="button" variant="outline" className="h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 sm:h-11" onClick={clearRaFilters}>
+            <Button type="button" variant="outline" className="h-10 border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 sm:h-11" onClick={clearRaFilters}>
               <ChevronDown className="h-4 w-4" /> Clear filters
             </Button>
           </div>
@@ -5258,7 +5258,7 @@ function RABillsSection({
 
         {bills.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-background p-8 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
               <FileText className="h-7 w-7" />
             </div>
             <p className="mt-4 text-base font-semibold text-foreground">{emptyTitle}</p>
@@ -5305,8 +5305,8 @@ function RABillsSection({
                     const amounts = getBillAmounts(bill)
                     return (
                       <TableRow key={bill.id} className="h-16 border-border/70 hover:bg-slate-50/50 dark:hover:bg-slate-900/35">
-                        <TableCell className="pl-6 font-mono text-sm font-semibold text-emerald-700">{getBillTitle(bill, '-')}</TableCell>
-                        <TableCell className="text-sm text-slate-700">{formatDate(getBillDate(bill))}</TableCell>
+                        <TableCell className="pl-6 font-mono text-sm font-semibold text-emerald-700 dark:text-emerald-300">{getBillTitle(bill, '-')}</TableCell>
+                        <TableCell className="text-sm text-slate-700 dark:text-slate-300">{formatDate(getBillDate(bill))}</TableCell>
                         <BillMoneyCell value={amounts.submitted} />
                         <BillMoneyCell value={amounts.approved} />
                         <BillMoneyCell value={amounts.received} />
@@ -5317,7 +5317,7 @@ function RABillsSection({
                           <div className="flex justify-end gap-2">
                             <Button type="button" variant="outline" size="icon-sm" onClick={() => setViewingRaBill(bill)} aria-label="View RA bill"><Eye className="h-3.5 w-3.5" /></Button>
                             {isAdmin && <Button type="button" variant="outline" size="icon-sm" onClick={() => openEditRaBill(bill)} aria-label="Edit RA bill"><Pencil className="h-3.5 w-3.5" /></Button>}
-                            {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => setDeleteRaBillId(bill.id)} aria-label="Delete RA bill"><Trash2 className="h-3.5 w-3.5" /></Button>}
+                            {isAdmin && <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300" onClick={() => setDeleteRaBillId(bill.id)} aria-label="Delete RA bill"><Trash2 className="h-3.5 w-3.5" /></Button>}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -5369,7 +5369,7 @@ function RABillMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
     <div className="rounded-xl border border-border/80 bg-background p-3.5 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-mono text-base font-semibold text-emerald-700">{getBillTitle(bill, '-')}</p>
+          <p className="font-mono text-base font-semibold text-emerald-700 dark:text-emerald-300">{getBillTitle(bill, '-')}</p>
           <p className="mt-1 text-sm text-muted-foreground">{formatDate(getBillDate(bill))}</p>
         </div>
         <BillInvoiceStatusBadge status={bill.status || 'Draft'} />
@@ -5783,7 +5783,7 @@ function DocumentsManager({
                   className={`h-9 flex-shrink-0 rounded-full border px-3 text-sm font-medium transition-colors ${
                     documentTypeFilter === type
                       ? 'border-emerald-600 bg-emerald-600 text-white'
-                      : 'border-border bg-background text-muted-foreground hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
+                      : 'border-border bg-background text-muted-foreground hover:border-emerald-200 dark:hover:border-emerald-900/60 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300'
                   }`}
                 >
                   {type}
@@ -5795,7 +5795,7 @@ function DocumentsManager({
 
         {documents.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-muted/10 p-8 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
               <FolderOpen className="h-7 w-7" />
             </div>
             <p className="mt-4 text-base font-semibold text-foreground">No documents uploaded yet.</p>

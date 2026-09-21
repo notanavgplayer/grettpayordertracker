@@ -34,7 +34,7 @@ export default function SiteVisitSheet({
         <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
           <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[1fr_0.95fr]">
             <div className="min-w-0 space-y-4">
-              <div className="border-b border-border pb-2"><p className="text-sm font-semibold text-emerald-700">Visit Details</p></div>
+              <div className="border-b border-border pb-2"><p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Visit Details</p></div>
               <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="td-sv-date">Visit Date <span className="text-destructive">*</span></Label>
@@ -85,7 +85,7 @@ export default function SiteVisitSheet({
             </div>
 
             <div className="min-w-0 space-y-4 lg:border-l lg:border-border lg:pl-5">
-              <div className="border-b border-border pb-2"><p className="text-sm font-semibold text-emerald-700">Photos ({photos.length})</p></div>
+              <div className="border-b border-border pb-2"><p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Photos ({photos.length})</p></div>
               <div className="min-w-0 rounded-xl border border-dashed border-border bg-muted/20 p-4 text-center">
                 <Input
                   id="td-sv-photos"
@@ -117,7 +117,7 @@ export default function SiteVisitSheet({
                   <span className="text-xs text-muted-foreground">{isAdmin ? 'Click to select multiple JPG, PNG, or WEBP images' : 'Only admins can upload photos'}</span>
                 </Label>
               </div>
-              {uploadError && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{uploadError}</div>}
+              {uploadError && <div role="alert" className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 p-3 text-sm text-rose-700 dark:text-rose-300">{uploadError}</div>}
               {photos.length > 0 ? (
                 <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">{photos.map(renderPhoto)}</div>
               ) : (

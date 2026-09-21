@@ -781,7 +781,7 @@ function EventList({ events, emptyText, onOpen, grouped = false }) {
               )}
             </div>
             {event.actionLabel && (
-              <span className="mt-1 inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-emerald-700">
+              <span className="mt-1 inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
                 <span className="hidden sm:inline">{event.actionLabel}</span>
                 <ExternalLink className="h-4 w-4" />
               </span>

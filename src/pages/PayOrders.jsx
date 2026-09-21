@@ -850,13 +850,13 @@ export default function PayOrders() {
           <TabsList className="h-10 w-full justify-start rounded-none border-b bg-transparent p-0 sm:h-11 lg:w-auto lg:border-b-0">
             <TabsTrigger
               value="payorders"
-              className="h-10 rounded-none border-b-2 border-transparent bg-transparent px-0 pr-7 text-sm text-muted-foreground shadow-none data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none sm:h-11 sm:pr-8 sm:text-base"
+              className="h-10 rounded-none border-b-2 border-transparent bg-transparent px-0 pr-7 text-sm text-muted-foreground shadow-none data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-300 data-[state=active]:shadow-none sm:h-11 sm:pr-8 sm:text-base"
             >
               Pay Orders
             </TabsTrigger>
             <TabsTrigger
               value="activity"
-              className="h-10 rounded-none border-b-2 border-transparent bg-transparent px-0 text-sm text-muted-foreground shadow-none data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 data-[state=active]:shadow-none sm:h-11 sm:text-base"
+              className="h-10 rounded-none border-b-2 border-transparent bg-transparent px-0 text-sm text-muted-foreground shadow-none data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-300 data-[state=active]:shadow-none sm:h-11 sm:text-base"
             >
               Activity Log
             </TabsTrigger>
@@ -1029,7 +1029,7 @@ export default function PayOrders() {
                   <Card key={p.id} className="overflow-hidden rounded-xl border bg-card">
                     <CardContent className="space-y-3 p-3.5">
                       <div className="flex items-start gap-3">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                           <FileText className="h-6 w-6" aria-hidden="true" />
                         </div>
                         <button
@@ -1109,7 +1109,7 @@ export default function PayOrders() {
                           <span>
                             Submitted: {formatDate(p.submitted) || "-"}
                           </span>
-                          <span className="ml-auto shrink-0 font-mono text-base font-semibold tabular-nums text-emerald-700">
+                          <span className="ml-auto shrink-0 font-mono text-base font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
                             {formatCurrency(p.amount)}
                           </span>
                         </div>

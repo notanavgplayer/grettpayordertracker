@@ -219,7 +219,7 @@ function AttentionItem({ icon: Icon, type, title, description, dueDate, status, 
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full min-w-0 items-start gap-3 rounded-xl border bg-background p-3.5 text-left transition-colors hover:border-emerald-200 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="flex w-full min-w-0 items-start gap-3 rounded-xl border bg-background p-3.5 text-left transition-colors hover:border-emerald-200 dark:hover:border-emerald-900/60 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         {content}
       </button>
@@ -621,7 +621,7 @@ export default function Home() {
       <section className="rounded-xl border bg-card p-4 sm:p-5 lg:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-emerald-700">Daily control center</p>
+            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Daily control center</p>
             <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-[32px]">
               Dashboard
             </h1>

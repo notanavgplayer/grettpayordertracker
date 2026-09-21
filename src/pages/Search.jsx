@@ -281,7 +281,7 @@ export default function Search() {
                 className={`h-9 flex-shrink-0 rounded-full border px-3 text-sm font-medium transition-colors ${
                   scope === item
                     ? 'border-emerald-600 bg-emerald-600 text-white'
-                    : 'border-border bg-background text-muted-foreground hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
+                    : 'border-border bg-background text-muted-foreground hover:border-emerald-200 dark:hover:border-emerald-900/60 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300'
                 }`}
                 aria-pressed={scope === item}
               >
@@ -371,14 +371,14 @@ function SearchResultCard({ result }) {
 
   return (
     <Link to={cfg.href(result)} className="block">
-      <Card className="rounded-xl border-border/80 transition hover:border-emerald-200 hover:shadow-md">
+      <Card className="rounded-xl border-border/80 transition hover:border-emerald-200 dark:hover:border-emerald-900/60 hover:shadow-md">
         <CardContent className="flex items-start gap-4 p-4">
-          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700" aria-hidden="true">
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300" aria-hidden="true">
             <Icon className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 text-xs text-emerald-700">{cfg.label}</Badge>
+              <Badge variant="outline" className="rounded-full border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-xs text-emerald-700 dark:text-emerald-300">{cfg.label}</Badge>
               {date && <span className="text-xs text-muted-foreground">{formatDate(date)}</span>}
             </div>
             <p className="mt-2 line-clamp-2 text-sm font-semibold text-foreground">{title}</p>
@@ -393,7 +393,7 @@ function SearchResultCard({ result }) {
 function SearchEmptyState({ icon: Icon, title, description }) {
   return (
     <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
         <Icon className="h-7 w-7" aria-hidden="true" />
       </div>
       <p className="mt-4 text-sm font-semibold text-foreground">{title}</p>
