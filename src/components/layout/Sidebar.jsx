@@ -94,16 +94,12 @@ export default function Sidebar({ onClose, collapsed = false, onSignOut }) {
                     <NavLink
                       aria-label={collapsed ? label : undefined}
                       to={to}
+                      end={to === '/home'}
                       onClick={onClose}
-                      className={({ isActive }) =>
-                        cn(
-                          'relative flex min-h-10 items-center gap-3 rounded-xl border-0 px-3 py-2.5 text-sm font-medium outline-none ring-0 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500/30',
-                          collapsed && 'justify-center px-2',
-                          isActive
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-sidebar-accent dark:text-primary'
-                            : 'bg-transparent text-slate-600 shadow-none hover:bg-slate-50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-secondary dark:hover:text-slate-100'
-                        )
-                      }
+                      className={cn(
+                        'relative flex min-h-10 items-center gap-3 rounded-xl border-0 bg-transparent px-3 py-2.5 text-sm font-medium text-slate-600 shadow-none outline-none ring-0 transition-colors hover:bg-slate-50 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-emerald-500/30 aria-[current=page]:bg-emerald-50 aria-[current=page]:text-emerald-700 dark:bg-transparent dark:text-slate-400 dark:hover:bg-secondary dark:hover:text-slate-100 dark:aria-[current=page]:bg-sidebar-accent dark:aria-[current=page]:text-primary',
+                        collapsed && 'justify-center px-2',
+                      )}
                     >
                       {({ isActive }) => (
                         <>
