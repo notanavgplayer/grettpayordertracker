@@ -77,7 +77,7 @@ function FinancialSnapshot({ tender }) {
       ? 'border-blue-200 bg-blue-50 text-blue-800'
       : financials.direction === 'below'
         ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-        : 'border-slate-200 bg-slate-50 text-slate-600'
+        : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
   const valueTone = financials.direction === 'above'
     ? 'text-amber-700'
     : financials.direction === 'at'
@@ -87,7 +87,7 @@ function FinancialSnapshot({ tender }) {
         : 'text-slate-700'
 
   return (
-    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/40 p-3 sm:mt-6 sm:p-4">
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/40 p-3 dark:border-slate-700 dark:bg-slate-900/30 sm:mt-6 sm:p-4">
       <div className="mb-3 flex items-start justify-between gap-3 sm:mb-4">
         <div>
           <p className="text-base font-bold leading-none text-slate-950 sm:text-sm sm:font-semibold sm:leading-5">Financial Snapshot</p>
@@ -110,7 +110,7 @@ function FinancialSnapshot({ tender }) {
         />
       </div>
       <div className="mt-3 grid grid-cols-3 rounded-xl border border-border bg-card p-2.5 text-center text-[11px] sm:p-3 sm:text-sm">
-        <div className="border-r border-slate-200 px-1.5 sm:px-2">
+        <div className="border-r border-slate-200 px-1.5 dark:border-slate-700 sm:px-2">
           <p className="font-medium text-slate-500">Difference</p>
           <p className={`mt-1.5 break-words text-[12px] font-bold leading-tight min-[390px]:text-[13px] sm:mt-2 sm:text-base ${valueTone}`}>
             {financials.difference === null ? FALLBACK : (
@@ -120,7 +120,7 @@ function FinancialSnapshot({ tender }) {
             )}
           </p>
         </div>
-        <div className="border-r border-slate-200 px-1.5 sm:px-2">
+        <div className="border-r border-slate-200 px-1.5 dark:border-slate-700 sm:px-2">
           <p className="font-medium text-slate-500">Quoted %</p>
           <p className={`mt-1.5 break-words text-[12px] font-bold leading-tight min-[390px]:text-[13px] sm:mt-2 sm:text-base ${valueTone}`}>
             {financials.percentage === null ? FALLBACK : `${financials.percentage.toFixed(2)}% ${directionText}`}
@@ -199,7 +199,7 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
             </div>
             <DialogClose
               aria-label="Close tender quick view"
-              className="mr-1 mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 sm:mr-0 sm:mt-0"
+              className="mr-1 mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 dark:text-slate-400 dark:hover:bg-slate-900/60 dark:hover:text-slate-200 dark:focus-visible:ring-slate-700 sm:mr-0 sm:mt-0"
             >
               <X className="h-5 w-5" />
             </DialogClose>
@@ -256,7 +256,7 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
         </div>
 
         {tender.notes && (
-          <div className="mt-5 rounded-xl border border-border bg-slate-50/70 p-4">
+          <div className="mt-5 rounded-xl border border-border bg-slate-50/70 dark:bg-slate-900/35 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
             <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">{tender.notes}</p>
           </div>

@@ -72,9 +72,9 @@ function getTypeClasses(type) {
     Vendor: 'border-blue-200 bg-blue-50 text-blue-700',
     Bank: 'border-amber-200 bg-amber-50 text-amber-700',
     Officer: 'border-purple-200 bg-purple-50 text-purple-700',
-    Contractor: 'border-slate-200 bg-slate-100 text-slate-700',
+    Contractor: 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300',
   }
-  return tones[type] || 'border-slate-200 bg-slate-50 text-slate-700'
+  return tones[type] || 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
 }
 
 function getTypeIcon(type) {

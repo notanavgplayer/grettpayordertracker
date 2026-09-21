@@ -142,7 +142,7 @@ function getDocumentTypeClasses(kind) {
     Image: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     Excel: 'border-green-200 bg-green-50 text-green-700',
     Word: 'border-blue-200 bg-blue-50 text-blue-700',
-    Other: 'border-slate-200 bg-slate-100 text-slate-700',
+    Other: 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300',
   }
   return tones[kind] || tones.Other
 }
@@ -4346,7 +4346,7 @@ function ExpensesFinanceSection({
         )}
       </div>
 
-      <section className="rounded-xl border border-border/80 bg-slate-50/40 p-4 md:p-5">
+      <section className="rounded-xl border border-border/80 bg-slate-50/40 dark:bg-slate-900/30 p-4 md:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Contract Financial Basis</h3>
@@ -4428,7 +4428,7 @@ function ExpensesFinanceSection({
           <div className="hidden overflow-x-auto rounded-xl border border-border/80 bg-background md:block">
             <Table className="min-w-[1040px]">
               <TableHeader>
-                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 dark:bg-slate-900/45 dark:hover:bg-slate-900/45">
                   <TableHead className="w-[130px] whitespace-nowrap pl-6 text-xs font-semibold uppercase text-slate-500">Date</TableHead>
                   <TableHead className="text-xs font-semibold uppercase text-slate-500">Description</TableHead>
                   <TableHead className="w-[170px] text-xs font-semibold uppercase text-slate-500">Category</TableHead>
@@ -4442,7 +4442,7 @@ function ExpensesFinanceSection({
               </TableHeader>
               <TableBody>
                 {filteredExpenses.map((expense) => (
-                  <TableRow key={expense.id} className="h-16 border-border/70 hover:bg-slate-50/50">
+                  <TableRow key={expense.id} className="h-16 border-border/70 hover:bg-slate-50/50 dark:hover:bg-slate-900/35">
                     <TableCell className="whitespace-nowrap pl-6 text-sm text-slate-700">{formatDate(expense.date)}</TableCell>
                     <TableCell className="max-w-[260px] text-sm font-medium text-foreground">
                       <span className="line-clamp-2">{expense.description || '-'}</span>
@@ -4514,7 +4514,7 @@ function AmountBasisBadge({ basis, compact = false }) {
     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
     : normalized === 'net'
       ? 'border-blue-200 bg-blue-50 text-blue-700'
-      : 'border-slate-200 bg-slate-50 text-slate-700'
+      : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
   return (
     <Badge variant="outline" className={`max-w-full shrink-0 rounded-full ${compact ? 'px-2 py-0.5 text-xs' : ''} ${className}`}>
       {getExpenseBasisLabel(normalized)}
@@ -4531,7 +4531,7 @@ function ExpenseCategoryBadge({ category }) {
   const className = normalized === 'Printing & Documentation'
     ? 'border-blue-200 bg-blue-50 text-blue-700'
     : normalized === 'Miscellaneous'
-      ? 'border-slate-200 bg-slate-50 text-slate-700'
+      ? 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
       : normalized.includes('Fuel')
         ? 'border-cyan-200 bg-cyan-50 text-cyan-700'
         : normalized.includes('Labour')
@@ -4552,7 +4552,7 @@ function ExpenseStatusBadge({ status }) {
         ? 'border-amber-200 bg-amber-50 text-amber-700'
         : ['Sunk Cost', 'Non-Recoverable'].includes(normalized)
           ? 'border-rose-200 bg-rose-50 text-rose-700'
-          : 'border-slate-200 bg-slate-50 text-slate-700'
+          : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
   return <Badge variant="outline" className={`shrink-0 rounded-full ${className}`}>{normalized}</Badge>
 }
 
@@ -4575,7 +4575,7 @@ function ExpenseMobileCard({ expense, isAdmin, onView, onEdit, onDelete }) {
         <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-slate-950">{formatCurrency(Number(expense.amount) || 0)}</p>
       </div>
       <p className="mt-3 text-sm text-muted-foreground">{formatDate(expense.date)}</p>
-      {expense.note && <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-muted-foreground">{expense.note}</p>}
+      {expense.note && <p className="mt-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/40 text-sm text-muted-foreground">{expense.note}</p>}
       <div className="mt-4 flex justify-end gap-2">
         <Button type="button" variant="outline" size="icon-sm" onClick={() => onView(expense)} aria-label="View expense"><Eye className="h-3.5 w-3.5" /></Button>
         {isAdmin && <Button type="button" variant="outline" size="icon-sm" onClick={() => onEdit(expense)} aria-label="Edit expense"><Pencil className="h-3.5 w-3.5" /></Button>}
@@ -4845,7 +4845,7 @@ function BillsInvoicesSection({
             <div className="hidden overflow-hidden rounded-xl border border-border/80 bg-background md:block">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                  <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 dark:bg-slate-900/45 dark:hover:bg-slate-900/45">
                     <TableHead className="pl-6 text-xs font-semibold uppercase text-slate-500">Bill No.</TableHead>
                     <TableHead className="text-xs font-semibold uppercase text-slate-500">Type</TableHead>
                     <TableHead className="text-xs font-semibold uppercase text-slate-500">Date</TableHead>
@@ -4862,7 +4862,7 @@ function BillsInvoicesSection({
                   {filteredBills.map((bill) => {
                     const amounts = getBillAmounts(bill)
                     return (
-                      <TableRow key={bill.id} className="h-16 border-border/70 hover:bg-slate-50/50">
+                      <TableRow key={bill.id} className="h-16 border-border/70 hover:bg-slate-50/50 dark:hover:bg-slate-900/35">
                         <TableCell className="pl-6 font-mono text-sm font-semibold text-emerald-700">{getBillTitle(bill, '-')}</TableCell>
                         <TableCell><BillTypeBadge type={bill.type || 'Running Bill'} /></TableCell>
                         <TableCell className="text-sm text-slate-700">{formatDate(getBillDate(bill))}</TableCell>
@@ -5001,7 +5001,7 @@ function BillInvoiceStatusBadge({ status }) {
             ? 'border-rose-200 bg-rose-50 text-rose-700'
             : ['Submitted', 'Under Review'].includes(normalized)
               ? 'border-blue-200 bg-blue-50 text-blue-700'
-              : 'border-slate-200 bg-slate-50 text-slate-700'
+              : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
   return <Badge variant="outline" className={`shrink-0 rounded-full ${className}`}>{normalized}</Badge>
 }
 
@@ -5019,7 +5019,7 @@ function BillsMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
       <div className="mt-3">
         <BillTypeBadge type={bill.type || 'Running Bill'} />
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3">
+      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/40">
         <MobileBillAmount label="Submitted" value={amounts.submitted} />
         <MobileBillAmount label="Approved" value={amounts.approved} />
         <MobileBillAmount label="Received" value={amounts.received} tone="profit" />
@@ -5066,7 +5066,7 @@ function BillViewDialog({ bill, onOpenChange }) {
 
 function BillDetail({ label, value }) {
   return (
-    <div className="rounded-xl border border-border/80 bg-slate-50/70 p-3">
+    <div className="rounded-xl border border-border/80 bg-slate-50/70 dark:bg-slate-900/35 p-3">
       <p className="text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">{label}</p>
       <p className="mt-1 break-words text-sm font-medium text-foreground">{value || '-'}</p>
     </div>
@@ -5288,7 +5288,7 @@ function RABillsSection({
             <div className="hidden overflow-hidden rounded-xl border border-border/80 bg-background md:block">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                  <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 dark:bg-slate-900/45 dark:hover:bg-slate-900/45">
                     <TableHead className="pl-6 text-xs font-semibold uppercase text-slate-500">RA Bill No.</TableHead>
                     <TableHead className="text-xs font-semibold uppercase text-slate-500">Date</TableHead>
                     <TableHead className="text-right text-xs font-semibold uppercase text-slate-500">Submitted</TableHead>
@@ -5304,7 +5304,7 @@ function RABillsSection({
                   {filteredRaBills.map((bill) => {
                     const amounts = getBillAmounts(bill)
                     return (
-                      <TableRow key={bill.id} className="h-16 border-border/70 hover:bg-slate-50/50">
+                      <TableRow key={bill.id} className="h-16 border-border/70 hover:bg-slate-50/50 dark:hover:bg-slate-900/35">
                         <TableCell className="pl-6 font-mono text-sm font-semibold text-emerald-700">{getBillTitle(bill, '-')}</TableCell>
                         <TableCell className="text-sm text-slate-700">{formatDate(getBillDate(bill))}</TableCell>
                         <BillMoneyCell value={amounts.submitted} />
@@ -5374,7 +5374,7 @@ function RABillMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
         </div>
         <BillInvoiceStatusBadge status={bill.status || 'Draft'} />
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3">
+      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/40">
         <MobileBillAmount label="Submitted" value={amounts.submitted} />
         <MobileBillAmount label="Approved" value={amounts.approved} />
         <MobileBillAmount label="Received" value={amounts.received} tone="profit" />

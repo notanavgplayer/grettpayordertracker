@@ -5,13 +5,19 @@ const ThemeContext = createContext(null)
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('grett-theme') || 'light' } catch { return 'light' }
+    try {
+      const storedTheme = localStorage.getItem('grett-theme')
+      if (storedTheme === 'light' || storedTheme === 'dark') return storedTheme
+      return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    } catch { return 'light' }
   })
 
   useEffect(() => {
     const root = document.documentElement
     if (theme === 'dark') root.classList.add('dark')
     else root.classList.remove('dark')
+    root.style.colorScheme = theme
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111820' : '#F3F6F8')
     try { localStorage.setItem('grett-theme', theme) } catch {}
   }, [theme])
 

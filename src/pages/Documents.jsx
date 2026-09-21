@@ -103,7 +103,7 @@ function getKindBadgeClass(kind) {
   if (kind === 'PDF') return 'border-rose-200 bg-rose-50 text-rose-700'
   if (kind === 'Excel') return 'border-green-200 bg-green-50 text-green-700'
   if (kind === 'Word') return 'border-blue-200 bg-blue-50 text-blue-700'
-  return 'border-slate-200 bg-slate-50 text-slate-700'
+  return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
 }
 
 function getKindIconClass(kind) {
@@ -111,7 +111,7 @@ function getKindIconClass(kind) {
   if (kind === 'PDF') return 'bg-rose-50 text-rose-700'
   if (kind === 'Excel') return 'bg-green-50 text-green-700'
   if (kind === 'Word') return 'bg-blue-50 text-blue-700'
-  return 'bg-slate-50 text-slate-700'
+  return 'bg-slate-50 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
 }
 
 function getCategoryBadgeClass(category = '') {
@@ -120,7 +120,7 @@ function getCategoryBadgeClass(category = '') {
   if (value.includes('boq') || value.includes('tender') || value.includes('nit')) return 'border-blue-200 bg-blue-50 text-blue-700'
   if (value.includes('drawing') || value.includes('material')) return 'border-cyan-200 bg-cyan-50 text-cyan-700'
   if (value.includes('letter') || value.includes('work')) return 'border-amber-200 bg-amber-50 text-amber-700'
-  return 'border-slate-200 bg-slate-50 text-slate-700'
+  return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
 }
 
 function formatFileSize(bytes) {
