@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useCollection } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
 import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
@@ -19,6 +19,7 @@ import StatusBadge from "@/components/shared/StatusBadge";
 import EmptyState from "@/components/shared/EmptyState";
 import ConfirmDelete from "@/components/shared/ConfirmDelete";
 import TenderQuickView from "@/components/shared/TenderQuickView";
+import DeadlineBadge from "@/components/shared/DeadlineBadge";
 import KpiCard from "@/components/shared/KpiCard";
 import { PageTableSkeleton } from "@/components/shared/LoadingSkeletons";
 import LoadState from "@/components/shared/LoadState";
@@ -79,6 +80,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getTenderDeadline, matchesDeadlineFilter } from "@/lib/tenderDeadlines";
 
 const TERMINAL_STATUSES = ["Completed", "Lost", "Cancelled"];
 const PIPELINE_STAGES = [
@@ -92,6 +94,13 @@ const PIPELINE_STAGES = [
   "Cancelled",
 ];
 const FILTER_STATUSES = ["All", ...PIPELINE_STAGES, "Overdue"];
+const DEADLINE_FILTERS = [
+  ["all", "All Upcoming"],
+  ["today", "Due Today"],
+  ["three-days", "Next 3 Days"],
+  ["seven-days", "Next 7 Days"],
+  ["overdue", "Overdue"],
+];
 const SORT_OPTIONS = [
   { value: "submissionDate", label: "Submission Date" },
   { value: "openingDate", label: "Opening Date" },
@@ -192,6 +201,7 @@ function isSameStatus(status, target) {
 }
 
 export default function Tenders() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: tenders, loading, error } = useCollection(
     "tenders",
     "createdAt",
@@ -205,6 +215,7 @@ export default function Tenders() {
   const [submissionFrom, setSubmissionFrom] = useState("");
   const [submissionTo, setSubmissionTo] = useState("");
   const [sortBy, setSortBy] = useState("submissionDate");
+  const [deadlineFilter, setDeadlineFilter] = useState(searchParams.get("deadline") || "none");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState("10");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -235,6 +246,8 @@ export default function Tenders() {
     const to = parseDateValue(submissionTo);
     return tendersResolved
       .filter((t) => {
+        const deadline = getTenderDeadline(t);
+        if (deadlineFilter !== "none" && !matchesDeadlineFilter(deadline, deadlineFilter)) return false;
         if (filterStatus !== "All" && t.displayStatus !== filterStatus)
           return false;
         if (filterAgency !== "All" && t.agency !== filterAgency) return false;
@@ -266,6 +279,7 @@ export default function Tenders() {
     submissionFrom,
     submissionTo,
     sortBy,
+    deadlineFilter,
   ]);
 
   const numericRowsPerPage = rowsPerPage === "all" ? filtered.length || 1 : Number(rowsPerPage);
@@ -291,10 +305,11 @@ export default function Tenders() {
     submissionFrom ||
     submissionTo ||
     sortBy !== "submissionDate";
+  const hasDeadlineFilter = deadlineFilter !== "none";
 
   useEffect(() => {
     setPage(1);
-  }, [search, filterStatus, filterAgency, submissionFrom, submissionTo, sortBy, rowsPerPage]);
+  }, [search, filterStatus, filterAgency, submissionFrom, submissionTo, sortBy, rowsPerPage, deadlineFilter]);
 
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
@@ -470,6 +485,8 @@ export default function Tenders() {
     setSubmissionFrom("");
     setSubmissionTo("");
     setSortBy("submissionDate");
+    setDeadlineFilter("none");
+    setSearchParams({}, { replace: true });
   };
 
   const openDialog = (item = null) => {
@@ -706,20 +723,6 @@ export default function Tenders() {
     return String(value).replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim() || "—";
   };
 
-  const getSubmissionDueLabel = (tender) => {
-    if (tender.displayStatus === "Overdue") return "Overdue";
-    const date = parseDateValue(tender.submissionDate);
-    if (!date) return "—";
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    date.setHours(0, 0, 0, 0);
-    const days = Math.round((date - today) / 86400000);
-    if (days === 0) return "Due Today";
-    if (days === 1) return "Due Tomorrow";
-    if (days > 1) return `Due in ${days} days`;
-    return formatDate(tender.submissionDate) || "—";
-  };
-
   if (loading) return <PageTableSkeleton rows={6} cols={6} metrics={5} />;
   if (error) return <LoadState title="Could not load tenders" error={error} />;
 
@@ -772,7 +775,7 @@ export default function Tenders() {
       </div>
 
       {/* Tender table */}
-      {filtered.length === 0 && !hasActiveFilters ? (
+      {filtered.length === 0 && !hasActiveFilters && !hasDeadlineFilter ? (
         <EmptyState
           icon={FileStack}
           title="No tenders added yet"
@@ -801,10 +804,31 @@ export default function Tenders() {
                 variant="outline"
                 size="sm"
                 onClick={clearFilters}
-                disabled={!hasActiveFilters}
+                disabled={!hasActiveFilters && !hasDeadlineFilter}
               >
                 <X className="h-4 w-4" /> Clear filters
               </Button>
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin" aria-label="Tender deadline filters">
+              {DEADLINE_FILTERS.map(([value, label]) => {
+                const active = deadlineFilter === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      const next = active ? "none" : value;
+                      setDeadlineFilter(next);
+                      setSearchParams(next === "none" ? {} : { deadline: next }, { replace: true });
+                    }}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(220px,1.4fr)_repeat(5,minmax(150px,1fr))]">
@@ -1026,15 +1050,7 @@ export default function Tenders() {
                             <span className="text-sm truncate">
                               {formatDate(t.submissionDate) || "—"}
                             </span>
-                            <span
-                              className={`ml-auto rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                t.displayStatus === "Overdue"
-                                  ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300"
-                                  : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
-                              }`}
-                            >
-                              {getSubmissionDueLabel(t)}
-                            </span>
+                            <DeadlineBadge tender={t} className="ml-auto" />
                           </div>
                           <p className="ml-[22px] mt-1 text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
                             Submission
@@ -1096,7 +1112,8 @@ export default function Tenders() {
                           <StatusBadge status={t.displayStatus} />
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {formatDate(t.submissionDate) || "—"}
+                          <span>{formatDate(t.submissionDate) || "—"}</span>
+                          <DeadlineBadge tender={t} className="ml-2 align-middle" />
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           {formatDate(t.openingDate) || "—"}
@@ -1385,7 +1402,7 @@ export default function Tenders() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="t-sub">Submission Date</Label>
+                <Label htmlFor="t-sub">Tender Due Date / Bid Submission Deadline</Label>
                 <Input
                   id="t-sub"
                   type="date"

@@ -3,24 +3,8 @@ import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestor
 import { db } from '@/lib/firebase'
 import { daysUntil, formatCurrency, isActionableTenderStatus, isTaskDone, sortByField } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
-
-const readKey = (userId) => `grett-notifications-read:${userId || 'anonymous'}`
-
-function loadRead(userId) {
-  try {
-    const raw = localStorage.getItem(readKey(userId))
-    if (!raw) return new Set()
-    return new Set(JSON.parse(raw))
-  } catch {
-    return new Set()
-  }
-}
-
-function saveRead(userId, set) {
-  try {
-    localStorage.setItem(readKey(userId), JSON.stringify(Array.from(set)))
-  } catch {}
-}
+import { getTenderDeadline, getTenderReminderContent, getTenderReminderKey } from '@/lib/tenderDeadlines'
+import { useTenderReminderSettings } from '@/hooks/useTenderReminderSettings'
 
 function fmtDue(days) {
   if (days < 0) return `${Math.abs(days)}d overdue`
@@ -116,6 +100,7 @@ function useCollectionLive(name, orderField, orderDir = 'desc', limitN) {
 
 export function useNotifications() {
   const { user } = useAuth()
+  const reminderState = useTenderReminderSettings()
   const tenderState = useCollectionLive('tenders', 'createdAt')
   const todoState = useCollectionLive('todos', 'createdAt')
   const eventState = useCollectionLive('calendarEvents', 'createdAt')
@@ -128,9 +113,7 @@ export function useNotifications() {
   const activity = activityState.data
   const error = tenderState.error || todoState.error || eventState.error || payOrderState.error || activityState.error
 
-  const [readIds, setReadIds] = useState(() => loadRead(user?.uid))
-
-  useEffect(() => setReadIds(loadRead(user?.uid)), [user?.uid])
+  const { readIds, preferences, browserEnabled } = reminderState
 
   const items = useMemo(() => {
     const out = []
@@ -161,20 +144,30 @@ export function useNotifications() {
       }
 
       if (isActionableTenderStatus(tender.status)) {
-        for (const [field, label] of [
-          ['submissionDate', 'Tender submission'],
-          ['openingDate', 'Tender opening'],
-        ]) {
-          const days = daysUntil(tender[field])
-          if (days === null) continue
-          if (days < -1 || days > 7) continue
+        const deadline = getTenderDeadline(tender)
+        const reminderKey = deadline ? getTenderReminderKey(deadline.days, preferences) : null
+        if (deadline && reminderKey) {
+          const content = getTenderReminderContent(tender, deadline)
           out.push({
-            id: `tender:${tender.id}:${field}`,
+            id: `tender-deadline:${tender.id}:${deadline.dateValue}:${reminderKey}`,
+            kind: 'tender-deadline',
+            severity: deadline.days <= 1 ? 'high' : 'normal',
+            title: content.title,
+            subtitle: content.body,
+            sortKey: deadline.days,
+            to: `/tenders/${tender.id}`,
+          })
+        }
+
+        const openingDays = daysUntil(tender.openingDate)
+        if (openingDays !== null && openingDays >= 0 && openingDays <= 7) {
+          out.push({
+            id: `tender:${tender.id}:openingDate:${tender.openingDate}`,
             kind: 'tender',
-            severity: days <= 1 ? 'high' : 'normal',
-            title: `${label}: ${fmtDue(days)}`,
+            severity: openingDays <= 1 ? 'high' : 'normal',
+            title: `Tender opening: ${fmtDue(openingDays)}`,
             subtitle: tender.name || '(untitled tender)',
-            sortKey: days,
+            sortKey: openingDays + 0.5,
             to: `/tenders/${tender.id}`,
           })
         }
@@ -247,7 +240,21 @@ export function useNotifications() {
 
     out.sort((a, b) => a.sortKey - b.sortKey)
     return out
-  }, [tenders, todos, events, payOrders, activity])
+  }, [tenders, todos, events, payOrders, activity, preferences])
+
+  useEffect(() => {
+    if (!browserEnabled || typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+    const key = `grett-browser-notifications:${user?.uid || 'anonymous'}`
+    let delivered = []
+    try { delivered = JSON.parse(localStorage.getItem(key) || '[]') } catch {}
+    const deliveredSet = new Set(delivered)
+    const pending = items.filter((item) => item.kind === 'tender-deadline' && !readIds.has(item.id) && !deliveredSet.has(item.id))
+    for (const item of pending) {
+      new Notification(item.title, { body: item.subtitle, tag: item.id })
+      deliveredSet.add(item.id)
+    }
+    try { localStorage.setItem(key, JSON.stringify(Array.from(deliveredSet).slice(-200))) } catch {}
+  }, [browserEnabled, items, readIds, user?.uid])
 
   const unreadCount = useMemo(
     () => items.filter((i) => !readIds.has(i.id) && i.kind !== 'activity').length,
@@ -255,18 +262,11 @@ export function useNotifications() {
   )
 
   const markAllRead = () => {
-    const next = new Set(readIds)
-    for (const item of items) next.add(item.id)
-    setReadIds(next)
-    saveRead(user?.uid, next)
+    reminderState.markAllRead(items.map((item) => item.id))
   }
 
   const markRead = (id) => {
-    if (readIds.has(id)) return
-    const next = new Set(readIds)
-    next.add(id)
-    setReadIds(next)
-    saveRead(user?.uid, next)
+    reminderState.markRead(id)
   }
 
   return { items, unreadCount, readIds, markAllRead, markRead, error }

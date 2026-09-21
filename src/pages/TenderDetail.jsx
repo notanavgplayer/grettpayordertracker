@@ -25,6 +25,7 @@ import Breadcrumbs from '@/components/shared/Breadcrumbs'
 import StatusBadge from '@/components/shared/StatusBadge'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import KpiCard from '@/components/shared/KpiCard'
+import DeadlineBadge from '@/components/shared/DeadlineBadge'
 import TenderExpenseDialog from '@/components/tenders/TenderExpenseDialog'
 import TenderPayOrderSheet from '@/components/tenders/TenderPayOrderSheet'
 import SiteVisitSheet from '@/components/tenders/SiteVisitSheet'
@@ -41,6 +42,7 @@ import {
   Search, Image as ImageIcon, FileSpreadsheet, FileType2, Clock, Eye, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getTenderDeadline } from '@/lib/tenderDeadlines'
 
 const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', calculationMethod: 'manual', amountBasis: 'manual', percentage: '', date: '', note: '' }
 const EMPTY_PO = { po: '', bank: '', amount: '', purpose: 'Bid Security', status: 'Pending', submitted: '', notes: '' }
@@ -1424,6 +1426,7 @@ export default function TenderDetail() {
   const cashPosition = totalReceived - totalExpenses
   const projectedMargin = contractValue > 0 ? Math.round((expectedProfit / contractValue) * 100) : null
   const tenderFinancials = calculateTenderFinancials(form)
+  const submissionDeadline = getTenderDeadline(form)
   const displayTenderStatus = getTenderDisplayStatus(form)
   const tenderFinancialDirectionText =
     tenderFinancials.direction === 'below'
@@ -1797,8 +1800,13 @@ export default function TenderDetail() {
                 <DetailRow icon={Landmark} label="Procuring Agency" className="md:col-span-2 xl:col-span-1">
                   {detailsEditing ? <Input aria-label="Agency or department" value={form.agency || ''} onChange={(e) => updateForm('agency', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.agency || '-'}</DetailValue>}
                 </DetailRow>
-                <DetailRow icon={CalendarDays} label="Submission Date">
-                  {detailsEditing ? <Input aria-label="Submission date" type="date" value={form.submissionDate || ''} onChange={(e) => updateForm('submissionDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{formatDate(form.submissionDate)}</DetailValue>}
+                <DetailRow icon={CalendarDays} label="Tender Due Date / Bid Submission Deadline">
+                  {detailsEditing ? <Input aria-label="Tender due date or bid submission deadline" type="date" value={form.submissionDate || ''} onChange={(e) => updateForm('submissionDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : (
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <DetailValue>{formatDate(form.submissionDate)}</DetailValue>
+                      <DeadlineBadge tender={form} deadline={submissionDeadline} />
+                    </div>
+                  )}
                 </DetailRow>
                 <DetailRow icon={CalendarDays} label="Opening Date">
                   {detailsEditing ? <Input aria-label="Opening date" type="date" value={form.openingDate || ''} onChange={(e) => updateForm('openingDate', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{formatDate(form.openingDate)}</DetailValue>}

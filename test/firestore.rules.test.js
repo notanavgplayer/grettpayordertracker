@@ -64,3 +64,15 @@ test('rules reject invalid negative nested-independent values and permit narrow 
   await assertSucceeds(updateDoc(doc(db, 'todos/legacy'), { done: false }))
   assert.ok(true)
 })
+
+test('users can persist only their own notification state', { skip: !emulatorHost }, async () => {
+  const viewerDb = environment.authenticatedContext('viewer').firestore()
+  await assertSucceeds(setDoc(doc(viewerDb, 'notificationState/viewer'), {
+    readIds: ['tender-deadline:t1:2026-09-29:seven-days'],
+    preferences: { sevenDays: true, threeDays: true },
+    browserEnabled: false,
+    updatedAt: serverTimestamp(),
+  }))
+  await assertFails(setDoc(doc(viewerDb, 'notificationState/admin'), { readIds: [] }))
+  await assertFails(setDoc(doc(viewerDb, 'notificationState/viewer'), { readIds: [], unexpected: true }))
+})

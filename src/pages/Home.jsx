@@ -39,6 +39,7 @@ import KpiCard from '@/components/shared/KpiCard'
 import LoadState from '@/components/shared/LoadState'
 import { MetricRowSkeleton } from '@/components/shared/LoadingSkeletons'
 import StatusBadge from '@/components/shared/StatusBadge'
+import DeadlineBadge from '@/components/shared/DeadlineBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -57,6 +58,7 @@ import {
 } from '@/lib/utils'
 import { tenderBillTotals, tenderContractValue } from '@/lib/financials'
 import { getAtRiskPayOrders } from '@/lib/payOrderMetrics'
+import { sortTenderDeadlines } from '@/lib/tenderDeadlines'
 
 const TENDER_STATUS_COLORS = {
   Bidding: '#d97706',
@@ -330,12 +332,10 @@ export default function Home() {
     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
   const actionableTenderDeadlines = tenders.filter((t) => isActionableTenderStatus(t.status))
 
-  const allDeadlines = actionableTenderDeadlines
-    .filter((t) => t.submissionDate)
-    .map((t) => ({ ...t, daysLeft: daysUntil(t.submissionDate) }))
-    .filter((t) => t.daysLeft !== null && t.daysLeft >= 0)
-    .sort((a, b) => a.daysLeft - b.daysLeft)
-    .slice(0, 6)
+  const allDeadlineRows = sortTenderDeadlines(actionableTenderDeadlines)
+  const allDeadlines = allDeadlineRows
+    .slice(0, 5)
+    .map(({ tender, deadline }) => ({ ...tender, daysLeft: deadline.days, deadline }))
 
   const urgentAlerts = actionableTenderDeadlines
     .filter((t) => t.submissionDate)
@@ -901,13 +901,13 @@ export default function Home() {
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Clock size={16} className="text-muted-foreground" />
-                Upcoming Deadlines
+                Upcoming Tenders
               </CardTitle>
-              <CardDescription>Next tender submissions and follow-ups</CardDescription>
+              <CardDescription>Nearest submission deadlines requiring attention</CardDescription>
             </div>
-            <Link to="/tenders">
+            <Link to="/tenders?deadline=all">
               <Button variant="ghost" size="sm" className="h-8 text-xs">
-                View all <ChevronRight size={14} />
+                View all upcoming <ChevronRight size={14} />
               </Button>
             </Link>
           </CardHeader>
@@ -921,13 +921,6 @@ export default function Home() {
               <>
                 <div className="space-y-3 px-3 pb-3 md:hidden">
                   {allDeadlines.map((t) => {
-                    const dueLabel = urgentDeadlineLabel(t.daysLeft)
-                    const dueClass = t.daysLeft < 0
-                      ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300'
-                      : t.daysLeft <= 1
-                        ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300'
-                        : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
-
                     return (
                       <button
                         key={t.id}
@@ -953,9 +946,7 @@ export default function Home() {
                             Submission
                           </span>
                           <StatusBadge status={getTenderDisplayStatus(t)} />
-                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${dueClass}`}>
-                            {dueLabel}
-                          </span>
+                          <DeadlineBadge tender={t} deadline={t.deadline} />
                           <span className="text-xs text-muted-foreground">{formatDashboardDate(t.submissionDate)}</span>
                         </div>
 
@@ -996,10 +987,9 @@ export default function Home() {
                         <TableCell className="hidden max-w-[220px] truncate text-muted-foreground md:table-cell">{t.agency || '-'}</TableCell>
                         <TableCell className="hidden text-muted-foreground lg:table-cell">Submission</TableCell>
                         <TableCell><StatusBadge status={getTenderDisplayStatus(t)} /></TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          <span className={t.daysLeft <= 1 ? 'font-semibold text-rose-600 dark:text-rose-400' : t.daysLeft <= 3 ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}>
-                            {t.daysLeft === 0 ? 'Today' : t.daysLeft === 1 ? 'Tomorrow' : `${t.daysLeft}d`}
-                          </span>
+                        <TableCell className="text-right">
+                          <DeadlineBadge tender={t} deadline={t.deadline} className="justify-center" />
+                          <p className="mt-1 text-xs text-muted-foreground">{formatDashboardDate(t.submissionDate)}</p>
                         </TableCell>
                       </TableRow>
                     ))}

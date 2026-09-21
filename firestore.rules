@@ -75,6 +75,18 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Per-user notification read state and tender-reminder preferences.
+    match /notificationState/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow create, update: if isAuthenticated()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['readIds','preferences','browserEnabled','updatedAt'])
+        && (!('readIds' in request.resource.data) || request.resource.data.readIds is list)
+        && (!('preferences' in request.resource.data) || request.resource.data.preferences is map)
+        && (!('browserEnabled' in request.resource.data) || request.resource.data.browserEnabled is bool);
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
     // ---- payOrders --------------------------------------------------------
 
     function validPayOrder(d) {

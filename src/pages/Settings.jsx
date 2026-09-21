@@ -15,12 +15,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { getInitials } from '@/lib/utils'
-import { Moon, Sun, Download, Loader2, Users, Shield, User } from 'lucide-react'
+import { useTenderReminderSettings } from '@/hooks/useTenderReminderSettings'
+import { Bell, Moon, Sun, Download, Loader2, Users, Shield, User } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function Settings() {
   const { user, userDoc, isAdmin, displayName, role } = useAuth()
   const { toggleTheme, isDark } = useTheme()
+  const { preferences, browserEnabled, updatePreferences, setBrowserEnabled } = useTenderReminderSettings()
   const [users, setUsers] = useState([])
   const [loadingUsers, setLoadingUsers] = useState(false)
 
@@ -36,6 +38,26 @@ export default function Settings() {
 
   // Backup
   const [exportingBackup, setExportingBackup] = useState(false)
+
+  const toggleBrowserNotifications = async (enabled) => {
+    if (!enabled) {
+      await setBrowserEnabled(false)
+      toast.success('Browser tender notifications disabled')
+      return
+    }
+    if (typeof Notification === 'undefined') {
+      toast.error('This browser does not support notifications')
+      return
+    }
+    const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
+    if (permission !== 'granted') {
+      await setBrowserEnabled(false)
+      toast.error('Browser notification permission was not granted')
+      return
+    }
+    await setBrowserEnabled(true)
+    toast.success('Browser tender notifications enabled while the app is open')
+  }
 
   useEffect(() => {
     setNewDisplayName(displayName)
@@ -151,6 +173,34 @@ export default function Settings() {
               <Label htmlFor="user-email">Email</Label>
               <Input id="user-email" name="email" autoComplete="email" value={user?.email || ''} disabled className="h-10 sm:h-11" />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-xl border-border/80 bg-card">
+        <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
+          <CardTitle className="flex items-center gap-2 text-base"><Bell className="h-4 w-4 text-primary" /> Tender Reminders</CardTitle>
+          <CardDescription>Choose when submission-deadline reminders should appear.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[
+            ['sevenDays', '7 days before'],
+            ['threeDays', '3 days before'],
+            ['oneDay', '1 day before'],
+            ['dueToday', 'On the due date'],
+            ['overdue', 'When overdue'],
+          ].map(([key, label]) => (
+            <div key={key} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/20 p-3.5">
+              <span id={`reminder-${key}`} className="text-sm font-medium text-foreground">{label}</span>
+              <Switch checked={preferences[key] !== false} onCheckedChange={(checked) => updatePreferences({ [key]: checked })} aria-labelledby={`reminder-${key}`} />
+            </div>
+          ))}
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-muted/20 p-3.5">
+            <div>
+              <p id="browser-reminder-label" className="text-sm font-medium text-foreground">Browser notifications</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">Optional alerts while this website is open. Closed-browser delivery requires a push service.</p>
+            </div>
+            <Switch checked={browserEnabled} onCheckedChange={toggleBrowserNotifications} aria-labelledby="browser-reminder-label" />
           </div>
         </CardContent>
       </Card>

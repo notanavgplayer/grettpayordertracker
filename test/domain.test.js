@@ -4,6 +4,14 @@ import { stripUndefined, nullableNumber, nonNegativeNumber, safeHttpUrl, seriali
 import { billAmounts, billDate, billNumber, tenderBillTotals } from '../src/lib/financials.js'
 import { csvCell, safeSpreadsheetText } from '../src/lib/csv.js'
 import { formatDate } from '../src/lib/utils.js'
+import {
+  deadlineLabel,
+  getTenderDeadline,
+  getTenderReminderKey,
+  matchesDeadlineFilter,
+  sortTenderDeadlines,
+  tenderDaysRemaining,
+} from '../src/lib/tenderDeadlines.js'
 
 test('stripUndefined preserves non-plain SDK-style values', () => {
   class TimestampLike { constructor(seconds) { this.seconds = seconds } }
@@ -65,4 +73,50 @@ test('backup serialization preserves timestamp type information', () => {
   assert.deepEqual(serializeBackupValue({ createdAt: timestamp }), {
     createdAt: { __type: 'firestore-timestamp', seconds: 12, nanoseconds: 34 },
   })
+})
+
+test('tender deadlines use local calendar days without timezone drift', () => {
+  const now = new Date(2026, 8, 22, 23, 30)
+  assert.equal(tenderDaysRemaining('2026-09-22', now), 0)
+  assert.equal(tenderDaysRemaining('2026-09-23', now), 1)
+  assert.equal(tenderDaysRemaining('2026-09-24', now), 2)
+  assert.equal(tenderDaysRemaining('2026-09-25', now), 3)
+  assert.equal(tenderDaysRemaining('2026-09-29', now), 7)
+  assert.equal(tenderDaysRemaining('2026-10-02', now), 10)
+  assert.equal(tenderDaysRemaining('2026-09-21', now), -1)
+  assert.equal(deadlineLabel(-2), '2 days overdue')
+})
+
+test('reminder thresholds are exact and deduplication keys change with the deadline', () => {
+  assert.equal(getTenderReminderKey(7), 'seven-days')
+  assert.equal(getTenderReminderKey(3), 'three-days')
+  assert.equal(getTenderReminderKey(2), 'three-days')
+  assert.equal(getTenderReminderKey(1), 'one-day')
+  assert.equal(getTenderReminderKey(0), 'due-today')
+  assert.equal(getTenderReminderKey(-20), 'overdue')
+  assert.equal(getTenderReminderKey(6), 'seven-days')
+  const first = `tender-deadline:t1:2026-09-29:${getTenderReminderKey(7)}`
+  const changed = `tender-deadline:t1:2026-10-01:${getTenderReminderKey(7)}`
+  assert.notEqual(first, changed)
+})
+
+test('closed tenders are excluded and deadline filters classify active tenders', () => {
+  const now = new Date(2026, 8, 22)
+  const active = getTenderDeadline({ status: 'Bidding', submissionDate: '2026-09-25' }, now)
+  assert.equal(active.days, 3)
+  assert.equal(matchesDeadlineFilter(active, 'three-days'), true)
+  assert.equal(matchesDeadlineFilter(active, 'today'), false)
+  assert.equal(getTenderDeadline({ status: 'Submitted', submissionDate: '2026-09-25' }, now), null)
+  assert.equal(getTenderDeadline({ status: 'Cancelled', submissionDate: '2026-09-21' }, now), null)
+  assert.equal(getTenderDeadline({ status: 'Bidding', submissionDate: 'invalid' }, now), null)
+})
+
+test('upcoming tender sorting prioritizes overdue attention then nearest future deadline', () => {
+  const now = new Date(2026, 8, 22)
+  const rows = sortTenderDeadlines([
+    { id: 'ten', status: 'Bidding', submissionDate: '2026-10-02' },
+    { id: 'tomorrow', status: 'Pending', submissionDate: '2026-09-23' },
+    { id: 'overdue', status: 'Draft', submissionDate: '2026-09-21' },
+  ], now)
+  assert.deepEqual(rows.map(({ tender }) => tender.id), ['overdue', 'tomorrow', 'ten'])
 })
