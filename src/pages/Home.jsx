@@ -285,8 +285,14 @@ export default function Home() {
       setExpenses(sortByField(eSnap.docs.map((d) => ({ id: d.id, ...d.data() })), 'createdAt', 'desc'))
       setTodos(sortByField(tOSnap.docs.map((d) => ({ id: d.id, ...d.data() })), 'createdAt', 'desc'))
     } catch (e) {
-      setError(e?.message || 'Failed to load dashboard data.')
-      toast.error('Failed to load data')
+      console.error('Dashboard load failed', e)
+      const message = e?.code === 'permission-denied'
+        ? "You don't have permission to load dashboard data."
+        : e?.code === 'unavailable'
+          ? 'The dashboard could not reach the server. Check your connection and try again.'
+          : 'The dashboard could not be loaded. Please try again.'
+      setError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }

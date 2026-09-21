@@ -32,6 +32,7 @@ import EmptyState from "@/components/shared/EmptyState";
 import KpiCard from "@/components/shared/KpiCard";
 import PageHeader from "@/components/shared/PageHeader";
 import { PageTableSkeleton } from "@/components/shared/LoadingSkeletons";
+import LoadState from "@/components/shared/LoadState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -575,9 +576,9 @@ function getReportRows(report, rowsByKey, filters) {
 }
 
 export default function Reports() {
-  const { data: tenders, loading: tendersLoading } = useCollection("tenders", "createdAt", "desc");
-  const { data: payOrders, loading: payOrdersLoading } = useCollection("payOrders", "createdAt", "desc");
-  const { data: expenses, loading: expensesLoading } = useCollection("expenses", "date", "desc");
+  const { data: tenders, loading: tendersLoading, error: tendersError } = useCollection("tenders", "createdAt", "desc");
+  const { data: payOrders, loading: payOrdersLoading, error: payOrdersError } = useCollection("payOrders", "createdAt", "desc");
+  const { data: expenses, loading: expensesLoading, error: expensesError } = useCollection("expenses", "date", "desc");
   const [selectedReportId, setSelectedReportId] = useState(null);
   const [filters, setFilters] = useState({
     tenderId: ALL,
@@ -673,6 +674,8 @@ export default function Reports() {
   };
 
   if (loading) return <PageTableSkeleton rows={8} cols={6} metrics={5} />;
+  const loadError = tendersError || payOrdersError || expensesError;
+  if (loadError) return <LoadState title="Could not load reports" error={loadError} />;
 
   return (
     <div className="space-y-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:space-y-7 sm:pb-6">

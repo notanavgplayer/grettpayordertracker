@@ -3,11 +3,13 @@ import { useCollection, useFirestoreCRUD } from '@/hooks/useFirestore'
 import { useAuth } from '@/context/AuthContext'
 import { formatCurrency, formatDate, EXPENSE_CATEGORIES } from '@/lib/utils'
 import { exportExpensesCSV } from '@/lib/export'
+import { nonNegativeNumber } from '@/lib/data'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import MetricCard from '@/components/shared/MetricCard'
 import { PageTableSkeleton } from '@/components/shared/LoadingSkeletons'
+import LoadState from '@/components/shared/LoadState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,7 +36,7 @@ const CATEGORY_COLORS = CHART_COLORS
 const EMPTY = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', tenderId: '', note: '' }
 
 export default function Expenses() {
-  const { data: expenses, loading } = useCollection('expenses', 'date', 'desc')
+  const { data: expenses, loading, error } = useCollection('expenses', 'date', 'desc')
   const { add, update, remove } = useFirestoreCRUD('expenses')
   const { isAdmin } = useAuth()
 
@@ -44,6 +46,7 @@ export default function Expenses() {
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState(null)
   const [filter, setFilter] = useState('all') // 'all' | 'month'
+  const [formError, setFormError] = useState('')
 
   const now = new Date()
   const currentYear = now.getFullYear()
@@ -93,10 +96,16 @@ export default function Expenses() {
   }
 
   const handleSave = async () => {
-    if (!form.description) { toast.error('Description is required'); return }
+    if (!form.description.trim()) { setFormError('Description is required.'); return }
+    const amount = nonNegativeNumber(form.amount)
+    if (amount === null) {
+      setFormError('Amount must be a non-negative number.')
+      return
+    }
+    setFormError('')
     setSaving(true)
     try {
-      const data = { ...form, amount: Number(form.amount) || 0 }
+      const data = { ...form, description: form.description.trim(), amount }
       if (editItem) { await update(editItem.id, data); toast.success('Expense updated') }
       else { await add(data); toast.success('Expense added') }
       setDialogOpen(false)
@@ -106,6 +115,7 @@ export default function Expenses() {
   const setF = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
 
   if (loading) return <PageTableSkeleton rows={6} cols={5} metrics={3} />
+  if (error) return <LoadState title="Could not load expenses" error={error} />
 
   return (
     <div className="space-y-6">
@@ -307,15 +317,15 @@ export default function Expenses() {
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="min-w-0 space-y-1.5">
-                <Label>Category</Label>
+                <Label htmlFor="e-category">Category</Label>
                 <Select value={form.category} onValueChange={setF('category')}>
-                  <SelectTrigger className="h-10 w-full min-w-0 text-sm sm:h-11"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="e-category" className="h-10 w-full min-w-0 text-sm sm:h-11"><SelectValue /></SelectTrigger>
                   <SelectContent>{EXPENSE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="e-amt">Amount (PKR)</Label>
-                <Input id="e-amt" type="number" value={form.amount} onChange={setF('amount')} placeholder="0" className="h-10 w-full min-w-0 font-mono text-sm tabular-nums sm:h-11" />
+                <Input id="e-amt" type="number" min="0" step="0.01" value={form.amount} onChange={setF('amount')} placeholder="0" className="h-10 w-full min-w-0 font-mono text-sm tabular-nums sm:h-11" aria-invalid={Boolean(formError)} aria-describedby={formError ? 'expense-form-error' : undefined} />
               </div>
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
@@ -333,6 +343,7 @@ export default function Expenses() {
               <Textarea id="e-note" value={form.note} onChange={setF('note')} rows={3} className="min-h-24 text-sm sm:min-h-28" />
             </div>
           </div>
+          {formError && <p id="expense-form-error" role="alert" className="px-4 pb-2 text-sm text-destructive sm:px-6">{formError}</p>}
           <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
             <Button variant="outline" className="h-10 sm:h-11" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button className="h-10 sm:h-11" onClick={handleSave} disabled={saving}>

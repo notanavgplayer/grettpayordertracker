@@ -5,6 +5,7 @@ import { formatDate, truncate } from '@/lib/utils'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
+import LoadState from '@/components/shared/LoadState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -34,7 +35,7 @@ function stripHtml(str = '') {
 }
 
 export default function Notes() {
-  const { data: notes, loading } = useCollection('notes', 'updatedAt', 'desc')
+  const { data: notes, loading, error } = useCollection('notes', 'updatedAt', 'desc')
   const { add, remove } = useFirestoreCRUD('notes')
   const { isAdmin } = useAuth()
 
@@ -112,6 +113,7 @@ export default function Notes() {
   }, [selected?.id, saveNote])
 
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+  if (error) return <LoadState title="Notes could not be loaded" error={error} />
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -120,7 +122,7 @@ export default function Notes() {
         <div className="p-3 border-b border-border space-y-2">
           <div className="flex items-center justify-between">
             <h1 className="text-base font-semibold">Notes</h1>
-            {isAdmin && <Button size="icon-sm" onClick={newNote}><Plus className="h-4 w-4" /></Button>}
+            {isAdmin && <Button size="icon-sm" onClick={newNote} aria-label="Create note"><Plus className="h-4 w-4" /></Button>}
           </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -167,7 +169,7 @@ export default function Notes() {
                 </SelectContent>
               </Select>
               {isAdmin && (
-                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeleteId(selected.id)}>
+                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeleteId(selected.id)} aria-label="Delete note">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               )}

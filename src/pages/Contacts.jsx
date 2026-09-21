@@ -5,6 +5,7 @@ import { getInitials, CONTACT_CATEGORIES } from '@/lib/utils'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
+import LoadState from '@/components/shared/LoadState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -87,7 +88,7 @@ function getTypeIcon(type) {
 }
 
 export default function Contacts() {
-  const { data: contacts, loading } = useCollection('contacts', 'name', 'asc')
+  const { data: contacts, loading, error } = useCollection('contacts', 'name', 'asc')
   const { add, update, remove } = useFirestoreCRUD('contacts')
   const { isAdmin } = useAuth()
 
@@ -151,6 +152,7 @@ export default function Contacts() {
   const setF = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
 
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+  if (error) return <LoadState title="Could not load contacts" error={error} />
 
   return (
     <div className="space-y-6">

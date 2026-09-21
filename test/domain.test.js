@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { stripUndefined, nullableNumber, safeHttpUrl, serializeBackupValue } from '../src/lib/data.js'
+import { stripUndefined, nullableNumber, nonNegativeNumber, safeHttpUrl, serializeBackupValue } from '../src/lib/data.js'
 import { billAmounts, billDate, billNumber, tenderBillTotals } from '../src/lib/financials.js'
 import { csvCell, safeSpreadsheetText } from '../src/lib/csv.js'
 import { formatDate } from '../src/lib/utils.js'
@@ -18,6 +18,14 @@ test('nullableNumber distinguishes empty from zero', () => {
   assert.equal(nullableNumber(null), null)
   assert.equal(nullableNumber('0'), 0)
   assert.equal(nullableNumber('invalid'), null)
+})
+
+test('nonNegativeNumber rejects blank, invalid, and negative financial input', () => {
+  assert.equal(nonNegativeNumber(''), null)
+  assert.equal(nonNegativeNumber('invalid'), null)
+  assert.equal(nonNegativeNumber('-1'), null)
+  assert.equal(nonNegativeNumber('0'), 0)
+  assert.equal(nonNegativeNumber('12.50'), 12.5)
 })
 
 test('bill amounts use approved and received values consistently', () => {

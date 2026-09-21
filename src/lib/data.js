@@ -23,6 +23,12 @@ export function nullableNumber(value) {
   return Number.isFinite(numeric) ? numeric : null
 }
 
+export function nonNegativeNumber(value) {
+  if (value === '' || value === null || value === undefined) return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : null
+}
+
 export function documentData(snapshot) {
   return { ...snapshot.data(), id: snapshot.id }
 }

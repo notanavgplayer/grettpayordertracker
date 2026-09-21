@@ -122,7 +122,10 @@ export default function DataHealth() {
         users: toList(userSnap).filter((user) => user.id !== '__meta__'),
       })
     } catch (err) {
-      setError(err?.message || 'Failed to scan project data.')
+      console.error('Data health scan failed', err)
+      setError(err?.code === 'permission-denied'
+        ? "You don't have permission to scan this project data."
+        : 'Project data could not be scanned. Check your connection and try again.')
     } finally {
       setLoading(false)
     }

@@ -16,6 +16,7 @@ import Breadcrumbs from '@/components/shared/Breadcrumbs'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import KpiCard from '@/components/shared/KpiCard'
 import PageHeader from '@/components/shared/PageHeader'
+import LoadState from '@/components/shared/LoadState'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -485,7 +486,7 @@ function DocumentsTable({ documents, isAdmin, onPreview, onEdit, onDelete }) {
 
 export default function Documents() {
   const { isAdmin } = useAuth()
-  const { data: tenders, loading } = useCollection('tenders', 'updatedAt', 'desc')
+  const { data: tenders, loading, error } = useCollection('tenders', 'updatedAt', 'desc')
   const { update } = useFirestoreCRUD('tenders')
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
@@ -636,8 +637,9 @@ export default function Documents() {
         uploadedAt: new Date().toISOString().slice(0, 10),
       }))
       toast.success('File uploaded. Save the document to attach it.')
-    } catch (error) {
-      toast.error(`Failed to upload file: ${error?.message || 'Unknown error'}`)
+    } catch (uploadError) {
+      console.error('Document upload failed', uploadError)
+      toast.error('The file could not be uploaded. Check your connection and storage permissions, then try again.')
     } finally {
       setUploading(false)
     }
@@ -772,6 +774,8 @@ export default function Documents() {
             <Card key={index} className="h-60 animate-pulse rounded-xl bg-muted/40" />
           ))}
         </div>
+      ) : error ? (
+        <LoadState title="Documents could not be loaded" error={error} />
       ) : documents.length === 0 ? (
         <EmptyDocuments isAdmin={isAdmin} onAdd={openAddDocument} />
       ) : filteredDocuments.length === 0 ? (

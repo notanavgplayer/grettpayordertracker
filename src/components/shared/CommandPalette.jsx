@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import {
   Search, FileText, FileStack, Users, LayoutDashboard, Activity,
@@ -53,6 +53,7 @@ export default function CommandPalette({ className, open: controlledOpen, onOpen
   const [payOrders, setPayOrders] = useState([])
   const [contacts, setContacts] = useState([])
   const [loaded, setLoaded] = useState(false)
+  const [loadError, setLoadError] = useState('')
   const navigate = useNavigate()
   const { toggleTheme, isDark } = useTheme()
   const { logout } = useAuth()
@@ -71,17 +72,21 @@ export default function CommandPalette({ className, open: controlledOpen, onOpen
   useEffect(() => {
     if (!open || loaded) return
     const load = async () => {
+      setLoadError('')
       try {
         const [ts, ps, cs] = await Promise.all([
-          getDocs(collection(db, 'tenders')),
-          getDocs(collection(db, 'payOrders')),
-          getDocs(collection(db, 'contacts')),
+          getDocs(query(collection(db, 'tenders'), orderBy('updatedAt', 'desc'), limit(25))),
+          getDocs(query(collection(db, 'payOrders'), orderBy('updatedAt', 'desc'), limit(25))),
+          getDocs(query(collection(db, 'contacts'), orderBy('updatedAt', 'desc'), limit(25))),
         ])
         setTenders(ts.docs.map((d) => ({ id: d.id, ...d.data() })))
         setPayOrders(ps.docs.map((d) => ({ id: d.id, ...d.data() })))
         setContacts(cs.docs.map((d) => ({ id: d.id, ...d.data() })))
         setLoaded(true)
-      } catch (_) {}
+      } catch (error) {
+        console.error('Command search failed:', error)
+        setLoadError('Records could not be loaded. Page navigation is still available.')
+      }
     }
     load()
   }, [open, loaded])
@@ -110,15 +115,16 @@ export default function CommandPalette({ className, open: controlledOpen, onOpen
         )}
       >
         <Search size={16} className="text-muted-foreground" />
-        <span className="flex-1 text-left">Search anything…</span>
+        <span className="flex-1 text-left">Search pages and recent records…</span>
         <kbd className="inline-flex h-5 items-center gap-1 rounded border border-border bg-background px-1.5 text-[10px] font-mono text-muted-foreground">
           ⌘K
         </kbd>
       </button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Search pages, records, or actions…" />
+        <CommandInput placeholder="Search pages or recent records…" />
         <CommandList>
+          {loadError && <p role="alert" className="px-3 py-2 text-sm text-destructive">{loadError}</p>}
           <CommandEmpty>No results found.</CommandEmpty>
 
           <CommandGroup heading="Pages">
@@ -133,11 +139,11 @@ export default function CommandPalette({ className, open: controlledOpen, onOpen
 
           <CommandSeparator />
 
-          <CommandGroup heading="Quick actions">
+          <CommandGroup heading="Open sections">
             {QUICK_ACTIONS.map(({ to, icon: Icon, label, hint }) => (
               <CommandItem key={`qa-${label}`} value={`action ${label}`} onSelect={() => run(to)}>
                 <Icon size={16} className="text-muted-foreground" />
-                <span>{label}</span>
+                <span>{label.replace(/^Add /, 'Open ')}</span>
                 <span className="ml-auto text-xs text-muted-foreground">{hint}</span>
               </CommandItem>
             ))}
@@ -203,8 +209,8 @@ export default function CommandPalette({ className, open: controlledOpen, onOpen
                   <CommandItem key={c.id} value={`contact-${c.name || c.id}`} onSelect={() => run('/contacts')}>
                     <Users size={16} className="text-muted-foreground" />
                     <span className="truncate">{c.name || 'Unnamed contact'}</span>
-                    {c.company && (
-                      <span className="ml-auto text-xs text-muted-foreground truncate max-w-[140px]">{c.company}</span>
+                    {c.organization && (
+                      <span className="ml-auto text-xs text-muted-foreground truncate max-w-[140px]">{c.organization}</span>
                     )}
                   </CommandItem>
                 ))}

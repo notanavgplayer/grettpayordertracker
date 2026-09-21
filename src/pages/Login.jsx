@@ -116,6 +116,8 @@ export default function Login() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       disabled={loading}
+                      aria-invalid={Boolean(error)}
+                      aria-describedby={error ? 'login-error' : undefined}
                       className="h-11 pl-10"
                     />
                   </div>
@@ -135,13 +137,15 @@ export default function Login() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={loading}
+                      aria-invalid={Boolean(error)}
+                      aria-describedby={error ? 'login-error' : undefined}
                       className="h-11 pl-10"
                     />
                   </div>
                 </div>
 
                 {error && (
-                  <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive animate-in fade-in slide-in-from-top-1">
+                  <div id="login-error" role="alert" aria-live="assertive" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive animate-in fade-in slide-in-from-top-1">
                     <Lock className="mt-0.5 h-4 w-4 flex-shrink-0" />
                     <span>{error}</span>
                   </div>

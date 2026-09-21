@@ -5,6 +5,7 @@ import EmptyState from "@/components/shared/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageTableSkeleton } from "@/components/shared/LoadingSkeletons";
+import LoadState from "@/components/shared/LoadState";
 import {
   Activity,
   AlertCircle,
@@ -221,7 +222,7 @@ function getStats(logs) {
 }
 
 export default function ActivityPage() {
-  const { data: logs, loading } = useCollection("activityLog", "createdAt", "desc");
+  const { data: logs, loading, error } = useCollection("activityLog", "createdAt", "desc");
   const [filter, setFilter] = useState("All");
 
   const filtered = useMemo(
@@ -232,6 +233,7 @@ export default function ActivityPage() {
   const stats = useMemo(() => getStats(logs), [logs]);
 
   if (loading) return <PageTableSkeleton rows={8} cols={5} metrics={0} />;
+  if (error) return <LoadState title="Activity could not be loaded" error={error} />;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">

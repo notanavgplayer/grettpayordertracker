@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { cn, formatDate, isTaskDone, isActionableTenderStatus } from "@/lib/utils";
 import PageHeader from "@/components/shared/PageHeader";
 import KpiCard from "@/components/shared/KpiCard";
+import LoadState from "@/components/shared/LoadState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -174,10 +175,10 @@ export default function Calendar() {
 
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
-  const { data: tenders, loading: tendersLoading } = useCollection("tenders");
-  const { data: payOrders, loading: payOrdersLoading } = useCollection("payOrders");
-  const { data: todos, loading: todosLoading } = useCollection("todos");
-  const { data: customEvents, loading: customLoading } = useCollection("calendarEvents", "date", "asc");
+  const { data: tenders, loading: tendersLoading, error: tendersError } = useCollection("tenders");
+  const { data: payOrders, loading: payOrdersLoading, error: payOrdersError } = useCollection("payOrders");
+  const { data: todos, loading: todosLoading, error: todosError } = useCollection("todos");
+  const { data: customEvents, loading: customLoading, error: customEventsError } = useCollection("calendarEvents", "date", "asc");
   const { add, update, remove } = useFirestoreCRUD("calendarEvents");
 
   const allEvents = useMemo(() => {
@@ -460,6 +461,7 @@ export default function Calendar() {
   };
 
   const loading = tendersLoading || payOrdersLoading || todosLoading || customLoading;
+  const loadError = tendersError || payOrdersError || todosError || customEventsError;
 
   if (loading) {
     return (
@@ -468,6 +470,8 @@ export default function Calendar() {
       </div>
     );
   }
+
+  if (loadError) return <LoadState title="Calendar could not be loaded" error={loadError} />;
 
   return (
     <div className="space-y-6">

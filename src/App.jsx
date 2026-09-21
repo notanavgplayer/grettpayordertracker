@@ -26,6 +26,7 @@ const Activity = lazy(() => import('@/pages/Activity'))
 const Search = lazy(() => import('@/pages/Search'))
 const Settings = lazy(() => import('@/pages/Settings'))
 const DataHealth = lazy(() => import('@/pages/DataHealth'))
+const NotFound = lazy(() => import('@/pages/NotFound'))
 
 const ROUTE_TITLES = {
   '/': 'Sign in', '/home': 'Home', '/pay-orders': 'Pay Orders', '/tenders': 'Tenders',
@@ -84,7 +85,7 @@ export default function App() {
             <Route path="/search" element={<AppLayout><Search /></AppLayout>} />
             <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
             <Route path="/data-health" element={<AppLayout><DataHealth /></AppLayout>} />
-            <Route path="*" element={<Navigate to="/home" replace />} />
+            <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
           </Routes>
         </BrowserRouter>
         <Toaster richColors position="top-center" closeButton />

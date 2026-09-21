@@ -125,7 +125,7 @@ export default function NotificationsBell() {
   const [open, setOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState('All')
   const navigate = useNavigate()
-  const { items, unreadCount, readIds, markAllRead, markRead } = useNotifications()
+  const { items, unreadCount, readIds, markAllRead, markRead, error } = useNotifications()
   const panelRef = useRef(null)
   const triggerRef = useRef(null)
   const filteredItems = items.filter((item) => {
@@ -142,7 +142,12 @@ export default function NotificationsBell() {
       if (triggerRef.current?.contains(e.target)) return
       setOpen(false)
     }
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
     document.addEventListener('mousedown', onClick)
     document.addEventListener('keydown', onKey)
     return () => {
@@ -190,6 +195,8 @@ export default function NotificationsBell() {
           ref={panelRef}
           role="dialog"
           aria-label="Notifications"
+          aria-modal="false"
+          tabIndex={-1}
           className="absolute right-0 top-full z-50 mt-2 w-[calc(100vw-1rem)] max-w-[420px] origin-top-right rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl shadow-slate-950/10 sm:mt-3 sm:w-[400px]"
         >
           <div className="space-y-3 p-3 pb-2 sm:space-y-5 sm:p-5 sm:pb-3">
@@ -233,7 +240,11 @@ export default function NotificationsBell() {
           </div>
 
           <div className="max-h-[calc(100dvh-220px)] overflow-y-auto px-3 pb-3 scrollbar-thin sm:max-h-[480px] sm:px-4 sm:pb-4">
-            {filteredItems.length === 0 ? (
+            {error ? (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
+                {error}
+              </div>
+            ) : filteredItems.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border px-4 py-7 text-center sm:py-10">
                 <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 sm:h-12 sm:w-12">
                   <Bell className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />

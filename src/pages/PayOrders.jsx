@@ -24,6 +24,7 @@ import PayOrderQuickView from "@/components/shared/PayOrderQuickView";
 import KpiCard from "@/components/shared/KpiCard";
 import PageHeader from "@/components/shared/PageHeader";
 import { PageTableSkeleton } from "@/components/shared/LoadingSkeletons";
+import LoadState from "@/components/shared/LoadState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -176,18 +177,18 @@ function PayOrderKpiCard({ icon: Icon, label, value, helper, tone = "green" }) {
 }
 
 export default function PayOrders() {
-  const { data: payOrders, loading } = useCollection(
+  const { data: payOrders, loading, error } = useCollection(
     "payOrders",
     "createdAt",
     "desc",
   );
-  const { data: activityLog } = useCollection(
+  const { data: activityLog, loading: activityLoading, error: activityError } = useCollection(
     "activityLog",
     "createdAt",
     "desc",
   );
-  const { data: tenders } = useCollection("tenders", "createdAt", "desc");
-  const { data: banks } = useCollection("banks", "createdAt", "asc");
+  const { data: tenders, loading: tendersLoading, error: tendersError } = useCollection("tenders", "createdAt", "desc");
+  const { data: banks, loading: banksLoading, error: banksError } = useCollection("banks", "createdAt", "asc");
   const { remove } = useFirestoreCRUD("payOrders");
   const {
     add: addLog,
@@ -525,7 +526,7 @@ export default function PayOrders() {
       toast.success("Bank added");
     } catch (e) {
       console.error("Add bank failed:", e);
-      toast.error("Failed to add bank: " + (e?.message || "unknown error"));
+      toast.error("The bank could not be added. Check your connection and permissions, then try again.");
     }
   };
 
@@ -661,7 +662,9 @@ export default function PayOrders() {
     </>
   );
 
-  if (loading) return <PageTableSkeleton rows={8} cols={6} metrics={4} />;
+  if (loading || activityLoading || tendersLoading || banksLoading) return <PageTableSkeleton rows={8} cols={6} metrics={4} />;
+  const loadError = error || activityError || tendersError || banksError;
+  if (loadError) return <LoadState title="Could not load pay orders" error={loadError} />;
 
   return (
     <div className="space-y-6">

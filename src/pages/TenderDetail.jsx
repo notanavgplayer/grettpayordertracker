@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
 import { getTenderDocumentUrl, hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
 import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinancials, getTenderDisplayStatus, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
-import { nullableNumber, safeHttpUrl, stripUndefined } from '@/lib/data'
+import { nonNegativeNumber, nullableNumber, safeHttpUrl, stripUndefined } from '@/lib/data'
 import { billAmounts, billDate } from '@/lib/financials'
 import { rowsToCSV } from '@/lib/csv'
 import { Button } from '@/components/ui/button'
@@ -715,14 +715,22 @@ export default function TenderDetail() {
   }
 
   const saveExpense = async () => {
-    if (!expForm.description) { toast.error('Description is required'); return }
+    if (!expForm.description.trim()) { toast.error('Description is required'); return }
+    if (expForm.calculationMethod !== 'percentage' && nonNegativeNumber(expForm.amount) === null) {
+      toast.error('Enter a valid expense amount of zero or more')
+      return
+    }
+    if (expForm.calculationMethod === 'percentage' && nonNegativeNumber(expForm.percentage) === null) {
+      toast.error('Enter a valid percentage of zero or more')
+      return
+    }
     setExpSaving(true)
     try {
       const calculation = normalizeExpenseCalculation(expForm, getTenderGrossNetValues(form))
       const payload = {
-        description: expForm.description,
+        description: expForm.description.trim(),
         category: expForm.category,
-        amount: Number(calculation.amount) || 0,
+        amount: calculation.amount,
         date: expForm.date || new Date().toISOString().slice(0, 10),
         note: expForm.note || '',
         tenderId: (tender?.nit || id),
@@ -748,7 +756,6 @@ export default function TenderDetail() {
         error,
         message: error?.message,
         code: error?.code,
-        expenseForm: expForm,
       })
       toast.error('Failed to save expense')
     } finally {
@@ -971,7 +978,7 @@ export default function TenderDetail() {
       toast.success('Tender saved')
     } catch (err) {
       console.error('Failed to save tender:', err)
-      toast.error(`Failed to save: ${err?.code || err?.message || 'Unknown error'}`)
+      toast.error('The tender could not be saved. Check your connection and permissions, then try again.')
     } finally {
       setSaving(false)
     }
@@ -1055,7 +1062,7 @@ export default function TenderDetail() {
       toast.success('Tender marked completed')
     } catch (err) {
       console.error('Failed to complete tender:', err)
-      toast.error(`Failed to complete tender: ${err?.code || err?.message || 'Unknown error'}`)
+      toast.error('The tender could not be completed. Check your connection and permissions, then try again.')
     } finally {
       setCompleting(false)
     }
@@ -1171,8 +1178,7 @@ export default function TenderDetail() {
       }
     } catch (err) {
       console.error('Failed to upload document:', err)
-      const message = err?.message || err?.code || 'Unknown error'
-      toast.error(`Failed to upload file: ${message}`)
+      toast.error('The file could not be uploaded. Check your connection and storage permissions, then try again.')
       return null
     } finally {
       setUploadingDocumentId(null)
@@ -1305,7 +1311,8 @@ export default function TenderDetail() {
       }))
       toast.success(`${uploadedPhotos.length} photo${uploadedPhotos.length === 1 ? '' : 's'} uploaded`)
     } catch (error) {
-      const message = error?.message || 'Photo upload failed.'
+      console.error('Site visit photo upload failed', error)
+      const message = 'The photos could not be uploaded. Check your connection and storage permissions, then try again.'
       setSiteVisitPhotoError(message)
       toast.error(message)
     } finally {
@@ -1992,7 +1999,7 @@ export default function TenderDetail() {
                           placeholder="Checklist item…"
                         />
                         {isAdmin && (
-                          <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100 text-destructive" onClick={() => removeChecklistItem(item.id)}>
+                          <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 text-destructive" onClick={() => removeChecklistItem(item.id)} aria-label="Delete checklist item">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         )}
@@ -2517,8 +2524,8 @@ export default function TenderDetail() {
                         </div>
                         {isAdmin && (
                           <div className="flex justify-end gap-1 mt-2">
-                            <Button variant="ghost" size="icon-sm" onClick={() => openPoDialog(p)}><Pencil className="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeletePoId(p.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon-sm" onClick={() => openPoDialog(p)} aria-label="Edit pay order"><Pencil className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeletePoId(p.id)} aria-label="Delete pay order"><Trash2 className="h-3.5 w-3.5" /></Button>
                           </div>
                         )}
                       </div>
@@ -2549,8 +2556,8 @@ export default function TenderDetail() {
                           {isAdmin && (
                             <TableCell>
                               <div className="flex justify-end gap-1">
-                                <Button variant="ghost" size="icon-sm" onClick={() => openPoDialog(p)}><Pencil className="h-3.5 w-3.5" /></Button>
-                                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeletePoId(p.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon-sm" onClick={() => openPoDialog(p)} aria-label="Edit pay order"><Pencil className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeletePoId(p.id)} aria-label="Delete pay order"><Trash2 className="h-3.5 w-3.5" /></Button>
                               </div>
                             </TableCell>
                           )}
@@ -2677,8 +2684,8 @@ export default function TenderDetail() {
                           {isAdmin && (
                             <TableCell>
                               <div className="flex justify-end gap-1">
-                                <Button variant="ghost" size="icon-sm" onClick={() => openExpDialog(e)}><Pencil className="h-3.5 w-3.5" /></Button>
-                                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeleteExpId(e.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon-sm" onClick={() => openExpDialog(e)} aria-label="Edit expense"><Pencil className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeleteExpId(e.id)} aria-label="Delete expense"><Trash2 className="h-3.5 w-3.5" /></Button>
                               </div>
                             </TableCell>
                           )}

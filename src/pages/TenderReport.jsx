@@ -37,7 +37,10 @@ export default function TenderReport() {
       setExpenses(expenseSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
       setPayOrders(payOrderSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
     } catch (err) {
-      setError(err?.message || 'Failed to load report.')
+      console.error('Tender report load failed', err)
+      setError(err?.code === 'permission-denied'
+        ? "You don't have permission to view this report."
+        : 'The report could not be loaded. Check your connection and try again.')
     } finally {
       setLoading(false)
     }

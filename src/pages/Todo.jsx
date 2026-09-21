@@ -19,6 +19,7 @@ import PageHeader from "@/components/shared/PageHeader";
 import EmptyState from "@/components/shared/EmptyState";
 import ConfirmDelete from "@/components/shared/ConfirmDelete";
 import KpiCard from "@/components/shared/KpiCard";
+import LoadState from "@/components/shared/LoadState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -58,7 +59,7 @@ function shortDate(dateStr) {
 }
 
 export default function Todo() {
-  const { data: todos, loading } = useCollection("todos", "createdAt", "desc");
+  const { data: todos, loading, error } = useCollection("todos", "createdAt", "desc");
   const { add, remove } = useFirestoreCRUD("todos");
   const { isAdmin, displayName } = useAuth();
 
@@ -188,6 +189,8 @@ export default function Todo() {
       </div>
     );
   }
+
+  if (error) return <LoadState title="Tasks could not be loaded" error={error} />;
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 sm:space-y-6">

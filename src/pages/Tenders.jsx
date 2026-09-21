@@ -21,6 +21,7 @@ import ConfirmDelete from "@/components/shared/ConfirmDelete";
 import TenderQuickView from "@/components/shared/TenderQuickView";
 import KpiCard from "@/components/shared/KpiCard";
 import { PageTableSkeleton } from "@/components/shared/LoadingSkeletons";
+import LoadState from "@/components/shared/LoadState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -191,7 +192,7 @@ function isSameStatus(status, target) {
 }
 
 export default function Tenders() {
-  const { data: tenders, loading } = useCollection(
+  const { data: tenders, loading, error } = useCollection(
     "tenders",
     "createdAt",
     "desc",
@@ -720,6 +721,7 @@ export default function Tenders() {
   };
 
   if (loading) return <PageTableSkeleton rows={6} cols={6} metrics={5} />;
+  if (error) return <LoadState title="Could not load tenders" error={error} />;
 
   return (
     <div className="space-y-6">

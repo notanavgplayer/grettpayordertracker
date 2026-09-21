@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { collection, onSnapshot } from 'firebase/firestore'
+import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { daysUntil, formatCurrency, isActionableTenderStatus, isTaskDone, sortByField } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
 
-const READ_KEY = 'grett-notifications-read'
+const readKey = (userId) => `grett-notifications-read:${userId || 'anonymous'}`
 
-function loadRead() {
+function loadRead(userId) {
   try {
-    const raw = localStorage.getItem(READ_KEY)
+    const raw = localStorage.getItem(readKey(userId))
     if (!raw) return new Set()
     return new Set(JSON.parse(raw))
   } catch {
@@ -15,9 +16,9 @@ function loadRead() {
   }
 }
 
-function saveRead(set) {
+function saveRead(userId, set) {
   try {
-    localStorage.setItem(READ_KEY, JSON.stringify(Array.from(set)))
+    localStorage.setItem(readKey(userId), JSON.stringify(Array.from(set)))
   } catch {}
 }
 
@@ -86,33 +87,50 @@ function groupActivityEntries(entries) {
 
 function useCollectionLive(name, orderField, orderDir = 'desc', limitN) {
   const [data, setData] = useState([])
+  const [error, setError] = useState('')
   useEffect(() => {
     const collectionRef = collection(db, name)
+    const source = limitN
+      ? query(collectionRef, orderBy(orderField, orderDir), limit(limitN))
+      : collectionRef
     const unsub = onSnapshot(
-      collectionRef,
+      source,
       (snap) => {
         const records = sortByField(
           snap.docs.map((d) => ({ id: d.id, ...d.data() })),
           orderField,
           orderDir,
         )
-        setData(limitN ? records.slice(0, limitN) : records)
+        setData(records)
+        setError('')
       },
-      () => setData([]),
+      (readError) => {
+        console.error(`Notification source ${name} failed`, readError)
+        setError('Some notifications could not be loaded. Check your connection or permissions.')
+      },
     )
     return unsub
   }, [name, orderField, orderDir, limitN])
-  return data
+  return { data, error }
 }
 
 export function useNotifications() {
-  const tenders = useCollectionLive('tenders', 'createdAt')
-  const todos = useCollectionLive('todos', 'createdAt')
-  const events = useCollectionLive('calendarEvents', 'createdAt')
-  const payOrders = useCollectionLive('payOrders', 'createdAt')
-  const activity = useCollectionLive('activityLog', 'createdAt', 'desc', 5)
+  const { user } = useAuth()
+  const tenderState = useCollectionLive('tenders', 'createdAt')
+  const todoState = useCollectionLive('todos', 'createdAt')
+  const eventState = useCollectionLive('calendarEvents', 'createdAt')
+  const payOrderState = useCollectionLive('payOrders', 'createdAt')
+  const activityState = useCollectionLive('activityLog', 'createdAt', 'desc', 5)
+  const tenders = tenderState.data
+  const todos = todoState.data
+  const events = eventState.data
+  const payOrders = payOrderState.data
+  const activity = activityState.data
+  const error = tenderState.error || todoState.error || eventState.error || payOrderState.error || activityState.error
 
-  const [readIds, setReadIds] = useState(() => loadRead())
+  const [readIds, setReadIds] = useState(() => loadRead(user?.uid))
+
+  useEffect(() => setReadIds(loadRead(user?.uid)), [user?.uid])
 
   const items = useMemo(() => {
     const out = []
@@ -240,7 +258,7 @@ export function useNotifications() {
     const next = new Set(readIds)
     for (const item of items) next.add(item.id)
     setReadIds(next)
-    saveRead(next)
+    saveRead(user?.uid, next)
   }
 
   const markRead = (id) => {
@@ -248,8 +266,8 @@ export function useNotifications() {
     const next = new Set(readIds)
     next.add(id)
     setReadIds(next)
-    saveRead(next)
+    saveRead(user?.uid, next)
   }
 
-  return { items, unreadCount, readIds, markAllRead, markRead }
+  return { items, unreadCount, readIds, markAllRead, markRead, error }
 }
