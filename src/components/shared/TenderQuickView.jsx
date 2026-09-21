@@ -109,7 +109,7 @@ function FinancialSnapshot({ tender }) {
           value={formatCurrencyPrecise(financials.quotedAmount)}
         />
       </div>
-      <div className="mt-3 grid grid-cols-3 rounded-xl border border-slate-200 bg-white p-2.5 text-center text-[11px] sm:p-3 sm:text-sm">
+      <div className="mt-3 grid grid-cols-3 rounded-xl border border-border bg-card p-2.5 text-center text-[11px] sm:p-3 sm:text-sm">
         <div className="border-r border-slate-200 px-1.5 sm:px-2">
           <p className="font-medium text-slate-500">Difference</p>
           <p className={`mt-1.5 break-words text-[12px] font-bold leading-tight min-[390px]:text-[13px] sm:mt-2 sm:text-base ${valueTone}`}>
@@ -137,7 +137,7 @@ function FinancialSnapshot({ tender }) {
 
 function FinancialAmountCard({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-xl border border-emerald-100 bg-white p-2.5 shadow-sm shadow-emerald-950/[0.02] sm:p-4">
+    <div className="rounded-xl border border-emerald-200 bg-card p-2.5 shadow-sm shadow-emerald-950/[0.02] sm:p-4">
       <div className="flex items-center gap-2.5 sm:gap-3">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 sm:h-10 sm:w-10">
           <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -186,7 +186,7 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bottom-0 left-0 top-auto max-h-[calc(100dvh-72px)] w-full translate-x-0 translate-y-0 gap-0 overflow-y-auto overscroll-contain rounded-b-none rounded-t-[28px] border-border/80 bg-white px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3 shadow-2xl shadow-slate-950/30 sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:max-h-[90vh] sm:max-w-[840px] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:p-8 [&>button]:hidden">
+      <DialogContent className="bottom-0 left-0 top-auto max-h-[calc(100dvh-72px)] w-full translate-x-0 translate-y-0 gap-0 overflow-y-auto overscroll-contain rounded-b-none rounded-t-[28px] border-border bg-popover px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3 shadow-2xl shadow-slate-950/30 sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:max-h-[90vh] sm:max-w-[840px] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:p-8 [&>button]:hidden">
         <div className="mx-auto mb-4 h-1.5 w-16 rounded-full bg-slate-200 sm:hidden" />
 
         <DialogHeader className="space-y-4 text-left sm:space-y-5 sm:pr-12">
@@ -199,7 +199,7 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
             </div>
             <DialogClose
               aria-label="Close tender quick view"
-              className="mr-1 mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 sm:mr-0 sm:mt-0"
+              className="mr-1 mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 sm:mr-0 sm:mt-0"
             >
               <X className="h-5 w-5" />
             </DialogClose>
@@ -236,7 +236,7 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
           <SummaryCard icon={LinkIcon} label="Linked PO" value={linkedPayOrder} />
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white sm:mt-5 sm:rounded-xl">
+        <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card sm:mt-5 sm:rounded-xl">
           <DetailRow icon={FileText} label="NIT / Ref" value={nitRef} />
           <DetailRow icon={CalendarDays} label="Opening" value={formatQuickDate(tender.openingDate)} />
           <DetailRow icon={ClipboardCheck} label="Checklist">
@@ -266,7 +266,7 @@ export default function TenderQuickView({ tender, open, onOpenChange, onEdit, ca
           <Button
             variant="outline"
             asChild
-            className="h-14 w-full rounded-xl border-emerald-600 bg-white px-5 text-base font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+            className="h-14 w-full rounded-xl border-primary bg-popover px-5 text-base font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
           >
             <Link to={`/tenders/${tender.id}`}>
               <ExternalLink className="h-5 w-5" /> View Full Details

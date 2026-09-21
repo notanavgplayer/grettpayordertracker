@@ -94,7 +94,7 @@ export default function Layout({ children }) {
         {/* Main column */}
         <div className="flex flex-1 flex-col overflow-hidden min-w-0">
           {/* Top bar */}
-          <header className="sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-2 border-b border-border/80 bg-background/90 px-3 shadow-sm backdrop-blur-md sm:px-4 lg:px-6">
+          <header className="sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-2 border-b border-border bg-card/95 px-3 shadow-sm backdrop-blur-md sm:px-4 lg:px-6">
             {/* Mobile hamburger */}
             <Button
               variant="ghost" size="icon" className="h-10 w-10 rounded-xl lg:hidden"

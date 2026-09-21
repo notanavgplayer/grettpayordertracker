@@ -25,7 +25,7 @@ export default function LoadState({
 
   return (
     <div className={cn('flex w-full items-center justify-center bg-background p-4', wrapperClass, className)}>
-      <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card p-6 text-center shadow-sm">
+      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 text-center shadow-sm">
         <div
           className={cn(
             'mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl',
