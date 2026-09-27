@@ -12,6 +12,10 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 800,
     rollupOptions: {
+      input: {
+        app: path.resolve(import.meta.dirname, 'index.html'),
+        'v2-preview': path.resolve(import.meta.dirname, 'v2-preview.html'),
+      },
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined

@@ -16,7 +16,15 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { getInitials } from '@/lib/utils'
 import { useTenderReminderSettings } from '@/hooks/useTenderReminderSettings'
-import { Bell, Moon, Sun, Download, Loader2, Users, Shield, User } from 'lucide-react'
+import {
+  beginGoogleCalendarConnection,
+  disconnectGoogleCalendar,
+  getTenderIntegrationSettings,
+  syncGoogleCalendar,
+  testTenderEmailReminders,
+  updateTenderIntegrationSettings,
+} from '@/lib/tenderIntegrations'
+import { Bell, CalendarDays, Mail, Moon, Sun, Download, Loader2, RefreshCw, Unplug, Users, Shield, User } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function Settings() {
@@ -25,6 +33,8 @@ export default function Settings() {
   const { preferences, browserEnabled, updatePreferences, setBrowserEnabled } = useTenderReminderSettings()
   const [users, setUsers] = useState([])
   const [loadingUsers, setLoadingUsers] = useState(false)
+  const [integration, setIntegration] = useState(null)
+  const [integrationBusy, setIntegrationBusy] = useState('')
 
   // Profile form
   const [newDisplayName, setNewDisplayName] = useState(displayName)
@@ -77,6 +87,34 @@ export default function Settings() {
         .finally(() => setLoadingUsers(false))
     }
   }, [isAdmin])
+
+  useEffect(() => {
+    if (!user?.uid || !isAdmin) return
+    getTenderIntegrationSettings().then(setIntegration).catch((error) => toast.error(error.message))
+    const result = new URLSearchParams(window.location.search).get('calendar')
+    if (result) {
+      toast[result === 'connected' ? 'success' : 'error'](result === 'connected' ? 'Google Calendar connected' : 'Google Calendar connection was not completed')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [user?.uid, isAdmin])
+
+  const integrationAction = async (key, action, success) => {
+    setIntegrationBusy(key)
+    try {
+      const result = await action()
+      if (result?.calendar || result?.email) setIntegration(result)
+      if (success) toast.success(typeof success === 'function' ? success(result) : success)
+      return result
+    } catch (error) { toast.error(error.message) }
+    finally { setIntegrationBusy('') }
+  }
+
+  const connectCalendar = () => integrationAction('connect', async () => {
+    const result = await beginGoogleCalendarConnection()
+    window.location.assign(result.authorizationUrl)
+  })
+
+  const saveIntegrationPatch = (key, patch, message) => integrationAction(key, () => updateTenderIntegrationSettings(patch), message)
 
   const saveName = async () => {
     if (!newDisplayName.trim()) return
@@ -176,6 +214,64 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      {isAdmin && <>
+      <Card className="rounded-xl border-border/80 bg-card">
+        <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2 text-base"><CalendarDays className="h-4 w-4 text-primary" /> Google Calendar</CardTitle>
+            <Badge variant={integration?.calendar.connected ? 'default' : 'secondary'}>{integration?.calendar.connected ? 'Connected' : 'Not connected'}</Badge>
+          </div>
+          <CardDescription>Keep active tender deadlines synchronized with your phone calendar.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {!integration ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading calendar settings…</div>
+          ) : integration.calendar.connected ? (
+            <>
+              <div className="rounded-xl border border-border/70 bg-muted/20 p-3.5">
+                <p className="text-sm font-medium text-foreground">{integration.calendar.accountLabel || 'Primary calendar'}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Events use Asia/Karachi dates and popup reminders.</p>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/20 p-3.5">
+                <div><p id="calendar-auto-sync" className="text-sm font-medium">Automatic sync</p><p className="mt-1 text-xs text-muted-foreground">New and changed tenders are reconciled automatically.</p></div>
+                <Switch checked={integration.calendar.syncEnabled} disabled={!!integrationBusy} onCheckedChange={(checked) => saveIntegrationPatch('calendar-toggle', { calendar: { syncEnabled: checked } }, `Automatic Calendar sync ${checked ? 'enabled' : 'disabled'}`)} aria-labelledby="calendar-auto-sync" />
+              </div>
+              <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3.5">
+                <p className="text-sm font-medium">Calendar reminders</p>
+                {Object.entries({ sevenDays: '7 days before', threeDays: '3 days before', oneDay: '1 day before', dueToday: 'On the due date' }).map(([key, label]) => (
+                  <div key={key} className="flex items-center justify-between gap-3 py-1"><span id={`calendar-${key}`} className="text-sm text-muted-foreground">{label}</span><Switch checked={integration.calendar.thresholds[key] !== false} disabled={!!integrationBusy} onCheckedChange={(checked) => saveIntegrationPatch(`calendar-${key}`, { calendar: { thresholds: { ...integration.calendar.thresholds, [key]: checked } } })} aria-labelledby={`calendar-${key}`} /></div>
+                ))}
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button variant="outline" className="w-full sm:w-auto" disabled={!!integrationBusy} onClick={() => integrationAction('sync', () => syncGoogleCalendar(), (result) => `${result.created + result.updated} tenders synced; ${result.failed} failed`)}>{integrationBusy === 'sync' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Sync upcoming tenders</Button>
+                <Button variant="ghost" className="w-full text-destructive hover:text-destructive sm:w-auto" disabled={!!integrationBusy} onClick={() => integrationAction('disconnect', async () => { await disconnectGoogleCalendar(); const next = await getTenderIntegrationSettings(); setIntegration(next); return next }, 'Google Calendar disconnected; existing events were retained')}><Unplug className="h-4 w-4" /> Disconnect</Button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <Button className="w-full sm:w-auto" disabled={!!integrationBusy || !integration.calendar.configured} onClick={connectCalendar}>{integrationBusy === 'connect' && <Loader2 className="h-4 w-4 animate-spin" />} Connect Google Calendar</Button>
+              {!integration.calendar.configured && <p className="text-xs text-muted-foreground">Google Calendar credentials must first be added in Netlify.</p>}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-xl border-border/80 bg-card">
+        <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
+          <CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4 text-primary" /> Email Reminders</CardTitle>
+          <CardDescription>Send scheduled deadline emails at 9:00 AM Pakistan time, even when the website is closed.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {!integration ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading email settings…</div> : <>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/20 p-3.5"><div><p id="email-enabled" className="text-sm font-medium">Automatic email reminders</p><p className="mt-1 text-xs text-muted-foreground">{integration.email.configured ? 'Sent through the configured Resend account.' : 'Resend environment variables must first be added in Netlify.'}</p></div><Switch checked={integration.email.enabled} disabled={!!integrationBusy || !integration.email.configured} onCheckedChange={(checked) => saveIntegrationPatch('email-toggle', { email: { enabled: checked } }, `Email reminders ${checked ? 'enabled' : 'disabled'}`)} aria-labelledby="email-enabled" /></div>
+            <div className="space-y-1.5"><Label htmlFor="reminder-email">Reminder email address</Label><Input id="reminder-email" type="email" value={integration.email.recipient} onChange={(event) => setIntegration((current) => ({ ...current, email: { ...current.email, recipient: event.target.value } }))} onBlur={() => saveIntegrationPatch('email-address', { email: { recipient: integration.email.recipient } }, 'Reminder email saved')} /></div>
+            <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3.5"><p className="text-sm font-medium">Email schedule</p>{Object.entries({ sevenDays: '7 days before', threeDays: '3 days before', oneDay: '1 day before', dueToday: 'On the due date' }).map(([key, label]) => <div key={key} className="flex items-center justify-between gap-3 py-1"><span id={`email-${key}`} className="text-sm text-muted-foreground">{label}</span><Switch checked={integration.email.thresholds[key] !== false} disabled={!!integrationBusy} onCheckedChange={(checked) => saveIntegrationPatch(`email-${key}`, { email: { thresholds: { ...integration.email.thresholds, [key]: checked } } })} aria-labelledby={`email-${key}`} /></div>)}</div>
+            {isAdmin && <Button variant="outline" className="w-full sm:w-auto" disabled={!!integrationBusy || !integration.email.enabled} onClick={() => integrationAction('email-test', testTenderEmailReminders, (result) => `${result.sent} email reminder${result.sent === 1 ? '' : 's'} sent; ${result.duplicate} already delivered`)}>{integrationBusy === 'email-test' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Process due reminders now</Button>}
+          </>}
+        </CardContent>
+      </Card>
+      </>}
 
       <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">

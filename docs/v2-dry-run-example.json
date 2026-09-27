@@ -1,0 +1,71 @@
+{
+  "format": "grett-v2-dry-run",
+  "counts": {
+    "tenders": 1,
+    "payOrders": 1,
+    "expenses": 1
+  },
+  "sourceTotals": {
+    "tenderValue": 1000,
+    "payOrderFaceValue": 50,
+    "expenseAmount": 200
+  },
+  "projects": [
+    {
+      "id": "disposable-project",
+      "name": "Disposable project",
+      "contract": 1000,
+      "incurred": 200,
+      "paid": null,
+      "payable": null,
+      "submitted": 300,
+      "received": 100,
+      "outstanding": 150,
+      "unbilled": 700,
+      "remaining": null,
+      "finalCost": null,
+      "profit": null,
+      "margin": null,
+      "cash": null,
+      "unallocated": 200
+    }
+  ],
+  "review": [
+    {
+      "collection": "tenders",
+      "id": "disposable-project",
+      "issue": "PO number DEMO-PO has no canonical matching link",
+      "action": "Check instrument and tender ID"
+    },
+    {
+      "collection": "payOrders",
+      "id": "disposable-po",
+      "issue": "Missing tender target",
+      "action": "Confirm standalone or relink"
+    },
+    {
+      "collection": "payOrders",
+      "id": "disposable-po",
+      "issue": "Held without follow-up",
+      "action": "Set eligibility and follow-up dates"
+    }
+  ],
+  "patches": [
+    {
+      "collection": "tenders",
+      "id": "disposable-project",
+      "forward": {
+        "awardWorkOrder": {
+          "awardStatus": "Completed",
+          "actualCompletionDate": "2026-09-20"
+        }
+      },
+      "inverse": {
+        "awardWorkOrder": {
+          "awardStatus": "In Progress"
+        }
+      }
+    }
+  ],
+  "note": "No patches were applied. Forward and inverse proposals require review before any separate migration."
+}

@@ -1,0 +1,8 @@
+{
+  "_meta": { "format": "grett-firestore-export", "version": 1 },
+  "tenders": [
+    { "id": "disposable-project", "name": "Disposable project", "status": "Completed", "completionDate": "2026-09-20", "value": 1000, "awardWorkOrder": { "awardStatus": "In Progress" }, "linkedPO": "DEMO-PO", "bills": [{ "amount": 300, "approvedAmount": 250, "receivedAmount": 100 }] }
+  ],
+  "payOrders": [{ "id": "disposable-po", "po": "DEMO-PO", "amount": 50, "status": "Held", "tenderRef": "missing-project" }],
+  "expenses": [{ "id": "disposable-cost", "amount": 200, "description": "Disposable supplier cost", "tenderRef": "disposable-project" }]
+}

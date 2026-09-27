@@ -16,7 +16,9 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { getAtRiskPayOrders } from "@/lib/payOrderMetrics";
+import { getAtRiskPayOrders, getSecurityFollowUps } from "@/lib/payOrderMetrics";
+import { securityAmounts, validateEvents } from "@/lib/financials";
+import SecurityFields from "@/components/shared/SecurityFields";
 import { logActivity } from "@/lib/activity";
 import StatusBadge from "@/components/shared/StatusBadge";
 import EmptyState from "@/components/shared/EmptyState";
@@ -117,6 +119,7 @@ const EMPTY_PO = {
   notes: "",
   purpose: "Bid Security",
   tenderRef: "",
+  v2: { instrument: 'pay-order', refunds: [] },
 };
 
 const PAY_ORDER_FIELDS = [
@@ -132,6 +135,7 @@ const PAY_ORDER_FIELDS = [
   "notes",
   "purpose",
   "tenderRef",
+  "v2",
   "createdAt",
   "createdBy",
   "updatedBy",
@@ -301,7 +305,10 @@ export default function PayOrders() {
   // Summary stats
   const total = payOrders.reduce((s, p) => s + (Number(p.amount) || 0), 0);
   const atRisk = getAtRiskPayOrders(payOrders, tenders).length;
-  const encashed = payOrders.filter((p) => p.status === "Encashed").length;
+  const followUps = getSecurityFollowUps(payOrders, tenders).length;
+  const cashRemaining = payOrders.filter((po) => !['Forfeited', 'Encashed'].includes(po.status)).reduce((sum, po) => sum + (securityAmounts(po).remaining ?? 0), 0);
+  const unknownFunding = payOrders.filter((po) => po.v2?.instrument === 'guarantee' && securityAmounts(po).funded === null).length;
+  const guaranteeExposure = payOrders.reduce((sum, po) => sum + securityAmounts(po).exposure, 0);
 
   // Chart data
   const statusChart = PO_STATUSES.map((s) => ({
@@ -332,8 +339,8 @@ export default function PayOrders() {
     setEditItem(item);
     setForm(
       item
-        ? { ...EMPTY_PO, ...item }
-        : { ...EMPTY_PO, submitted: new Date().toISOString().slice(0, 10) },
+        ? { ...EMPTY_PO, ...item, v2: { ...EMPTY_PO.v2, ...item.v2 } }
+        : { ...EMPTY_PO, v2: { ...EMPTY_PO.v2 }, submitted: new Date().toISOString().slice(0, 10) },
     );
     setTenderMode(item?.tenderRef ? "existing" : "none");
     setNewTenderFields({
@@ -354,6 +361,8 @@ export default function PayOrders() {
       toast.error("Amount must be a non-negative number");
       return;
     }
+    const refundIssue = validateEvents(form.v2.refunds || [], securityAmounts(form).funded ?? 0);
+    if (refundIssue) { toast.error(refundIssue); return; }
     setSaving(true);
     try {
       const batch = writeBatch(db);
@@ -685,29 +694,30 @@ export default function PayOrders() {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <PayOrderKpiCard
           icon={Banknote}
-          label="Total Amount"
-          value={formatCurrency(total)}
+          label="Known cash remaining"
+          value={formatCurrency(cashRemaining)}
+          helper={`${unknownFunding} guarantees have unknown funded margin`}
           tone="green"
         />
         <PayOrderKpiCard
           icon={FileText}
-          label="Total Entries"
-          value={payOrders.length}
-          helper="All pay order records"
+          label="Guarantee exposure"
+          value={formatCurrency(guaranteeExposure)}
+          helper="Face value, separate from funded margin"
           tone="blue"
         />
         <PayOrderKpiCard
           icon={AlertCircle}
-          label="At Risk"
-          value={atRisk}
-          helper={atRisk > 0 ? "Due within 7 days, result pending" : "No pending results due soon"}
+          label="Refund reviews"
+          value={followUps}
+          helper={`${atRisk} pending bid results due soon`}
           tone="amber"
         />
         <PayOrderKpiCard
           icon={CheckCircle}
-          label="Encashed"
-          value={encashed}
-          helper={`${Math.round((encashed / (payOrders.length || 1)) * 100)}% of total`}
+          label="Pay orders"
+          value={payOrders.length}
+          helper={`${formatCurrency(total)} total face value`}
           tone="green"
         />
       </div>
@@ -1093,6 +1103,7 @@ export default function PayOrders() {
                       )}
 
                       <div className="grid gap-2 border-t border-border pt-3 text-sm text-muted-foreground">
+                        <p className="text-xs">Cash remaining: <span className="whitespace-nowrap font-mono tabular-nums text-foreground">{securityAmounts(p).remaining === null ? 'Unknown' : formatCurrency(securityAmounts(p).remaining)}</span>{p.v2?.followUpDate ? ` · Follow up ${formatDate(p.v2.followUpDate)}` : ''}</p>
                         <div className="flex items-center gap-2">
                           <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
                           <span className="min-w-0 truncate text-foreground">
@@ -1134,6 +1145,8 @@ export default function PayOrders() {
                       <TableHead className="whitespace-nowrap text-right text-xs font-semibold">
                         Amount
                       </TableHead>
+                      <TableHead className="whitespace-nowrap text-right text-xs font-semibold">Cash remaining</TableHead>
+                      <TableHead className="whitespace-nowrap text-xs font-semibold">Next follow-up</TableHead>
                       <TableHead className="whitespace-nowrap text-xs font-semibold">Submitted</TableHead>
                       <TableHead className="whitespace-nowrap text-xs font-semibold">Status</TableHead>
                       <TableHead className="whitespace-nowrap text-xs font-semibold">
@@ -1145,7 +1158,7 @@ export default function PayOrders() {
                   <TableBody>
                     {paginatedPayOrders.map((p) => (
                       <TableRow key={p.id} className="h-[72px] hover:bg-muted/30">
-                        <TableCell className="font-mono text-sm font-semibold">
+                        <TableCell className="sticky left-0 z-10 bg-card font-mono text-sm font-semibold">
                           <button
                             type="button"
                             onClick={() => setQuickView(p)}
@@ -1169,6 +1182,8 @@ export default function PayOrders() {
                         <TableCell className="whitespace-nowrap text-right font-mono text-sm tabular-nums">
                           {formatCurrency(p.amount)}
                         </TableCell>
+                        <TableCell className="whitespace-nowrap text-right font-mono text-sm tabular-nums">{securityAmounts(p).remaining === null ? '—' : formatCurrency(securityAmounts(p).remaining)}</TableCell>
+                        <TableCell className="whitespace-nowrap text-sm">{formatDate(p.v2?.followUpDate)}</TableCell>
                         <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                           {formatDate(p.submitted)}
                         </TableCell>
@@ -1671,6 +1686,7 @@ export default function PayOrders() {
                 placeholder="Optional remarks…"
               />
             </div>
+            <SecurityFields form={form} setV2={(key, value) => setForm((previous) => ({ ...previous, v2: { ...previous.v2, [key]: value } }))} />
           </div>
           <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>

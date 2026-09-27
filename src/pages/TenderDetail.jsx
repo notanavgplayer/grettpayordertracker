@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp, deleteField, writeBatch } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { queueTenderIntegrationSync } from '@/lib/tenderIntegrations'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
 import { getTenderDocumentUrl, hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
 import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinancials, getTenderDisplayStatus, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
 import { nonNegativeNumber, nullableNumber, safeHttpUrl, stripUndefined } from '@/lib/data'
-import { billAmounts, billDate } from '@/lib/financials'
+import { billAmounts, billDate, tenderContractValue, projectFinancials, executionState, securityAmounts, validateEvents, validateBillLedger, expenseAmounts } from '@/lib/financials'
 import { rowsToCSV } from '@/lib/csv'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,8 +45,8 @@ import {
 import { toast } from 'sonner'
 import { getTenderDeadline } from '@/lib/tenderDeadlines'
 
-const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', calculationMethod: 'manual', amountBasis: 'manual', percentage: '', date: '', note: '' }
-const EMPTY_PO = { po: '', bank: '', amount: '', purpose: 'Bid Security', status: 'Pending', submitted: '', notes: '' }
+const EMPTY_EXP = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', calculationMethod: 'manual', amountBasis: 'manual', percentage: '', date: '', note: '', v2: { kind: 'cost', payee: '', invoice: '', boqItemId: '', payments: [] } }
+const EMPTY_PO = { po: '', bank: '', amount: '', purpose: 'Bid Security', status: 'Pending', submitted: '', notes: '', v2: { instrument: 'pay-order', refunds: [] } }
 const SITE_VISIT_STATUSES = ['Completed', 'Partial', 'Issue']
 const EXPENSE_CALC_SOURCE_PREFIX = 'tdx'
 const UNSUPPORTED_EXPENSE_DOC_FIELDS = [
@@ -294,7 +295,7 @@ function getAwardWorkOrderDetails(form = {}) {
   return {
     ...EMPTY_AWARD_WORK_ORDER,
     ...stored,
-    awardStatus: stored.awardStatus || stored.status || (['Awarded', 'In Progress', 'Completed'].includes(form.status) ? form.status : 'Not Awarded'),
+    awardStatus: executionState(form) === 'Completed' ? 'Completed' : stored.awardStatus || stored.status || (['Awarded', 'In Progress'].includes(form.status) ? form.status : 'Not Awarded'),
     contractValue,
     startDate,
     completionPeriod,
@@ -316,7 +317,7 @@ function getAwardStatusClass(status) {
 function getAwardTimelineSummary(details = {}) {
   const expected = details.expectedCompletionDate ? new Date(details.expectedCompletionDate) : null
   if (!expected || Number.isNaN(expected.getTime())) return { label: '-', helper: 'No expected completion date', tone: 'neutral' }
-  if (['Completed', 'Closed'].includes(details.awardStatus)) return { label: 'Closed', helper: formatDate(details.actualCompletionDate || details.expectedCompletionDate), tone: 'profit' }
+  if (['Completed', 'Closed'].includes(details.awardStatus)) return { label: details.actualCompletionDate ? 'Completed' : 'Completion date missing', helper: details.actualCompletionDate ? formatDate(details.actualCompletionDate) : 'Review closeout record', tone: details.actualCompletionDate ? 'profit' : 'loss' }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -569,6 +570,7 @@ export default function TenderDetail() {
     setAutoSaving(true)
     try {
       await updateDoc(doc(db, 'tenders', tenderIdRef.current), { ...payload, updatedAt: serverTimestamp() })
+      if (['name', 'nit', 'agency', 'submissionDate', 'status'].some((key) => key in payload)) queueTenderIntegrationSync(tenderIdRef.current)
       for (const [key, value] of Object.entries(payload)) {
         if (autoSavePayloadRef.current[key] === value) delete autoSavePayloadRef.current[key]
       }
@@ -621,22 +623,7 @@ export default function TenderDetail() {
         // Primary: exact tenderRef match
         const snap = await getDocs(query(collection(db, 'payOrders'), where('tenderRef', '==', id)))
         const matched = snap.docs.map((d) => ({ ...d.data(), id: d.id }))
-        // Include unmatched legacy records even when canonical matches exist.
-        const all = await getDocs(collection(db, 'payOrders'))
-        const nit = (tender.nit || '').trim()
-        const linkedPO = (tender.linkedPO || '').trim()
-        const name = (tender.name || '').trim()
-        const legacy = all.docs.map((d) => ({ ...d.data(), id: d.id })).filter((p) => {
-          if (p.tenderRef) return false
-          const pNit = (p.nit || '').trim()
-          const pPO = (p.po || '').trim()
-          const pTender = (p.tender || '').trim()
-          return (nit && pNit && pNit === nit) ||
-                 (linkedPO && pPO && pPO === linkedPO) ||
-                 (name && pTender && pTender === name)
-        })
-        const byId = new Map([...matched, ...legacy].map((payOrder) => [payOrder.id, payOrder]))
-        setLinkedPOs([...byId.values()])
+        setLinkedPOs(matched)
       } catch (err) {
         console.error('Failed to load linked pay orders:', err)
         toast.error('Failed to load pay orders')
@@ -647,7 +634,7 @@ export default function TenderDetail() {
 
   // Expense sub-totals (exclude Tender Fee from the "tracked total")
   const expenseOther = useMemo(
-    () => expenses.filter((e) => e.category !== 'Tender Fees').reduce((s, e) => s + (Number(e.amount) || 0), 0),
+    () => expenses.filter((e) => e.category !== 'Tender Fees').reduce((s, e) => s + expenseAmounts(e).incurred, 0),
     [expenses]
   )
   const expenseTotal = expenseOther // what the user asked to show as the visible total
@@ -718,8 +705,9 @@ export default function TenderDetail() {
           percentage: calculation.percentage ?? '',
           date: item.date || '',
           note: item.note || '',
+          v2: { ...EMPTY_EXP.v2, ...item.v2, payments: item.v2?.payments },
         }
-      : { ...EMPTY_EXP, date: new Date().toISOString().slice(0, 10) })
+      : { ...EMPTY_EXP, v2: { ...EMPTY_EXP.v2 }, date: new Date().toISOString().slice(0, 10) })
     setExpDialogOpen(true)
   }
 
@@ -736,6 +724,9 @@ export default function TenderDetail() {
     setExpSaving(true)
     try {
       const calculation = normalizeExpenseCalculation(expForm, getTenderGrossNetValues(form))
+      const paymentIssue = validateEvents(expForm.v2?.payments || [], calculation.amount)
+      if (paymentIssue) { toast.error(paymentIssue); return }
+      const { payments, ...otherV2 } = expForm.v2 || {}
       const payload = {
         description: expForm.description.trim(),
         category: expForm.category,
@@ -745,6 +736,7 @@ export default function TenderDetail() {
         tenderId: (tender?.nit || id),
         tenderRef: id,
         source: encodeExpenseCalcSource(calculation),
+        v2: payments === undefined ? otherV2 : { ...otherV2, payments },
         updatedAt: serverTimestamp(),
       }
       const uiExpense = hydrateExpenseCalculation({ ...payload, ...calculation }, getTenderGrossNetValues(form))
@@ -803,8 +795,8 @@ export default function TenderDetail() {
   const openPoDialog = (item = null, defaultPurpose = null) => {
     setEditPo(item)
     setPoForm(item
-      ? { po: item.po || '', bank: item.bank || '', amount: item.amount || '', purpose: item.purpose || 'Bid Security', status: item.status || 'Pending', submitted: item.submitted || '', notes: item.notes || '' }
-      : { ...EMPTY_PO, purpose: defaultPurpose || EMPTY_PO.purpose, submitted: new Date().toISOString().slice(0, 10) })
+      ? { po: item.po || '', bank: item.bank || '', amount: item.amount || '', purpose: item.purpose || 'Bid Security', status: item.status || 'Pending', submitted: item.submitted || '', notes: item.notes || '', v2: { ...EMPTY_PO.v2, ...item.v2 } }
+      : { ...EMPTY_PO, v2: { ...EMPTY_PO.v2 }, purpose: defaultPurpose || EMPTY_PO.purpose, submitted: new Date().toISOString().slice(0, 10) })
     setPoDialogOpen(true)
   }
   const savePo = async () => {
@@ -819,6 +811,8 @@ export default function TenderDetail() {
       window.requestAnimationFrame(() => document.getElementById('td-po-amt')?.focus())
       return
     }
+    const refundIssue = validateEvents(poForm.v2.refunds || [], securityAmounts(poForm).funded ?? 0)
+    if (refundIssue) { toast.error(refundIssue); return }
     setPoSaving(true)
     try {
       const payload = {
@@ -834,6 +828,7 @@ export default function TenderDetail() {
         agency: tender?.agency || '',
         tenderRef: id,
         bidResult: editPo?.bidResult || 'N/A',
+        v2: poForm.v2,
         updatedAt: serverTimestamp(),
       }
       const batch = writeBatch(db)
@@ -985,6 +980,7 @@ export default function TenderDetail() {
       }
       batch.update(doc(db, 'tenders', id), { ...data, updatedAt: serverTimestamp() })
       await batch.commit()
+      queueTenderIntegrationSync(id)
       if (transitionedPayOrders > 0) {
         toast.info(`${transitionedPayOrders} pay order(s) marked Held`)
         setPoRefresh((n) => n + 1)
@@ -1031,6 +1027,7 @@ export default function TenderDetail() {
         value: Number(form.value) || 0,
         tenderFee: tenderFeeNum,
         completionDate,
+        awardWorkOrder: { ...(form.awardWorkOrder || {}), awardStatus: 'Completed', actualCompletionDate: completionDate },
         completionRemarks: completionRemarks.trim(),
         completionSnapshot: {
           contractValue,
@@ -1058,6 +1055,7 @@ export default function TenderDetail() {
       }
 
       await updateDoc(doc(db, 'tenders', id), { ...data, updatedAt: serverTimestamp() })
+      queueTenderIntegrationSync(id)
       await logActivity({
         type: 'tender',
         action: 'completed',
@@ -1393,6 +1391,8 @@ export default function TenderDetail() {
     }
     const next = {
       ...awardForm,
+      awardStatus: form.status === 'Completed' ? 'Completed' : awardForm.awardStatus,
+      actualCompletionDate: form.status === 'Completed' ? form.completionDate || awardForm.actualCompletionDate : awardForm.actualCompletionDate,
       expectedCompletionDate: awardForm.expectedCompletionDate || addDaysToDate(awardForm.startDate, awardForm.completionPeriod),
       retentionAmount: awardForm.retentionAmount || (
         Number(awardForm.contractValue) > 0 && Number(awardForm.retentionPercentage) > 0
@@ -1413,18 +1413,19 @@ export default function TenderDetail() {
   const pct = checklist.length ? Math.round((doneCount / checklist.length) * 100) : 0
 
   const billTotal = (form.bills || []).reduce((s, b) => s + (Number(b.amount) || 0), 0)
-  const billPaid = (form.bills || []).filter((b) => b.status === 'Paid').reduce((s, b) => s + (Number(b.amount) || 0), 0)
+  const billPaid = (form.bills || []).reduce((s, b) => s + billAmounts(b).received, 0)
   const raBillTotal = (form.raBills || []).reduce((s, b) => s + (Number(b.amount) || 0), 0)
-  const raBillPaid = (form.raBills || []).filter((b) => b.status === 'Paid').reduce((s, b) => s + (Number(b.amount) || 0), 0)
+  const raBillPaid = (form.raBills || []).reduce((s, b) => s + billAmounts(b).received, 0)
   const paidBillCount = (form.bills || []).filter((b) => b.status === 'Paid').length + (form.raBills || []).filter((b) => b.status === 'Paid').length
-  const contractValue = Number(form.value) || 0
+  const financialView = projectFinancials({ ...form, id }, expenses)
+  const contractValue = tenderContractValue(form)
   const tenderGrossNetValues = getTenderGrossNetValues(form)
-  const totalExpenses = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+  const totalExpenses = expenses.reduce((s, e) => s + expenseAmounts(e).incurred, 0)
   const totalReceived = billPaid + raBillPaid
-  const receivable = Math.max(contractValue - totalReceived, 0)
-  const expectedProfit = contractValue - totalExpenses
-  const cashPosition = totalReceived - totalExpenses
-  const projectedMargin = contractValue > 0 ? Math.round((expectedProfit / contractValue) * 100) : null
+  const receivable = financialView.outstanding
+  const expectedProfit = financialView.profit
+  const cashPosition = financialView.cash
+  const projectedMargin = financialView.margin === null ? null : Math.round(financialView.margin)
   const tenderFinancials = calculateTenderFinancials(form)
   const submissionDeadline = getTenderDeadline(form)
   const displayTenderStatus = getTenderDisplayStatus(form)
@@ -1558,13 +1559,13 @@ export default function TenderDetail() {
     .slice(0, 4)
   const linkedPayOrderDisplay = linkedPOs.length > 0
     ? linkedPOs.map((po) => po.po).filter(Boolean).join(', ')
-    : form.linkedPO || '-'
+    : form.linkedPO ? `Legacy reference ${form.linkedPO} — verify link` : '-'
   const completionIssues = [
     expenses.length === 0 ? 'No expenses are recorded for this tender.' : null,
     totalReceived <= 0 ? 'No payment has been recorded yet.' : null,
     paidBillCount === 0 ? 'No final bill or RA bill is marked Paid.' : null,
-    billTotal > billPaid ? `${formatCurrency(billTotal - billPaid)} in regular bills is still outstanding.` : null,
-    raBillTotal > raBillPaid ? `${formatCurrency(raBillTotal - raBillPaid)} in RA bills is still outstanding.` : null,
+    (form.bills || []).some((bill) => billAmounts(bill).balance > 0) ? `${formatCurrency((form.bills || []).reduce((sum, bill) => sum + billAmounts(bill).balance, 0))} in approved regular bills is still outstanding.` : null,
+    (form.raBills || []).some((bill) => billAmounts(bill).balance > 0) ? `${formatCurrency((form.raBills || []).reduce((sum, bill) => sum + billAmounts(bill).balance, 0))} in approved RA bills is still outstanding.` : null,
     bidSecurityAtRisk > 0 ? `${formatCurrency(bidSecurityAtRisk)} bid security is still pending/submitted.` : null,
     heldByAgency > 0 ? `${formatCurrency(heldByAgency)} is still held by the agency.` : null,
     linkedPOs.filter((p) => ['Pending', 'Submitted', 'Held'].includes(p.status)).length > 0
@@ -1578,9 +1579,9 @@ export default function TenderDetail() {
     ['Agency', form.agency || '-'],
     ['Contract Value', formatCurrency(contractValue)],
     ['Total Expenses', formatCurrency(totalExpenses)],
-    ['Expected Profit', formatCurrency(expectedProfit)],
-    ['Cash Position', formatCurrency(cashPosition)],
-    ['Receivable', formatCurrency(receivable)],
+    ['Forecast Profit', expectedProfit === null ? 'Forecast incomplete' : formatCurrency(expectedProfit)],
+    ['Cash Movement', cashPosition === null ? 'Payment history incomplete' : formatCurrency(cashPosition)],
+    ['Approved Bills Outstanding', formatCurrency(receivable)],
     ['Received From Bills/RA Bills', formatCurrency(totalReceived)],
     ['Linked Pay Orders', String(linkedPOs.length)],
   ]
@@ -1745,7 +1746,7 @@ export default function TenderDetail() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
         <div className="space-y-5">
           <Tabs value={activeTenderTab} onValueChange={setActiveTenderTab} className="flex min-w-0 flex-col gap-4 md:gap-5">
-          <Card className="order-1 rounded-xl border-border/80 bg-background">
+          <Card className="order-2 rounded-xl border-border/80 bg-background">
             <CardHeader className="p-4 pb-3 md:p-5 md:pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -1825,7 +1826,7 @@ export default function TenderDetail() {
           </Card>
 
       {/* Tabs */}
-        <TabsList className="sticky top-0 z-20 order-2 -mx-1 flex h-auto max-w-full justify-start gap-1.5 overflow-x-auto whitespace-nowrap rounded-none border-b bg-background/95 px-1 pb-0 backdrop-blur [scrollbar-width:none] md:mx-0 md:gap-2 md:rounded-lg md:border md:bg-background/95 md:p-1.5 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
+        <TabsList className="sticky top-0 z-20 order-1 -mx-1 flex h-auto max-w-full justify-start gap-1.5 overflow-x-auto whitespace-nowrap rounded-none border-b bg-background/95 px-1 pb-0 backdrop-blur [scrollbar-width:none] md:mx-0 md:gap-2 md:rounded-lg md:border md:bg-background/95 md:p-1.5 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
           {compactTabs.map(([value, label]) => (
             <TabsTrigger
               key={value}
@@ -1916,7 +1917,7 @@ export default function TenderDetail() {
                   <Progress value={dashboardProgress} className="mt-4 h-2" />
                   <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-4 text-sm">
                     <SnapshotRow label="Checklist" value={`${doneCount}/${checklist.length}`} tone={pct === 100 ? 'profit' : 'accent'} />
-                    <SnapshotRow label="Linked POs" value={String(linkedPOs.length || (form.linkedPO ? 1 : 0))} tone="accent" />
+                    <SnapshotRow label="Linked POs" value={String(linkedPOs.length)} tone="accent" />
                   </div>
                 </div>
               </div>
@@ -1951,15 +1952,21 @@ export default function TenderDetail() {
                 helper={tenderFinancials.percentage === null ? undefined : tenderFinancialDirectionText}
               />
               <FinancialMetric label="Contract Value" value={formatCurrency(contractValue)} />
+              <div className="col-span-2 xl:col-span-4"><Label htmlFor="revised-contract">Revised contract value (PKR)</Label><Input id="revised-contract" type="number" min="0" step="0.01" placeholder="Optional — leave blank to use work order value" value={form.v2?.revisedContractValue ?? ''} onChange={(event) => updateForm('v2', { ...form.v2, revisedContractValue: event.target.value === '' ? null : Number(event.target.value) })} disabled={!isAdmin} /><p className="mt-1 text-xs text-muted-foreground">The awarded work order remains unchanged; enter an approved revision only when documented.</p></div>
               <FinancialMetric label="Tender Fee" value={formatCurrency(Number(form.tenderFee) || 0)} tone="expense" helper="Auto expense" />
               <FinancialMetric label="Bid Security / Linked PO" value={linkedPOs.length ? formatCurrency(linkedPOs.reduce((sum, po) => sum + (Number(po.amount) || 0), 0)) : (form.linkedPO || '—')} tone="accent" helper={linkedPOs.length ? `${linkedPOs.length} pay order${linkedPOs.length === 1 ? '' : 's'}` : 'Managed from Pay Orders'} />
-              <FinancialMetric label="Expected Profit" value={formatCurrency(expectedProfit)} tone={expectedProfit >= 0 ? 'profit' : 'loss'} helper={projectedMargin !== null ? `${projectedMargin}% margin` : undefined} />
+              <FinancialMetric label="Forecast profit" value={expectedProfit === null ? 'Forecast incomplete' : formatCurrency(expectedProfit)} tone={expectedProfit === null ? 'accent' : expectedProfit >= 0 ? 'profit' : 'loss'} helper={projectedMargin !== null ? `${projectedMargin}% margin` : 'Enter forecast remaining costs'} />
+              <div className="col-span-2 xl:col-span-4"><Label htmlFor="remaining-cost">Forecast remaining cost (PKR)</Label><Input id="remaining-cost" type="number" min="0" step="0.01" placeholder="Leave blank until estimated" value={form.v2?.forecastRemaining ?? ''} onChange={(event) => updateForm('v2', { ...form.v2, forecastRemaining: event.target.value === '' ? null : Number(event.target.value) })} disabled={!isAdmin} /><p className="mt-1 text-xs text-muted-foreground">Forecast profit = contract value − costs recorded − remaining costs. Blank means no reliable final margin.</p></div>
               <FinancialMetric label="Total Expenses" value={formatCurrency(totalExpenses)} tone="expense" />
+              <FinancialMetric label="Known cost payments" value={formatCurrency(financialView.paidCostsKnown)} tone="expense" helper="Excludes payments missing from legacy records" />
+              <FinancialMetric label="Known supplier dues" value={formatCurrency(financialView.knownPayable)} tone="expense" helper={financialView.unknownPaymentCount ? `${financialView.unknownPaymentCount} legacy payment histories unresolved` : 'All payment histories recorded'} />
               <FinancialMetric label="Received" value={formatCurrency(totalReceived)} tone="profit" helper="Bills / RA bills marked paid" />
-              <FinancialMetric label="Receivable" value={formatCurrency(receivable)} tone={receivable > 0 ? 'expense' : 'profit'} />
-              <FinancialMetric label="Cash Position" value={formatCurrency(cashPosition)} tone={cashPosition >= 0 ? 'profit' : 'loss'} />
+              <FinancialMetric label="Approved bills outstanding" value={formatCurrency(receivable)} tone={receivable > 0 ? 'expense' : 'profit'} />
+              <FinancialMetric label="Unbilled contract value" value={formatCurrency(financialView.unbilled)} tone="accent" />
+              <FinancialMetric label="Retention withheld" value={formatCurrency(financialView.retention)} tone="accent" helper="From itemized bill deductions" />
+              <FinancialMetric label="Cash movement" value={cashPosition === null ? 'Payment history incomplete' : formatCurrency(cashPosition)} tone={cashPosition === null ? 'accent' : cashPosition >= 0 ? 'profit' : 'loss'} />
               <p className="col-span-2 text-xs text-muted-foreground xl:col-span-4">
-                Received payments are calculated from Bills and RA Bills marked as Paid.
+                Legacy expense payments have no transaction dates; cash movement remains incomplete until reconciled.
               </p>
               {form.status === 'Completed' && form.completionSnapshot && (
                 <div className="col-span-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200 xl:col-span-4">
@@ -2049,8 +2056,8 @@ export default function TenderDetail() {
               <CardContent className="space-y-4 pt-0">
                 <div className="space-y-3 rounded-xl border bg-muted/10 p-4">
                   <PaymentSummaryRow label="Received" value={formatCurrency(totalReceived)} tone="profit" />
-                  <PaymentSummaryRow label="Receivable" value={formatCurrency(receivable)} tone={receivable > 0 ? 'accent' : 'profit'} />
-                  <PaymentSummaryRow label="Cash Position" value={formatCurrency(cashPosition)} tone={cashPosition >= 0 ? 'profit' : 'loss'} />
+                  <PaymentSummaryRow label="Approved bills outstanding" value={formatCurrency(receivable)} tone={receivable > 0 ? 'accent' : 'profit'} />
+                  <PaymentSummaryRow label="Cash movement" value={cashPosition === null ? 'Payment history incomplete' : formatCurrency(cashPosition)} tone={cashPosition === null ? 'accent' : cashPosition >= 0 ? 'profit' : 'loss'} />
                   <div className="border-t pt-3">
                     <Progress value={contractValue > 0 ? Math.min(Math.round((totalReceived / contractValue) * 100), 100) : 0} className="h-2" />
                     <p className="mt-2 text-xs text-muted-foreground">
@@ -2896,7 +2903,8 @@ export default function TenderDetail() {
               <SnapshotRow label="Total Expenses" value={formatCurrency(totalExpenses)} />
               <SnapshotRow label="BOQ Expected Profit" value={boqExpectedProfit === null ? 'Pending actual costs' : formatCurrency(boqExpectedProfit)} tone={boqExpectedProfit === null ? undefined : boqExpectedProfit >= 0 ? 'profit' : 'loss'} />
               <SnapshotRow label="Received from bills / RA bills" value={formatCurrency(totalReceived)} tone="profit" />
-              <SnapshotRow label="Outstanding Billing" value={formatCurrency(receivable)} tone="accent" />
+              <SnapshotRow label="Approved bills outstanding" value={formatCurrency(receivable)} tone="accent" />
+              <SnapshotRow label="Unbilled contract value" value={formatCurrency(financialView.unbilled)} tone="accent" />
             </CardContent>
           </Card>
 
@@ -2961,9 +2969,9 @@ export default function TenderDetail() {
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FinancialMetric label="Expected Profit" value={formatCurrency(expectedProfit)} tone={expectedProfit >= 0 ? 'profit' : 'loss'} />
-              <FinancialMetric label="Cash Position" value={formatCurrency(cashPosition)} tone={cashPosition >= 0 ? 'profit' : 'loss'} helper={`${formatCurrency(totalReceived)} received from paid bills/RA bills`} />
-              <FinancialMetric label="Receivable" value={formatCurrency(receivable)} tone={receivable > 0 ? 'expense' : 'profit'} />
+              <FinancialMetric label="Forecast profit" value={expectedProfit === null ? 'Forecast incomplete' : formatCurrency(expectedProfit)} tone={expectedProfit === null ? 'accent' : expectedProfit >= 0 ? 'profit' : 'loss'} />
+              <FinancialMetric label="Cash movement" value={cashPosition === null ? 'Payment history incomplete' : formatCurrency(cashPosition)} tone={cashPosition === null ? 'accent' : cashPosition >= 0 ? 'profit' : 'loss'} helper={`${formatCurrency(totalReceived)} bill receipts`} />
+              <FinancialMetric label="Approved bills outstanding" value={formatCurrency(receivable)} tone={receivable > 0 ? 'expense' : 'profit'} />
             </div>
             <p className="text-xs text-muted-foreground">
               Received payments are calculated from Bills and RA Bills marked as Paid.
@@ -3066,6 +3074,7 @@ export default function TenderDetail() {
         form={expForm}
         setField={setExpF}
         categories={EXPENSE_CATEGORIES}
+        boqItems={boqItems}
         preview={{
           baseAmount: expenseCalculationPreview.baseAmount ? formatCurrency(expenseCalculationPreview.baseAmount) : '—',
           percentage: formatPreviewPercent(expenseCalculationPreview.percentage),
@@ -3967,7 +3976,7 @@ function SnapshotRow({ label, value, tone }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-muted-foreground">{label}</span>
-      <span className={`text-right font-mono font-medium ${toneClass}`}>{value}</span>
+      <span className={`max-w-full overflow-x-auto whitespace-nowrap text-right font-mono font-medium tabular-nums ${toneClass}`}>{value}</span>
     </div>
   )
 }
@@ -4161,7 +4170,7 @@ function TenderOverviewDashboard({
             <OverviewMetric label="Profit / Loss" value={allBoqActualCostsEntered ? formatCurrency(boqTotals.profitLoss) : 'Pending actual costs'} valueClassName={profitToneClass} />
             <OverviewMetric label="Profit Margin" value={boqProfitMargin === null ? '-' : `${boqProfitMargin}%`} tone={profitTone === 'loss' ? 'loss' : profitTone === 'profit' ? 'profit' : 'accent'} />
             <OverviewMetric label="Expense Total" value={formatCurrency(totalExpenses)} tone="expense" />
-            <OverviewMetric label="Expected Profit" value={formatCurrency(expectedProfit)} tone={expectedProfit >= 0 ? 'profit' : 'loss'} helper={projectedMargin !== null ? `${projectedMargin}% margin` : undefined} />
+            <OverviewMetric label="Forecast profit" value={expectedProfit === null ? 'Forecast incomplete' : formatCurrency(expectedProfit)} tone={expectedProfit === null ? 'accent' : expectedProfit >= 0 ? 'profit' : 'loss'} helper={projectedMargin !== null ? `${projectedMargin}% margin` : 'Enter remaining-cost forecast'} />
           </div>
         </OverviewSection>
 
@@ -4172,7 +4181,7 @@ function TenderOverviewDashboard({
             <OverviewMetric label="Received Amount" value={formatCurrency(billingSummary.received)} tone="profit" />
             <OverviewMetric label="Balance / Receivable" value={formatCurrency(billingSummary.balance)} tone={billingSummary.balance > 0 ? 'expense' : 'profit'} />
             <OverviewMetric label="Deductions" value={formatCurrency(billingSummary.deductions)} tone="loss" />
-            <OverviewMetric label="Cash Position" value={formatCurrency(cashPosition)} tone={cashPosition >= 0 ? 'profit' : 'loss'} helper={`${formatCurrency(totalReceived)} received`} />
+            <OverviewMetric label="Cash movement" value={cashPosition === null ? 'Payment history incomplete' : formatCurrency(cashPosition)} tone={cashPosition === null ? 'accent' : cashPosition >= 0 ? 'profit' : 'loss'} helper={`${formatCurrency(totalReceived)} received`} />
           </div>
         </OverviewSection>
       </div>
@@ -4652,6 +4661,7 @@ function BillsInvoicesSection({
     status: 'Draft',
     remarks: '',
     desc: '',
+    v2: {},
   })
   const [billFormOpen, setBillFormOpen] = useState(false)
   const [editingBill, setEditingBill] = useState(null)
@@ -4702,6 +4712,7 @@ function BillsInvoicesSection({
       status: bill.status || 'Draft',
       remarks: bill.remarks || bill.desc || '',
       desc: bill.desc || bill.remarks || '',
+      v2: bill.v2 || {},
     })
     setBillFormOpen(true)
   }
@@ -4712,6 +4723,8 @@ function BillsInvoicesSection({
       document.getElementById(invalidField.id)?.focus()
       return
     }
+    const ledgerIssue = validateBillLedger(billForm)
+    if (ledgerIssue) { toast.error(ledgerIssue); return }
     const payload = {
       no: billForm.no || '',
       type: billForm.type || 'Running Bill',
@@ -4724,6 +4737,7 @@ function BillsInvoicesSection({
       status: billForm.status || 'Draft',
       remarks: billForm.remarks || '',
       desc: billForm.remarks || '',
+      v2: billForm.v2 || {},
     }
     if (editingBill?.id) {
       onUpdate(editingBill.id, payload)
@@ -5104,6 +5118,7 @@ function RABillsSection({
     deductions: '',
     status: 'Submitted',
     remarks: '',
+    v2: {},
   })
   const [raBillFormOpen, setRaBillFormOpen] = useState(false)
   const [editingRaBill, setEditingRaBill] = useState(null)
@@ -5148,6 +5163,7 @@ function RABillsSection({
       deductions: bill.deductions ?? '',
       status: bill.status || 'Submitted',
       remarks: bill.remarks || bill.desc || '',
+      v2: bill.v2 || {},
     })
     setRaBillFormOpen(true)
   }
@@ -5158,6 +5174,8 @@ function RABillsSection({
       document.getElementById(invalidField.id)?.focus()
       return
     }
+    const ledgerIssue = validateBillLedger(raBillForm)
+    if (ledgerIssue) { toast.error(ledgerIssue); return }
     const payload = {
       no: raBillForm.no || '',
       type: 'Running Bill',
@@ -5170,6 +5188,7 @@ function RABillsSection({
       status: raBillForm.status || 'Submitted',
       remarks: raBillForm.remarks || '',
       desc: raBillForm.remarks || '',
+      v2: raBillForm.v2 || {},
     }
     if (editingRaBill?.id) {
       onUpdate(editingRaBill.id, payload)
@@ -5549,8 +5568,8 @@ function LegacyBillFinanceSection({
                         </TableCell>
                         <TableCell><BillAmountField value={bill.amount} onChange={(value) => onUpdate(bill.id, { amount: value })} disabled={!isAdmin} /></TableCell>
                         <TableCell><BillAmountField value={bill.approvedAmount} onChange={(value) => onUpdate(bill.id, { approvedAmount: value })} disabled={!isAdmin} /></TableCell>
-                        <TableCell><BillAmountField value={bill.receivedAmount} onChange={(value) => onUpdate(bill.id, { receivedAmount: value })} disabled={!isAdmin} /></TableCell>
-                        <TableCell><BillAmountField value={bill.deductions} onChange={(value) => onUpdate(bill.id, { deductions: value })} disabled={!isAdmin} /></TableCell>
+                        <TableCell>{bill.v2?.receipts ? <span className="whitespace-nowrap font-mono tabular-nums">{formatCurrency(amounts.received)}</span> : <BillAmountField value={bill.receivedAmount} onChange={(value) => onUpdate(bill.id, { receivedAmount: value })} disabled={!isAdmin} />}</TableCell>
+                        <TableCell>{bill.v2?.deductions ? <span className="whitespace-nowrap font-mono tabular-nums">{formatCurrency(amounts.deductions)}</span> : <BillAmountField value={bill.deductions} onChange={(value) => onUpdate(bill.id, { deductions: value })} disabled={!isAdmin} />}</TableCell>
                         <TableCell className="text-right font-mono text-sm font-semibold tabular-nums">{formatCurrency(amounts.balance)}</TableCell>
                         <TableCell>
                           <div className="mb-2">
@@ -5629,8 +5648,8 @@ function MobileBillCard({ bill, isAdmin, onUpdate, onRemove, dateKey, paidDateKe
         <div className="grid grid-cols-2 gap-3">
           <BillField label="Submitted" type="number" value={bill.amount ?? ''} onChange={(value) => onUpdate(bill.id, { amount: value })} disabled={!isAdmin} />
           <BillField label="Approved" type="number" value={bill.approvedAmount ?? ''} onChange={(value) => onUpdate(bill.id, { approvedAmount: value })} disabled={!isAdmin} />
-          <BillField label="Received" type="number" value={bill.receivedAmount ?? ''} onChange={(value) => onUpdate(bill.id, { receivedAmount: value })} disabled={!isAdmin} />
-          <BillField label="Deductions" type="number" value={bill.deductions ?? ''} onChange={(value) => onUpdate(bill.id, { deductions: value })} disabled={!isAdmin} />
+          {bill.v2?.receipts ? <BillDetail label="Received (receipt ledger)" value={formatCurrency(getBillAmounts(bill).received)} /> : <BillField label="Received" type="number" value={bill.receivedAmount ?? ''} onChange={(value) => onUpdate(bill.id, { receivedAmount: value })} disabled={!isAdmin} />}
+          {bill.v2?.deductions ? <BillDetail label="Deductions (itemized)" value={formatCurrency(getBillAmounts(bill).deductions)} /> : <BillField label="Deductions" type="number" value={bill.deductions ?? ''} onChange={(value) => onUpdate(bill.id, { deductions: value })} disabled={!isAdmin} />}
           <BillField label="Bill date" type="date" value={bill[dateKey] || ''} onChange={(value) => onUpdate(bill.id, { [dateKey]: value })} disabled={!isAdmin} />
           {paidDateKey && <BillField label="Paid date" type="date" value={bill[paidDateKey] || ''} onChange={(value) => onUpdate(bill.id, { [paidDateKey]: value })} disabled={!isAdmin} />}
         </div>

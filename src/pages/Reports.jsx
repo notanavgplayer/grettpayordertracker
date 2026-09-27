@@ -27,7 +27,7 @@ import {
   formatDate,
   getTenderDisplayStatus,
 } from "@/lib/utils";
-import { billAmounts, billDate, billNumber, tenderContractValue } from "@/lib/financials";
+import { billAmounts, billDate, billNumber, tenderContractValue, projectFinancials } from "@/lib/financials";
 import { rowsToCSV } from "@/lib/csv";
 import EmptyState from "@/components/shared/EmptyState";
 import KpiCard from "@/components/shared/KpiCard";
@@ -208,11 +208,7 @@ function buildReportRows({ tenders, payOrders, expenses, documents, bills, siteV
 
   const boqProfit = tenders.map((tender) => {
     const financials = calculateTenderFinancials(tender);
-    const expenseTotal = expenses
-      .filter((expense) => expense.tenderRef === tender.id || expense.tenderId === tender.id || expense.tenderId === tender.nit)
-      .reduce((sum, expense) => sum + toNumber(expense.amount), 0);
-    const received = [...asArray(tender.bills), ...asArray(tender.raBills)]
-      .reduce((sum, bill) => sum + billAmounts(bill).received, 0);
+    const metrics = projectFinancials(tender, expenses);
     return {
       _tenderId: tender.id,
       _date: tender.submissionDate,
@@ -222,9 +218,9 @@ function buildReportRows({ tenders, payOrders, expenses, documents, bills, siteV
       status: getTenderDisplayStatus(tender),
       estimatedCost: formatCurrencyPrecise(financials.estimatedCost, 0),
       quotedAmount: formatCurrencyPrecise(financials.quotedAmount, 0),
-      expenses: formatCurrencyPrecise(expenseTotal, 0),
-      received: formatCurrencyPrecise(received, 0),
-      cashPosition: formatCurrencyPrecise(received - expenseTotal, 0),
+      expenses: formatCurrencyPrecise(metrics.incurred, 0),
+      received: formatCurrencyPrecise(metrics.received, 0),
+      cashPosition: metrics.cash === null ? 'Payment history incomplete' : formatCurrencyPrecise(metrics.cash, 0),
     };
   });
 

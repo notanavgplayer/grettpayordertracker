@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
+import SecurityFields from '@/components/shared/SecurityFields'
 
 export default function TenderPayOrderSheet({
   open,
@@ -71,6 +72,7 @@ export default function TenderPayOrderSheet({
             <Label htmlFor="td-po-notes">Notes</Label>
             <Textarea id="td-po-notes" value={form.notes} onChange={setField('notes')} rows={3} />
           </div>
+          <SecurityFields form={form} setV2={(key, value) => setField('v2')({ ...form.v2, [key]: value })} />
         </div>
         <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
           <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>Cancel</Button>
