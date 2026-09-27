@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { doc, getDoc, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp, deleteField, writeBatch } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { queueTenderIntegrationSync } from '@/lib/tenderIntegrations'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
 import { getTenderDocumentUrl, hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
@@ -569,6 +570,7 @@ export default function TenderDetail() {
     setAutoSaving(true)
     try {
       await updateDoc(doc(db, 'tenders', tenderIdRef.current), { ...payload, updatedAt: serverTimestamp() })
+      if (['name', 'nit', 'agency', 'submissionDate', 'status'].some((key) => key in payload)) queueTenderIntegrationSync(tenderIdRef.current)
       for (const [key, value] of Object.entries(payload)) {
         if (autoSavePayloadRef.current[key] === value) delete autoSavePayloadRef.current[key]
       }
@@ -985,6 +987,7 @@ export default function TenderDetail() {
       }
       batch.update(doc(db, 'tenders', id), { ...data, updatedAt: serverTimestamp() })
       await batch.commit()
+      queueTenderIntegrationSync(id)
       if (transitionedPayOrders > 0) {
         toast.info(`${transitionedPayOrders} pay order(s) marked Held`)
         setPoRefresh((n) => n + 1)
@@ -1058,6 +1061,7 @@ export default function TenderDetail() {
       }
 
       await updateDoc(doc(db, 'tenders', id), { ...data, updatedAt: serverTimestamp() })
+      queueTenderIntegrationSync(id)
       await logActivity({
         type: 'tender',
         action: 'completed',

@@ -4,6 +4,7 @@ import { useCollection } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
 import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { queueTenderIntegrationSync } from "@/lib/tenderIntegrations";
 import {
   formatDate,
   formatCurrencyPrecise,
@@ -610,6 +611,7 @@ export default function Tenders() {
         }
         batch.update(tenderDoc, { ...data, updatedAt: serverTimestamp() });
         await batch.commit();
+        queueTenderIntegrationSync(editItem.id);
         logActivity({
           type: "tender",
           action: "updated",
@@ -633,6 +635,7 @@ export default function Tenders() {
         }
         batch.set(tenderDoc, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
         await batch.commit();
+        queueTenderIntegrationSync(newId);
         logActivity({
           type: "tender",
           action: "created",
@@ -663,6 +666,7 @@ export default function Tenders() {
     }
     batch.delete(doc(db, "tenders", deleteId));
     await batch.commit();
+    queueTenderIntegrationSync(deleteId);
     logActivity({
       type: "tender",
       action: "deleted",
