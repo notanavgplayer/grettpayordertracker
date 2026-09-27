@@ -56,8 +56,8 @@ import {
   shouldShowTaskOverdue,
   sortByField,
 } from '@/lib/utils'
-import { tenderBillTotals, tenderContractValue } from '@/lib/financials'
-import { getAtRiskPayOrders } from '@/lib/payOrderMetrics'
+import { tenderBillTotals, tenderContractValue, projectFinancials, expenseAmounts, securityAmounts, billAmounts } from '@/lib/financials'
+import { getAtRiskPayOrders, getSecurityFollowUps } from '@/lib/payOrderMetrics'
 import { sortTenderDeadlines } from '@/lib/tenderDeadlines'
 
 const TENDER_STATUS_COLORS = {
@@ -309,6 +309,7 @@ export default function Home() {
   const inProgressTenders = tenders.filter((t) => t.status === 'In Progress')
   const wonTenders = tenders.filter((t) => ['Awarded', 'In Progress', 'Completed'].includes(t.status))
   const atRisk = getAtRiskPayOrders(payOrders, tenders)
+  const securityFollowUps = getSecurityFollowUps(payOrders, tenders)
   const openTodos = todos.filter((t) => !isTaskDone(t))
   const wonTenderIds = new Set(wonTenders.map((t) => t.id))
 
@@ -323,13 +324,18 @@ export default function Home() {
 
   const totalExpenses = expenses
     .filter((expense) => expense.tenderRef && wonTenderIds.has(expense.tenderRef))
-    .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0)
-  const expectedProfit = tenderFinancials.contractValue - totalExpenses
-  const cashPosition = tenderFinancials.totalReceived - totalExpenses
-  const receivable = Math.max(tenderFinancials.contractValue - tenderFinancials.totalReceived, 0)
+    .reduce((sum, expense) => sum + expenseAmounts(expense).incurred, 0)
+  const projectMetrics = wonTenders.map((tender) => projectFinancials(tender, expenses))
+  const receivable = projectMetrics.reduce((sum, metric) => sum + metric.outstanding, 0)
+  const unbilled = projectMetrics.reduce((sum, metric) => sum + metric.unbilled, 0)
+  const forecastReady = projectMetrics.length > 0 && projectMetrics.every((metric) => metric.profit !== null)
+  const forecastProfit = forecastReady ? projectMetrics.reduce((sum, metric) => sum + metric.profit, 0) : null
+  const unassignedExpenses = expenses.filter((expense) => !expense.tenderRef && !expense.tenderId)
+    .reduce((sum, expense) => sum + expenseAmounts(expense).incurred, 0)
   const payOrdersHeld = payOrders
-    .filter((p) => ['Held', 'Submitted', 'Pending'].includes(p.status))
-    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+    .filter((p) => !['Forfeited', 'Encashed'].includes(p.status))
+    .reduce((sum, p) => sum + (securityAmounts(p).remaining ?? 0), 0)
+  const unknownSecurityFunding = payOrders.filter((p) => p.v2?.instrument === 'guarantee' && securityAmounts(p).funded === null).length
   const actionableTenderDeadlines = tenders.filter((t) => isActionableTenderStatus(t.status))
 
   const allDeadlineRows = sortTenderDeadlines(actionableTenderDeadlines)
@@ -477,6 +483,18 @@ export default function Home() {
       tone: 'warning',
       onClick: () => navigate('/pay-orders'),
     })),
+    ...securityFollowUps.slice(0, 3).map((po) => ({
+      id: `security-${po.id}`,
+      icon: Landmark,
+      type: 'Security review',
+      title: po.po ? `Pay order ${po.po}` : 'Security follow-up',
+      description: po.v2?.followUpDate ? 'Scheduled refund follow-up' : 'Completed project still has held security; check eligibility.',
+      dueDate: po.v2?.followUpDate ? formatDashboardDate(po.v2.followUpDate) : null,
+      status: po.status || 'Held',
+      priority: 'Review',
+      tone: 'warning',
+      onClick: () => navigate('/pay-orders'),
+    })),
     ...todaysTasks.slice(0, 3).map((todo) => ({
       id: `task-${todo.id}`,
       icon: CheckSquare,
@@ -507,24 +525,17 @@ export default function Home() {
   const totalBilled = wonTenders.reduce((sum, tender) => {
     const bills = Array.isArray(tender.bills) ? tender.bills : []
     const raBills = Array.isArray(tender.raBills) ? tender.raBills : []
-    return sum + [...bills, ...raBills].reduce((billSum, bill) => billSum + (Number(bill.approvedAmount) || Number(bill.amount) || Number(bill.submittedAmount) || 0), 0)
+    return sum + [...bills, ...raBills].reduce((billSum, bill) => billSum + billAmounts(bill).approved, 0)
   }, 0)
-  const financeProfit = totalBilled > 0 ? totalBilled - totalExpenses : expectedProfit
   const billingProgress = tenderFinancials.contractValue > 0
     ? Math.min(100, Math.round((totalBilled / tenderFinancials.contractValue) * 100))
     : null
   const pendingBillsAmount = pendingBillFollowups.reduce((sum, bill) => (
-    sum + (Number(bill.approvedAmount) || Number(bill.amount) || Number(bill.submittedAmount) || 0)
+    sum + billAmounts(bill).approved
   ), 0)
   const receivableTenders = wonTenders
     .map((tender) => {
-      const billPaid = asArray(tender.bills)
-        .filter((bill) => bill.status === 'Paid')
-        .reduce((sum, bill) => sum + (Number(bill.amount) || Number(bill.receivedAmount) || 0), 0)
-      const raBillPaid = asArray(tender.raBills)
-        .filter((bill) => bill.status === 'Paid')
-        .reduce((sum, bill) => sum + (Number(bill.amount) || Number(bill.receivedAmount) || 0), 0)
-      const balance = Math.max((Number(tender.value) || Number(tender.quotedAmount) || 0) - billPaid - raBillPaid, 0)
+      const balance = projectFinancials(tender, expenses).outstanding
       return { id: tender.id, name: tender.name || 'Untitled tender', agency: tender.agency, balance }
     })
     .filter((item) => item.balance > 0)
@@ -632,7 +643,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
             <Button asChild className="h-10 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">
-              <Link to="/tenders"><Plus className="h-4 w-4" /> New Tender</Link>
+              <Link to="/tenders?create=1"><Plus className="h-4 w-4" /> New Tender</Link>
             </Button>
             <Button asChild variant="outline" className="h-10 rounded-xl">
               <Link to="/pay-orders"><Plus className="h-4 w-4" /> Pay Order</Link>
@@ -726,8 +737,8 @@ export default function Home() {
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         <DashboardMetric icon={FileStack} title="Active Tenders" value={activeTenders.length} href="/tenders" tone="primary" helper="Open pipeline" trend={activeTenders.length > 0 ? String(activeTenders.length) : null} trendPositive={activeTenders.length > 0} />
         <DashboardMetric icon={Clock} title="Due Soon" value={dueSoonCount} href="/calendar" tone={dueSoonCount > 0 ? 'warning' : 'success'} helper="Next 7 days" trend={dueSoonCount === 0 ? 'Clear' : String(dueSoonCount)} trendPositive={dueSoonCount === 0} />
-        <DashboardMetric icon={Landmark} title="Pay Orders" value={payOrders.length} href="/pay-orders" tone="info" helper={`${atRisk.length} need action`} trend={atRisk.length > 0 ? String(atRisk.length) : '0'} trendPositive={atRisk.length === 0} />
-        <DashboardMetric icon={Banknote} title="Receivables" value={formatCurrency(receivable)} href="/tenders" tone="info" helper="Won tenders" trendPositive={receivable === 0} />
+        <DashboardMetric icon={Landmark} title="Securities" value={payOrders.length} href="/pay-orders" tone={securityFollowUps.length ? 'warning' : 'info'} helper={`${securityFollowUps.length} refund follow-ups · ${atRisk.length} bid results`} trend={securityFollowUps.length > 0 ? String(securityFollowUps.length) : '0'} trendPositive={securityFollowUps.length === 0} />
+        <DashboardMetric icon={Banknote} title="Approved bills outstanding" value={formatCurrency(receivable)} href="/reports" tone="info" helper="Approved less receipts and deductions" trendPositive={receivable === 0} />
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
@@ -747,9 +758,9 @@ export default function Home() {
           </CardHeader>
           <CardContent className="pt-0">
             {actionRequiredItems.length === 0 ? (
-              <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-8 text-center">
+              <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-4 text-center">
                 <p className="text-sm font-semibold text-foreground">All clear</p>
-                <p className="mt-1 text-xs text-muted-foreground">No urgent tender deadlines, tasks, or pay order actions for now.</p>
+                <p className="mt-1 text-xs text-muted-foreground">{securityFollowUps.length ? `${securityFollowUps.length} security refund follow-up(s) need review.` : 'No urgent tender deadlines, tasks, or scheduled security follow-ups.'}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -769,12 +780,12 @@ export default function Home() {
             <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/60 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Total receivable</p>
-                  <p className="mt-2 max-w-full break-words text-2xl font-semibold leading-tight text-emerald-950 [overflow-wrap:anywhere] dark:text-emerald-100 sm:text-3xl">
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Approved bills outstanding</p>
+                  <p className="mt-2 max-w-full overflow-x-auto whitespace-nowrap text-2xl font-semibold leading-tight text-emerald-950 tabular-nums dark:text-emerald-100 sm:text-3xl">
                     {formatCurrency(receivable)}
                   </p>
                   <p className="mt-1 text-xs text-emerald-800/75 dark:text-emerald-100/70">
-                    Received {formatCurrency(tenderFinancials.totalReceived)} against {formatCurrency(tenderFinancials.contractValue)} contract value.
+                    {formatCurrency(unbilled)} remains unbilled. Received {formatCurrency(tenderFinancials.totalReceived)} against {formatCurrency(tenderFinancials.contractValue)} contract value.
                   </p>
                 </div>
                 <div className="rounded-xl border border-emerald-200 bg-white/75 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-background/60 dark:text-emerald-300">
@@ -788,11 +799,11 @@ export default function Home() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <FinanceMetricCard icon={FileStack} label="Quoted / Contract" value={formatCurrency(totalQuoted)} helper="Quoted total across tenders" />
-              <FinanceMetricCard icon={ReceiptText} label="Expenses" value={formatCurrency(totalExpenses)} helper="Linked project expenses" tone={totalExpenses > 0 ? 'warning' : 'success'} />
+              <FinanceMetricCard icon={ReceiptText} label="Project costs recorded" value={formatCurrency(totalExpenses)} helper={`Unassigned entries: ${formatCurrency(unassignedExpenses)}`} tone={totalExpenses > 0 ? 'warning' : 'success'} />
               <FinanceMetricCard icon={Banknote} label="Total Billed" value={formatCurrency(totalBilled)} helper={billingProgress === null ? 'No contract baseline' : `${billingProgress}% of contract value`} tone="success" />
-              <FinanceMetricCard icon={Landmark} label="Pending Pay Orders" value={formatCurrency(payOrdersHeld)} helper="Pending, submitted, or held" tone={payOrdersHeld > 0 ? 'warning' : 'success'} />
+              <FinanceMetricCard icon={Landmark} label="Known cash tied in securities" value={formatCurrency(payOrdersHeld)} helper={`${unknownSecurityFunding} guarantees have unknown funded margin`} tone={payOrdersHeld > 0 || unknownSecurityFunding > 0 ? 'warning' : 'success'} />
               <FinanceMetricCard icon={ReceiptText} label="Pending Bills" value={formatCurrency(pendingBillsAmount)} helper={`${pendingBillFollowups.length} bill follow-up${pendingBillFollowups.length === 1 ? '' : 's'}`} tone={pendingBillsAmount > 0 ? 'warning' : 'success'} />
-              <FinanceMetricCard icon={Banknote} label={financeProfit >= 0 ? 'Profit / Surplus' : 'Profit / Loss'} value={formatCurrency(financeProfit)} helper="Based on available billing or tender profit data" tone={financeProfit >= 0 ? 'success' : 'danger'} />
+              <FinanceMetricCard icon={Banknote} label="Forecast profit" value={forecastProfit === null ? 'Forecast incomplete' : formatCurrency(forecastProfit)} helper="Needs remaining-cost forecasts for every awarded project" tone={forecastProfit === null ? 'warning' : forecastProfit >= 0 ? 'success' : 'danger'} />
             </div>
 
             {receivableTenders.length > 0 && (

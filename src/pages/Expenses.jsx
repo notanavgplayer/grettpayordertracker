@@ -4,6 +4,8 @@ import { useAuth } from '@/context/AuthContext'
 import { formatCurrency, formatDate, EXPENSE_CATEGORIES } from '@/lib/utils'
 import { exportExpensesCSV } from '@/lib/export'
 import { nonNegativeNumber } from '@/lib/data'
+import { expenseAmounts, projectId, validateEvents } from '@/lib/financials'
+import TransactionLedger from '@/components/shared/TransactionLedger'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
@@ -33,10 +35,11 @@ import { toast } from 'sonner'
 
 const CATEGORY_COLORS = CHART_COLORS
 
-const EMPTY = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', tenderId: '', note: '' }
+const EMPTY = { description: '', category: EXPENSE_CATEGORIES[0], amount: '', date: '', tenderId: '', tenderRef: '', note: '', v2: { kind: 'cost', payee: '', invoice: '', boqItemId: '', receiptUrl: '', payments: [] } }
 
 export default function Expenses() {
   const { data: expenses, loading, error } = useCollection('expenses', 'date', 'desc')
+  const { data: tenders } = useCollection('tenders', 'name', 'asc')
   const { add, update, remove } = useFirestoreCRUD('expenses')
   const { isAdmin } = useAuth()
 
@@ -46,6 +49,10 @@ export default function Expenses() {
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState(null)
   const [filter, setFilter] = useState('all') // 'all' | 'month'
+  const [projectFilter, setProjectFilter] = useState('all')
+  const [paymentFilter, setPaymentFilter] = useState('all')
+  const [search, setSearch] = useState('')
+  const [projectSearch, setProjectSearch] = useState('')
   const [formError, setFormError] = useState('')
 
   const now = new Date()
@@ -54,25 +61,30 @@ export default function Expenses() {
   const thisMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
   const displayExpenses = useMemo(() => {
-    if (filter === 'month') return expenses.filter((e) => (e.date || '').startsWith(thisMonthStr))
-    return expenses
-  }, [expenses, filter, thisMonthStr])
+    return expenses.filter((e) => {
+      if (filter === 'month' && !(e.date || '').startsWith(thisMonthStr)) return false
+      if (projectFilter === 'unassigned' && projectId(e)) return false
+      if (!['all', 'unassigned'].includes(projectFilter) && projectId(e) !== projectFilter) return false
+      const paid = expenseAmounts(e).paid
+      if (paymentFilter === 'unknown' && paid !== null) return false
+      if (paymentFilter === 'unpaid' && paid !== 0) return false
+      if (paymentFilter === 'partial' && !(paid > 0 && paid < Number(e.amount))) return false
+      if (paymentFilter === 'paid' && paid !== Number(e.amount)) return false
+      return `${e.description} ${e.category} ${e.v2?.payee || ''}`.toLowerCase().includes(search.toLowerCase())
+    })
+  }, [expenses, filter, thisMonthStr, projectFilter, paymentFilter, search])
 
   const thisMonthExpenses = useMemo(() => expenses.filter((e) => (e.date || '').startsWith(thisMonthStr)), [expenses, thisMonthStr])
 
-  const totalAll = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
-  const totalMonth = thisMonthExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
-
-  const topCat = useMemo(() => {
-    const map = {}
-    for (const e of thisMonthExpenses) { map[e.category] = (map[e.category] || 0) + (Number(e.amount) || 0) }
-    return Object.entries(map).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
-  }, [thisMonthExpenses])
+  const totalAll = expenses.reduce((s, e) => s + expenseAmounts(e).incurred, 0)
+  const totalMonth = thisMonthExpenses.reduce((s, e) => s + expenseAmounts(e).incurred, 0)
+  const supplierDue = expenses.reduce((s, e) => s + (expenseAmounts(e).payable ?? 0), 0)
+  const unknownPayments = expenses.filter((e) => expenseAmounts(e).payable === null).length
 
   // Category chart
   const catData = useMemo(() => {
     const map = {}
-    for (const e of displayExpenses) { map[e.category] = (map[e.category] || 0) + (Number(e.amount) || 0) }
+    for (const e of displayExpenses) { map[e.category] = (map[e.category] || 0) + expenseAmounts(e).incurred }
     return Object.entries(map).map(([name, value], i) => ({ name: name.split('/')[0].trim(), value, color: CATEGORY_COLORS[i % CATEGORY_COLORS.length] })).sort((a, b) => b.value - a.value)
   }, [displayExpenses])
 
@@ -83,7 +95,7 @@ export default function Expenses() {
       const d = new Date(currentYear, currentMonth - i, 1)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const label = d.toLocaleString('default', { month: 'short' })
-      const total = expenses.filter((e) => (e.date || '').startsWith(key)).reduce((s, e) => s + (Number(e.amount) || 0), 0)
+      const total = expenses.filter((e) => (e.date || '').startsWith(key)).reduce((s, e) => s + expenseAmounts(e).incurred, 0)
       result.push({ month: label, total })
     }
     return result
@@ -91,7 +103,7 @@ export default function Expenses() {
 
   const openDialog = (item = null) => {
     setEditItem(item)
-    setForm(item ? { description: item.description || '', category: item.category || EXPENSE_CATEGORIES[0], amount: item.amount || '', date: item.date || '', tenderId: item.tenderId || '', note: item.note || '' } : { ...EMPTY, date: now.toISOString().slice(0, 10) })
+    setForm(item ? { ...EMPTY, ...item, amount: item.amount ?? '', tenderRef: projectId(item), v2: { ...EMPTY.v2, ...item.v2, payments: item.v2?.payments } } : { ...EMPTY, v2: { ...EMPTY.v2 }, date: now.toISOString().slice(0, 10) })
     setDialogOpen(true)
   }
 
@@ -107,10 +119,17 @@ export default function Expenses() {
       window.requestAnimationFrame(() => document.getElementById('e-amt')?.focus())
       return
     }
+    const eventIssue = validateEvents(form.v2.payments || [], amount)
+    if (eventIssue) { setFormError(eventIssue); return }
+    if (form.v2.kind === 'overhead' && form.tenderRef) { setFormError('Firm overhead must be recorded without a project link.'); return }
+    if (form.tenderRef && !tenders.some((item) => item.id === form.tenderRef)) { setFormError('Select an existing project.'); return }
     setFormError('')
     setSaving(true)
     try {
-      const data = { ...form, description: form.description.trim(), amount }
+      const { payments, ...otherV2 } = form.v2
+      const data = { description: form.description.trim(), category: form.category, amount,
+        date: form.date, tenderId: form.tenderRef || '', tenderRef: form.tenderRef || '',
+        note: form.note, v2: payments === undefined ? otherV2 : { ...otherV2, payments } }
       if (editItem) { await update(editItem.id, data); toast.success('Expense updated') }
       else { await add(data); toast.success('Expense added') }
       setDialogOpen(false)
@@ -118,6 +137,7 @@ export default function Expenses() {
   }
 
   const setF = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
+  const setV2 = (k) => (e) => setForm((p) => ({ ...p, v2: { ...p.v2, [k]: e.target?.value ?? e } }))
 
   if (loading) return <PageTableSkeleton rows={6} cols={5} metrics={3} />
   if (error) return <LoadState title="Could not load expenses" error={error} />
@@ -126,7 +146,7 @@ export default function Expenses() {
     <div className="space-y-6">
       <PageHeader
         title="Expenses"
-        description="Track and analyze project expenses"
+        description="Project costs, supplier dues and payment history"
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => exportExpensesCSV(displayExpenses)}><Download className="h-4 w-4" /> Export</Button>
@@ -137,9 +157,9 @@ export default function Expenses() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 gap-4">
-        <MetricCard icon={Calendar}   title="This Month"      value={formatCurrency(totalMonth)} delta={`${thisMonthExpenses.length} entries`} deltaPositive={null} />
-        <MetricCard icon={TrendingUp} title="All Time Total"  value={formatCurrency(totalAll)}   delta={`${expenses.length} entries`} deltaPositive={null} />
-        <MetricCard icon={Tag}        title="Top Category"    value={topCat} mono={false} delta="This month" deltaPositive={null} className="hidden sm:flex" />
+        <MetricCard icon={Calendar} title="Costs this month" value={formatCurrency(totalMonth)} delta={`${thisMonthExpenses.length} entries`} deltaPositive={null} />
+        <MetricCard icon={TrendingUp} title="Costs recorded" value={formatCurrency(totalAll)} delta={`${expenses.length} entries`} deltaPositive={null} />
+        <MetricCard icon={Tag} title="Known supplier dues" value={formatCurrency(supplierDue)} delta={`${unknownPayments} legacy payment histories unknown`} deltaPositive={null} />
       </div>
 
       <Tabs defaultValue="list">
@@ -154,6 +174,11 @@ export default function Expenses() {
             {[['all', 'All Expenses'], ['month', 'This Month']].map(([val, label]) => (
               <button key={val} onClick={() => setFilter(val)} className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${filter === val ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>{label}</button>
             ))}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Input aria-label="Search description or payee" placeholder="Search description or payee" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Select value={projectFilter} onValueChange={setProjectFilter}><SelectTrigger aria-label="Filter project"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All scopes</SelectItem><SelectItem value="unassigned">Unassigned</SelectItem>{tenders.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select>
+            <Select value={paymentFilter} onValueChange={setPaymentFilter}><SelectTrigger aria-label="Filter payment status"><SelectValue /></SelectTrigger><SelectContent>{[['all','All payments'],['unknown','Legacy payment unknown'],['unpaid','Unpaid'],['partial','Partially paid'],['paid','Paid']].map(([value,label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
           </div>
           {displayExpenses.length === 0 ? (
             <EmptyState icon={Receipt} title="No expenses" description="Start tracking your project expenses." action={isAdmin && <Button onClick={() => openDialog()}><Plus className="h-4 w-4" /> Add Expense</Button>} />
@@ -198,11 +223,12 @@ export default function Expenses() {
                           )}
                         </div>
                       </div>
-                      {e.tenderId && (
+                      {projectId(e) && (
                         <div className="text-xs text-muted-foreground pt-2 border-t border-border">
-                          <span className="font-medium">Tender:</span> <span className="font-mono">{e.tenderId}</span>
+                          <span className="font-medium">Project:</span> {tenders.find((tender) => tender.id === projectId(e))?.name || e.tenderId}
                         </div>
                       )}
+                      <p className="text-xs text-muted-foreground">{expenseAmounts(e).paid === null ? 'Payment history unknown' : expenseAmounts(e).payable > 0 ? `${formatCurrency(expenseAmounts(e).payable)} due` : 'Settled'}</p>
                     </CardContent>
                   </Card>
                 ))}
@@ -215,6 +241,7 @@ export default function Expenses() {
                     <TableHead>Description</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Payable</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead className="hidden lg:table-cell">Tender</TableHead>
                     {isAdmin && <TableHead className="w-12"></TableHead>}
@@ -226,8 +253,9 @@ export default function Expenses() {
                       <TableCell className="text-sm font-medium max-w-[260px] truncate">{e.description}</TableCell>
                       <TableCell><Badge variant="secondary" className="text-xs font-normal">{e.category}</Badge></TableCell>
                       <TableCell className="text-sm font-mono tabular-nums font-semibold text-right">{formatCurrency(e.amount)}</TableCell>
+                      <TableCell className="whitespace-nowrap text-right text-sm font-mono tabular-nums">{expenseAmounts(e).payable === null ? 'Unknown' : formatCurrency(expenseAmounts(e).payable)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDate(e.date)}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{e.tenderId || '—'}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{tenders.find((tender) => tender.id === projectId(e))?.name || e.tenderId || 'Firm / unassigned'}</TableCell>
                       {isAdmin && (
                         <TableCell>
                           <DropdownMenu>
@@ -338,11 +366,14 @@ export default function Expenses() {
                 <Label htmlFor="e-date">Date</Label>
                 <Input id="e-date" type="date" value={form.date} onChange={setF('date')} className="expense-date-input" />
               </div>
-              <div className="min-w-0 space-y-1.5">
-                <Label htmlFor="e-tender">Related Tender</Label>
-                <Input id="e-tender" value={form.tenderId} onChange={setF('tenderId')} placeholder="Tender / NIT" className="h-10 w-full min-w-0 text-sm sm:h-11" />
-              </div>
+              <div className="min-w-0 space-y-1.5"><Label htmlFor="e-project-search">Project / tender</Label><Input id="e-project-search" placeholder="Search projects" value={projectSearch} onChange={(event) => setProjectSearch(event.target.value)} /><Select value={form.tenderRef || 'firm'} onValueChange={(value) => setF('tenderRef')(value === 'firm' ? '' : value)}><SelectTrigger aria-label="Select project"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="firm">Firm / unassigned</SelectItem>{tenders.filter((item) => item.name?.toLowerCase().includes(projectSearch.toLowerCase()) || item.id === form.tenderRef).map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select></div>
             </div>
+            <div className="grid grid-cols-2 gap-3"><div><Label htmlFor="e-kind">Type</Label><Select value={form.v2.kind} onValueChange={setV2('kind')}><SelectTrigger id="e-kind"><SelectValue /></SelectTrigger><SelectContent>{[['cost','Project cost'],['overhead','Firm overhead'],['advance','Advance'],['deposit','Refundable deposit'],['transfer','Transfer'],['owner-funding','Owner funding']].map(([value,label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div><div><Label htmlFor="e-payee">Supplier / payee</Label><Input id="e-payee" value={form.v2.payee} onChange={setV2('payee')} /></div></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label htmlFor="e-invoice">Invoice / reference</Label><Input id="e-invoice" value={form.v2.invoice} onChange={setV2('invoice')} /></div><div><Label htmlFor="e-boq">BOQ allocation</Label><Select value={form.v2.boqItemId || 'none'} onValueChange={(value) => setV2('boqItemId')(value === 'none' ? '' : value)}><SelectTrigger id="e-boq"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Unallocated</SelectItem>{(tenders.find((item) => item.id === form.tenderRef)?.boqItems || []).filter((item) => item.id).map((item) => <SelectItem key={item.id} value={item.id}>{item.description || item.name || item.id}</SelectItem>)}</SelectContent></Select></div></div>
+            <div><Label htmlFor="e-receipt">Receipt URL</Label><Input id="e-receipt" type="url" value={form.v2.receiptUrl} onChange={setV2('receiptUrl')} /></div>
+            {form.v2.payments === undefined
+              ? <div className="rounded-lg border p-3 text-sm"><p>Legacy payment history is unknown. Check bank records before starting a new ledger.</p><Button className="mt-2" variant="outline" onClick={() => setV2('payments')([])}>Start reconciled payment ledger</Button></div>
+              : <TransactionLedger title={form.v2.kind === 'owner-funding' ? 'Funding receipts' : 'Payments'} events={form.v2.payments} limit={Number(form.amount) || 0} onChange={setV2('payments')} />}
             <div className="min-w-0 space-y-1.5">
               <Label htmlFor="e-note">Notes</Label>
               <Textarea id="e-note" value={form.note} onChange={setF('note')} rows={3} className="min-h-24 text-sm sm:min-h-28" />

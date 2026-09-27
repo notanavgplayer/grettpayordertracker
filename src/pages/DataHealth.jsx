@@ -26,7 +26,7 @@ import { toast } from 'sonner'
 const TENDER_FIELDS = new Set([
   'name', 'nit', 'tenderRef', 'value', 'estimatedCost', 'quotedAmount', 'tenderFee', 'status', 'submissionDate', 'openingDate',
   'agency', 'contact', 'contactPerson', 'notes', 'source', 'linkedPO', 'linkedPayOrderId', 'tenderFeeExpenseId',
-  'bidSecurity', 'documents', 'checklist', 'bills', 'raBills', 'completionDate',
+  'bidSecurity', 'documents', 'checklist', 'bills', 'raBills', 'boqItems', 'awardWorkOrder', 'siteVisits', 'v2', 'completionDate',
   'completionRemarks', 'completionSnapshot', 'completedAt', 'statusHistory', 'createdAt', 'updatedAt',
 ])
 
@@ -178,8 +178,10 @@ export default function DataHealth() {
       if (isInvalidDate(tender.openingDate)) addIssue(result, { severity: 'warning', area: 'Tenders', record: label, recordId: tender.id, description: 'Opening date is invalid.', suggestedFix: 'Correct the opening date.', href })
       if (isInvalidAmount(tender.value) || isInvalidAmount(tender.estimatedCost) || isInvalidAmount(tender.quotedAmount)) addIssue(result, { severity: 'warning', area: 'Tenders', record: label, recordId: tender.id, description: 'Tender has invalid currency/amount fields.', suggestedFix: 'Review value, estimated cost, and quoted amount.', href })
       if (tender.status === 'Completed' && !tender.completionDate) addIssue(result, { severity: 'warning', area: 'Tenders', record: label, recordId: tender.id, description: 'Completed tender is missing a completion date.', suggestedFix: 'Add completion date.', href })
+      if (tender.status === 'Completed' && tender.awardWorkOrder?.awardStatus && !['Completed', 'Closed'].includes(tender.awardWorkOrder.awardStatus)) addIssue(result, { severity: 'warning', area: 'Tenders', record: label, recordId: tender.id, description: 'Completed project has a conflicting work-order status.', suggestedFix: 'Review the work-order lifecycle and completion date.', href })
       if (tender.status === 'Completed' && !tender.completionSnapshot) addIssue(result, { severity: 'warning', area: 'Tenders', record: label, recordId: tender.id, description: 'Completed tender is missing its final profit snapshot.', suggestedFix: 'Open closeout and save the completion snapshot.', href })
       if (tender.linkedPayOrderId && !payOrderIds.has(tender.linkedPayOrderId)) addIssue(result, { severity: 'warning', area: 'Tenders', record: label, recordId: tender.id, description: 'Linked pay order was not found.', detail: tender.linkedPayOrderId, suggestedFix: 'Relink or remove the missing pay order reference.', href })
+      if (tender.linkedPO && !data.payOrders.some((po) => po.tenderRef === tender.id && po.po === tender.linkedPO)) addIssue(result, { severity: 'warning', area: 'Tenders', record: label, recordId: tender.id, description: 'Displayed PO number does not match a canonical linked PO.', detail: tender.linkedPO, suggestedFix: 'Compare the physical instrument, then relink by tender ID.', href })
 
       ;(tender.documents || []).forEach((documentItem, index) => {
         const documentLabel = documentItem.title || documentItem.fileName || `${label} document ${index + 1}`
@@ -205,6 +207,7 @@ export default function DataHealth() {
       if ((Number(po.amount) || 0) <= 0) addIssue(result, { severity: 'info', area: 'Pay Orders', record: label, recordId: po.id, description: 'Amount is empty or zero.', suggestedFix: 'Enter the pay order amount if known.', href: '/pay-orders' })
       if (isInvalidAmount(po.amount)) addIssue(result, { severity: 'warning', area: 'Pay Orders', record: label, recordId: po.id, description: 'Amount is invalid.', suggestedFix: 'Correct the pay order amount.', href: '/pay-orders' })
       if (isInvalidDate(po.submitted)) addIssue(result, { severity: 'warning', area: 'Pay Orders', record: label, recordId: po.id, description: 'Submitted date is invalid.', suggestedFix: 'Correct the submitted date.', href: '/pay-orders' })
+      if (po.status === 'Encashed' || po.status === 'Forfeited') addIssue(result, { severity: 'info', area: 'Pay Orders', record: label, recordId: po.id, description: 'Beneficiary draw or forfeiture needs a loss reconciliation.', suggestedFix: 'Check bank debit and record any unbooked project loss once.', href: '/pay-orders' })
     })
 
     data.todos.forEach((task) => {
@@ -218,6 +221,8 @@ export default function DataHealth() {
     data.expenses.forEach((expense) => {
       const href = expense.tenderRef ? `/tenders/${expense.tenderRef}` : '/expenses'
       const label = getRecordLabel(expense, expense.id)
+      if (!expense.tenderRef && !expense.tenderId && expense.v2?.kind !== 'overhead' && expense.v2?.kind !== 'owner-funding') addIssue(result, { severity: 'info', area: 'Expenses', record: label, recordId: expense.id, description: 'Entry is unassigned to a project or firm category.', suggestedFix: 'Choose a project or classify this as firm overhead or owner funding.', href: '/expenses' })
+      if (!Array.isArray(expense.v2?.payments)) addIssue(result, { severity: 'info', area: 'Expenses', record: label, recordId: expense.id, description: 'Payment history is unknown for this legacy cost.', suggestedFix: 'Reconcile bank records before starting a dated payment ledger.', href: '/expenses' })
       if (!expense.createdAt) addIssue(result, { severity: 'info', area: 'Expenses', record: label, recordId: expense.id, description: 'createdAt is missing.', suggestedFix: 'Add createdAt timestamp.', href, repair: { collectionName: 'expenses', id: expense.id, patch: getTimestampPatch, label: 'Add timestamps' } })
       if (!expense.updatedAt) addIssue(result, { severity: 'info', area: 'Expenses', record: label, recordId: expense.id, description: 'updatedAt is missing.', suggestedFix: 'Add updatedAt timestamp.', href, repair: { collectionName: 'expenses', id: expense.id, patch: () => ({ updatedAt: serverTimestamp() }), label: 'Add updatedAt' } })
       if (!expense.description) addIssue(result, { severity: 'info', area: 'Expenses', record: expense.id, recordId: expense.id, description: 'Description is missing.', suggestedFix: 'Add a description.', href })

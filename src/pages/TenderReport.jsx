@@ -4,7 +4,7 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { ArrowLeft, Printer } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { sumReceived } from '@/lib/financials'
+import { sumReceived, projectFinancials, securityAmounts } from '@/lib/financials'
 import LoadState from '@/components/shared/LoadState'
 import PageHeader from '@/components/shared/PageHeader'
 import StatusBadge from '@/components/shared/StatusBadge'
@@ -52,23 +52,23 @@ export default function TenderReport() {
 
   const totals = useMemo(() => {
     if (!tender) return null
-    const contractValue = Number(tender.value) || 0
-    const totalExpenses = expenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0)
+    const metrics = projectFinancials(tender, expenses)
     const billPaid = sumReceived(tender.bills)
     const raBillPaid = sumReceived(tender.raBills)
     const totalReceived = billPaid + raBillPaid
     return {
-      contractValue,
-      totalExpenses,
+      contractValue: metrics.contract,
+      totalExpenses: metrics.incurred,
       billPaid,
       raBillPaid,
       totalReceived,
-      expectedProfit: contractValue - totalExpenses,
-      cashPosition: totalReceived - totalExpenses,
-      receivable: Math.max(contractValue - totalReceived, 0),
+      expectedProfit: metrics.profit,
+      cashPosition: metrics.cash,
+      receivable: metrics.outstanding,
+      unbilled: metrics.unbilled,
       poExposure: payOrders
         .filter((po) => ['Pending', 'Submitted', 'Held'].includes(po.status))
-        .reduce((sum, po) => sum + (Number(po.amount) || 0), 0),
+        .reduce((sum, po) => sum + securityAmounts(po).exposure, 0),
     }
   }, [expenses, payOrders, tender])
 
@@ -101,10 +101,11 @@ export default function TenderReport() {
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <ReportMetric label="Contract Value" value={formatCurrency(totals.contractValue)} />
           <ReportMetric label="Total Expenses" value={formatCurrency(totals.totalExpenses)} />
-          <ReportMetric label="Expected Profit" value={formatCurrency(totals.expectedProfit)} />
-          <ReportMetric label="Cash Position" value={formatCurrency(totals.cashPosition)} />
+          <ReportMetric label="Forecast Profit" value={totals.expectedProfit === null ? 'Forecast incomplete' : formatCurrency(totals.expectedProfit)} />
+          <ReportMetric label="Cash Movement" value={totals.cashPosition === null ? 'Payment history incomplete' : formatCurrency(totals.cashPosition)} />
           <ReportMetric label="Received From Bills/RA Bills" value={formatCurrency(totals.totalReceived)} />
-          <ReportMetric label="Receivable" value={formatCurrency(totals.receivable)} />
+          <ReportMetric label="Approved Bills Outstanding" value={formatCurrency(totals.receivable)} />
+          <ReportMetric label="Unbilled Contract" value={formatCurrency(totals.unbilled)} />
           <ReportMetric label="PO Exposure" value={formatCurrency(totals.poExposure)} />
           <ReportMetric label="Completion Date" value={formatDate(tender.completionDate)} />
         </CardContent>

@@ -58,7 +58,7 @@ export default function KpiCard({
           </div>
           <p
             className={cn(
-              "mt-1 max-w-full break-words font-mono text-xl font-semibold leading-6 tabular-nums text-foreground [overflow-wrap:anywhere] sm:text-2xl sm:font-bold sm:leading-7",
+              "mt-1 max-w-full overflow-x-auto whitespace-nowrap font-mono text-lg font-semibold leading-6 tabular-nums text-foreground sm:text-xl sm:font-bold sm:leading-7",
               valueClassName,
             )}
           >

@@ -92,7 +92,7 @@ service cloud.firestore {
     function validPayOrder(d) {
       return d.keys().hasOnly([
           'po','bank','nit','amount','tender','agency','submitted',
-          'status','bidResult','notes','purpose','tenderRef',
+          'status','bidResult','notes','purpose','tenderRef','v2',
           'createdAt','updatedAt','createdBy','updatedBy'
         ])
         && d.amount is number && d.amount >= 0
@@ -104,6 +104,7 @@ service cloud.firestore {
         && optStr(d, 'submitted', 30)
         && optStr(d, 'notes', 5000)
         && optStr(d, 'tenderRef', 100)
+        && (!('v2' in d) || d.v2 is map)
         && (!('status' in d) || d.status in ['Pending','Submitted','Held','Returned','Released','Encashed','Forfeited'])
         && (!('bidResult' in d) || d.bidResult in ['N/A','Awaiting','Won','Lost','Cancelled'])
         && (!('purpose' in d) || d.purpose in ['Tender Fee','Bid Security','Performance Guarantee','Mobilization','Other']);
@@ -112,7 +113,7 @@ service cloud.firestore {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return changed.hasOnly([
           'po','bank','nit','amount','tender','agency','submitted',
-          'status','bidResult','notes','purpose','tenderRef',
+          'status','bidResult','notes','purpose','tenderRef','v2',
           'updatedAt','updatedBy'
         ])
         && (!changed.hasAny(['amount']) || (request.resource.data.amount is number && request.resource.data.amount >= 0))
@@ -124,6 +125,7 @@ service cloud.firestore {
         && (!changed.hasAny(['submitted']) || isStr(request.resource.data.submitted, 30))
         && (!changed.hasAny(['notes']) || isStr(request.resource.data.notes, 5000))
         && (!changed.hasAny(['tenderRef']) || isStr(request.resource.data.tenderRef, 100))
+        && (!changed.hasAny(['v2']) || request.resource.data.v2 is map)
         && (!changed.hasAny(['status']) || request.resource.data.status in ['Pending','Submitted','Held','Returned','Released','Encashed','Forfeited'])
         && (!changed.hasAny(['bidResult']) || request.resource.data.bidResult in ['N/A','Awaiting','Won','Lost','Cancelled'])
         && (!changed.hasAny(['purpose']) || request.resource.data.purpose in ['Tender Fee','Bid Security','Performance Guarantee','Mobilization','Other']);
@@ -146,7 +148,7 @@ service cloud.firestore {
           'id','source','tenderRef',
           'status','submissionDate','openingDate','linkedPO','notes',
           'contact','contactPerson','checklist','bills','raBills','boqItems','documents','statusHistory',
-          'tenderFeeExpenseId','completionDate','completionRemarks','completionSnapshot',
+          'tenderFeeExpenseId','completionDate','completionRemarks','completionSnapshot','v2',
           'createdAt','updatedAt','createdBy','updatedBy'
         ])
         && isStr(d.name, 500)
@@ -163,6 +165,7 @@ service cloud.firestore {
         && optStr(d, 'source', 100)
         && optStrOrNull(d, 'tenderRef', 100)
         && (!('completionSnapshot' in d) || d.completionSnapshot == null || d.completionSnapshot is map)
+        && (!('v2' in d) || d.v2 is map)
         && (!('contactPerson' in d) || d.contactPerson is map)
         && optStrOrNull(d, 'tenderFeeExpenseId', 100)
         && (!( 'value' in d) || (d.value is number && d.value >= 0))
@@ -189,7 +192,7 @@ service cloud.firestore {
           'estimatedCost','quotedAmount','grossValue','netValue','awardWorkOrder','siteVisits',
           'status','submissionDate','openingDate','linkedPO','notes',
           'contact','contactPerson','checklist','bills','raBills','boqItems','documents','statusHistory',
-          'tenderFeeExpenseId','completionDate','completionRemarks','completionSnapshot',
+          'tenderFeeExpenseId','completionDate','completionRemarks','completionSnapshot','v2',
           'updatedAt','updatedBy'
         ])
         && (!changed.hasAny(['name']) || isStr(request.resource.data.name, 500))
@@ -213,6 +216,7 @@ service cloud.firestore {
         && (!changed.hasAny(['status']) || request.resource.data.status is string)
         && (!changed.hasAny(['contactPerson']) || request.resource.data.contactPerson is map)
         && (!changed.hasAny(['completionSnapshot']) || request.resource.data.completionSnapshot == null || request.resource.data.completionSnapshot is map)
+        && (!changed.hasAny(['v2']) || request.resource.data.v2 is map)
         && (!changed.hasAny(['awardWorkOrder']) || request.resource.data.awardWorkOrder == null || request.resource.data.awardWorkOrder is map)
         && (!changed.hasAny(['checklist']) || request.resource.data.checklist is list)
         && (!changed.hasAny(['bills']) || request.resource.data.bills is list)
@@ -236,7 +240,7 @@ service cloud.firestore {
 
     function validExpense(d) {
       return d.keys().hasOnly([
-          'description','category','amount','date','tenderId','tenderRef','note','source',
+          'description','category','amount','date','tenderId','tenderRef','note','source','v2',
           'createdAt','updatedAt','createdBy','updatedBy'
         ])
         && isStr(d.description, 500)
@@ -244,6 +248,7 @@ service cloud.firestore {
         && optStr(d, 'date', 30)
         && optStr(d, 'tenderId', 100)
         && optStr(d, 'tenderRef', 100)
+        && (!('v2' in d) || d.v2 is map)
         && optStr(d, 'note', 5000)
         && optStr(d, 'source', 100)
         && d.amount is number && d.amount >= 0;

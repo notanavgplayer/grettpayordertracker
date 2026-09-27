@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { queueTenderIntegrationSync } from "@/lib/tenderIntegrations";
+import { tenderContractValue } from "@/lib/financials";
 import {
   formatDate,
   formatCurrencyPrecise,
@@ -219,7 +220,7 @@ export default function Tenders() {
   const [deadlineFilter, setDeadlineFilter] = useState(searchParams.get("deadline") || "none");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState("10");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(searchParams.get('create') === '1' && isAdmin);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState(EMPTY_TENDER);
   const [saving, setSaving] = useState(false);
@@ -415,7 +416,7 @@ export default function Tenders() {
       .reduce(
         (sum, item) =>
           sum +
-          toNumber(item.tender.value || item.financials.quotedAmount),
+          tenderContractValue(item.tender),
         0,
       );
     const activeValue = summaries
@@ -759,7 +760,7 @@ export default function Tenders() {
         ))}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-card p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-5">
+      <details className="rounded-xl border border-border/80 bg-card p-4"><summary className="cursor-pointer text-sm font-medium">Pipeline counts and financial basis</summary><div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap gap-2">
           {pipelineCards.slice(4).map((card) => (
             <span key={card.label} className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground">
@@ -772,11 +773,11 @@ export default function Tenders() {
           {financeCards.map((card) => (
             <div key={card.label} className="min-w-0 sm:min-w-[128px]">
               <p className="text-xs text-muted-foreground">{card.label}</p>
-              <p className="mt-0.5 truncate font-mono text-sm font-semibold text-foreground">{card.value}</p>
+              <p className="mt-0.5 overflow-x-auto whitespace-nowrap font-mono text-sm font-semibold tabular-nums text-foreground">{card.value}</p>
             </div>
           ))}
         </div>
-      </div>
+      </div></details>
 
       {/* Tender table */}
       {filtered.length === 0 && !hasActiveFilters && !hasDeadlineFilter ? (
