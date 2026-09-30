@@ -5,6 +5,8 @@ import Expenses from '@/pages/Expenses'
 
 const addExpense = vi.fn()
 
+vi.mock('@/lib/export', () => ({ exportExpensesCSV: vi.fn() }))
+
 vi.mock('@/hooks/useFirestore', () => ({
   useCollection: () => ({ data: [], loading: false, error: null }),
   useFirestoreCRUD: () => ({ add: addExpense, update: vi.fn(), remove: vi.fn() }),
