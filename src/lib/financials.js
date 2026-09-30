@@ -110,7 +110,10 @@ export function validateEvents(events, limit) {
   for (const event of events) {
     if (!event.id || ids.has(event.id)) return 'Each transaction needs a unique ID.'
     ids.add(event.id)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(event.date || '') || Number.isNaN(Date.parse(event.date))) return 'Each transaction needs a valid date.'
+    const date = event.date || ''
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
+      || Number.isNaN(Date.parse(`${date}T00:00:00Z`))
+      || new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date) return 'Each transaction needs a valid date.'
     if (nullableNumber(event.amount) === null || Number(event.amount) <= 0) return 'Each transaction amount must be positive.'
     if (!event.account?.trim() || !event.reference?.trim()) return 'Each transaction needs an account and reference.'
   }

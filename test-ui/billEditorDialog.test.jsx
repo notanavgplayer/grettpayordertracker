@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import BillEditorDialog from '@/components/tenders/BillEditorDialog'
 import { getInvalidBillAmount } from '@/lib/billValidation'
@@ -71,5 +71,17 @@ describe('BillEditorDialog', () => {
     expect(getInvalidBillAmount({ ...form, deductions: '-2' }, 'ra-bill')).toEqual({
       key: 'deductions', label: 'Deductions', id: 'ra-bill-deductions',
     })
+  })
+
+  it('limits receipt entries to approved value after deductions', async () => {
+    const user = userEvent.setup()
+    const { changes } = renderDialog({ form: { ...form, approvedAmount: '450', v2: { deductions: { retention: 30 }, receipts: [] } } })
+    fireEvent.change(document.getElementById('bill-receipts-date'), { target: { value: '2026-09-27' } })
+    await user.type(document.getElementById('bill-receipts-amount'), '430')
+    await user.type(document.getElementById('bill-receipts-account'), 'Bank')
+    await user.type(document.getElementById('bill-receipts-reference'), 'R-1')
+    await user.click(screen.getByRole('button', { name: 'Add transaction' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('exceed')
+    expect(changes).not.toHaveBeenCalledWith('v2', expect.objectContaining({ receipts: expect.any(Array) }))
   })
 })

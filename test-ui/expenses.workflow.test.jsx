@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Expenses from '@/pages/Expenses'
 
@@ -74,5 +74,31 @@ describe('expense creation workflow', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Amount must be a non-negative number')
     expect(addExpense).not.toHaveBeenCalled()
+  })
+
+  it('saves a partial supplier payment as a dated event on synthetic expense data', async () => {
+    const user = userEvent.setup()
+    render(<Expenses />)
+    await user.click(screen.getAllByRole('button', { name: 'Add Expense' })[0])
+    const dialog = screen.getByRole('dialog', { name: 'New Expense' })
+    await user.type(within(dialog).getByRole('textbox', { name: /Description/ }), 'Sample supplier invoice')
+    await user.type(within(dialog).getByRole('spinbutton', { name: 'Amount (PKR)' }), '300')
+    await user.type(within(dialog).getByRole('textbox', { name: 'Supplier / payee' }), 'Sample supplier')
+    fireEvent.change(document.getElementById('payments-date'), { target: { value: '2026-09-27' } })
+    await user.type(document.getElementById('payments-amount'), '120')
+    await user.type(document.getElementById('payments-account'), 'Test bank')
+    await user.type(document.getElementById('payments-reference'), 'TEST-PAY-1')
+    await user.click(within(dialog).getByRole('button', { name: 'Add transaction' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Add Expense' }))
+
+    await waitFor(() => expect(addExpense).toHaveBeenCalledOnce())
+    expect(addExpense).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 300,
+      v2: expect.objectContaining({
+        kind: 'cost',
+        payee: 'Sample supplier',
+        payments: [expect.objectContaining({ amount: 120, date: '2026-09-27', reference: 'TEST-PAY-1' })],
+      }),
+    }))
   })
 })
