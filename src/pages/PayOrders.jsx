@@ -201,6 +201,7 @@ export default function PayOrders() {
   } = useFirestoreCRUD("activityLog", { addUpdatedAt: false });
   const { add: addBank } = useFirestoreCRUD("banks");
   const { isAdmin, displayName } = useAuth();
+  const searchParams = new URLSearchParams(window.location.search);
 
   const [tenderMode, setTenderMode] = useState("existing"); // 'existing' | 'new' | 'none'
   const [newTenderFields, setNewTenderFields] = useState({
@@ -212,11 +213,13 @@ export default function PayOrders() {
   const [addBankOpen, setAddBankOpen] = useState(false);
   const [newBankName, setNewBankName] = useState("");
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
   const [filterStatus, setFilterStatus] = useState("All");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(searchParams.get("create") === "1" && isAdmin);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState(EMPTY_PO);
+  const [form, setForm] = useState(() => searchParams.get("create") === "1"
+    ? { ...EMPTY_PO, v2: { ...EMPTY_PO.v2 }, submitted: new Date().toISOString().slice(0, 10) }
+    : EMPTY_PO);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [quickView, setQuickView] = useState(null);

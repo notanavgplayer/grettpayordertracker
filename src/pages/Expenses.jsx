@@ -42,16 +42,19 @@ export default function Expenses() {
   const { data: tenders } = useCollection('tenders', 'name', 'asc')
   const { add, update, remove } = useFirestoreCRUD('expenses')
   const { isAdmin } = useAuth()
+  const searchParams = new URLSearchParams(window.location.search)
 
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(searchParams.get('create') === '1' && isAdmin)
   const [editItem, setEditItem] = useState(null)
-  const [form, setForm] = useState(EMPTY)
+  const [form, setForm] = useState(() => searchParams.get('create') === '1'
+    ? { ...EMPTY, v2: { ...EMPTY.v2 }, date: new Date().toISOString().slice(0, 10) }
+    : EMPTY)
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState(null)
   const [filter, setFilter] = useState('all') // 'all' | 'month'
   const [projectFilter, setProjectFilter] = useState('all')
   const [paymentFilter, setPaymentFilter] = useState('all')
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(searchParams.get('search') || '')
   const [projectSearch, setProjectSearch] = useState('')
   const [formError, setFormError] = useState('')
 
