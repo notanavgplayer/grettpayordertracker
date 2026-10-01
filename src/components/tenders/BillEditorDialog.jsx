@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import TransactionLedger from '@/components/shared/TransactionLedger'
+import { billAmounts } from '@/lib/financials'
 
 export default function BillEditorDialog({
   open, onOpenChange, editing, form, setField, typeOptions = [], statusOptions,
@@ -17,6 +18,7 @@ export default function BillEditorDialog({
     ? 'Record running account bill approvals, payments, deductions, and receivables.'
     : 'Record submitted, approved, received, deductions, and receivable details.'
   const idPrefix = isRaBill ? 'ra-bill' : 'bill'
+  const amounts = billAmounts(form)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto">
@@ -46,7 +48,7 @@ export default function BillEditorDialog({
           <FormField id={`${idPrefix}-received-amount`} label="Received Amount" type="number" min="0" step="0.01" value={form.receivedAmount} onChange={setField('receivedAmount')} disabled={!isAdmin} />
           <FormField id={`${idPrefix}-deductions`} label="Deductions" type="number" min="0" step="0.01" value={form.deductions} onChange={setField('deductions')} disabled={!isAdmin} />
           <div className="sm:col-span-2 rounded-xl border p-3"><p className="mb-2 text-sm font-semibold">Deduction details (PKR)</p><div className="grid grid-cols-3 gap-2">{[['retention','Retention'],['tax','Tax withheld'],['other','Other']].map(([key,label]) => <div key={key}><Label htmlFor={`${idPrefix}-${key}`}>{label}</Label><Input id={`${idPrefix}-${key}`} type="number" min="0" step="0.01" value={form.v2?.deductions?.[key] ?? ''} onChange={(event) => setField('v2')({ ...form.v2, deductions: { ...form.v2?.deductions, [key]: event.target.value } })} disabled={!isAdmin} /></div>)}</div><p className="mt-2 text-xs text-muted-foreground">When detail is entered, it replaces the legacy total deduction field.</p></div>
-          <div className="sm:col-span-2">{Number(form.receivedAmount) > 0 && !form.v2?.receipts ? <p className="rounded-lg border p-3 text-sm text-muted-foreground">Legacy received total has no dated events. Reconcile it before replacing the aggregate with transaction entries.</p> : <TransactionLedger title={`${idPrefix}-receipts`} events={form.v2?.receipts || []} onChange={(events) => setField('v2')({ ...form.v2, receipts: events })} limit={Number(form.approvedAmount) || 0} disabled={!isAdmin} />}</div>
+          <div className="sm:col-span-2">{Number(form.receivedAmount) > 0 && !form.v2?.receipts ? <p className="rounded-lg border p-3 text-sm text-muted-foreground">Legacy received total has no dated events. Reconcile it before replacing the aggregate with transaction entries.</p> : <TransactionLedger title={`${idPrefix}-receipts`} events={form.v2?.receipts || []} onChange={(events) => setField('v2')({ ...form.v2, receipts: events })} limit={Math.max(amounts.approved - amounts.deductions, 0)} disabled={!isAdmin} />}</div>
           <div className="min-w-0 space-y-1.5 sm:col-span-2">
             <Label htmlFor={`${idPrefix}-remarks`}>Remarks / Notes</Label>
             <Textarea id={`${idPrefix}-remarks`} value={form.remarks} onChange={setField('remarks')} rows={3} placeholder="Add remarks or notes" disabled={!isAdmin} />

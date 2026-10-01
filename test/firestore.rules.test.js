@@ -2,7 +2,8 @@ import test, { after, before } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing'
-import { doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { billAmounts, expenseAmounts, securityAmounts } from '../src/lib/financials.js'
 
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST
 let environment
@@ -75,4 +76,32 @@ test('users can persist only their own notification state', { skip: !emulatorHos
   }))
   await assertFails(setDoc(doc(viewerDb, 'notificationState/admin'), { readIds: [] }))
   await assertFails(setDoc(doc(viewerDb, 'notificationState/viewer'), { readIds: [], unexpected: true }))
+})
+
+test('synthetic payment, bill receipt and partial refund events persist in the emulator', { skip: !emulatorHost }, async () => {
+  const db = environment.authenticatedContext('admin').firestore()
+  const expense = doc(db, 'expenses/workflow-expense')
+  const tender = doc(db, 'tenders/workflow-tender')
+  const payOrder = doc(db, 'payOrders/workflow-po')
+
+  await assertSucceeds(setDoc(expense, {
+    description: 'Synthetic supplier invoice', amount: 300, tenderRef: 'workflow-tender',
+    v2: { kind: 'cost', payee: 'Test supplier', payments: [] },
+  }))
+  await assertSucceeds(updateDoc(expense, {
+    'v2.payments': [{ id: 'pay-1', date: '2026-09-27', amount: 120, account: 'Test bank', reference: 'PAY-1' }],
+  }))
+  const savedExpense = (await assertSucceeds(getDoc(expense))).data()
+  assert.equal(expenseAmounts(savedExpense).paid, 120)
+  assert.equal(expenseAmounts(savedExpense).payable, 180)
+
+  await assertSucceeds(setDoc(tender, { name: 'Synthetic project', value: 1000, bills: [{ id: 'bill-1', amount: 500, approvedAmount: 450, v2: { deductions: { retention: 30 }, receipts: [] } }] }))
+  await assertSucceeds(updateDoc(tender, { bills: [{ id: 'bill-1', amount: 500, approvedAmount: 450, v2: { deductions: { retention: 30 }, receipts: [{ id: 'rec-1', date: '2026-09-27', amount: 100, account: 'Test bank', reference: 'REC-1' }] } }] }))
+  const savedTender = (await assertSucceeds(getDoc(tender))).data()
+  assert.deepEqual(billAmounts(savedTender.bills[0]), { submitted: 500, approved: 450, received: 100, deductions: 30, balance: 320 })
+
+  await assertSucceeds(setDoc(payOrder, { po: 'TEST-PO-1', amount: 61000, status: 'Held', tenderRef: 'workflow-tender', v2: { instrument: 'pay-order', refunds: [] } }))
+  await assertSucceeds(updateDoc(payOrder, { 'v2.refunds': [{ id: 'ref-1', date: '2026-09-27', amount: 10000, account: 'Test bank', reference: 'REF-1' }] }))
+  const savedPayOrder = (await assertSucceeds(getDoc(payOrder))).data()
+  assert.deepEqual(securityAmounts(savedPayOrder), { funded: 61000, refunded: 10000, remaining: 51000, exposure: 0 })
 })

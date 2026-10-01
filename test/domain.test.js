@@ -94,6 +94,11 @@ test('partial security refunds reduce blocked cash while guarantees retain face 
   assert.match(validateEvents([{ id: 'r1', date: '2026-09-27', amount: 61, account: 'Bank', reference: 'TX' }], 60), /exceed/)
 })
 
+test('financial ledgers reject impossible calendar dates', () => {
+  const impossibleDate = [{ id: 'r1', date: '2026-02-31', amount: 10, account: 'Bank', reference: 'TX' }]
+  assert.match(validateEvents(impossibleDate, 100), /valid date/)
+})
+
 test('completed held securities enter a review queue without claiming legal refund eligibility', () => {
   const tenders = [{ id: 'done', status: 'Completed' }, { id: 'live', status: 'In Progress' }]
   const payOrders = [
