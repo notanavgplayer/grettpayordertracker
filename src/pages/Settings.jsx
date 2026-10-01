@@ -23,6 +23,7 @@ import {
   syncGoogleCalendar,
   testTenderEmailReminders,
   updateTenderIntegrationSettings,
+  tenderIntegrationsEnabled,
 } from '@/lib/tenderIntegrations'
 import { Bell, CalendarDays, Mail, Moon, Sun, Download, Loader2, RefreshCw, Unplug, Users, Shield, User } from 'lucide-react'
 import { toast } from 'sonner'
@@ -89,7 +90,7 @@ export default function Settings() {
   }, [isAdmin])
 
   useEffect(() => {
-    if (!user?.uid || !isAdmin) return
+    if (!tenderIntegrationsEnabled || !user?.uid || !isAdmin) return
     getTenderIntegrationSettings().then(setIntegration).catch((error) => toast.error(error.message))
     const result = new URLSearchParams(window.location.search).get('calendar')
     if (result) {
@@ -215,7 +216,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {isAdmin && <>
+      {isAdmin && tenderIntegrationsEnabled && <>
       <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
           <div className="flex flex-wrap items-center justify-between gap-2">

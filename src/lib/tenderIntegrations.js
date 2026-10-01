@@ -1,5 +1,8 @@
 import { auth } from './firebase'
 
+// Calendar/email integration ships dormant; a separate release must explicitly activate it.
+export const tenderIntegrationsEnabled = false
+
 async function api(path, options = {}) {
   const token = await auth.currentUser?.getIdToken()
   if (!token) throw new Error('Sign in is required.')
@@ -20,6 +23,6 @@ export const syncGoogleCalendar = (tenderId) => api('google-calendar-sync', { me
 export const testTenderEmailReminders = () => api('test-tender-email', { method: 'POST' })
 
 export function queueTenderIntegrationSync(tenderId) {
-  if (!tenderId || !auth.currentUser) return
+  if (!tenderIntegrationsEnabled || !tenderId || !auth.currentUser) return
   syncGoogleCalendar(tenderId).catch((error) => console.warn('Calendar sync queued for reconciliation:', error.message))
 }
