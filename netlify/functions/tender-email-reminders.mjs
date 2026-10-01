@@ -1,6 +1,9 @@
 import { processTenderReminders } from './_shared/reminders.mjs'
 
 export default async () => {
+  if (process.env.GRETT_CALENDAR_EMAIL_ENABLED !== 'true') {
+    return new Response('Email reminders are not enabled.', { status: 404 })
+  }
   try {
     const summary = await processTenderReminders()
     return new Response(JSON.stringify(summary), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -10,4 +13,4 @@ export default async () => {
   }
 }
 
-export const config = { schedule: '0 4 * * *' }
+// Keep the integration callable, but do not activate its production schedule in the V2 release.

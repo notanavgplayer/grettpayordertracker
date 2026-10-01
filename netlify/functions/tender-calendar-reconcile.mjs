@@ -3,6 +3,9 @@ import { adminDb } from './_shared/firebase-admin.mjs'
 import { isEligibleTender, markSyncFailure, syncTenderForUser } from './_shared/integration.mjs'
 
 export default async () => {
+  if (process.env.GRETT_CALENDAR_EMAIL_ENABLED !== 'true') {
+    return new Response('Calendar reconciliation is not enabled.', { status: 404 })
+  }
   const summary = { users: 0, tenders: 0, failed: 0 }
   try {
     const [integrations, tenders, mappings] = await Promise.all([
@@ -28,4 +31,4 @@ export default async () => {
   }
 }
 
-export const config = { schedule: '45 3 * * *' }
+// Keep the integration callable, but do not activate its production schedule in the V2 release.

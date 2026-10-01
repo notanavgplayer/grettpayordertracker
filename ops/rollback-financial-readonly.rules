@@ -1,0 +1,386 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // The current user document is authoritative. Custom claims are mirrored
+    // for other trusted services, but are deliberately not sufficient here:
+    // an old ID token must not preserve access after an administrator demotion.
+    function isAdmin() {
+      return isAuthenticated()
+        && userDocExists()
+        && getUserDoc().data.role == 'admin';
+    }
+
+    // ---- helpers used by validators ---------------------------------------
+
+    function isStr(v, max) {
+      return v is string && v.size() <= max;
+    }
+
+    function optStr(d, k, max) {
+      return !(k in d) || isStr(d[k], max);
+    }
+
+    function optStrOrNull(d, k, max) {
+      return !(k in d) || d[k] == null || isStr(d[k], max);
+    }
+
+    function optNum(d, k) {
+      return !(k in d) || (d[k] is number);
+    }
+
+    function optBool(d, k) {
+      return !(k in d) || (d[k] is bool);
+    }
+
+    function optList(d, k) {
+      return !(k in d) || (d[k] is list);
+    }
+
+    // ---- users ------------------------------------------------------------
+
+    match /users/{userId} {
+      // A user can read their own doc; admins can read all.
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+
+      // Self-create: must be the user's own doc, role pinned to 'viewer',
+      // and only the allowed bootstrap fields.
+      allow create: if isAuthenticated()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'viewer'
+        && request.resource.data.keys().hasOnly(['email','displayName','role','createdAt']);
+
+      // Self-update: cannot touch role/email/createdAt and must stay within
+      // the allowlist of mutable user-profile fields. Admins may update freely.
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == userId
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role','email','createdAt'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','updatedAt'])
+        )
+        || isAdmin()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // Per-user notification read state and tender-reminder preferences.
+    match /notificationState/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow create, update: if isAuthenticated()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['readIds','preferences','browserEnabled','updatedAt'])
+        && (!('readIds' in request.resource.data) || request.resource.data.readIds is list)
+        && (!('preferences' in request.resource.data) || request.resource.data.preferences is map)
+        && (!('browserEnabled' in request.resource.data) || request.resource.data.browserEnabled is bool);
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ---- payOrders --------------------------------------------------------
+
+    function validPayOrder(d) {
+      return d.keys().hasOnly([
+          'po','bank','nit','amount','tender','agency','submitted',
+          'status','bidResult','notes','purpose','tenderRef','v2',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && d.amount is number && d.amount >= 0
+        && isStr(d.po, 100)
+        && optStr(d, 'bank', 200)
+        && optStr(d, 'nit', 200)
+        && optStr(d, 'tender', 500)
+        && optStr(d, 'agency', 300)
+        && optStr(d, 'submitted', 30)
+        && optStr(d, 'notes', 5000)
+        && optStr(d, 'tenderRef', 100)
+        && (!('v2' in d) || d.v2 is map)
+        && (!('status' in d) || d.status in ['Pending','Submitted','Held','Returned','Released','Encashed','Forfeited'])
+        && (!('bidResult' in d) || d.bidResult in ['N/A','Awaiting','Won','Lost','Cancelled'])
+        && (!('purpose' in d) || d.purpose in ['Tender Fee','Bid Security','Performance Guarantee','Mobilization','Other']);
+    }
+    function validPayOrderUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly([
+          'po','bank','nit','amount','tender','agency','submitted',
+          'status','bidResult','notes','purpose','tenderRef','v2',
+          'updatedAt','updatedBy'
+        ])
+        && (!changed.hasAny(['amount']) || (request.resource.data.amount is number && request.resource.data.amount >= 0))
+        && (!changed.hasAny(['po']) || isStr(request.resource.data.po, 100))
+        && (!changed.hasAny(['bank']) || isStr(request.resource.data.bank, 200))
+        && (!changed.hasAny(['nit']) || isStr(request.resource.data.nit, 200))
+        && (!changed.hasAny(['tender']) || isStr(request.resource.data.tender, 500))
+        && (!changed.hasAny(['agency']) || isStr(request.resource.data.agency, 300))
+        && (!changed.hasAny(['submitted']) || isStr(request.resource.data.submitted, 30))
+        && (!changed.hasAny(['notes']) || isStr(request.resource.data.notes, 5000))
+        && (!changed.hasAny(['tenderRef']) || isStr(request.resource.data.tenderRef, 100))
+        && (!changed.hasAny(['v2']) || request.resource.data.v2 is map)
+        && (!changed.hasAny(['status']) || request.resource.data.status in ['Pending','Submitted','Held','Returned','Released','Encashed','Forfeited'])
+        && (!changed.hasAny(['bidResult']) || request.resource.data.bidResult in ['N/A','Awaiting','Won','Lost','Cancelled'])
+        && (!changed.hasAny(['purpose']) || request.resource.data.purpose in ['Tender Fee','Bid Security','Performance Guarantee','Mobilization','Other']);
+    }
+    match /payOrders/{d} {
+      allow read:   if isAdmin();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ---- tenders ----------------------------------------------------------
+
+    function validTender(d) {
+      return d.keys().hasOnly([
+          'name','nit','agency','value','tenderFee','bidSecurity',
+          'estimatedCost','quotedAmount','grossValue','netValue','awardWorkOrder','siteVisits',
+          'id','source','tenderRef',
+          'status','submissionDate','openingDate','linkedPO','notes',
+          'contact','contactPerson','checklist','bills','raBills','boqItems','documents','statusHistory',
+          'tenderFeeExpenseId','completionDate','completionRemarks','completionSnapshot','v2',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.name, 500)
+        && optStr(d, 'nit', 200)
+        && optStr(d, 'agency', 300)
+        && optStr(d, 'submissionDate', 30)
+        && optStr(d, 'openingDate', 30)
+        && optStr(d, 'linkedPO', 100)
+        && optStr(d, 'notes', 10000)
+        && optStr(d, 'contact', 300)
+        && optStr(d, 'completionDate', 30)
+        && optStr(d, 'completionRemarks', 10000)
+        && optStr(d, 'id', 100)
+        && optStr(d, 'source', 100)
+        && optStrOrNull(d, 'tenderRef', 100)
+        && (!('completionSnapshot' in d) || d.completionSnapshot == null || d.completionSnapshot is map)
+        && (!('v2' in d) || d.v2 is map)
+        && (!('contactPerson' in d) || d.contactPerson is map)
+        && optStrOrNull(d, 'tenderFeeExpenseId', 100)
+        && (!( 'value' in d) || (d.value is number && d.value >= 0))
+        && (!( 'estimatedCost' in d) || d.estimatedCost == null || (d.estimatedCost is number && d.estimatedCost >= 0))
+        && (!( 'quotedAmount' in d) || d.quotedAmount == null || (d.quotedAmount is number && d.quotedAmount >= 0))
+        && (!( 'grossValue' in d) || d.grossValue == null || d.grossValue is number)
+        && (!( 'netValue' in d) || d.netValue == null || d.netValue is number)
+        && (!( 'tenderFee' in d) || (d.tenderFee is number && d.tenderFee >= 0))
+        && (!( 'bidSecurity' in d) || (d.bidSecurity is number && d.bidSecurity >= 0))
+        && optList(d, 'checklist')
+        && optList(d, 'bills')
+        && optList(d, 'raBills')
+        && optList(d, 'boqItems')
+        && optList(d, 'documents')
+        && optList(d, 'siteVisits')
+        && optList(d, 'statusHistory')
+        && (!( 'awardWorkOrder' in d) || d.awardWorkOrder == null || d.awardWorkOrder is map)
+        && (!('status' in d) || d.status is string);
+    }
+    function validTenderUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly([
+          'name','nit','agency','value','tenderFee','bidSecurity',
+          'estimatedCost','quotedAmount','grossValue','netValue','awardWorkOrder','siteVisits',
+          'status','submissionDate','openingDate','linkedPO','notes',
+          'contact','contactPerson','checklist','bills','raBills','boqItems','documents','statusHistory',
+          'tenderFeeExpenseId','completionDate','completionRemarks','completionSnapshot','v2',
+          'updatedAt','updatedBy'
+        ])
+        && (!changed.hasAny(['name']) || isStr(request.resource.data.name, 500))
+        && (!changed.hasAny(['nit']) || isStr(request.resource.data.nit, 200))
+        && (!changed.hasAny(['agency']) || isStr(request.resource.data.agency, 300))
+        && (!changed.hasAny(['value']) || (request.resource.data.value is number && request.resource.data.value >= 0))
+        && (!changed.hasAny(['tenderFee']) || (request.resource.data.tenderFee is number && request.resource.data.tenderFee >= 0))
+        && (!changed.hasAny(['bidSecurity']) || (request.resource.data.bidSecurity is number && request.resource.data.bidSecurity >= 0))
+        && (!changed.hasAny(['estimatedCost']) || request.resource.data.estimatedCost == null || (request.resource.data.estimatedCost is number && request.resource.data.estimatedCost >= 0))
+        && (!changed.hasAny(['quotedAmount']) || request.resource.data.quotedAmount == null || (request.resource.data.quotedAmount is number && request.resource.data.quotedAmount >= 0))
+        && (!changed.hasAny(['grossValue']) || request.resource.data.grossValue == null || request.resource.data.grossValue is number)
+        && (!changed.hasAny(['netValue']) || request.resource.data.netValue == null || request.resource.data.netValue is number)
+        && (!changed.hasAny(['submissionDate']) || isStr(request.resource.data.submissionDate, 30))
+        && (!changed.hasAny(['openingDate']) || isStr(request.resource.data.openingDate, 30))
+        && (!changed.hasAny(['linkedPO']) || isStr(request.resource.data.linkedPO, 100))
+        && (!changed.hasAny(['notes']) || isStr(request.resource.data.notes, 10000))
+        && (!changed.hasAny(['contact']) || isStr(request.resource.data.contact, 300))
+        && (!changed.hasAny(['completionDate']) || isStr(request.resource.data.completionDate, 30))
+        && (!changed.hasAny(['completionRemarks']) || isStr(request.resource.data.completionRemarks, 10000))
+        && (!changed.hasAny(['tenderFeeExpenseId']) || request.resource.data.tenderFeeExpenseId == null || isStr(request.resource.data.tenderFeeExpenseId, 100))
+        && (!changed.hasAny(['status']) || request.resource.data.status is string)
+        && (!changed.hasAny(['contactPerson']) || request.resource.data.contactPerson is map)
+        && (!changed.hasAny(['completionSnapshot']) || request.resource.data.completionSnapshot == null || request.resource.data.completionSnapshot is map)
+        && (!changed.hasAny(['v2']) || request.resource.data.v2 is map)
+        && (!changed.hasAny(['awardWorkOrder']) || request.resource.data.awardWorkOrder == null || request.resource.data.awardWorkOrder is map)
+        && (!changed.hasAny(['checklist']) || request.resource.data.checklist is list)
+        && (!changed.hasAny(['bills']) || request.resource.data.bills is list)
+        && (!changed.hasAny(['raBills']) || request.resource.data.raBills is list)
+        && (!changed.hasAny(['boqItems']) || request.resource.data.boqItems is list)
+        && (!changed.hasAny(['documents']) || request.resource.data.documents is list)
+        && (!changed.hasAny(['siteVisits']) || request.resource.data.siteVisits is list)
+        && (!changed.hasAny(['statusHistory']) || request.resource.data.statusHistory is list);
+    }
+    match /tenders/{d} {
+      allow read:   if isAdmin();
+      allow create: if false;
+      // Validate only fields changed by this request. This preserves immutable
+      // unknown fields on legacy records while preventing clients from adding
+      // or modifying fields outside the supported schema.
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ---- expenses ---------------------------------------------------------
+
+    function validExpense(d) {
+      return d.keys().hasOnly([
+          'description','category','amount','date','tenderId','tenderRef','note','source','v2',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.description, 500)
+        && optStr(d, 'category', 100)
+        && optStr(d, 'date', 30)
+        && optStr(d, 'tenderId', 100)
+        && optStr(d, 'tenderRef', 100)
+        && (!('v2' in d) || d.v2 is map)
+        && optStr(d, 'note', 5000)
+        && optStr(d, 'source', 100)
+        && d.amount is number && d.amount >= 0;
+    }
+    match /expenses/{d} {
+      allow read:   if isAdmin();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ---- contacts ---------------------------------------------------------
+
+    function validContact(d) {
+      return d.keys().hasOnly([
+          'name','role','organization','category','phone','whatsapp',
+          'email','address','notes',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.name, 200)
+        && optStr(d, 'role', 200)
+        && optStr(d, 'organization', 300)
+        && optStr(d, 'category', 100)
+        && optStr(d, 'phone', 50)
+        && optStr(d, 'whatsapp', 50)
+        && optStr(d, 'email', 200)
+        && optStr(d, 'address', 500)
+        && optStr(d, 'notes', 5000);
+    }
+    match /contacts/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validContact(request.resource.data);
+      allow update: if isAdmin() && validContact(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- notes ------------------------------------------------------------
+
+    function validNote(d) {
+      return d.keys().hasOnly([
+          'title','body','priority',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && optStr(d, 'title', 500)
+        && optStr(d, 'body', 50000)
+        && (!('priority' in d) || d.priority in ['none','low','medium','high']);
+    }
+    match /notes/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validNote(request.resource.data);
+      allow update: if isAdmin() && validNote(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- todos ------------------------------------------------------------
+
+    function validTodo(d) {
+      return d.keys().hasOnly([
+          'text','priority','dueDate','done',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.text, 1000)
+        && optStr(d, 'priority', 20)
+        && optStr(d, 'dueDate', 30)
+        && optBool(d, 'done');
+    }
+    match /todos/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validTodo(request.resource.data);
+      allow update: if isAdmin() && (
+        validTodo(request.resource.data)
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done','completed','status','updatedAt','updatedBy'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ---- calendarEvents ---------------------------------------------------
+
+    function validCalendarEvent(d) {
+      return d.keys().hasOnly([
+          'title','date','notes','eventType',
+          'createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.title, 500)
+        && optStr(d, 'date', 30)
+        && optStr(d, 'notes', 5000)
+        && optStr(d, 'eventType', 100);
+    }
+    match /calendarEvents/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validCalendarEvent(request.resource.data);
+      allow update: if isAdmin() && validCalendarEvent(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- banks ------------------------------------------------------------
+
+    function validBank(d) {
+      return d.keys().hasOnly([
+          'name','createdAt','updatedAt','createdBy','updatedBy'
+        ])
+        && isStr(d.name, 200);
+    }
+    match /banks/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validBank(request.resource.data);
+      allow update: if isAdmin() && validBank(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- activityLog (append-only audit trail) ----------------------------
+
+    function validActivity(d) {
+      return d.keys().hasOnly(['type','action','title','entityId','by','meta','createdAt'])
+        && optStr(d, 'type', 100)
+        && optStr(d, 'action', 100)
+        && optStr(d, 'title', 1000)
+        && optStr(d, 'by', 300);
+    }
+    match /activityLog/{d} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin() && validActivity(request.resource.data);
+      // Activity log is append-only — no updates from clients. Admins may
+      // delete (e.g. for retention housekeeping) via the admin UI.
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // ---- legacy / unused collections (kept admin-only without field schema) ----
+
+    match /checklistTemplates/{d} { allow read, write: if isAdmin(); }
+    match /tenderFees/{d}         { allow read: if isAdmin(); allow write: if false; }
+
+    // Deny everything else
+    match /{document=**} { allow read, write: if false; }
+  }
+}
