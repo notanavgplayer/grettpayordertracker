@@ -58,8 +58,8 @@ function metricCard(icon, label, value, helper, tone, href) {
     <Link key={label} to={href} className="block min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
       <KpiCard icon={icon} label={label} value={formatCurrency(value)} helper={helper} tone={tone}
         className="border-border/80 transition-colors hover:border-emerald-500/40 hover:bg-muted/20"
-        contentClassName="gap-3 sm:flex-col lg:flex-row"
-        valueClassName="font-sans text-xl tracking-tight sm:text-2xl" />
+        contentClassName="gap-2 sm:flex-col"
+        valueClassName="font-sans text-xl tracking-tight sm:text-2xl xl:text-xl 2xl:text-2xl" />
     </Link>
   )
 }
@@ -195,37 +195,38 @@ export default function Home() {
         </div>
       </header>
 
-      <section aria-label="Financial overview" className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+      <section aria-label="Financial overview" className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metricCard(FileText, 'Approved Receivables', summary.receivables, 'Approved bills less receipts and deductions', 'emerald', '/reports')}
         {metricCard(FileText, 'Unbilled Work', summary.unbilled, 'Remaining contract value not yet billed', 'blue', '/reports')}
         {metricCard(ReceiptText, 'Recorded Costs', summary.costs, 'Incurred costs on awarded projects', 'amber', '/expenses')}
         {metricCard(ShieldCheck, 'Securities Held', summary.securities, 'Known funded cash less refunds', 'violet', '/pay-orders')}
       </section>
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
+      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(260px,28%)]">
         <Card className="min-w-0 overflow-hidden">
           <SectionTitle title="Active Projects" href="/tenders" linkLabel="View all projects" />
           <CardContent className="p-0 sm:p-4">
             {projects.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No active projects recorded.</p> : <>
-              <div className="hidden min-w-0 overflow-x-auto 2xl:block">
-                <table className="w-full min-w-[680px] text-left text-sm">
+              <div className="hidden min-w-0 overflow-x-auto xl:block">
+                <table className="w-full table-fixed text-left text-xs 2xl:text-sm">
+                  <colgroup><col className="w-[31%]" /><col className="w-[16%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[17%]" /></colgroup>
                   <thead className="bg-muted/60 text-xs text-muted-foreground"><tr>
-                    <th className="px-3 py-3 font-semibold">Project</th><th className="px-3 py-3 font-semibold">Status</th>
-                    <th className="px-3 py-3 text-right font-semibold">Contract</th><th className="px-3 py-3 text-right font-semibold">Costs</th>
-                    <th className="px-3 py-3 text-right font-semibold">Action</th>
+                    <th className="px-2 py-2 font-semibold">Project</th><th className="px-2 py-2 font-semibold">Status</th>
+                    <th className="px-2 py-2 text-right font-semibold">Contract</th><th className="px-2 py-2 text-right font-semibold">Recorded Costs</th>
+                    <th className="px-2 py-2 text-right font-semibold">View Project</th>
                   </tr></thead>
                   <tbody className="divide-y">
                     {projects.map((project) => <tr key={project.id}>
-                      <td className="max-w-[250px] px-3 py-3 font-medium"><Link className="hover:text-emerald-700 hover:underline dark:hover:text-emerald-300" to={'/tenders/' + project.id}>{project.name || 'Untitled project'}</Link></td>
-                      <td className="px-3 py-3"><StatusBadge status={project.status} /></td>
-                      <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{formatCurrency(project.financials.contract)}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{formatCurrency(project.financials.incurred)}</td>
-                      <td className="px-3 py-3 text-right"><Button asChild size="sm" variant="outline"><Link to={'/tenders/' + project.id}>View project</Link></Button></td>
+                      <td className="break-words px-2 py-2 font-medium leading-snug"><Link className="hover:text-emerald-700 hover:underline dark:hover:text-emerald-300" to={'/tenders/' + project.id}>{project.name || 'Untitled project'}</Link></td>
+                      <td className="px-2 py-2"><StatusBadge status={project.status} className="gap-1 px-1.5 text-[11px]" /></td>
+                      <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatCurrency(project.financials.contract)}</td>
+                      <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatCurrency(project.financials.incurred)}</td>
+                      <td className="px-2 py-2 text-right"><Button asChild size="sm" variant="outline" className="h-8 px-2 text-xs"><Link to={'/tenders/' + project.id}>View project</Link></Button></td>
                     </tr>)}
                   </tbody>
                 </table>
               </div>
-              <div className="divide-y 2xl:hidden">
+              <div className="divide-y xl:hidden">
                 {projects.map((project) => <Link key={project.id} to={'/tenders/' + project.id} className="block p-4 hover:bg-muted/40">
                   <div className="flex items-start justify-between gap-3"><span className="min-w-0 font-semibold">{project.name || 'Untitled project'}</span><StatusBadge status={project.status} /></div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs"><div><span className="block text-muted-foreground">Contract</span><span className="block overflow-x-auto whitespace-nowrap font-medium tabular-nums">{formatCurrency(project.financials.contract)}</span></div><div><span className="block text-muted-foreground">Recorded costs</span><span className="block overflow-x-auto whitespace-nowrap font-medium tabular-nums">{formatCurrency(project.financials.incurred)}</span></div></div>
@@ -236,7 +237,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="min-w-0 overflow-hidden">
+        <Card className="min-w-0 self-start overflow-hidden">
           <SectionTitle title="Action Required" href="/calendar" linkLabel="View calendar" />
           <CardContent className="divide-y p-0">
             {attention.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No urgent follow-ups from current records.</p> :
