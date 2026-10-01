@@ -1464,7 +1464,7 @@ export default function TenderDetail() {
   const progressMessage = {
     Pending: 'Work has not started.',
     'In Progress': 'Work is underway.',
-    Completed: 'Work is complete.',
+    Completed: form.completionDate ? 'Work is complete.' : 'Completion date not recorded',
     'On Hold': 'Work is paused.',
   }[form.status] || (dashboardProgress > 0 ? 'Work is underway.' : 'Work has not started.')
   const projectHealth =
@@ -1640,7 +1640,7 @@ export default function TenderDetail() {
   const expenseCalculationPreview = getExpenseCalculationPreview(expForm, tenderGrossNetValues)
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-4 pb-[calc(env(safe-area-inset-bottom)+120px)] md:space-y-5 md:pb-0">
+    <div className={`mx-auto max-w-[1500px] space-y-4 md:space-y-5 md:pb-0 ${isAdmin && dirty ? 'pb-[calc(env(safe-area-inset-bottom)+120px)]' : 'pb-4'}`}>
       <Breadcrumbs
         items={[
           { label: 'Home', href: '/home' },
@@ -1656,54 +1656,15 @@ export default function TenderDetail() {
         ]}
         className="mb-2 sm:hidden"
       />
-      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-xl border border-border/80 bg-card p-3.5 md:hidden">
-        <div className="aspect-square overflow-hidden rounded-lg border bg-emerald-50 dark:bg-emerald-950/30">
-          <div className="relative h-full w-full">
-            <div className="absolute bottom-4 left-4 h-8 w-14 rounded-t-full border-t-4 border-emerald-600" />
-            <div className="absolute bottom-6 left-8 h-10 w-1.5 rounded bg-emerald-700" />
-            <div className="absolute bottom-6 right-3 h-8 w-5 rounded-full bg-emerald-500/70" />
-            <div className="absolute bottom-0 left-0 h-8 w-full rounded-t-[60%] bg-slate-300 dark:bg-slate-700" />
-            <div className="absolute bottom-2 left-2 h-1 w-20 rotate-[-20deg] rounded bg-white" />
-          </div>
-        </div>
-        <div className="min-w-0 space-y-1.5">
-          <h1 className="text-lg font-semibold leading-snug tracking-tight sm:text-2xl">
-            {form.name || 'Untitled Tender'}
-          </h1>
-          <p className="break-words text-xs text-muted-foreground sm:text-sm">{form.nit ? `NIT ${form.nit}` : 'No NIT / Reference'}</p>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {displayTenderStatus && <StatusBadge status={displayTenderStatus} className="px-2.5 py-1 text-xs" />}
-            {form.agency && <span className="max-w-full truncate text-xs text-muted-foreground">{form.agency}</span>}
-          </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2 md:hidden">
-        <Button variant="outline" size="sm" className="h-10 rounded-lg" onClick={() => setSummaryOpen(true)}>
-          <FileText className="h-4 w-4" /> Summary
-        </Button>
-        <Button asChild variant="outline" size="sm" className="h-10 rounded-lg">
-          <Link to={`/tenders/${id}/report`}>
-            <Printer className="h-4 w-4" /> Report
-          </Link>
-        </Button>
-        {isAdmin && form.status !== 'Completed' && (
-          <Button variant="outline" size="sm" className="col-span-2 h-10 rounded-lg" onClick={openCompleteDialog}>
-            <CheckCircle className="h-4 w-4" /> Mark Completed
-          </Button>
-        )}
-      </div>
-
-      <div className="hidden flex-col gap-4 md:flex lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-2">
-          <Link to="/tenders" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Tenders
-          </Link>
           <div className="space-y-2">
             <h1 className="max-w-5xl break-words text-2xl font-semibold leading-tight tracking-tight lg:text-3xl">
               {form.name || 'Untitled Tender'}
             </h1>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span className="font-mono">{form.nit || 'No NIT / Reference'}</span>
+              {form.agency && <span className="break-words">{form.agency}</span>}
+              <span className="break-all font-mono">{form.nit || 'No NIT / Reference'}</span>
               {displayTenderStatus && <StatusBadge status={displayTenderStatus} />}
               {dirty && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">Unsaved changes</span>}
               {autoSaving && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">Auto-saving</span>}
@@ -1711,7 +1672,10 @@ export default function TenderDetail() {
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
+          {isAdmin && <Button variant={detailsEditing ? 'secondary' : 'outline'} size="sm" className="h-9 rounded-lg" onClick={() => setDetailsEditing((value) => !value)}>
+            <Pencil className="h-3.5 w-3.5" /> {detailsEditing ? 'Close Details' : 'Edit Details'}
+          </Button>}
           <Button variant="outline" size="sm" className="h-9 w-full rounded-lg sm:w-auto" onClick={() => setSummaryOpen(true)}>
             <FileText className="h-4 w-4" /> Summary
           </Button>
@@ -1725,8 +1689,8 @@ export default function TenderDetail() {
               <CheckCircle className="h-4 w-4" /> Mark Completed
             </Button>
           )}
-          {isAdmin && (
-            <Button onClick={save} disabled={saving || !dirty} size="sm" className="h-9 w-full rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
+          {isAdmin && dirty && (
+            <Button onClick={save} disabled={saving} size="sm" className="h-9 w-full rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Save Changes
             </Button>
@@ -1734,19 +1698,21 @@ export default function TenderDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-        <TenderMetric icon={Banknote} label="Contract Value" value={formatCurrency(contractValue)} detail="PKR" tone="emerald" />
-        <TenderMetric icon={Receipt} label="Tender Fee" value={formatCurrency(Number(form.tenderFee) || 0)} detail="Auto expense" tone="sky" />
-        <TenderMetric icon={Landmark} label="Linked Pay Orders" value={linkedPOs.length || (form.linkedPO ? 1 : 0)} detail={form.linkedPO || 'Total'} tone="violet" />
-        <TenderMetric icon={FileText} label="Bills" value={(form.bills || []).length} detail={formatCurrency(billTotal)} tone="orange" />
-        <TenderMetric icon={WalletCards} label="Expenses" value={expenses.length} detail={formatCurrency(totalExpenses)} tone="rose" />
-        <TenderMetric icon={CheckSquare} label="Execution Progress" value={`${dashboardProgress}%`} detail={form.status === 'Completed' ? 'Completed' : 'Manual update'} tone="blue" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <ProjectMetric icon={Banknote} label="Contract Value" value={formatCurrency(contractValue)} />
+        <ProjectMetric icon={WalletCards} label="Recorded Costs" value={formatCurrency(totalExpenses)} />
+        <ProjectMetric icon={Receipt} label="Approved Receivables" value={formatCurrency(receivable)} />
+        <ProjectMetric icon={Landmark} label="Securities Held" value={formatCurrency(linkedPOs.reduce((sum, po) => sum + (securityAmounts(po).remaining || 0), 0))} />
+      </div>
+      <div className="grid grid-cols-1 gap-3 rounded-xl border bg-card p-3 sm:grid-cols-3">
+        <ProjectSecondary label="Received" value={formatCurrency(totalReceived)} />
+        <ProjectSecondary label="Unbilled Contract" value={formatCurrency(financialView.unbilled)} />
+        <ProjectSecondary label="Forecast" value={expectedProfit === null ? 'Incomplete' : formatCurrency(expectedProfit)} />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
-        <div className="space-y-5">
+      <div className="min-w-0">
           <Tabs value={activeTenderTab} onValueChange={setActiveTenderTab} className="flex min-w-0 flex-col gap-4 md:gap-5">
-          <Card className="order-2 rounded-xl border-border/80 bg-background">
+          {(detailsEditing || !isAdmin) && <Card data-project-details-editor className="order-2 rounded-xl border-border/80 bg-background">
             <CardHeader className="p-4 pb-3 md:p-5 md:pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -1823,10 +1789,10 @@ export default function TenderDetail() {
                 </DetailRow>
               </div>
             </CardContent>
-          </Card>
+          </Card>}
 
       {/* Tabs */}
-        <TabsList className="sticky top-0 z-20 order-1 -mx-1 flex h-auto max-w-full justify-start gap-1.5 overflow-x-auto whitespace-nowrap rounded-none border-b bg-background/95 px-1 pb-0 backdrop-blur [scrollbar-width:none] md:mx-0 md:gap-2 md:rounded-lg md:border md:bg-background/95 md:p-1.5 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
+        <TabsList className="sticky top-0 z-20 order-1 -mx-1 flex h-auto max-w-full justify-start gap-1.5 overflow-x-auto whitespace-nowrap rounded-none border-b bg-background/95 px-1 pb-0 backdrop-blur [scrollbar-width:none] md:mx-0 md:gap-2 md:rounded-lg md:border md:bg-background/95 md:p-1.5 [&::-webkit-scrollbar]:hidden">
           {compactTabs.map(([value, label]) => (
             <TabsTrigger
               key={value}
@@ -1878,6 +1844,18 @@ export default function TenderDetail() {
             recentDocuments={recentDocuments}
             recentExpenses={recentExpenses}
             recentBills={recentBills}
+            financialView={financialView}
+            checklistExpanded={checklistExpanded}
+            setChecklistExpanded={setChecklistExpanded}
+            addChecklistItem={addChecklistItem}
+            updateChecklistItem={updateChecklistItem}
+            removeChecklistItem={removeChecklistItem}
+            isAdmin={isAdmin}
+            onNotesChange={(value) => updateAutosavedForm('notes', value)}
+            onEditDetails={() => {
+              setDetailsEditing(true)
+              requestAnimationFrame(() => document.querySelector('[data-project-details-editor]')?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
+            }}
             onViewTab={setActiveTenderTab}
           />
           {false && (
@@ -2848,92 +2826,10 @@ export default function TenderDetail() {
           </Card>
         </TabsContent>
       </Tabs>
-        </div>
-
-        <aside className="space-y-4 xl:sticky xl:top-4">
-          <Card className="rounded-xl border-border/80">
-            <CardHeader className="p-4 pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
-                  <TrendingUpIcon />
-                </span>
-                Project Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 p-4 pt-0">
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/30">
-                <div className="flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-3xl font-semibold leading-none text-emerald-700 dark:text-emerald-300">{dashboardProgress}%</p>
-                    <p className="mt-2 text-sm text-muted-foreground">{progressMessage}</p>
-                  </div>
-                  {displayTenderStatus && <StatusBadge status={displayTenderStatus} />}
-                </div>
-                <Progress value={dashboardProgress} className="mt-4 h-2" />
-              </div>
-              <div className="space-y-2 text-sm">
-                <SnapshotRow label="Start Date" value={formatDate(form.submissionDate)} />
-                <SnapshotRow label="Estimated Completion" value={formatDate(form.completionDate)} />
-                <SnapshotRow label="Project Health" value={projectHealth} tone={projectHealthTone} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl border-border/80">
-            <CardHeader className="p-4 pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CalendarDays className="h-4 w-4 text-emerald-600" /> Important Dates
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 p-4 pt-0 text-sm">
-              <SnapshotRow label="Submission Date" value={formatDate(form.submissionDate)} />
-              <SnapshotRow label="Opening Date" value={formatDate(form.openingDate)} />
-              <SnapshotRow label="Completion" value={formatDate(form.completionDate)} />
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl border-border/80">
-            <CardHeader className="p-4 pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Banknote className="h-4 w-4 text-emerald-600" /> Financial Snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 p-4 pt-0 text-sm">
-              <SnapshotRow label="Contract Value" value={formatCurrency(contractValue)} />
-              <SnapshotRow label="Total Expenses" value={formatCurrency(totalExpenses)} />
-              <SnapshotRow label="BOQ Expected Profit" value={boqExpectedProfit === null ? 'Pending actual costs' : formatCurrency(boqExpectedProfit)} tone={boqExpectedProfit === null ? undefined : boqExpectedProfit >= 0 ? 'profit' : 'loss'} />
-              <SnapshotRow label="Received from bills / RA bills" value={formatCurrency(totalReceived)} tone="profit" />
-              <SnapshotRow label="Approved bills outstanding" value={formatCurrency(receivable)} tone="accent" />
-              <SnapshotRow label="Unbilled contract value" value={formatCurrency(financialView.unbilled)} tone="accent" />
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl border-border/80">
-            <CardHeader className="p-4 pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <History className="h-4 w-4 text-emerald-600" /> Recent Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 p-4 pt-0">
-              {recentActivity.length === 0 && <p className="rounded-xl border border-dashed py-6 text-center text-sm text-muted-foreground">No activity yet.</p>}
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex gap-3 rounded-xl border border-border/70 bg-muted/10 p-3 text-sm">
-                  <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-background text-emerald-700 dark:text-emerald-300">
-                    <activity.icon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="line-clamp-2">{activity.title}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(activity.date)}</p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </aside>
       </div>
 
       {/* Floating save for mobile */}
-      {isAdmin && (
+      {isAdmin && dirty && (
         <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
           <Button onClick={save} disabled={saving || !dirty} size="lg" className="h-12 w-full rounded-xl bg-emerald-600 text-white shadow-lg hover:bg-emerald-700">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -4057,262 +3953,104 @@ function OverviewListItem({ title, meta, value, tone, badge }) {
   )
 }
 
-function TenderOverviewDashboard({
-  form,
-  linkedPayOrderDisplay,
-  linkedPOs,
-  tenderFinancials,
-  tenderFinancialTone,
-  tenderFinancialDirectionText,
-  contractValue,
-  expectedProfit,
-  projectedMargin,
-  totalExpenses,
-  totalReceived,
-  receivable,
-  cashPosition,
-  boqTotals,
-  boqProfitMargin,
-  hasBoqActualCosts,
-  allBoqActualCostsEntered,
-  billSummary,
-  raBillSummary,
-  dashboardProgress,
-  progressMessage,
-  projectHealth,
-  projectHealthTone,
-  doneCount,
-  checklist,
-  pct,
-  expenses,
-  documents,
-  recentSiteVisits,
-  recentDocuments,
-  recentExpenses,
-  recentBills,
-  onViewTab,
-}) {
-  const linkedPayOrderTotal = linkedPOs.reduce((sum, po) => sum + (Number(po.amount) || 0), 0)
-  const billingSummary = {
-    submitted: (billSummary.submitted || 0) + (raBillSummary.submitted || 0),
-    approved: (billSummary.approved || 0) + (raBillSummary.approved || 0),
-    received: (billSummary.received || 0) + (raBillSummary.received || 0),
-    balance: (billSummary.balance || 0) + (raBillSummary.balance || 0),
-    deductions: (billSummary.deductions || 0) + (raBillSummary.deductions || 0),
-  }
-  const profitTone = getBoqProfitTone(allBoqActualCostsEntered ? boqTotals.profitLoss : null)
-  const profitToneClass =
-    profitTone === 'loss'
-      ? 'text-rose-600'
-      : profitTone === 'profit'
-        ? 'text-emerald-700 dark:text-emerald-300'
-        : profitTone === 'neutral'
-          ? 'text-amber-700 dark:text-amber-300'
-          : 'text-muted-foreground'
-  const awardDetails = getAwardWorkOrderDetails(form)
-  const awardTimeline = getAwardTimelineSummary(awardDetails)
-
+function ProjectMetric({ icon: Icon, label, value }) {
   return (
-    <div className="space-y-5">
-      <OverviewGroupHeading
-        title="Performance & Financials"
-        helper="Current progress, award status, cost, billing, and cash position."
-      />
-
-      <OverviewSection title="Execution Progress" icon={CheckSquare}>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/30">
-            <p className="text-xs font-medium tracking-normal text-emerald-800 dark:text-emerald-200 sm:font-semibold sm:uppercase sm:tracking-wide">Current progress</p>
-            <div className="mt-3 flex items-end justify-between gap-3">
-              <div>
-                <p className="text-3xl font-semibold leading-none text-emerald-800 dark:text-emerald-200">{dashboardProgress}%</p>
-                <p className="mt-2 text-sm text-emerald-900/75 dark:text-emerald-200/80">{progressMessage}</p>
-              </div>
-              <Badge variant={projectHealthTone === 'profit' ? 'success' : projectHealthTone === 'loss' ? 'destructive' : 'warning'}>{projectHealth}</Badge>
-            </div>
-            <Progress value={dashboardProgress} className="mt-4 h-2" />
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <OverviewInfo icon={Hash} label="NIT / Ref" value={form.nit || '-'} />
-            <OverviewInfo icon={CalendarDays} label="Submission" value={formatDate(form.submissionDate)} />
-            <OverviewInfo icon={CalendarDays} label="Opening" value={formatDate(form.openingDate)} />
-            <OverviewInfo icon={LinkIcon} label="Linked Pay Order" value={linkedPayOrderDisplay || '-'} />
-          </div>
+    <div className="min-w-0 rounded-xl border bg-card p-4 shadow-sm">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"><Icon className="h-5 w-5" /></span>
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="max-w-full overflow-x-auto whitespace-nowrap text-xl font-semibold tabular-nums tracking-tight text-foreground [scrollbar-width:thin] sm:text-2xl">{value}</p>
         </div>
-      </OverviewSection>
-
-      <OverviewSection title="Financial Snapshot" icon={Banknote}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <OverviewMetric label="Estimated Cost" value={formatCurrencyPrecise(tenderFinancials.estimatedCost, 0)} tone="accent" />
-          <OverviewMetric label="Quoted Amount" value={formatCurrencyPrecise(tenderFinancials.quotedAmount, 0)} tone="accent" />
-          <OverviewMetric label="Difference" value={tenderFinancials.difference === null ? '-' : formatCurrencyPrecise(tenderFinancials.difference, 0)} tone={tenderFinancialTone} helper={tenderFinancials.difference === null ? undefined : tenderFinancialDirectionText} />
-          <OverviewMetric label="Quoted %" value={tenderFinancials.percentage === null ? '-' : `${tenderFinancials.percentage.toFixed(2)}%`} tone={tenderFinancialTone} />
-          <OverviewMetric label="Contract Value" value={formatCurrency(contractValue)} />
-          <OverviewMetric label="Tender Fee" value={formatCurrency(Number(form.tenderFee) || 0)} tone="expense" />
-          <OverviewMetric label="Bid Security / Linked PO" value={linkedPOs.length ? formatCurrency(linkedPayOrderTotal) : (linkedPayOrderDisplay || '-')} tone="accent" helper={linkedPOs.length ? `${linkedPOs.length} pay order${linkedPOs.length === 1 ? '' : 's'}` : undefined} />
-        </div>
-      </OverviewSection>
-
-      <OverviewSection title="Award / Work Order" icon={ClipboardList}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <OverviewMetric label="Award Status" value={awardDetails.awardStatus || 'Not Awarded'} />
-          <OverviewMetric label="Work Order Number" value={awardDetails.workOrderNumber || '-'} />
-          <OverviewMetric label="Work Order Date" value={formatDate(awardDetails.workOrderDate) || '-'} />
-          <OverviewMetric label="Expected Completion" value={formatDate(awardDetails.expectedCompletionDate) || '-'} helper={awardTimeline.label !== '-' ? awardTimeline.label : undefined} tone={awardTimeline.tone} />
-        </div>
-      </OverviewSection>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <OverviewSection title="Profit / Cost Summary" icon={BarChart3}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <OverviewMetric label="Quoted Total" value={formatCurrency(boqTotals.quotedAmount)} tone="profit" />
-            <OverviewMetric label="Actual Cost" value={hasBoqActualCosts ? formatCurrency(boqTotals.actualCost) : 'Pending'} tone="expense" helper={hasBoqActualCosts && !allBoqActualCostsEntered ? 'Some actual costs pending' : undefined} />
-            <OverviewMetric label="Profit / Loss" value={allBoqActualCostsEntered ? formatCurrency(boqTotals.profitLoss) : 'Pending actual costs'} valueClassName={profitToneClass} />
-            <OverviewMetric label="Profit Margin" value={boqProfitMargin === null ? '-' : `${boqProfitMargin}%`} tone={profitTone === 'loss' ? 'loss' : profitTone === 'profit' ? 'profit' : 'accent'} />
-            <OverviewMetric label="Expense Total" value={formatCurrency(totalExpenses)} tone="expense" />
-            <OverviewMetric label="Forecast profit" value={expectedProfit === null ? 'Forecast incomplete' : formatCurrency(expectedProfit)} tone={expectedProfit === null ? 'accent' : expectedProfit >= 0 ? 'profit' : 'loss'} helper={projectedMargin !== null ? `${projectedMargin}% margin` : 'Enter remaining-cost forecast'} />
-          </div>
-        </OverviewSection>
-
-        <OverviewSection title="Billing Summary" icon={WalletCards}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <OverviewMetric label="Total Billed" value={formatCurrency(billingSummary.submitted)} tone="profit" />
-            <OverviewMetric label="Approved Amount" value={formatCurrency(billingSummary.approved)} tone="accent" />
-            <OverviewMetric label="Received Amount" value={formatCurrency(billingSummary.received)} tone="profit" />
-            <OverviewMetric label="Balance / Receivable" value={formatCurrency(billingSummary.balance)} tone={billingSummary.balance > 0 ? 'expense' : 'profit'} />
-            <OverviewMetric label="Deductions" value={formatCurrency(billingSummary.deductions)} tone="loss" />
-            <OverviewMetric label="Cash movement" value={cashPosition === null ? 'Payment history incomplete' : formatCurrency(cashPosition)} tone={cashPosition === null ? 'accent' : cashPosition >= 0 ? 'profit' : 'loss'} helper={`${formatCurrency(totalReceived)} received`} />
-          </div>
-        </OverviewSection>
-      </div>
-
-      <OverviewGroupHeading
-        title="Progress & Records"
-        helper="A compact count of linked operational records for this tender."
-      />
-
-      <OverviewSection title="Progress Summary" icon={CheckSquare}>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-          <OverviewCount label="Checklist" value={`${doneCount}/${checklist.length}`} helper={`${pct}% complete`} />
-          <OverviewCount label="Site Visits" value={(form.siteVisits || []).length} helper="Recorded visits" />
-          <OverviewCount label="Documents" value={documents.length} helper="Uploaded files" />
-          <OverviewCount label="Expenses" value={expenses.length} helper="Expense records" />
-          <OverviewCount label="Pay Orders" value={linkedPOs.length || (form.linkedPO ? 1 : 0)} helper="Linked records" />
-          <OverviewCount label="Bills / RA" value={(form.bills || []).length + (form.raBills || []).length} helper="Billing records" />
-        </div>
-      </OverviewSection>
-
-      <OverviewGroupHeading
-        title="Recent Tender Records"
-        helper="Latest records from detailed tabs. Use View All to jump to the full section."
-      />
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <OverviewPreviewCard icon={CalendarDays} title="Recent Site Visits" empty="No site visits recorded yet." tab="site-visits" action="View All" onViewTab={onViewTab}>
-          {recentSiteVisits.slice(0, 3).map((visit) => (
-            <OverviewListItem key={visit.id || visit.date || visit.visitDate} title={visit.location || visit.workCompleted || 'Site visit'} meta={formatDate(visit.date || visit.visitDate)} />
-          ))}
-        </OverviewPreviewCard>
-        <OverviewPreviewCard icon={Paperclip} title="Recent Documents" empty="No documents uploaded yet." tab="documents" action="View All" onViewTab={onViewTab}>
-          {recentDocuments.slice(0, 3).map((document) => (
-            <OverviewListItem key={document.id || document.title || document.url} title={document.title || document.type || 'Document'} meta={`${document.type || 'Other'}${document.addedAt ? ` · ${formatDate(document.addedAt)}` : ''}`} />
-          ))}
-        </OverviewPreviewCard>
-        <OverviewPreviewCard icon={Receipt} title="Recent Expenses" empty="No expenses recorded yet." tab="expenses" action="View All" onViewTab={onViewTab}>
-          {recentExpenses.slice(0, 3).map((expense) => (
-            <OverviewListItem key={expense.id} title={expense.description || 'Expense'} meta={`${formatDate(expense.date)}${expense.category ? ` · ${expense.category}` : ''}`} value={formatCurrency(Number(expense.amount) || 0)} tone="expense" />
-          ))}
-        </OverviewPreviewCard>
-        <OverviewPreviewCard icon={Landmark} title="Linked Pay Orders" empty="No linked pay orders." tab="payorders" action="View All" onViewTab={onViewTab}>
-          {linkedPOs.slice(0, 3).map((po) => (
-            <OverviewListItem key={po.id} title={po.po || 'Pay order'} meta={`${po.bank || 'No bank'}${po.submitted ? ` · ${formatDate(po.submitted)}` : ''}`} value={formatCurrency(Number(po.amount) || 0)} badge={po.status} />
-          ))}
-        </OverviewPreviewCard>
-        <OverviewPreviewCard icon={FileText} title="Latest Bills / RA Bills" empty="No bills or RA bills yet." tab="bills" action="View All" onViewTab={onViewTab}>
-          {recentBills.slice(0, 3).map((bill) => (
-            <OverviewListItem key={`${bill.isRaBill ? 'ra' : 'bill'}-${bill.id || bill.no || bill.desc}`} title={bill.isRaBill ? `RA bill ${bill.no || ''}`.trim() : (bill.no || bill.desc || 'Bill')} meta={`${bill.status || 'No status'}${(bill.paid || bill.submitted || bill.date) ? ` · ${formatDate(bill.paid || bill.submitted || bill.date)}` : ''}`} value={formatCurrency(Number(bill.amount) || 0)} badge={bill.status} />
-          ))}
-        </OverviewPreviewCard>
       </div>
     </div>
   )
 }
 
-function OverviewGroupHeading({ title, helper }) {
-  return (
-    <div className="pt-1">
-      <h3 className="text-sm font-semibold tracking-tight text-foreground">{title}</h3>
-      {helper && <p className="mt-1 text-xs text-muted-foreground">{helper}</p>}
+function ProjectSecondary({ label, value }) {
+  return <div className="min-w-0 px-2 py-1 sm:border-r sm:last:border-r-0"><p className="text-xs text-muted-foreground">{label}</p><p className="max-w-full overflow-x-auto whitespace-nowrap text-base font-semibold tabular-nums [scrollbar-width:thin]">{value}</p></div>
+}
+
+function ProjectDetailValue({ label, value }) {
+  return <div className="grid min-w-0 grid-cols-[minmax(100px,0.42fr)_minmax(0,1fr)] gap-3 border-b border-border/60 py-2 text-sm last:border-b-0"><dt className="text-muted-foreground">{label}</dt><dd className="min-w-0 break-words font-medium">{value || 'Not recorded'}</dd></div>
+}
+
+function ProjectRecordRow({ title, meta, value, tab, onViewTab }) {
+  return <button type="button" onClick={() => onViewTab(tab)} className="flex w-full min-w-0 items-center justify-between gap-3 border-b border-border/60 py-2.5 text-left text-sm last:border-b-0 hover:text-emerald-700 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 dark:hover:text-emerald-300">
+    <span className="min-w-0"><span className="block break-words font-medium">{title}</span><span className="block break-words text-xs text-muted-foreground">{meta}</span></span>
+    {value && <span className="shrink-0 whitespace-nowrap tabular-nums">{value}</span>}
+    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+  </button>
+}
+
+function TenderOverviewDashboard({ form, linkedPOs, expectedProfit, cashPosition, financialView, dashboardProgress, progressMessage, doneCount, checklist, expenses, documents, recentSiteVisits, recentDocuments, recentExpenses, recentBills, checklistExpanded, setChecklistExpanded, addChecklistItem, updateChecklistItem, removeChecklistItem, isAdmin, onNotesChange, onEditDetails, onViewTab }) {
+  const award = getAwardWorkOrderDetails(form)
+  const held = linkedPOs.reduce((sum, po) => sum + (securityAmounts(po).remaining || 0), 0)
+  const missingCompletion = form.status === 'Completed' && !form.completionDate
+  const actions = [
+    missingCompletion && { title: 'Completion date not recorded', detail: 'Work is marked completed, but no completion date is saved.', label: 'Edit details', onClick: onEditDetails },
+    expectedProfit === null && { title: 'Cost forecast incomplete', detail: 'Enter the remaining-cost forecast to complete the profit view.', label: 'Open BOQ', onClick: () => onViewTab('boq') },
+    financialView.unknownPaymentCount > 0 && { title: 'Payment history incomplete', detail: `${financialView.unknownPaymentCount} expense payment histor${financialView.unknownPaymentCount === 1 ? 'y is' : 'ies are'} unresolved.`, label: 'View expenses', onClick: () => onViewTab('expenses') },
+    held > 0 && { title: 'Security still held', detail: `${formatCurrency(held)} is recorded as held against this project.`, label: 'View pay orders', onClick: () => onViewTab('payorders') },
+  ].filter(Boolean)
+  const records = [
+    ...recentDocuments.slice(0, 2).map((item) => ({ key: `doc-${item.id || item.title}`, title: item.title || item.type || 'Document', meta: `Document${item.addedAt ? ` · ${formatDate(item.addedAt)}` : ''}`, tab: 'documents' })),
+    ...recentBills.slice(0, 2).map((item) => ({ key: `bill-${item.id || item.no}`, title: item.isRaBill ? `RA bill ${item.no || ''}` : (item.no || item.desc || 'Bill'), meta: item.status || 'Bill', tab: item.isRaBill ? 'rabills' : 'bills' })),
+    ...linkedPOs.slice(0, 2).map((item) => ({ key: `po-${item.id}`, title: item.po || 'Pay order', meta: `Pay order · ${item.status || 'No status'}`, tab: 'payorders' })),
+    ...recentSiteVisits.slice(0, 2).map((item) => ({ key: `visit-${item.id || item.visitDate}`, title: item.location || item.workCompleted || 'Site visit', meta: `Site visit · ${formatDate(item.date || item.visitDate)}`, tab: 'site-visits' })),
+  ]
+  const shortcuts = [
+    { label: 'Checklist', count: `${doneCount}/${checklist.length}`, onClick: () => setChecklistExpanded((value) => !value) },
+    { label: 'Site Visits', count: (form.siteVisits || form.visits || []).length, onClick: () => onViewTab('site-visits') },
+    { label: 'Documents', count: documents.length, onClick: () => onViewTab('documents') },
+    { label: 'Expenses', count: expenses.length, onClick: () => onViewTab('expenses') },
+    { label: 'Pay Orders', count: linkedPOs.length, onClick: () => onViewTab('payorders') },
+    { label: 'Bills / RA', count: (form.bills || []).length + (form.raBills || []).length, onClick: () => onViewTab('bills') },
+  ]
+
+  return <div className="space-y-4">
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(310px,1fr)]">
+      <Card className="min-w-0 rounded-xl border-border/80">
+        <CardHeader className="p-4 pb-2"><CardTitle className="text-base">Project Details</CardTitle></CardHeader>
+        <CardContent className="p-4 pt-0">
+          <dl className="grid gap-x-6 md:grid-cols-2">
+            <ProjectDetailValue label="Agency" value={form.agency} />
+            <ProjectDetailValue label="Work order" value={award.workOrderNumber} />
+            <ProjectDetailValue label="NIT / Reference" value={form.nit} />
+            <ProjectDetailValue label="Work order date" value={award.workOrderDate ? formatDate(award.workOrderDate) : null} />
+            <ProjectDetailValue label="Estimated cost" value={form.estimatedCost !== '' && form.estimatedCost != null ? formatCurrency(Number(form.estimatedCost)) : null} />
+            <ProjectDetailValue label="Expected completion" value={award.expectedCompletionDate ? formatDate(award.expectedCompletionDate) : null} />
+            <ProjectDetailValue label="Quoted amount" value={form.quotedAmount !== '' && form.quotedAmount != null ? formatCurrency(Number(form.quotedAmount)) : null} />
+            <ProjectDetailValue label="Actual completion" value={form.completionDate ? formatDate(form.completionDate) : 'Not recorded'} />
+          </dl>
+          <div className="mt-3 border-t pt-3">
+            <div className="flex items-center justify-between gap-2 text-sm font-semibold"><span>Execution progress</span><span className="tabular-nums">{dashboardProgress}%</span></div>
+            <Progress value={dashboardProgress} className="mt-2 h-2" />
+            <p className="mt-2 text-xs text-muted-foreground">Recorded status: {form.status || 'Not recorded'} · {progressMessage}</p>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="min-w-0 self-start rounded-xl border-border/80">
+        <CardHeader className="p-4 pb-2"><CardTitle className="text-base">Next Actions</CardTitle></CardHeader>
+        <CardContent className="space-y-2 p-4 pt-0">
+          {actions.length ? actions.map((item) => <div key={item.title} className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-900/50 dark:bg-amber-950/20 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0"><p className="break-words text-sm font-semibold">{item.title}</p><p className="mt-0.5 break-words text-xs text-muted-foreground">{item.detail}</p></div>
+            <Button type="button" variant="outline" size="sm" className="shrink-0 self-start" onClick={item.onClick}>{item.label}</Button>
+          </div>) : <p className="text-sm text-muted-foreground">No supported follow-ups from the current records.</p>}
+        </CardContent>
+      </Card>
     </div>
-  )
-}
-
-function OverviewSection({ title, icon: Icon, children }) {
-  return (
-    <Card className="rounded-xl border-border/80 bg-background">
-      <CardHeader className="p-4 pb-3 md:p-5 md:pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Icon className="h-4 w-4 text-emerald-600" /> {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-4 pt-0 md:p-5 md:pt-0">{children}</CardContent>
-    </Card>
-  )
-}
-
-function OverviewMetric({ label, value, tone, helper, valueClassName }) {
-  const toneClass =
-    valueClassName ||
-    (tone === 'profit'
-      ? 'text-emerald-700 dark:text-emerald-300'
-      : tone === 'loss' || tone === 'expense'
-        ? 'text-rose-600'
-        : tone === 'accent'
-          ? 'text-blue-700 dark:text-blue-300'
-          : 'text-foreground')
-  return (
-    <KpiCard
-      label={label}
-      value={value || '-'}
-      helper={helper}
-      valueClassName={`text-base sm:text-lg ${toneClass}`}
-    />
-  )
-}
-
-function OverviewCount({ label, value, helper }) {
-  return (
-    <KpiCard label={label} value={value} helper={helper} tone="emerald" />
-  )
-}
-
-function OverviewPreviewCard({ icon: Icon, title, empty, tab, action, onViewTab, children }) {
-  const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : []
-  return (
-    <Card className="rounded-xl border-border/80 bg-background">
-      <CardHeader className="flex flex-row items-center justify-between gap-3 p-4 pb-3 md:p-5 md:pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Icon className="h-4 w-4 text-emerald-600" /> {title}
-        </CardTitle>
-        {action && (
-          <button
-            type="button"
-            onClick={() => onViewTab?.(tab)}
-            className="h-8 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-background px-3 text-xs font-medium text-emerald-700 dark:text-emerald-300 transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-          >
-            {action}
-          </button>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-2 p-4 pt-0 md:p-5 md:pt-0">
-        {items.length === 0 ? (
-          <p className="rounded-xl border border-dashed py-7 text-center text-sm text-muted-foreground">{empty}</p>
-        ) : (
-          items
-        )}
-      </CardContent>
-    </Card>
-  )
+    <div className="grid grid-cols-2 gap-1 rounded-xl border bg-card p-2 sm:grid-cols-3 xl:grid-cols-6">
+      {shortcuts.map((item) => <button key={item.label} type="button" onClick={item.onClick} className="flex min-w-0 items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"><span className="break-words text-emerald-700 dark:text-emerald-300">{item.label}</span><span className="shrink-0 font-semibold tabular-nums">{item.count}</span></button>)}
+    </div>
+    {checklistExpanded && <Card className="rounded-xl"><CardHeader className="flex flex-row items-center justify-between p-4 pb-2"><CardTitle className="text-base">Checklist · {doneCount}/{checklist.length} complete</CardTitle>{isAdmin && <Button type="button" size="sm" variant="outline" onClick={addChecklistItem}><Plus className="h-4 w-4" /> Add Item</Button>}</CardHeader><CardContent className="space-y-2 p-4 pt-0">{checklist.length ? checklist.map((item) => <div key={item.id} className="flex items-center gap-2 rounded-lg border p-2"><Checkbox checked={item.done} onCheckedChange={(value) => updateChecklistItem(item.id, { done: value })} disabled={!isAdmin} /><Input aria-label="Checklist item" value={item.label || ''} onChange={(event) => updateChecklistItem(item.id, { label: event.target.value })} disabled={!isAdmin} className="min-w-0 flex-1" />{isAdmin && <Button type="button" variant="ghost" size="icon-sm" aria-label="Delete checklist item" onClick={() => removeChecklistItem(item.id)}><Trash2 className="h-4 w-4" /></Button>}</div>) : <p className="text-sm text-muted-foreground">No checklist items yet.</p>}</CardContent></Card>}
+    <div className="grid items-start gap-4 lg:grid-cols-2">
+      <Card className="min-w-0 rounded-xl"><CardHeader className="flex flex-row items-center justify-between p-4 pb-2"><CardTitle className="text-base">Recent Expenses</CardTitle><Button type="button" variant="ghost" size="sm" onClick={() => onViewTab('expenses')}>View all</Button></CardHeader><CardContent className="p-4 pt-0">{recentExpenses.length ? recentExpenses.slice(0, 4).map((item) => <ProjectRecordRow key={item.id} title={item.description || 'Expense'} meta={formatDate(item.date)} value={formatCurrency(Number(item.amount) || 0)} tab="expenses" onViewTab={onViewTab} />) : <p className="text-sm text-muted-foreground">No expenses recorded.</p>}</CardContent></Card>
+      <Card className="min-w-0 self-start rounded-xl"><CardHeader className="p-4 pb-2"><CardTitle className="text-base">Recent Records</CardTitle></CardHeader><CardContent className="p-4 pt-0">{records.length ? records.map((item) => <ProjectRecordRow key={item.key} title={item.title} meta={item.meta} tab={item.tab} onViewTab={onViewTab} />) : <p className="text-sm text-muted-foreground">No documents, bills, pay orders or site visits recorded.</p>}</CardContent></Card>
+    </div>
+    <details className="rounded-xl border bg-card p-4 text-sm"><summary className="cursor-pointer font-semibold">Notes &amp; Status History</summary><div className="mt-4 grid gap-4 md:grid-cols-2"><div><Label htmlFor="project-notes">Project notes</Label><Textarea id="project-notes" value={form.notes || ''} onChange={(event) => onNotesChange(event.target.value)} disabled={!isAdmin} rows={4} className="mt-2" /></div><div><p className="font-medium">Status history</p>{(form.statusHistory || []).length ? <ul className="mt-2 space-y-2">{form.statusHistory.map((item, index) => <li key={index} className="break-words text-muted-foreground">{formatDate(item.date)} · {item.from || 'Unknown'} → {item.to || 'Unknown'}</li>)}</ul> : <p className="mt-2 text-muted-foreground">No status changes recorded.</p>}</div></div></details>
+    {cashPosition === null && <p className="text-xs text-muted-foreground">Payment history is incomplete; cash movement remains unverified.</p>}
+  </div>
 }
 
 function ExpensesFinanceSection({
