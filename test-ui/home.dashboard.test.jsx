@@ -22,8 +22,12 @@ const fixtures = {
   payOrders: [{ id: 'security', po: 'TEST-PO-1', amount: 90, status: 'Held',
     v2: { instrument: 'pay-order', refunds: [{ amount: 20 }] } }],
   todos: [],
-  activityLog: [{ id: 'event', type: 'tender', entityId: 'active', action: 'updated',
-    title: 'Test Roadworks', createdAt: '2026-09-30T12:00:00Z' }],
+  activityLog: [
+    { id: 'event', type: 'tender', entityId: 'active', action: 'updated',
+      title: 'Test Roadworks', createdAt: '2026-09-30T12:00:00Z' },
+    { id: 'legacy', type: 'tender', action: 'deleted',
+      title: '1', createdAt: '2026-09-29T12:00:00Z' },
+  ],
 }
 
 describe('dashboard with disposable records', () => {
@@ -50,6 +54,7 @@ describe('dashboard with disposable records', () => {
     expect(screen.queryByText('Finished Project')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'View all activity' })).toHaveAttribute('href', '/activity')
     expect(screen.getAllByText('updated').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Tender deleted').length).toBeGreaterThan(0)
     expect(getDocs).toHaveBeenCalledTimes(5)
   })
 })
