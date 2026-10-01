@@ -31,6 +31,13 @@ function dateLabel(value) {
   return date ? date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 }
 
+function activityTitle(log) {
+  const title = String(log.title || '').trim()
+  if (title && !/^\d+$/.test(title)) return title
+  const type = log.type === 'payOrder' ? 'Pay order' : log.type === 'todo' ? 'Task' : log.type || 'Record'
+  return type.charAt(0).toUpperCase() + type.slice(1) + ' ' + (log.action || 'updated').toLowerCase()
+}
+
 function activityLink(log, tenders, payOrders, expenses) {
   if (log.action === 'deleted') return '/activity'
   if (log.type === 'tender' && tenders.some((item) => item.id === log.entityId)) return '/tenders/' + log.entityId
@@ -200,7 +207,7 @@ export default function Home() {
           <SectionTitle title="Active Projects" href="/tenders" linkLabel="View all projects" />
           <CardContent className="p-0 sm:p-4">
             {projects.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No active projects recorded.</p> : <>
-              <div className="hidden min-w-0 overflow-x-auto md:block">
+              <div className="hidden min-w-0 overflow-x-auto 2xl:block">
                 <table className="w-full min-w-[680px] text-left text-sm">
                   <thead className="bg-muted/60 text-xs text-muted-foreground"><tr>
                     <th className="px-3 py-3 font-semibold">Project</th><th className="px-3 py-3 font-semibold">Status</th>
@@ -218,7 +225,7 @@ export default function Home() {
                   </tbody>
                 </table>
               </div>
-              <div className="divide-y md:hidden">
+              <div className="divide-y 2xl:hidden">
                 {projects.map((project) => <Link key={project.id} to={'/tenders/' + project.id} className="block p-4 hover:bg-muted/40">
                   <div className="flex items-start justify-between gap-3"><span className="min-w-0 font-semibold">{project.name || 'Untitled project'}</span><StatusBadge status={project.status} /></div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs"><div><span className="block text-muted-foreground">Contract</span><span className="block overflow-x-auto whitespace-nowrap font-medium tabular-nums">{formatCurrency(project.financials.contract)}</span></div><div><span className="block text-muted-foreground">Recorded costs</span><span className="block overflow-x-auto whitespace-nowrap font-medium tabular-nums">{formatCurrency(project.financials.incurred)}</span></div></div>
@@ -250,7 +257,7 @@ export default function Home() {
             <div className="divide-y sm:hidden">
               {activity.map((log) => <Link key={log.id} to={activityLink(log, tenders, payOrders, expenses)} className="block min-w-0 p-4 hover:bg-muted/40">
                 <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground"><span className="rounded-full bg-muted px-2 py-1 font-medium">{log.type || 'Activity'}</span><span className="shrink-0">{dateLabel(log.createdAt)}</span></div>
-                <p className="mt-2 break-words text-sm font-medium">{log.title || 'Record activity'}</p>
+                <p className="mt-2 break-words text-sm font-medium">{activityTitle(log)}</p>
                 <span className="mt-1 inline-flex items-center gap-1 text-xs capitalize text-emerald-700 dark:text-emerald-300">{log.action || 'Updated'} <ArrowRight className="h-3 w-3" /></span>
               </Link>)}
             </div>
@@ -260,7 +267,7 @@ export default function Home() {
                 <tbody className="divide-y">{activity.map((log) => <tr key={log.id}>
                   <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">{dateLabel(log.createdAt)}</td>
                   <td className="px-3 py-3"><span className="rounded-full bg-muted px-2 py-1 text-xs font-medium">{log.type || 'Activity'}</span></td>
-                  <td className="max-w-[300px] px-3 py-3"><span className="block truncate" title={log.title || ''}>{log.title || 'Record activity'}</span></td>
+                  <td className="max-w-[300px] px-3 py-3"><span className="block truncate" title={activityTitle(log)}>{activityTitle(log)}</span></td>
                   <td className="px-3 py-3 capitalize text-muted-foreground">{log.action || 'Updated'}</td>
                   <td className="px-3 py-3 text-right"><Link to={activityLink(log, tenders, payOrders, expenses)} className="whitespace-nowrap font-medium text-emerald-700 hover:underline dark:text-emerald-300">View</Link></td>
                 </tr>)}</tbody>
