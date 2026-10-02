@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-export default function TransactionLedger({ title, events = [], onChange, limit, disabled = false }) {
+export default function TransactionLedger({ title, events = [], onChange, limit, disabled = false, amountLabel = 'Transaction value', addLabel = 'Add transaction' }) {
   const [draft, setDraft] = useState({ date: '', amount: '', account: '', method: '', reference: '' })
   const [error, setError] = useState('')
   const idPrefix = title.toLowerCase().replace(/[^a-z0-9-]/g, '-')
@@ -27,11 +27,11 @@ export default function TransactionLedger({ title, events = [], onChange, limit,
     </div>)}
     {!disabled && <div className="grid grid-cols-2 gap-2">
       <div><Label htmlFor={`${idPrefix}-date`}>Date</Label><Input id={`${idPrefix}-date`} type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></div>
-      <div><Label htmlFor={`${idPrefix}-amount`}>Transaction value</Label><Input id={`${idPrefix}-amount`} type="number" min="0.01" step="0.01" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} /></div>
+      <div><Label htmlFor={`${idPrefix}-amount`}>{amountLabel}</Label><Input id={`${idPrefix}-amount`} type="number" min="0.01" step="0.01" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} /></div>
       <div><Label htmlFor={`${idPrefix}-account`}>Account</Label><Input id={`${idPrefix}-account`} value={draft.account} onChange={(e) => setDraft({ ...draft, account: e.target.value })} /></div>
       <div><Label htmlFor={`${idPrefix}-reference`}>Bank / cash reference</Label><Input id={`${idPrefix}-reference`} value={draft.reference} onChange={(e) => setDraft({ ...draft, reference: e.target.value })} /></div>
       <div className="col-span-2"><Label htmlFor={`${idPrefix}-method`}>Method</Label><Input id={`${idPrefix}-method`} value={draft.method} onChange={(e) => setDraft({ ...draft, method: e.target.value })} placeholder="Bank transfer, cash, cheque…" /></div>
-      <Button className="col-span-2" variant="outline" onClick={add}>Add transaction</Button>
+      <Button className="col-span-2" variant="outline" onClick={add}>{addLabel}</Button>
     </div>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
   </div>
