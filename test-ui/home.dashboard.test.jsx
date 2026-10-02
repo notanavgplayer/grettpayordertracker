@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Home from '@/pages/Home'
 import { formatCurrency } from '@/lib/utils'
@@ -41,9 +41,13 @@ describe('dashboard with disposable records', () => {
   it('shows V2 totals, real project/activity links and actionable shortcuts', async () => {
     render(<MemoryRouter><Home /></MemoryRouter>)
     const overview = await screen.findByRole('region', { name: 'Financial overview' })
-    for (const amount of [250, 800, 120, 70]) {
+    for (const amount of [250, 70]) {
       expect(overview.textContent).toContain(formatCurrency(amount))
     }
+    const financialPosition = screen.getByText('Financial position').closest('div.rounded-xl')
+    expect(financialPosition.textContent).toContain(formatCurrency(800))
+    expect(financialPosition.textContent).toContain(formatCurrency(120))
+    expect(screen.getByText('No dated receipt entries in this period.')).toBeInTheDocument()
 
     expect(screen.getByRole('link', { name: 'New Tender' })).toHaveAttribute('href', '/tenders?create=1')
     expect(screen.getByRole('link', { name: 'Pay Order' })).toHaveAttribute('href', '/pay-orders?create=1')
@@ -56,5 +60,19 @@ describe('dashboard with disposable records', () => {
     expect(screen.getAllByText('updated').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Tender deleted').length).toBeGreaterThan(0)
     expect(getDocs).toHaveBeenCalledTimes(5)
+  })
+
+  it('charts only dated receipt entries and lets the user change the period', async () => {
+    const now = new Date()
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+    const dated = { ...fixtures, tenders: [{ ...fixtures.tenders[0], bills: [{ ...fixtures.tenders[0].bills[0], v2: { receipts: [{ date, amount: 100 }] } }] }] }
+    getDocs.mockImplementation(async (name) => ({
+      docs: (dated[name] || []).map((row) => ({ id: row.id, data: () => row })),
+    }))
+    render(<MemoryRouter><Home /></MemoryRouter>)
+    expect(await screen.findByRole('img', { name: 'Monthly recorded receipts chart' })).toBeInTheDocument()
+    const period = screen.getByRole('combobox', { name: 'Receipt history period' })
+    fireEvent.change(period, { target: { value: '12' } })
+    expect(period).toHaveValue('12')
   })
 })

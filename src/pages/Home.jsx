@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs } from 'firebase/firestore'
-import { AlertTriangle, ArrowRight, CalendarDays, FileText, Landmark, Plus, ReceiptText, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CalendarDays, ClipboardList, FileText, Landmark, Plus, ShieldCheck, BriefcaseBusiness } from 'lucide-react'
 import { toast } from 'sonner'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-import KpiCard from '@/components/shared/KpiCard'
+import { DashboardEmpty, DashboardSection, DashboardStatCard } from '@/components/dashboard/DashboardCards'
 import LoadState from '@/components/shared/LoadState'
 import { MetricRowSkeleton } from '@/components/shared/LoadingSkeletons'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { useAuth } from '@/context/AuthContext'
 import { db } from '@/lib/firebase'
 import { expenseAmounts, projectFinancials, securityAmounts } from '@/lib/financials'
@@ -53,26 +54,24 @@ function activityLink(log, tenders, payOrders, expenses) {
   return '/activity'
 }
 
-function metricCard(icon, label, value, helper, tone, href) {
-  return (
-    <Link key={label} to={href} className="block min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-      <KpiCard icon={icon} label={label} value={formatCurrency(value)} helper={helper} tone={tone}
-        className="border-border/80 transition-colors hover:border-emerald-500/40 hover:bg-muted/20"
-        contentClassName="gap-2 sm:flex-col"
-        valueClassName="font-sans text-xl tracking-tight sm:text-2xl xl:text-xl 2xl:text-2xl" />
-    </Link>
-  )
-}
-
-function SectionTitle({ title, href, linkLabel }) {
-  return (
-    <CardHeader className="flex flex-row items-center justify-between gap-3 border-b px-4 py-3 sm:px-5">
-      <CardTitle className="min-w-0 border-l-4 border-emerald-600 pl-3 text-base font-semibold">{title}</CardTitle>
-      <Link to={href} className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-300 sm:text-sm">
-        {linkLabel}<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-      </Link>
-    </CardHeader>
-  )
+function datedReceipts(tenders, months) {
+  const now = new Date()
+  const buckets = Array.from({ length: months }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - months + index + 1, 1)
+    return { key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`, month: date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }), receipts: 0 }
+  })
+  const byMonth = new Map(buckets.map((row) => [row.key, row]))
+  for (const tender of tenders) {
+    if (!WON_STATES.has(tender.status)) continue
+    for (const bill of [...(tender.bills || []), ...(tender.raBills || [])]) {
+      for (const receipt of bill.v2?.receipts || []) {
+        const key = typeof receipt.date === 'string' ? receipt.date.slice(0, 7) : ''
+        const amount = Number(receipt.amount)
+        if (byMonth.has(key) && Number.isFinite(amount) && amount > 0) byMonth.get(key).receipts += amount
+      }
+    }
+  }
+  return buckets
 }
 
 export default function Home() {
@@ -84,6 +83,7 @@ export default function Home() {
   const [expenses, setExpenses] = useState([])
   const [todos, setTodos] = useState([])
   const [activity, setActivity] = useState([])
+  const [receiptMonths, setReceiptMonths] = useState(6)
 
   const loadDashboard = useCallback(async () => {
     setLoading(true)
@@ -122,6 +122,7 @@ export default function Home() {
     const wonIds = new Set(won.map((tender) => tender.id))
     return {
       receivables: financials.reduce((sum, row) => sum + row.outstanding, 0),
+      received: financials.reduce((sum, row) => sum + row.received, 0),
       unbilled: financials.reduce((sum, row) => sum + row.unbilled, 0),
       costs: expenses.filter((expense) => wonIds.has(expense.tenderRef || expense.tenderId))
         .reduce((sum, expense) => sum + expenseAmounts(expense).incurred, 0),
@@ -133,6 +134,12 @@ export default function Home() {
   const projects = useMemo(() => tenders.filter((tender) => PROJECT_STATES.has(tender.status))
     .map((tender) => ({ ...tender, financials: projectFinancials(tender, expenses) }))
     .sort((a, b) => a.name?.localeCompare(b.name || '') || 0).slice(0, 5), [tenders, expenses])
+
+  const activeProjectCount = tenders.filter((tender) => PROJECT_STATES.has(tender.status)).length
+  const heldCount = payOrders.filter((po) => po.status === 'Held').length
+  const receiptSeries = useMemo(() => datedReceipts(tenders, receiptMonths), [tenders, receiptMonths])
+  const pipeline = useMemo(() => tenders.filter((item) => isActionableTenderStatus(item.status) && asDate(item.submissionDate))
+    .sort((a, b) => asDate(a.submissionDate) - asDate(b.submissionDate)).slice(0, 4), [tenders])
 
   const attention = useMemo(() => {
     const tenderReminders = tenders.filter((tender) => isActionableTenderStatus(tender.status))
@@ -175,37 +182,70 @@ export default function Home() {
     return [...tenderReminders, ...securityReminders, ...poReminders, ...taskReminders].slice(0, 4)
   }, [tenders, payOrders, todos])
 
-  if (loading) return <div className="space-y-5"><MetricRowSkeleton count={4} /><Card className="h-80" /></div>
+  if (loading) return <div className="space-y-5"><MetricRowSkeleton count={5} /><Card className="h-80" /></div>
   if (error) return <LoadState title="Could not load dashboard" error={error} retry={loadDashboard} className="min-h-[70vh]" />
 
   return (
     <div className="min-w-0 space-y-5 pb-6">
-      <header className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Projects, payments and follow-ups at a glance.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700 dark:text-blue-300">Workspace overview</p>
+          <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Tenders, project finances and follow-ups in one place.</p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" aria-label="Quick actions">
           {isAdmin && <>
-            <Button asChild className="h-10 bg-emerald-700 text-white hover:bg-emerald-800"><Link to="/tenders?create=1"><Plus className="h-4 w-4" />New Tender</Link></Button>
-            <Button asChild className="h-10 bg-emerald-700 text-white hover:bg-emerald-800"><Link to="/pay-orders?create=1"><Plus className="h-4 w-4" />Pay Order</Link></Button>
-            <Button asChild className="h-10 bg-emerald-700 text-white hover:bg-emerald-800"><Link to="/expenses?create=1"><Plus className="h-4 w-4" />Expense</Link></Button>
+            <Button asChild className="h-9 bg-blue-700 text-white hover:bg-blue-800"><Link to="/tenders?create=1"><Plus className="h-4 w-4" />New Tender</Link></Button>
+            <Button asChild variant="outline" className="h-9"><Link to="/pay-orders?create=1"><Plus className="h-4 w-4" />Pay Order</Link></Button>
+            <Button asChild variant="outline" className="h-9"><Link to="/expenses?create=1"><Plus className="h-4 w-4" />Expense</Link></Button>
           </>}
-          <Button asChild variant="outline" className="h-10"><Link to="/calendar"><CalendarDays className="h-4 w-4" />Calendar</Link></Button>
+          <Button asChild variant="outline" className="h-9"><Link to="/calendar"><CalendarDays className="h-4 w-4" />Calendar</Link></Button>
         </div>
       </header>
 
-      <section aria-label="Financial overview" className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {metricCard(FileText, 'Approved Receivables', summary.receivables, 'Approved bills less receipts and deductions', 'emerald', '/reports')}
-        {metricCard(FileText, 'Unbilled Work', summary.unbilled, 'Remaining contract value not yet billed', 'blue', '/reports')}
-        {metricCard(ReceiptText, 'Recorded Costs', summary.costs, 'Incurred costs on awarded projects', 'amber', '/expenses')}
-        {metricCard(ShieldCheck, 'Securities Held', summary.securities, 'Known funded cash less refunds', 'violet', '/pay-orders')}
+      <section aria-label="Financial overview" className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+        <DashboardStatCard icon={ClipboardList} label="Total tenders" value={tenders.length} detail="All tender records" href="/tenders" />
+        <DashboardStatCard icon={BriefcaseBusiness} label="Active projects" value={activeProjectCount} detail="Awarded, in progress or on hold" href="/tenders" tone="green" />
+        <DashboardStatCard icon={FileText} label="Approved receivables" value={formatCurrency(summary.receivables)} detail="Approved less receipts and deductions" href="/reports" tone="green" />
+        <DashboardStatCard icon={Landmark} label="Held instruments" value={heldCount} detail="Pay orders with Held status" href="/pay-orders" />
+        <DashboardStatCard icon={ShieldCheck} label="Known securities held" value={formatCurrency(summary.securities)} detail="Known funded cash less refunds" href="/pay-orders" tone="amber" />
       </section>
 
+      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,1fr)]">
+        <DashboardSection title="Receipt history" description="Dated V2 bill receipt entries on awarded projects" className="self-stretch">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">Legacy receipts without transaction dates are excluded from this chart.</p>
+            <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">Period
+              <select value={receiptMonths} onChange={(event) => setReceiptMonths(Number(event.target.value))} className="h-9 rounded-md border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" aria-label="Receipt history period">
+                <option value={6}>Last 6 months</option><option value={12}>Last 12 months</option>
+              </select>
+            </label>
+          </div>
+          {receiptSeries.some((row) => row.receipts > 0) ? <div className="min-w-0">
+            <div className="h-52 min-w-0" role="img" aria-label="Monthly recorded receipts chart">
+            <ResponsiveContainer width="100%" height="100%"><BarChart data={receiptSeries} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.12} />
+              <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: 'currentColor' }} />
+              <YAxis tickLine={false} axisLine={false} width={44} tick={{ fontSize: 11, fill: 'currentColor' }} tickFormatter={(value) => value >= 1000000 ? `${(value / 1000000).toFixed(1)}m` : value >= 1000 ? `${Math.round(value / 1000)}k` : value} />
+              <Tooltip formatter={(value) => [formatCurrency(value), 'Receipts']} contentStyle={{ backgroundColor: 'oklch(var(--popover))', borderColor: 'oklch(var(--border))', color: 'oklch(var(--popover-foreground))', borderRadius: '0.75rem' }} />
+              <Bar dataKey="receipts" name="Receipts" fill="#326993" radius={[4, 4, 0, 0]} maxBarSize={36} />
+            </BarChart></ResponsiveContainer>
+            </div>
+            <ul className="sr-only">{receiptSeries.map((row) => <li key={row.key}>{row.month}: {formatCurrency(row.receipts)}</li>)}</ul>
+          </div> : <DashboardEmpty>No dated receipt entries in this period.</DashboardEmpty>}
+        </DashboardSection>
+        <DashboardSection title="Financial position" description="Current V2 project totals" href="/reports" className="self-stretch">
+          <dl className="divide-y">
+            <div className="flex items-center justify-between gap-3 py-3 first:pt-0"><dt className="text-sm text-muted-foreground">Unbilled work</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.unbilled)}</dd></div>
+            <div className="flex items-center justify-between gap-3 py-3"><dt className="text-sm text-muted-foreground">Recorded costs</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.costs)}</dd></div>
+            <div className="flex items-center justify-between gap-3 py-3"><dt className="text-sm text-muted-foreground">Received on bills</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.received)}</dd></div>
+          </dl>
+          <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">Totals use the existing V2 calculations. Open reports for project-level detail.</p>
+        </DashboardSection>
+      </div>
+
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(260px,28%)]">
-        <Card className="min-w-0 overflow-hidden">
-          <SectionTitle title="Active Projects" href="/tenders" linkLabel="View all projects" />
-          <CardContent className="p-0 sm:p-4">
+        <DashboardSection title="Active Projects" href="/tenders" linkLabel="View all projects" contentClassName="p-0 sm:p-4">
             {projects.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No active projects recorded.</p> : <>
               <div className="hidden min-w-0 overflow-x-auto xl:block">
                 <table className="w-full table-fixed text-left text-xs 2xl:text-sm">
@@ -217,7 +257,7 @@ export default function Home() {
                   </tr></thead>
                   <tbody className="divide-y">
                     {projects.map((project) => <tr key={project.id}>
-                      <td className="break-words px-2 py-2 font-medium leading-snug"><Link className="hover:text-emerald-700 hover:underline dark:hover:text-emerald-300" to={'/tenders/' + project.id}>{project.name || 'Untitled project'}</Link></td>
+                      <td className="break-words px-2 py-2 font-medium leading-snug"><Link className="hover:text-blue-700 hover:underline dark:hover:text-blue-300" to={'/tenders/' + project.id}>{project.name || 'Untitled project'}</Link></td>
                       <td className="px-2 py-2"><StatusBadge status={project.status} className="gap-1 px-1.5 text-[11px]" /></td>
                       <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatCurrency(project.financials.contract)}</td>
                       <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatCurrency(project.financials.incurred)}</td>
@@ -230,36 +270,50 @@ export default function Home() {
                 {projects.map((project) => <Link key={project.id} to={'/tenders/' + project.id} className="block p-4 hover:bg-muted/40">
                   <div className="flex items-start justify-between gap-3"><span className="min-w-0 font-semibold">{project.name || 'Untitled project'}</span><StatusBadge status={project.status} /></div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs"><div><span className="block text-muted-foreground">Contract</span><span className="block overflow-x-auto whitespace-nowrap font-medium tabular-nums">{formatCurrency(project.financials.contract)}</span></div><div><span className="block text-muted-foreground">Recorded costs</span><span className="block overflow-x-auto whitespace-nowrap font-medium tabular-nums">{formatCurrency(project.financials.incurred)}</span></div></div>
-                  <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">View project <ArrowRight className="h-3 w-3" /></span>
+                  <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 dark:text-blue-300">View project <ArrowRight className="h-3 w-3" /></span>
                 </Link>)}
               </div>
             </>}
-          </CardContent>
-        </Card>
+        </DashboardSection>
 
-        <Card className="min-w-0 self-start overflow-hidden">
-          <SectionTitle title="Action Required" href="/calendar" linkLabel="View calendar" />
-          <CardContent className="divide-y p-0">
+        <DashboardSection title="Action Required" description="Recorded deadlines and follow-ups" href="/calendar" linkLabel="View calendar" className="self-start" contentClassName="divide-y p-0">
             {attention.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No urgent follow-ups from current records.</p> :
               attention.map((item) => <Link key={item.id} to={item.href} className="flex min-w-0 items-center gap-3 p-4 transition-colors hover:bg-muted/40">
                 <span className={'flex h-10 w-10 shrink-0 items-center justify-center rounded-full ' + (item.tone === 'violet' ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' : item.tone === 'blue' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300')}><item.icon className="h-5 w-5" aria-hidden="true" /></span>
                 <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{item.title}</span><span className="block text-xs text-muted-foreground">{item.detail}</span></span>
-                <span className="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">View</span>
+                <span className="shrink-0 text-xs font-semibold text-blue-700 dark:text-blue-300">View</span>
               </Link>)}
-          </CardContent>
-        </Card>
+        </DashboardSection>
       </div>
 
-      <Card className="min-w-0 overflow-hidden">
-        <SectionTitle title="Recent Activity" href="/activity" linkLabel="View all activity" />
-        <CardContent className="p-0 sm:p-4">
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+        <DashboardSection title="Tender pipeline" description="Recorded submission deadlines" href="/tenders" contentClassName="p-0">
+          {pipeline.length === 0
+            ? <div className="p-4"><DashboardEmpty>No open tender deadlines recorded.</DashboardEmpty></div>
+            : <div className="divide-y">{pipeline.map((item) =>
+                <Link key={item.id} to={'/tenders/' + item.id} className="flex min-w-0 items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:px-5">
+                  <span className="min-w-0"><span className="block truncate text-sm font-medium" title={item.name}>{item.name || 'Untitled tender'}</span><span className="block text-xs text-muted-foreground">Due {dateLabel(item.submissionDate)}</span></span>
+                  <StatusBadge status={item.status} />
+                </Link>)}</div>}
+        </DashboardSection>
+        <DashboardSection title="Security instruments" description="Pay orders and guarantees" href="/pay-orders" contentClassName="p-0">
+          {payOrders.length === 0 ? <div className="p-4"><DashboardEmpty>No security instruments recorded.</DashboardEmpty></div> :
+            <div className="divide-y">{payOrders.slice(0, 4).map((po) =>
+              <Link key={po.id} to={po.po ? '/pay-orders?search=' + encodeURIComponent(po.po) : '/pay-orders'} className="flex min-w-0 items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:px-5">
+                <span className="min-w-0"><span className="block truncate text-sm font-medium" title={po.po}>{po.po || 'Unnumbered instrument'}</span><span className="block text-xs text-muted-foreground">{po.bank || 'Bank not recorded'}</span></span>
+                <span className="flex min-w-0 shrink-0 flex-col items-end gap-1"><span className="max-w-[9rem] overflow-x-auto whitespace-nowrap text-xs font-semibold tabular-nums">{formatCurrency(Number(po.amount) || 0)}</span><StatusBadge status={po.status} /></span>
+              </Link>)}</div>}
+        </DashboardSection>
+      </div>
+
+      <DashboardSection title="Recent Activity" href="/activity" linkLabel="View all activity" contentClassName="p-0 sm:p-4">
           {activity.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No recent activity available.</p> :
             <>
             <div className="divide-y sm:hidden">
               {activity.map((log) => <Link key={log.id} to={activityLink(log, tenders, payOrders, expenses)} className="block min-w-0 p-4 hover:bg-muted/40">
                 <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground"><span className="rounded-full bg-muted px-2 py-1 font-medium">{log.type || 'Activity'}</span><span className="shrink-0">{dateLabel(log.createdAt)}</span></div>
                 <p className="mt-2 break-words text-sm font-medium">{activityTitle(log)}</p>
-                <span className="mt-1 inline-flex items-center gap-1 text-xs capitalize text-emerald-700 dark:text-emerald-300">{log.action || 'Updated'} <ArrowRight className="h-3 w-3" /></span>
+                <span className="mt-1 inline-flex items-center gap-1 text-xs capitalize text-blue-700 dark:text-blue-300">{log.action || 'Updated'} <ArrowRight className="h-3 w-3" /></span>
               </Link>)}
             </div>
             <div className="hidden min-w-0 overflow-x-auto sm:block">
@@ -270,12 +324,11 @@ export default function Home() {
                   <td className="px-3 py-3"><span className="rounded-full bg-muted px-2 py-1 text-xs font-medium">{log.type || 'Activity'}</span></td>
                   <td className="max-w-[300px] px-3 py-3"><span className="block truncate" title={activityTitle(log)}>{activityTitle(log)}</span></td>
                   <td className="px-3 py-3 capitalize text-muted-foreground">{log.action || 'Updated'}</td>
-                  <td className="px-3 py-3 text-right"><Link to={activityLink(log, tenders, payOrders, expenses)} className="whitespace-nowrap font-medium text-emerald-700 hover:underline dark:text-emerald-300">View</Link></td>
+                  <td className="px-3 py-3 text-right"><Link to={activityLink(log, tenders, payOrders, expenses)} className="whitespace-nowrap font-medium text-blue-700 hover:underline dark:text-blue-300">View</Link></td>
                 </tr>)}</tbody>
               </table>
             </div></>}
-        </CardContent>
-      </Card>
+      </DashboardSection>
     </div>
   )
 }
