@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useId } from "react";
+import { useEffect, useState, useMemo, useId, useRef } from "react";
 import { useCollection, useFirestoreCRUD } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
 import { exportPayOrdersCSV, exportPayOrdersPDF } from "@/lib/export";
@@ -18,7 +18,7 @@ import {
 import { db } from "@/lib/firebase";
 import { getAtRiskPayOrders, getSecurityFollowUps } from "@/lib/payOrderMetrics";
 import { securityAmounts, validateEvents } from "@/lib/financials";
-import SecurityFields from "@/components/shared/SecurityFields";
+import PayOrderEditor from "@/components/pay-orders/PayOrderEditor";
 import { logActivity } from "@/lib/activity";
 import StatusBadge from "@/components/shared/StatusBadge";
 import EmptyState from "@/components/shared/EmptyState";
@@ -103,6 +103,8 @@ import {
   CheckCircle,
   MoreHorizontal,
   Calendar,
+  Columns3,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -229,6 +231,14 @@ export default function PayOrders() {
   const [appliedFilters, setAppliedFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState("10");
+  const [reviewOnly, setReviewOnly] = useState(false);
+  const [optionalColumns, setOptionalColumns] = useState({ agency: false, submitted: false, bidResult: false });
+  const [formErrors, setFormErrors] = useState({});
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [extraOpen, setExtraOpen] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const initialDraft = useRef(JSON.stringify({ form, tenderMode, newTenderFields }));
+  const savingRef = useRef(false);
 
   // Activity log state
   const [logDialogOpen, setLogDialogOpen] = useState(false);
@@ -244,7 +254,9 @@ export default function PayOrders() {
   const [deleteLogId, setDeleteLogId] = useState(null);
 
   const filtered = useMemo(() => {
+    const reviewIds = reviewOnly ? new Set(getSecurityFollowUps(payOrders, tenders).map((item) => item.po?.id || item.id)) : null;
     return payOrders.filter((p) => {
+      if (reviewIds && !reviewIds.has(p.id)) return false;
       if (filterStatus !== "All" && p.status !== filterStatus) return false;
       if (search) {
         const q = search.toLowerCase();
@@ -266,7 +278,7 @@ export default function PayOrders() {
       if (appliedFilters.amountMax !== "" && amount > Number(appliedFilters.amountMax)) return false;
       return true;
     });
-  }, [payOrders, search, filterStatus, appliedFilters]);
+  }, [payOrders, tenders, search, filterStatus, appliedFilters, reviewOnly]);
 
   const bankOptions = useMemo(() => {
     const names = [
@@ -299,7 +311,7 @@ export default function PayOrders() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, filterStatus, appliedFilters, rowsPerPage]);
+  }, [search, filterStatus, appliedFilters, rowsPerPage, reviewOnly]);
 
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
@@ -339,33 +351,55 @@ export default function PayOrders() {
   ].filter((d) => d.value > 0);
 
   const openDialog = (item = null) => {
+    const nextForm = item
+      ? { ...EMPTY_PO, ...item, v2: { ...EMPTY_PO.v2, ...item.v2 } }
+      : { ...EMPTY_PO, v2: { ...EMPTY_PO.v2 }, submitted: new Date().toISOString().slice(0, 10) };
+    const nextMode = item?.tenderRef ? "existing" : "none";
+    const nextTenderFields = { name: item?.tender || "", nit: item?.nit || "", agency: item?.agency || "" };
     setEditItem(item);
-    setForm(
-      item
-        ? { ...EMPTY_PO, ...item, v2: { ...EMPTY_PO.v2, ...item.v2 } }
-        : { ...EMPTY_PO, v2: { ...EMPTY_PO.v2 }, submitted: new Date().toISOString().slice(0, 10) },
-    );
-    setTenderMode(item?.tenderRef ? "existing" : "none");
-    setNewTenderFields({
-      name: item?.tender || "",
-      nit: item?.nit || "",
-      agency: item?.agency || "",
-    });
+    setForm(nextForm);
+    setTenderMode(nextMode);
+    setNewTenderFields(nextTenderFields);
+    initialDraft.current = JSON.stringify({ form: nextForm, tenderMode: nextMode, newTenderFields: nextTenderFields });
+    setFormErrors({});
+    setExtraOpen(Boolean(nextForm.notes || nextForm.v2?.expiryDate || nextForm.v2?.eligibilityDate || nextForm.v2?.applicationDate || nextForm.v2?.followUpDate));
+    setRefundOpen(Boolean(nextForm.v2?.refunds?.length));
     setTenderSearch("");
     setDialogOpen(true);
   };
 
+  const formDirty = JSON.stringify({ form, tenderMode, newTenderFields }) !== initialDraft.current;
+  const requestClose = () => {
+    if (savingRef.current) return;
+    if (formDirty) setDiscardOpen(true);
+    else setDialogOpen(false);
+  };
+  const selectTender = (tender) => {
+    const previous = tenders.find((item) => item.id === form.tenderRef);
+    setForm((current) => ({
+      ...current,
+      tenderRef: tender.id,
+      tender: tender.name || current.tender,
+      nit: !current.nit || current.nit === previous?.nit ? tender.nit || "" : current.nit,
+      agency: !current.agency || current.agency === previous?.agency ? tender.agency || "" : current.agency,
+    }));
+    setTenderSearch("");
+    setFormErrors((current) => ({ ...current, project: undefined }));
+  };
+
   const handleSave = async () => {
-    if (!form.po) {
-      toast.error("PO number is required");
-      return;
-    }
-    if (form.amount === "" || !Number.isFinite(Number(form.amount)) || Number(form.amount) < 0) {
-      toast.error("Amount must be a non-negative number");
-      return;
-    }
+    if (savingRef.current) return;
+    const errors = {};
+    if (!form.po.trim()) errors.po = "PO number is required";
+    if (form.amount === "" || !Number.isFinite(Number(form.amount)) || Number(form.amount) < 0) errors.amount = "Enter a non-negative instrument amount";
+    if (tenderMode === "existing" && !form.tenderRef) errors.project = "Select a project or choose Standalone";
+    if (tenderMode === "new" && !newTenderFields.name.trim()) errors.project = "Enter a project name";
+    if (form.v2?.fundedCash !== undefined && form.v2.fundedCash !== "" && (!Number.isFinite(Number(form.v2.fundedCash)) || Number(form.v2.fundedCash) < 0)) errors.fundedCash = "Enter a non-negative funded amount";
     const refundIssue = validateEvents(form.v2.refunds || [], securityAmounts(form).funded ?? 0);
-    if (refundIssue) { toast.error(refundIssue); return; }
+    if (refundIssue) { errors.refunds = refundIssue; setRefundOpen(true); }
+    setFormErrors(errors);
+    if (Object.keys(errors).length) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const batch = writeBatch(db);
@@ -377,10 +411,7 @@ export default function PayOrders() {
 
       if (tenderMode === "none") {
         tenderRef = "";
-        tenderName = "";
-        nit = "";
-        agency = "";
-      } else if (tenderMode === "new" && newTenderFields.name.trim()) {
+      } else if (tenderMode === "new") {
         const stub = {
           name: newTenderFields.name.trim(),
           nit: newTenderFields.nit.trim(),
@@ -397,8 +428,8 @@ export default function PayOrders() {
         batch.set(ref, stub);
         tenderRef = ref.id;
         tenderName = stub.name;
-        nit = nit || stub.nit;
-        agency = agency || stub.agency;
+        nit = stub.nit;
+        agency = stub.agency;
       } else if (tenderMode === "existing" && tenderRef) {
         const t = tenders.find((x) => x.id === tenderRef);
         if (t) {
@@ -461,6 +492,7 @@ export default function PayOrders() {
     } catch {
       toast.error("Failed to save");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -542,8 +574,10 @@ export default function PayOrders() {
     }
   };
 
-  const setF = (k) => (e) =>
+  const setF = (k) => (e) => {
     setForm((p) => ({ ...p, [k]: e.target?.value ?? e }));
+    setFormErrors((current) => ({ ...current, [k]: undefined }));
+  };
   const setLF = (k) => (e) =>
     setLogForm((p) => ({ ...p, [k]: e.target?.value ?? e }));
 
@@ -682,7 +716,7 @@ export default function PayOrders() {
     <div className="space-y-6">
       <PageHeader
         title="Pay Orders"
-        description="Manage pay order entries and activity logs"
+        description="Security funding, refunds and follow-ups"
         actions={isAdmin && (
           <Button
             onClick={() => openDialog()}
@@ -694,12 +728,12 @@ export default function PayOrders() {
         )}
       />
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <PayOrderKpiCard
           icon={Banknote}
-          label="Known cash remaining"
+          label="Known funded cash remaining"
           value={formatCurrency(cashRemaining)}
-          helper={`${unknownFunding} guarantees have unknown funded margin`}
+          helper={unknownFunding ? `Open instruments; ${unknownFunding} unknown guarantee margin${unknownFunding === 1 ? '' : 's'} excluded` : "Open instruments: funded cash less recorded refunds"}
           tone="green"
         />
         <PayOrderKpiCard
@@ -709,18 +743,14 @@ export default function PayOrders() {
           helper="Face value, separate from funded margin"
           tone="blue"
         />
-        <PayOrderKpiCard
-          icon={AlertCircle}
-          label="Refund reviews"
-          value={followUps}
-          helper={`${atRisk} pending bid results due soon`}
-          tone="amber"
-        />
+        <button type="button" onClick={() => { setReviewOnly(true); setFilterStatus('All'); setAppliedFilters(EMPTY_FILTERS); }} aria-label={`Open ${followUps} refund review items`} className="h-full text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <PayOrderKpiCard icon={AlertCircle} label="Refund reviews" value={followUps} helper="Open the existing review queue" tone="amber" />
+        </button>
         <PayOrderKpiCard
           icon={CheckCircle}
-          label="Pay orders"
+          label="Total instruments"
           value={payOrders.length}
-          helper={`${formatCurrency(total)} total face value`}
+          helper={`${formatCurrency(total)} total instrument face value · ${atRisk} pending bid results due soon`}
           tone="green"
         />
       </div>
@@ -874,7 +904,7 @@ export default function PayOrders() {
               Activity Log
             </TabsTrigger>
           </TabsList>
-          <div className="flex items-start gap-2 pb-2 lg:ml-auto">
+          <div className="flex flex-wrap items-start gap-2 pb-2 lg:ml-auto">
             <div className="relative min-w-0 flex-1 sm:w-[360px] sm:flex-none">
               <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -888,13 +918,12 @@ export default function PayOrders() {
               <div className="relative hidden md:block">
                 <Button
                   variant="outline"
-                  size="icon"
-                  className={`h-10 w-10 rounded-lg sm:h-11 sm:w-11 ${hasPanelFilters ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : ""}`}
-                  aria-label="Filter pay orders"
+                  className={`h-10 gap-2 rounded-lg sm:h-11 ${hasPanelFilters ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" : ""}`}
+                  aria-label="More filters"
                   aria-expanded={filterOpen}
                   onClick={() => setFilterOpen((open) => !open)}
                 >
-                  <Filter className="h-4 w-4" />
+                  <Filter className="h-4 w-4" /> More Filters
                 </Button>
                 {filterOpen && (
                   <div className="absolute right-0 top-12 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-xl">
@@ -965,10 +994,15 @@ export default function PayOrders() {
                   </SheetFooter>
                 </SheetContent>
               </Sheet>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button variant="outline" className="h-10 gap-2 rounded-lg sm:h-11"><Columns3 className="h-4 w-4" /><span className="hidden sm:inline">Columns</span></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {[['agency', 'Agency'], ['submitted', 'Submitted date'], ['bidResult', 'Bid result']].map(([key, label]) => <DropdownMenuItem key={key} onSelect={(event) => { event.preventDefault(); setOptionalColumns((current) => ({ ...current, [key]: !current[key] })); }} aria-checked={optionalColumns[key]} role="menuitemcheckbox">{optionalColumns[key] ? '✓ ' : ''}{label}</DropdownMenuItem>)}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="outline"
-                size="icon"
-                className="h-10 w-10 rounded-lg sm:h-11 sm:w-11"
+                className="h-10 gap-2 rounded-lg sm:h-11"
                 title="Export CSV"
                 aria-label="Export CSV"
                 onClick={() => {
@@ -976,12 +1010,11 @@ export default function PayOrders() {
                     toast.error("Nothing to export");
                 }}
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-4 w-4" /><span className="hidden sm:inline">Export</span>
               </Button>
               <Button
                 variant="outline"
-                size="icon"
-                className="h-10 w-10 rounded-lg sm:h-11 sm:w-11"
+                className="h-10 gap-2 rounded-lg sm:h-11"
                 title="Export PDF"
                 aria-label="Export PDF"
                 onClick={() => {
@@ -992,40 +1025,27 @@ export default function PayOrders() {
                     toast.error("Nothing to export");
                 }}
               >
-                <Printer className="h-4 w-4" />
+                <Printer className="h-4 w-4" /><span className="hidden sm:inline">Print</span>
               </Button>
             </div>
           </div>
         </div>
 
         <TabsContent value="payorders" className="mt-4">
-          <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 scrollbar-thin sm:mx-0 sm:flex-wrap sm:px-0">
-            {["All", ...PO_STATUSES].map((s) => {
-              const count = s === "All" ? payOrders.length : payOrders.filter((p) => p.status === s).length;
-              return (
-                <button
-                  key={s}
-                  onClick={() => setFilterStatus(s)}
-                  className={`h-9 shrink-0 rounded-lg border px-4 text-sm font-medium transition-colors ${
-                    filterStatus === s
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
-                      : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
-                  }`}
-                >
-                  {s}
-                  {s !== "All" && (
-                    <span className="ml-1 tabular-nums">({count})</span>
-                  )}
-                </button>
-              );
-            })}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {["All", "Held"].map((status) => <button key={status} type="button" onClick={() => { setFilterStatus(status); setReviewOnly(false); }} className={`h-9 rounded-full border px-4 text-sm font-medium ${filterStatus === status && !reviewOnly ? "border-emerald-700 bg-emerald-700 text-white" : "border-border bg-card hover:bg-accent"}`}>{status} <span className="tabular-nums">{status === "All" ? payOrders.length : payOrders.filter((item) => item.status === status).length}</span></button>)}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-9 rounded-full">More statuses <ChevronDown className="ml-1 h-4 w-4" /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="start">{PO_STATUSES.filter((status) => status !== "Held").map((status) => <DropdownMenuItem key={status} onClick={() => { setFilterStatus(status); setReviewOnly(false); }}>{status} ({payOrders.filter((item) => item.status === status).length})</DropdownMenuItem>)}</DropdownMenuContent>
+            </DropdownMenu>
+            {reviewOnly && <Button variant="outline" size="sm" className="h-9 rounded-full" onClick={() => setReviewOnly(false)}>Refund reviews ({followUps}) · Clear</Button>}
+            {!reviewOnly && filterStatus !== "All" && filterStatus !== "Held" && <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{filterStatus}</span>}
           </div>
-
           {filtered.length === 0 ? (
             <EmptyState
               icon={FileText}
-              title="No pay orders found"
-              description="Add your first pay order to get started."
+              title={reviewOnly ? "No refund reviews" : "No pay orders found"}
+              description={reviewOnly ? "The existing review queue has no matching instruments." : "Adjust the filters or add a pay order."}
               action={
                 isAdmin && (
                   <Button onClick={() => openDialog()}>
@@ -1050,11 +1070,11 @@ export default function PayOrders() {
                           onClick={() => setQuickView(p)}
                           className="min-w-0 flex-1 text-left"
                         >
-                          <p className="truncate text-base font-semibold leading-tight text-foreground hover:underline">
+                          <p className="break-all text-base font-semibold leading-tight text-foreground hover:underline">
                             PO #{p.po || "-"}
                           </p>
-                          <p className="mt-1 truncate font-mono text-sm text-foreground">
-                            {p.nit || "-"}
+                          <p className="mt-1 break-words text-sm text-muted-foreground">
+                            {p.bank || "No bank"}
                           </p>
                           <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
                             {p.agency || "No agency"}
@@ -1099,14 +1119,17 @@ export default function PayOrders() {
                         <button
                           type="button"
                           onClick={() => setQuickView(p)}
-                          className="block w-full rounded-lg bg-muted/30 px-3 py-2 text-left text-[15px] font-semibold leading-snug text-foreground"
+                          className="block w-full rounded-lg bg-muted/30 px-3 py-2 text-left text-[15px] font-semibold leading-snug break-words text-foreground"
                         >
                           {p.tender}
                         </button>
                       )}
+                      {p.tenderRef && !tenders.some((tender) => tender.id === p.tenderRef) && <p role="status" className="text-xs text-amber-700 dark:text-amber-300">Project link missing</p>}
+                      {p.tenderRef && tenders.some((tender) => tender.id === p.tenderRef) && <a href={`/tenders/${p.tenderRef}`} className="text-xs text-emerald-700 underline dark:text-emerald-300">Open project</a>}
 
                       <div className="grid gap-2 border-t border-border pt-3 text-sm text-muted-foreground">
-                        <p className="text-xs">Cash remaining: <span className="whitespace-nowrap font-mono tabular-nums text-foreground">{securityAmounts(p).remaining === null ? 'Unknown' : formatCurrency(securityAmounts(p).remaining)}</span>{p.v2?.followUpDate ? ` · Follow up ${formatDate(p.v2.followUpDate)}` : ''}</p>
+                        <p className="text-xs">Cash remaining: <span className="whitespace-nowrap font-mono tabular-nums text-foreground">{['Encashed', 'Forfeited'].includes(p.status) ? 'Needs reconciliation' : securityAmounts(p).remaining === null ? 'Unknown' : formatCurrency(securityAmounts(p).remaining)}</span></p>
+                        <p className="text-xs">Next follow-up: {p.v2?.followUpDate ? formatDate(p.v2.followUpDate) : 'Not scheduled'}</p>
                         <div className="flex items-center gap-2">
                           <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
                           <span className="min-w-0 truncate text-foreground">
@@ -1124,7 +1147,7 @@ export default function PayOrders() {
                             Submitted: {formatDate(p.submitted) || "-"}
                           </span>
                           <span className="ml-auto shrink-0 font-mono text-base font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
-                            {formatCurrency(p.amount)}
+                            <span className="block text-right text-[10px] font-normal text-muted-foreground">Instrument amount</span>{formatCurrency(p.amount)}
                           </span>
                         </div>
                       </div>
@@ -1135,102 +1158,39 @@ export default function PayOrders() {
 
               <Card className="hidden overflow-hidden rounded-xl border bg-card md:block">
                 <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className="whitespace-nowrap text-xs font-semibold">PO #</TableHead>
-                      <TableHead className="whitespace-nowrap text-xs font-semibold">Bank</TableHead>
-                      <TableHead className="whitespace-nowrap text-xs font-semibold">NIT/Ref</TableHead>
-                      <TableHead className="min-w-[260px] text-xs font-semibold">
-                        Tender
-                      </TableHead>
-                      <TableHead className="min-w-[210px] text-xs font-semibold">Agency</TableHead>
-                      <TableHead className="whitespace-nowrap text-right text-xs font-semibold">
-                        Amount
-                      </TableHead>
-                      <TableHead className="whitespace-nowrap text-right text-xs font-semibold">Cash remaining</TableHead>
-                      <TableHead className="whitespace-nowrap text-xs font-semibold">Next follow-up</TableHead>
-                      <TableHead className="whitespace-nowrap text-xs font-semibold">Submitted</TableHead>
-                      <TableHead className="whitespace-nowrap text-xs font-semibold">Status</TableHead>
-                      <TableHead className="whitespace-nowrap text-xs font-semibold">
-                        Bid Result
-                      </TableHead>
-                      {isAdmin && <TableHead className="w-14 text-xs font-semibold">Actions</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedPayOrders.map((p) => (
-                      <TableRow key={p.id} className="h-[72px] hover:bg-muted/30">
-                        <TableCell className="sticky left-0 z-10 bg-card font-mono text-sm font-semibold">
-                          <button
-                            type="button"
-                            onClick={() => setQuickView(p)}
-                            className="hover:underline text-left"
-                          >
-                            {p.po || "—"}
-                          </button>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {p.bank || "—"}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {p.nit || "—"}
-                        </TableCell>
-                        <TableCell className="max-w-[320px] whitespace-normal text-sm font-semibold leading-5 text-foreground">
-                          {p.tender || "—"}
-                        </TableCell>
-                        <TableCell className="max-w-[260px] whitespace-normal text-sm leading-5 text-muted-foreground">
-                          {p.agency || "—"}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-right font-mono text-sm tabular-nums">
-                          {formatCurrency(p.amount)}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-right font-mono text-sm tabular-nums">{securityAmounts(p).remaining === null ? '—' : formatCurrency(securityAmounts(p).remaining)}</TableCell>
-                        <TableCell className="whitespace-nowrap text-sm">{formatDate(p.v2?.followUpDate)}</TableCell>
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                          {formatDate(p.submitted)}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={p.status} />
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={p.bidResult} />
-                        </TableCell>
-                        {isAdmin && (
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  className="h-8 w-8"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Open menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => openDialog(p)}>
-                                  <Pencil className="mr-2 h-4 w-4" /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => setDeleteId(p.id)}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                  <Table>
+                    <TableHeader><TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead className="min-w-[130px]">PO / Bank</TableHead>
+                      <TableHead className="min-w-[210px]">Project / NIT</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Instrument amount</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Cash remaining</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="whitespace-nowrap">Next follow-up</TableHead>
+                      {optionalColumns.agency && <TableHead className="min-w-[170px]">Agency</TableHead>}
+                      {optionalColumns.submitted && <TableHead className="whitespace-nowrap">Submitted date</TableHead>}
+                      {optionalColumns.bidResult && <TableHead>Bid result</TableHead>}
+                      <TableHead className="whitespace-nowrap">View / Menu</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>{paginatedPayOrders.map((p) => {
+                      const linked = p.tenderRef ? tenders.some((tender) => tender.id === p.tenderRef) : false;
+                      const missingLink = p.tenderRef && !linked;
+                      const amounts = securityAmounts(p);
+                      return <TableRow key={p.id} className="align-top hover:bg-muted/30">
+                        <TableCell><button type="button" onClick={() => setQuickView(p)} className="break-all text-left font-mono text-sm font-semibold hover:underline">{p.po || '—'}</button><span className="block break-words text-xs text-muted-foreground">{p.bank || 'No bank'}</span></TableCell>
+                        <TableCell className="max-w-[320px]"><span title={p.tender || ''} className="line-clamp-3 break-words text-sm font-medium">{p.tender || (p.tenderRef ? 'Linked project missing' : 'Standalone')}</span><span className="block break-all font-mono text-xs text-muted-foreground">{p.nit || 'No NIT'}</span>{missingLink && <span role="status" className="block text-xs text-amber-700 dark:text-amber-300">Project link missing</span>}{linked && <a href={`/tenders/${p.tenderRef}`} className="text-xs text-emerald-700 underline dark:text-emerald-300">Open project</a>}</TableCell>
+                        <TableCell className="whitespace-nowrap text-right font-mono text-sm tabular-nums">{formatCurrency(p.amount)}</TableCell>
+                        <TableCell className="whitespace-nowrap text-right font-mono text-sm tabular-nums">{['Encashed', 'Forfeited'].includes(p.status) ? 'Needs reconciliation' : amounts.remaining === null ? 'Unknown' : formatCurrency(amounts.remaining)}</TableCell>
+                        <TableCell><StatusBadge status={p.status} /></TableCell>
+                        <TableCell className="whitespace-nowrap text-sm">{p.v2?.followUpDate ? formatDate(p.v2.followUpDate) : 'Not scheduled'}</TableCell>
+                        {optionalColumns.agency && <TableCell className="max-w-[220px] break-words text-sm">{p.agency || '—'}</TableCell>}
+                        {optionalColumns.submitted && <TableCell className="whitespace-nowrap text-sm">{formatDate(p.submitted) || '—'}</TableCell>}
+                        {optionalColumns.bidResult && <TableCell><StatusBadge status={p.bidResult} /></TableCell>}
+                        <TableCell><div className="flex items-center gap-1"><Button type="button" variant="outline" size="sm" onClick={() => setQuickView(p)}>View</Button>{isAdmin && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={`Actions for ${p.po || 'pay order'}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => openDialog(p)}><Pencil className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteId(p.id)}><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}</div></TableCell>
+                      </TableRow>;
+                    })}</TableBody>
+                  </Table>
                 </div>
-              </Card>
-              <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-3 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-4">
+              </Card>              <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-3 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-4">
                 <span>{paginationText}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
@@ -1372,337 +1332,42 @@ export default function PayOrders() {
       </Tabs>
 
       {/* Pay Order Sheet */}
-      <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
-        <SheetContent
-          side="right"
-          className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-lg"
-        >
-          <SheetHeader className="border-b border-border px-4 py-4 sm:px-6">
-            <SheetTitle>
-              {editItem ? "Edit Pay Order" : "New Pay Order"}
-            </SheetTitle>
-            <SheetDescription>
-              {editItem
-                ? "Update pay order details."
-                : "Record a new pay order entry."}
-            </SheetDescription>
+      <Sheet open={dialogOpen} onOpenChange={(open) => { if (!open) requestClose(); else setDialogOpen(true); }}>
+        <SheetContent side="right" className="flex h-dvh w-full min-w-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-[720px]">
+          <SheetHeader className="shrink-0 border-b border-border px-4 py-4 pr-14 text-left sm:px-6 sm:pr-14">
+            <SheetTitle>{editItem ? "Edit Pay Order" : "New Pay Order"}</SheetTitle>
+            <SheetDescription>{editItem ? "Update this instrument and its project link." : "Record an instrument and its project link."}</SheetDescription>
           </SheetHeader>
-          <div className="min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
-            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field
-                label={
-                  <>
-                    PO Number <span className="text-destructive">*</span>
-                  </>
-                }
-                value={form.po}
-                onChange={setF("po")}
-                placeholder="PO-2024-001"
-                className="font-mono"
-              />
-              <div className="space-y-1.5">
-                <Label htmlFor="po-bank">Bank</Label>
-                <Select
-                  value={form.bank}
-                  onValueChange={(v) => {
-                    if (v === "__add_bank__") {
-                      setNewBankName("");
-                      setAddBankOpen(true);
-                      return;
-                    }
-                    setForm((p) => ({ ...p, bank: v }));
-                  }}
-                >
-                  <SelectTrigger id="po-bank">
-                    <SelectValue placeholder="Select bank" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {banks.length === 0 && (
-                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                        No banks yet — add one below.
-                      </div>
-                    )}
-                    {banks.map((b) => (
-                      <SelectItem key={b.id} value={b.name}>
-                        {b.name}
-                      </SelectItem>
-                    ))}
-                    <div className="border-t border-border my-1" />
-                    <SelectItem value="__add_bank__" className="text-primary">
-                      + Add Bank
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field
-                label="NIT / Reference"
-                value={form.nit}
-                onChange={setF("nit")}
-                className="font-mono"
-              />
-              <Field
-                label="Amount (PKR)"
-                type="number"
-                value={form.amount}
-                onChange={setF("amount")}
-                placeholder="0"
-                className="font-mono tabular-nums"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="po-purpose">Purpose</Label>
-              <Select
-                value={form.purpose || "Bid Security"}
-                onValueChange={setF("purpose")}
-              >
-                <SelectTrigger id="po-purpose">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PO_PURPOSES.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {p}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0 space-y-2 rounded-md border border-border p-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Attach to tender
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  ["none", "None"],
-                  ["existing", "Existing"],
-                  ["new", "Create new"],
-                ].map(([v, l]) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setTenderMode(v)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${tenderMode === v ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-              {tenderMode === "existing" &&
-                (() => {
-                  const selected = tenders.find((t) => t.id === form.tenderRef);
-                  const q = tenderSearch.trim().toLowerCase();
-                  const matches = q
-                    ? tenders
-                        .filter(
-                          (t) =>
-                            (t.name || "").toLowerCase().includes(q) ||
-                            (t.nit || "").toLowerCase().includes(q) ||
-                            (t.agency || "").toLowerCase().includes(q),
-                        )
-                        .slice(0, 8)
-                    : [];
-                  return (
-                    <div className="space-y-2">
-                      {selected ? (
-                        <div className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">
-                              {selected.name || "Untitled"}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {selected.nit || "—"}
-                              {selected.agency ? ` · ${selected.agency}` : ""}
-                            </p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="shrink-0"
-                            onClick={() => {
-                              setForm((p) => ({ ...p, tenderRef: "" }));
-                              setTenderSearch("");
-                            }}
-                          >
-                            Change
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                            <Input
-                              value={tenderSearch}
-                              onChange={(e) => setTenderSearch(e.target.value)}
-                              placeholder="Search tenders by name, NIT, or agency..."
-                              className="pl-8 h-9"
-                            />
-                          </div>
-                          {q && (
-                            <div className="max-h-48 min-w-0 overflow-y-auto rounded-md border border-border">
-                              {matches.length === 0 ? (
-                                <p className="text-xs text-muted-foreground text-center py-3">
-                                  No matching tenders.
-                                </p>
-                              ) : (
-                                matches.map((t) => (
-                                  <button
-                                    key={t.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setForm((p) => ({
-                                        ...p,
-                                        tenderRef: t.id,
-                                      }));
-                                      setTenderSearch("");
-                                    }}
-                                    className="w-full min-w-0 border-b border-border px-3 py-2 text-left hover:bg-accent last:border-0"
-                                  >
-                                    <p className="text-sm font-medium truncate">
-                                      {t.name || "Untitled"}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground truncate">
-                                      {t.nit || "—"}
-                                      {t.agency ? ` · ${t.agency}` : ""}
-                                    </p>
-                                  </button>
-                                ))
-                              )}
-                            </div>
-                          )}
-                          {!q && tenders.length === 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              No tenders yet — create one instead.
-                            </p>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  );
-                })()}
-              {tenderMode === "new" && (
-                <div className="space-y-2">
-                  <Field
-                    label="Tender name"
-                    value={newTenderFields.name}
-                    onChange={(e) =>
-                      setNewTenderFields((p) => ({
-                        ...p,
-                        name: e.target.value,
-                      }))
-                    }
-                  />
-                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field
-                      label="NIT"
-                      value={newTenderFields.nit}
-                      onChange={(e) =>
-                        setNewTenderFields((p) => ({
-                          ...p,
-                          nit: e.target.value,
-                        }))
-                      }
-                      className="font-mono"
-                    />
-                    <Field
-                      label="Agency"
-                      value={newTenderFields.agency}
-                      onChange={(e) =>
-                        setNewTenderFields((p) => ({
-                          ...p,
-                          agency: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    A new tender will be created with status Bidding
-                    {form.purpose === "Bid Security"
-                      ? " and this amount as bid security."
-                      : form.purpose === "Tender Fee"
-                      ? " and this amount as tender fee."
-                      : "."}
-                  </p>
-                </div>
-              )}
-              {tenderMode === "none" && (
-                <Field
-                  label="Tender / Project (free-text)"
-                  value={form.tender}
-                  onChange={setF("tender")}
-                />
-              )}
-            </div>
-            <Field
-              label="Agency"
-              value={form.agency}
-              onChange={setF("agency")}
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6">
+            <PayOrderEditor
+              form={form} setForm={setForm} setF={setF}
+              tenderMode={tenderMode} setTenderMode={setTenderMode}
+              tenders={tenders} tenderSearch={tenderSearch} setTenderSearch={setTenderSearch}
+              newTenderFields={newTenderFields} setNewTenderFields={setNewTenderFields}
+              selectTender={selectTender} banks={banks}
+              setAddBankOpen={setAddBankOpen} setNewBankName={setNewBankName}
+              errors={formErrors} clearError={(key) => setFormErrors((current) => ({ ...current, [key]: undefined }))} extraOpen={extraOpen} setExtraOpen={setExtraOpen}
+              refundOpen={refundOpen} setRefundOpen={setRefundOpen} editItem={editItem}
             />
-            <Field
-              label="Date Submitted"
-              type="date"
-              value={form.submitted}
-              onChange={setF("submitted")}
-            />
-            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="po-status">Status</Label>
-                <Select value={form.status} onValueChange={setF("status")}>
-                  <SelectTrigger id="po-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PO_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="po-result">Bid Result</Label>
-                <Select
-                  value={form.bidResult}
-                  onValueChange={setF("bidResult")}
-                >
-                  <SelectTrigger id="po-result">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BID_RESULTS.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="po-notes">Notes</Label>
-              <Textarea id="po-notes"
-                value={form.notes}
-                onChange={setF("notes")}
-                rows={4}
-                placeholder="Optional remarks…"
-              />
-            </div>
-            <SecurityFields form={form} setV2={(key, value) => setForm((previous) => ({ ...previous, v2: { ...previous.v2, [key]: value } }))} />
           </div>
-          <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
+          <SheetFooter className="shrink-0 gap-2 border-t border-border bg-background px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:justify-end sm:px-6">
+            <Button variant="outline" type="button" onClick={requestClose} disabled={saving}>Cancel</Button>
+            <Button type="button" onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editItem ? "Save Changes" : "Add Pay Order"}
             </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
-
+      <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Discard unsaved changes?</DialogTitle><DialogDescription>Your edits to this pay order have not been saved.</DialogDescription></DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDiscardOpen(false)}>Keep editing</Button>
+            <Button variant="destructive" onClick={() => { setDiscardOpen(false); setDialogOpen(false); }}>Discard changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Activity Log Sheet */}
       <Sheet open={logDialogOpen} onOpenChange={setLogDialogOpen}>
         <SheetContent

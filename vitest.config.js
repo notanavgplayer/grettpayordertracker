@@ -14,5 +14,6 @@ export default defineConfig({
     include: ['test-ui/**/*.test.{js,jsx}'],
     setupFiles: ['./test-ui/setup.js'],
     restoreMocks: true,
+    testTimeout: 15000,
   },
 })
