@@ -6,7 +6,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 
-export default function ConfirmDelete({ open, onOpenChange, onConfirm, title = 'Delete item', description = 'This action cannot be undone.' }) {
+export default function ConfirmDelete({ open, onOpenChange, onConfirm, title = 'Delete item', description = 'This action cannot be undone.', confirmLabel = 'Delete' }) {
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
 
@@ -39,7 +39,7 @@ export default function ConfirmDelete({ open, onOpenChange, onConfirm, title = '
         <AlertDialogFooter>
           <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
           <Button type="button" variant="destructive" onClick={confirm} disabled={deleting}>
-            {deleting ? 'Deleting…' : 'Delete'}
+            {deleting ? (confirmLabel === 'Delete' ? 'Deleting…' : 'Working…') : confirmLabel}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

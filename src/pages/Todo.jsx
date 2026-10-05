@@ -1,20 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteField, doc, updateDoc } from "firebase/firestore";
-import {
-  AlertTriangle,
-  Calendar,
-  CheckCircle2,
-  CheckSquare,
-  ClipboardList,
-  Clock3,
-  Flag,
-  Loader2,
-  MoreVertical,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, ExternalLink, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-
 import PageHeader from "@/components/shared/PageHeader";
 import EmptyState from "@/components/shared/EmptyState";
 import ConfirmDelete from "@/components/shared/ConfirmDelete";
@@ -23,392 +11,143 @@ import LoadState from "@/components/shared/LoadState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 import { useCollection, useFirestoreCRUD } from "@/hooks/useFirestore";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/firebase";
-import { cn, daysUntil, isTaskDone, shouldShowTaskOverdue } from "@/lib/utils";
+import { deriveCalendarEvents, filterTasks, taskDue, taskOverdue, taskTitle, todayInKarachi, validDateOnly } from "@/lib/calendarTodo";
+import { cn, isTaskDone } from "@/lib/utils";
 
-const PRIORITY_STYLES = {
-  high: { dot: "bg-red-500", text: "text-red-700 dark:text-red-300", label: "High" },
-  medium: { dot: "bg-amber-500", text: "text-amber-700 dark:text-amber-300", label: "Medium" },
-  low: { dot: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-300", label: "Low" },
-  none: { dot: "bg-slate-400", text: "text-muted-foreground", label: "None" },
-};
-
-const FILTERS = ["All", "Open", "Done", "High Priority", "Overdue", "Today"];
+const STATUSES = ["Open", "Today", "Upcoming", "Overdue", "Completed", "No Due Date", "All"];
 const PRIORITIES = ["low", "medium", "high"];
-
-function normalizePriority(priority) {
-  return (priority || "none").toLowerCase();
-}
-
-function getTaskTitle(todo) {
-  return todo.text || todo.title || todo.taskName || "Untitled task";
-}
-
-function getTaskDueDate(todo) {
-  return todo.dueDate || todo.due || "";
-}
-
-function shortDate(dateStr) {
-  if (!dateStr) return "No due date";
-  const date = new Date(dateStr);
-  if (isNaN(date)) return dateStr;
-  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+const blank = { text: "", priority: "medium", dueDate: "" };
+function dateLabel(value) {
+  const date = validDateOnly(value);
+  return date ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`)) : "No due date";
 }
 
 export default function Todo() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const linkedTaskId = searchParams.get("task");
   const { data: todos, loading, error } = useCollection("todos", "createdAt", "desc");
-  const { add, remove } = useFirestoreCRUD("todos");
+  const { data: tenders } = useCollection("tenders");
+  const { data: payOrders } = useCollection("payOrders");
+  const { add, update, remove } = useFirestoreCRUD("todos");
   const { isAdmin, displayName } = useAuth();
-
-  const [text, setText] = useState("");
-  const [priority, setPriority] = useState("medium");
-  const [dueDate, setDueDate] = useState("");
-  const [filter, setFilter] = useState("Open");
+  const today = todayInKarachi();
+  const [status, setStatus] = useState("Open");
+  const [search, setSearch] = useState("");
+  const [priority, setPriority] = useState("All");
+  const [project, setProject] = useState("All");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [editTask, setEditTask] = useState(null);
+  const [form, setForm] = useState(blank);
+  const [original, setOriginal] = useState(blank);
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
+  const toggleLock = useRef(new Set());
+  const [pending, setPending] = useState([]);
   const [deleteId, setDeleteId] = useState(null);
-  const [adding, setAdding] = useState(false);
-
-  const handleAdd = async () => {
-    if (!text.trim()) return;
-    setAdding(true);
-    try {
-      const newId = await add({
-        text: text.trim(),
-        priority,
-        dueDate: dueDate || "",
-        done: false,
-      });
-      logActivity({
-        type: "todo",
-        action: "created",
-        title: text.trim(),
-        entityId: newId,
-        by: displayName,
-      });
-      setText("");
-      setDueDate("");
-      setPriority("medium");
-    } catch (error) {
-      console.error("Failed to add todo", error);
-      toast.error("Could not add task. Please check your permissions.");
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const toggleDone = async (todo) => {
-    const nextDone = !isTaskDone(todo);
-    try {
-      await updateDoc(doc(db, "todos", todo.id), {
-        done: nextDone,
-        ...(Object.hasOwn(todo, 'completed') ? { completed: deleteField() } : {}),
-        ...(Object.hasOwn(todo, 'status') ? { status: deleteField() } : {}),
-      });
-      logActivity({
-        type: "todo",
-        action: nextDone ? "completed" : "reopened",
-        title: getTaskTitle(todo),
-        entityId: todo.id,
-        by: displayName,
-      });
-    } catch (error) {
-      console.error("Failed to update todo", error);
-      toast.error("Could not update task. Please check your permissions.");
-    }
-  };
-
-  const filtered = useMemo(() => {
-    return todos.filter((todo) => {
-      const done = isTaskDone(todo);
-      const due = getTaskDueDate(todo);
-      const taskPriority = normalizePriority(todo.priority);
-
-      switch (filter) {
-        case "Open":
-          return !done;
-        case "Done":
-          return done;
-        case "High Priority":
-          return !done && taskPriority === "high";
-        case "Overdue":
-          return shouldShowTaskOverdue(todo);
-        case "Today":
-          return !done && daysUntil(due) === 0;
-        default:
-          return true;
-      }
-    });
-  }, [todos, filter]);
-
-  const open = todos.filter((todo) => !isTaskDone(todo)).length;
-  const done = todos.filter((todo) => isTaskDone(todo)).length;
-  const highPriority = todos.filter((todo) => !isTaskDone(todo) && normalizePriority(todo.priority) === "high").length;
-  const overdue = todos.filter((todo) => {
-    return shouldShowTaskOverdue(todo);
-  }).length;
-
+  const projects = useMemo(() => [...new Set(todos.map((task) => task.project).filter(Boolean))].sort(), [todos]);
+  const taskScope = useMemo(() => linkedTaskId ? todos.filter((task) => task.id === linkedTaskId) : todos, [todos, linkedTaskId]);
+  const filtered = useMemo(() => filterTasks(taskScope, { status: linkedTaskId ? "All" : status, search, priority, project, today }), [taskScope, linkedTaskId, status, search, priority, project, today]);
+  const scope = useMemo(() => filterTasks(taskScope, { status: "All", search, priority, project, today }), [taskScope, search, priority, project, today]);
+  const followUps = useMemo(() => deriveCalendarEvents({ tenders, payOrders, today })
+    .filter((event) => (event.kind === "payOrder" || (event.kind === "submission" && event.actionable)) && event.date >= today).slice(0, 5), [tenders, payOrders, today]);
   const stats = [
-    {
-      label: "Open",
-      value: open,
-      helper: "Active items to complete",
-      icon: ClipboardList,
-      tone: "emerald",
-    },
-    {
-      label: "Done",
-      value: done,
-      helper: "Completed tasks",
-      icon: CheckCircle2,
-      tone: "blue",
-    },
-    {
-      label: "High Priority",
-      value: highPriority,
-      helper: "Need immediate attention",
-      icon: Flag,
-      tone: "amber",
-      className: "hidden sm:block",
-    },
-    {
-      label: "Overdue",
-      value: overdue,
-      helper: "Past due tasks",
-      icon: Clock3,
-      tone: "rose",
-      className: "hidden sm:block",
-    },
+    { label: "Open", value: scope.filter((task) => !isTaskDone(task)).length, helper: "Manual tasks", icon: Clock3, tone: "emerald" },
+    { label: "Today", value: scope.filter((task) => !isTaskDone(task) && taskDue(task) === today).length, helper: "Due today", icon: Clock3, tone: "blue" },
+    { label: "Overdue", value: scope.filter((task) => taskOverdue(task, today)).length, helper: "Open tasks past due", icon: AlertTriangle, tone: "rose" },
+    { label: "Completed", value: scope.filter(isTaskDone).length, helper: "Finished manual tasks", icon: CheckCircle2, tone: "amber" },
   ];
-
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
+  const openForm = (task = null) => {
+    if (!isAdmin) return;
+    const next = task ? { text: taskTitle(task), priority: task.priority || "medium", dueDate: taskDue(task) } : { ...blank };
+    setEditTask(task); setForm(next); setOriginal(next); setFormError(""); setDialogOpen(true);
+  };
+  const closeForm = (open) => {
+    if (open || saving) return;
+    if (JSON.stringify(form) !== JSON.stringify(original)) setDiscardOpen(true);
+    else setDialogOpen(false);
+  };
+  const saveTask = async () => {
+    if (saveLock.current) return;
+    if (!form.text.trim() || form.text.trim().length > 1000) { setFormError("Enter a task title of 1–1000 characters."); return; }
+    if (form.dueDate && !validDateOnly(form.dueDate)) { setFormError("Enter a valid due date."); return; }
+    saveLock.current = true; setSaving(true); setFormError("");
+    try {
+      const data = { text: form.text.trim(), priority: form.priority, dueDate: form.dueDate || "" };
+      if (editTask) {
+        const changes = Object.fromEntries(Object.entries(data).filter(([key, value]) => value !== original[key]));
+        if (!Object.keys(changes).length) { setDialogOpen(false); return; }
+        await update(editTask.id, changes);
+        logActivity({ type: "todo", action: "updated", title: data.text, entityId: editTask.id, by: displayName });
+      } else {
+        const id = await add({ ...data, done: false });
+        logActivity({ type: "todo", action: "created", title: data.text, entityId: id, by: displayName });
+      }
+      toast.success(editTask ? "Task updated" : "Task added"); setDialogOpen(false);
+    } catch (err) { console.error("Task save failed", err); setFormError("Task could not be saved. Your entries are still here; check permissions and try again."); }
+    finally { saveLock.current = false; setSaving(false); }
+  };
+  const toggleDone = async (task) => {
+    if (!isAdmin || toggleLock.current.has(task.id)) return;
+    toggleLock.current.add(task.id); setPending([...toggleLock.current]);
+    const next = !isTaskDone(task);
+    try {
+      await updateDoc(doc(db, "todos", task.id), { done: next,
+        ...(Object.hasOwn(task, "completed") ? { completed: deleteField() } : {}),
+        ...(Object.hasOwn(task, "status") ? { status: deleteField() } : {}) });
+      logActivity({ type: "todo", action: next ? "completed" : "reopened", title: taskTitle(task), entityId: task.id, by: displayName });
+    } catch (err) { console.error("Task status failed", err); toast.error("Task status could not be changed. It remains as before."); }
+    finally { toggleLock.current.delete(task.id); setPending([...toggleLock.current]); }
+  };
+  const clear = () => { setStatus("Open"); setSearch(""); setPriority("All"); setProject("All"); };
+  if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (error) return <LoadState title="Tasks could not be loaded" error={error} />;
-
-  return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 sm:space-y-6">
-      <PageHeader
-        title="To-Do"
-        description="Track tasks and follow-ups"
-        className="pt-1 sm:pt-0"
-      />
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-        {stats.map((stat) => (
-          <KpiCard key={stat.label} {...stat} />
-        ))}
+  return <div className="mx-auto w-full max-w-7xl space-y-5 sm:space-y-6">
+    <PageHeader title="To-Do" description="Manual tasks and linked follow-ups" actions={isAdmin && <Button onClick={() => openForm()} className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto"><Plus className="h-4 w-4" /> Add Task</Button>} />
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{stats.map((stat) => <KpiCard key={stat.label} {...stat} />)}</div>
+    <Card><CardContent className="space-y-3 p-4">
+      <div className="flex flex-wrap gap-2">
+        {linkedTaskId && <Button variant="outline" onClick={() => navigate("/todo")}>Show all tasks</Button>}
+        <div className="relative min-w-[220px] flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input aria-label="Search tasks" placeholder="Search tasks…" value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" /></div>
+        <select aria-label="Priority filter" value={priority} onChange={(event) => setPriority(event.target.value)} className="h-10 rounded-md border bg-background px-3 text-sm"><option value="All">All priorities</option>{PRIORITIES.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+        {projects.length > 0 && <select aria-label="Project filter" value={project} onChange={(event) => setProject(event.target.value)} className="h-10 max-w-full rounded-md border bg-background px-3 text-sm"><option value="All">All projects</option>{projects.map((name) => <option key={name} value={name}>{name}</option>)}</select>}
+        {(status !== "Open" || search || priority !== "All" || project !== "All") && <Button variant="outline" onClick={clear}>Clear filters</Button>}
       </div>
-
-      {isAdmin && (
-        <Card className="overflow-hidden rounded-xl border">
-          <CardContent className="p-3.5 sm:p-5">
-            <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 2xl:grid-cols-[minmax(320px,1fr)_240px_180px_auto] 2xl:items-end">
-              <div className="min-w-0 space-y-1.5 sm:space-y-2 lg:col-span-2 2xl:col-span-1">
-                <label className="text-xs font-medium text-muted-foreground" htmlFor="todo-title">
-                  Task
-                </label>
-                <div className="relative">
-                  <CheckSquare className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                  <Input
-                    id="todo-title"
-                    placeholder="What needs to be done?"
-                    value={text}
-                    onChange={(event) => setText(event.target.value)}
-                    onKeyDown={(event) => event.key === "Enter" && handleAdd()}
-                    className="h-10 w-full min-w-0 rounded-lg pl-10 text-sm shadow-none sm:h-11 sm:rounded-lg"
-                    aria-label="Task title"
-                  />
-                </div>
-              </div>
-
-              <div className="min-w-0 space-y-1.5 sm:space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Priority</p>
-                <div className="grid h-10 w-full min-w-0 grid-cols-3 rounded-lg border bg-background p-1 sm:h-11 sm:rounded-lg 2xl:w-[240px]">
-                  {PRIORITIES.map((priorityOption) => (
-                    <button
-                      key={priorityOption}
-                      type="button"
-                      onClick={() => setPriority(priorityOption)}
-                      className={cn(
-                        "rounded-md px-2.5 text-sm font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3",
-                        priority === priorityOption
-                          ? "bg-primary text-primary-foreground"
-                          : "text-foreground hover:bg-accent"
-                      )}
-                      aria-pressed={priority === priorityOption}
-                    >
-                      {priorityOption}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="min-w-0 space-y-1.5 sm:space-y-2">
-                <label className="text-xs font-medium text-muted-foreground" htmlFor="todo-due-date">
-                  Due date
-                </label>
-                <Input
-                  id="todo-due-date"
-                  type="date"
-                  value={dueDate}
-                  onChange={(event) => setDueDate(event.target.value)}
-                  className="block h-10 w-full min-w-0 max-w-full appearance-none rounded-lg text-left text-sm shadow-none sm:h-11 sm:rounded-lg 2xl:w-[180px]"
-                  aria-label="Due date"
-                />
-              </div>
-
-              <Button
-                onClick={handleAdd}
-                disabled={adding || !text.trim()}
-                className="h-10 w-full rounded-lg bg-emerald-600 px-5 hover:bg-emerald-700 sm:h-11 sm:rounded-lg lg:self-end"
-              >
-                {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Add Task
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
-          {FILTERS.map((filterOption) => (
-            <button
-              key={filterOption}
-              onClick={() => setFilter(filterOption)}
-              className={cn(
-                "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                filter === filterOption
-                  ? filterOption === "Overdue"
-                    ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
-                    : "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
-              )}
-              aria-pressed={filter === filterOption}
-            >
-              {filterOption}
-            </button>
-          ))}
+      {!linkedTaskId && <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Task status filters">{STATUSES.map((item) => <button key={item} type="button" onClick={() => setStatus(item)} aria-pressed={status === item} className={cn("shrink-0 rounded-full px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", status === item ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground")}>{item}</button>)}</div>}
+      <p className="text-xs text-muted-foreground">Showing {filtered.length} manual task{filtered.length === 1 ? "" : "s"} · dates use Asia/Karachi.</p>
+    </CardContent></Card>
+    {filtered.length === 0 ? <Card><CardContent className="p-8"><EmptyState icon={CheckCircle2} title="No matching tasks" description="Try another status or clear filters." /></CardContent></Card> : <Card className="overflow-hidden"><div className="divide-y">{filtered.map((task) => {
+      const done = isTaskDone(task), due = taskDue(task), overdue = taskOverdue(task, today);
+      const linkedId = task.tenderId || task.projectId;
+      const linked = linkedId && tenders.some((tender) => tender.id === linkedId);
+      return <div key={task.id} className="flex min-w-0 items-start gap-3 p-4 sm:items-center">
+        <input type="checkbox" checked={done} disabled={!isAdmin || pending.includes(task.id)} onChange={() => toggleDone(task)} aria-label={`Mark ${taskTitle(task)} as ${done ? "open" : "done"}`} className="mt-1 h-5 w-5 shrink-0 accent-primary sm:mt-0" />
+        <div className="min-w-0 flex-1"><p title={taskTitle(task)} className={cn("break-words text-sm font-medium", done && "text-muted-foreground line-through")}>{taskTitle(task)}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"><span className={cn(overdue && "font-semibold text-red-600 dark:text-red-400")}>{overdue ? "Overdue · " : ""}{dateLabel(due)}</span><span className="capitalize">{task.priority || "No"} priority</span>{task.project && <span className="break-words">Project: {task.project}</span>}{linked && <button type="button" className="font-medium text-primary underline" onClick={() => navigate(`/tenders/${linkedId}`)}>Open project <ExternalLink className="inline h-3 w-3" /></button>}<span>Manual task</span></div>
         </div>
-        <div className="hidden items-center gap-2 rounded-full border bg-background px-3 py-2 text-xs text-muted-foreground sm:flex">
-          <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
-          Sort by: Due date
-        </div>
-      </div>
-
-      {filtered.length === 0 ? (
-        <Card className="rounded-xl border">
-          <CardContent className="p-8">
-            <EmptyState
-              icon={CheckSquare}
-              title="No tasks"
-              description={filter === "Open" ? "You're all caught up!" : "No tasks match this filter."}
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="border-0 bg-transparent shadow-none sm:overflow-hidden sm:rounded-xl sm:border sm:bg-card sm:shadow-sm">
-          <div className="space-y-3 sm:space-y-0 sm:divide-y sm:divide-border">
-            {filtered.map((todo) => {
-              const taskDone = isTaskDone(todo);
-              const due = getTaskDueDate(todo);
-              const days = due ? daysUntil(due) : null;
-              const isOverdue = shouldShowTaskOverdue(todo);
-              const taskPriority = normalizePriority(todo.priority);
-              const priorityStyle = PRIORITY_STYLES[taskPriority] || PRIORITY_STYLES.none;
-              const title = getTaskTitle(todo);
-
-              return (
-                <div
-                  key={todo.id}
-                  className={cn(
-                    "group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-accent/30 sm:items-center sm:rounded-none sm:border-0 sm:px-5 sm:shadow-none",
-                    isOverdue && !taskDone && "bg-red-50/60 hover:bg-red-50 dark:bg-red-950/10 dark:hover:bg-red-950/20"
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={taskDone}
-                    onChange={() => toggleDone(todo)}
-                    className="mt-1 h-5 w-5 shrink-0 cursor-pointer rounded border-border accent-primary sm:mt-0"
-                    aria-label={`Mark ${title} as ${taskDone ? "open" : "done"}`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className={cn("text-[13px] font-medium leading-5 text-foreground sm:text-sm", taskDone && "text-muted-foreground line-through")}>
-                      {title}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span className={cn(isOverdue && !taskDone && "font-medium text-red-600 dark:text-red-400")}>
-                          {isOverdue && !taskDone
-                            ? `Overdue by ${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""}`
-                            : shortDate(due)}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2 pt-0.5 sm:min-w-[142px] sm:justify-end sm:pt-0">
-                    {isOverdue && !taskDone && (
-                      <AlertTriangle className="hidden h-4 w-4 text-red-500 sm:block" aria-label="Overdue" />
-                    )}
-                    {taskPriority !== "none" && (
-                      <span className={cn("inline-flex items-center gap-2 text-xs font-medium", priorityStyle.text)}>
-                        <span className={cn("h-2 w-2 rounded-full", priorityStyle.dot)} aria-hidden="true" />
-                        <span className="hidden sm:inline">{priorityStyle.label}</span>
-                      </span>
-                    )}
-                    {isAdmin && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => setDeleteId(todo.id)}
-                        aria-label={`Delete ${title}`}
-                      >
-                        <MoreVertical className="h-4 w-4 sm:hidden" />
-                        <Trash2 className="hidden h-3.5 w-3.5 sm:block" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
-      <ConfirmDelete
-        open={!!deleteId}
-        onOpenChange={() => setDeleteId(null)}
-        onConfirm={async () => {
-          const task = todos.find((todo) => todo.id === deleteId);
-          try {
-            await remove(deleteId);
-            logActivity({
-              type: "todo",
-              action: "deleted",
-              title: task ? getTaskTitle(task) : "(unknown)",
-              entityId: deleteId,
-              by: displayName,
-            });
-            toast.success("Task deleted");
-            setDeleteId(null);
-          } catch (error) {
-            console.error("Failed to delete todo", error);
-            toast.error("Could not delete task. Please check your permissions.");
-          }
-        }}
-        title="Delete task"
-        description="This task will be permanently deleted."
-      />
-    </div>
-  );
+        {isAdmin && <div className="flex shrink-0 gap-1"><Button variant="ghost" size="icon-sm" aria-label={`Edit ${taskTitle(task)}`} onClick={() => openForm(task)}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon-sm" aria-label={`Delete ${taskTitle(task)}`} onClick={() => setDeleteId(task.id)}><Trash2 className="h-4 w-4" /></Button></div>}
+      </div>;
+    })}</div></Card>}
+    <Card><CardContent className="space-y-3 p-4"><div><h2 className="font-semibold">Linked follow-ups</h2><p className="text-xs text-muted-foreground">Read-only dates from tender and pay-order records. Completing a manual task does not change them.</p></div>
+      {followUps.length === 0 ? <p className="text-sm text-muted-foreground">No upcoming recorded tender or pay-order follow-ups.</p> : followUps.map((event) => <button key={event.id} type="button" onClick={() => navigate(event.link)} className="flex w-full min-w-0 items-center justify-between gap-3 rounded-lg border p-3 text-left hover:bg-accent"><span className="min-w-0"><span className="block break-words text-sm font-medium">{event.title}</span><span className="text-xs text-muted-foreground">{event.kind === "submission" ? "Tender submission" : "Pay-order follow-up"} · {dateLabel(event.date)}</span></span><ExternalLink className="h-4 w-4 shrink-0" /></button>)}
+    </CardContent></Card>
+    <Dialog open={dialogOpen} onOpenChange={closeForm}><DialogContent className="max-h-[100dvh] w-full max-w-xl rounded-none sm:max-h-[92dvh] sm:rounded-2xl">
+      <DialogHeader><DialogTitle>{editTask ? "Edit Task" : "Add Task"}</DialogTitle><DialogDescription>Existing task fields only. Linked source records stay unchanged.</DialogDescription></DialogHeader>
+      <div className="space-y-4 py-2"><div className="space-y-1.5"><Label htmlFor="todo-title">Task title *</Label><Input id="todo-title" autoFocus maxLength={1000} value={form.text} onChange={(event) => setForm((old) => ({ ...old, text: event.target.value }))} placeholder="What needs to be done?" /></div>
+        <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-1.5"><Label htmlFor="todo-priority">Priority</Label><select id="todo-priority" value={form.priority} onChange={(event) => setForm((old) => ({ ...old, priority: event.target.value }))} className="h-10 w-full rounded-md border bg-background px-3 text-sm">{!PRIORITIES.includes(form.priority) && <option value={form.priority}>Existing: {form.priority}</option>}{PRIORITIES.map((item) => <option key={item} value={item}>{item}</option>)}</select></div><div className="space-y-1.5"><Label htmlFor="todo-due-date">Due date</Label><Input id="todo-due-date" type="date" className="mobile-date-input" value={form.dueDate} onChange={(event) => setForm((old) => ({ ...old, dueDate: event.target.value }))} /></div></div>
+        {editTask && <p className="text-xs text-muted-foreground">Status: {isTaskDone(editTask) ? "Completed" : "Open"}. Use the list checkbox to change it.</p>}
+        {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}</div>
+      <DialogFooter className="sticky bottom-0 border-t bg-popover pt-3"><Button variant="outline" onClick={() => closeForm(false)} disabled={saving}>Cancel</Button><Button onClick={saveTask} disabled={saving}>{saving && <Loader2 className="h-4 w-4 animate-spin" />}{editTask ? "Save Changes" : "Add Task"}</Button></DialogFooter>
+    </DialogContent></Dialog>
+    <ConfirmDelete open={discardOpen} onOpenChange={setDiscardOpen} title="Discard task changes?" description="Unsaved changes will be lost." confirmLabel="Discard" onConfirm={() => { setDialogOpen(false); setDiscardOpen(false); }} />
+    <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} title="Delete task" description="This manual task will be permanently deleted." onConfirm={async () => { const task = todos.find((item) => item.id === deleteId); await remove(deleteId); logActivity({ type: "todo", action: "deleted", title: task ? taskTitle(task) : "(unknown)", entityId: deleteId, by: displayName }); toast.success("Task deleted"); setDeleteId(null); }} />
+  </div>;
 }

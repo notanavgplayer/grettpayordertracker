@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFirestoreCRUD, useCollection } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
-import { cn, formatDate, isTaskDone, isActionableTenderStatus } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { calendarDate, deriveCalendarEvents, shiftDate, todayInKarachi, validDateOnly } from "@/lib/calendarTodo";
+import ConfirmDelete from "@/components/shared/ConfirmDelete";
 import PageHeader from "@/components/shared/PageHeader";
 import KpiCard from "@/components/shared/KpiCard";
 import LoadState from "@/components/shared/LoadState";
@@ -12,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertTriangle,
   Briefcase,
@@ -47,6 +49,12 @@ const MONTHS = [
   "November",
   "December",
 ];
+
+function formatDate(value) {
+  const date = validDateOnly(value);
+  return date ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })
+    .format(new Date(`${date}T00:00:00Z`)) : "—";
+}
 
 const EVENT_TYPES = {
   submission: {
@@ -97,6 +105,16 @@ const EVENT_TYPES = {
     badge: "border-green-200 bg-green-50 text-green-700 dark:border-green-900/60 dark:bg-green-950/30 dark:text-green-300",
     pill: "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-200",
   },
+  billActivity: {
+    label: "RA Bill Activity", shortLabel: "RA Bill", icon: ReceiptText,
+    dot: "bg-green-500", badge: "border-green-200 bg-green-50 text-green-700 dark:border-green-900/60 dark:bg-green-950/30 dark:text-green-300",
+    pill: "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-200",
+  },
+  instrumentActivity: {
+    label: "Instrument Activity", shortLabel: "Instrument", icon: WalletCards,
+    dot: "bg-slate-500", badge: "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300",
+    pill: "bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200",
+  },
   custom: {
     label: "Custom Event",
     shortLabel: "Event",
@@ -115,63 +133,24 @@ const EVENT_TYPES = {
   },
 };
 
-function toLocalDateString(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function normalizeDate(value) {
-  if (!value) return "";
-  if (typeof value === "string") return value.slice(0, 10);
-  if (typeof value?.toDate === "function") return toLocalDateString(value.toDate());
-  if (value?.seconds) return toLocalDateString(new Date(value.seconds * 1000));
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? "" : toLocalDateString(parsed);
-}
-
-function addDays(dateString, count) {
-  const date = new Date(`${dateString}T00:00:00`);
-  date.setDate(date.getDate() + count);
-  return toLocalDateString(date);
-}
-
-function daysBetween(start, end) {
-  const startDate = new Date(`${start}T00:00:00`);
-  const endDate = new Date(`${end}T00:00:00`);
-  return Math.round((endDate - startDate) / 86400000);
-}
-
-function getTaskTitle(task) {
-  return task.text || task.title || task.taskName || "Untitled task";
-}
-
-function isDateFieldKey(key) {
-  return /date/i.test(key) || ["submitted", "paid", "due", "deadline"].includes(key);
-}
-
-function firstValidDateFrom(object, keys) {
-  for (const key of keys) {
-    const value = normalizeDate(object?.[key]);
-    if (value) return value;
-  }
-  return "";
-}
-
-function eventSort(a, b) {
-  if (a.date !== b.date) return a.date.localeCompare(b.date);
-  return (a.sortRank || 9) - (b.sortRank || 9);
-}
-
 export default function Calendar() {
   const now = new Date();
-  const todayStr = toLocalDateString(now);
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth());
+  const todayStr = todayInKarachi(now);
+  const [year, setYear] = useState(Number(todayStr.slice(0, 4)));
+  const [month, setMonth] = useState(Number(todayStr.slice(5, 7)) - 1);
   const [view, setView] = useState(() => window.matchMedia?.("(max-width: 639px)").matches ? "list" : "month");
   const [selectedDay, setSelectedDay] = useState(todayStr);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editEvent, setEditEvent] = useState(null);
   const [form, setForm] = useState({ title: "", date: "", notes: "", eventType: "General" });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [initialForm, setInitialForm] = useState(null);
+  const [focusedEvent, setFocusedEvent] = useState(null);
+  const [deleteEventId, setDeleteEventId] = useState(null);
 
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
@@ -181,152 +160,19 @@ export default function Calendar() {
   const { data: customEvents, loading: customLoading, error: customEventsError } = useCollection("calendarEvents", "date", "asc");
   const { add, update, remove } = useFirestoreCRUD("calendarEvents");
 
-  const allEvents = useMemo(() => {
-    const events = [];
-
-    for (const tender of tenders) {
-      const tenderTitle = tender.name || tender.title || "Untitled tender";
-      const submissionDate = normalizeDate(tender.submissionDate);
-      const openingDate = normalizeDate(tender.openingDate);
-
-      if (submissionDate) {
-        events.push({
-          id: `submission-${tender.id}`,
-          date: submissionDate,
-          title: tenderTitle,
-          description: tender.agency || tender.nit || "Tender submission deadline",
-          type: submissionDate < todayStr && isActionableTenderStatus(tender.status) ? "overdue" : "submission",
-          sourceType: "submission",
-          entityId: tender.id,
-          actionLabel: "View tender",
-          sortRank: 1,
-        });
-      }
-
-      if (openingDate) {
-        events.push({
-          id: `opening-${tender.id}`,
-          date: openingDate,
-          title: `${tenderTitle} opening`,
-          description: tender.agency || tender.nit || "Bid opening",
-          type: "opening",
-          sourceType: "opening",
-          entityId: tender.id,
-          actionLabel: "View tender",
-          sortRank: 2,
-        });
-      }
-
-      const siteVisitDate = firstValidDateFrom(tender, ["siteVisitDate", "visitDate", "siteVisit"]);
-      if (siteVisitDate) {
-        events.push({
-          id: `site-visit-${tender.id}`,
-          date: siteVisitDate,
-          title: tenderTitle,
-          description: "Site visit",
-          type: "siteVisit",
-          sourceType: "siteVisit",
-          entityId: tender.id,
-          actionLabel: "View tender",
-          sortRank: 5,
-        });
-      }
-
-      for (const [index, visit] of (tender.siteVisits || []).entries()) {
-        const visitDate = firstValidDateFrom(visit, ["date", "visitDate", "siteVisitDate"]);
-        if (!visitDate) continue;
-        events.push({
-          id: `site-visit-${tender.id}-${visit.id || index}`,
-          date: visitDate,
-          title: visit.location || tenderTitle,
-          description: visit.purpose || visit.workCompleted || "Site visit",
-          type: "siteVisit",
-          sourceType: "siteVisit",
-          entityId: tender.id,
-          actionLabel: "View tender",
-          sortRank: 5,
-        });
-      }
-
-      for (const [index, bill] of (tender.raBills || []).entries()) {
-        const billDate = firstValidDateFrom(bill, ["paid", "submitted", "dueDate", "date"]);
-        if (!billDate) continue;
-        events.push({
-          id: `ra-${tender.id}-${bill.id || index}`,
-          date: billDate,
-          title: bill.no ? `RA bill ${bill.no}` : `${tenderTitle} RA bill`,
-          description: tenderTitle,
-          type: "payment",
-          sourceType: "payment",
-          entityId: tender.id,
-          actionLabel: "View tender",
-          sortRank: 6,
-        });
-      }
-    }
-
-    for (const payOrder of payOrders) {
-      const poDate = firstValidDateFrom(payOrder, ["returnDate", "releaseDate", "released", "submitted", "date"]);
-      if (!poDate) continue;
-      events.push({
-        id: `pay-order-${payOrder.id}`,
-        date: poDate,
-        title: payOrder.po ? `PO #${payOrder.po}` : "Pay order follow-up",
-        description: payOrder.tender || payOrder.bank || payOrder.status || "Pay order activity",
-        type: "payOrder",
-        sourceType: "payOrder",
-        entityId: payOrder.id,
-        actionLabel: "Open pay orders",
-        sortRank: 3,
-      });
-    }
-
-    for (const task of todos) {
-      const dueDate = normalizeDate(task.dueDate || task.due);
-      if (!dueDate || isTaskDone(task)) continue;
-      events.push({
-        id: `task-${task.id}`,
-        date: dueDate,
-        title: getTaskTitle(task),
-        description: task.category || task.project || "Task due date",
-        type: dueDate < todayStr ? "overdue" : "task",
-        sourceType: "task",
-        entityId: task.id,
-        actionLabel: "Open tasks",
-        sortRank: 4,
-      });
-    }
-
-    for (const customEvent of customEvents) {
-      const customDate = normalizeDate(customEvent.date);
-      if (!customDate) continue;
-      const eventType = customEvent.eventType || "General";
-      const customType = /site/i.test(eventType) ? "siteVisit" : "custom";
-      events.push({
-        id: customEvent.id,
-        date: customDate,
-        title: customEvent.title || "Custom event",
-        description: customEvent.notes || eventType,
-        type: customType,
-        sourceType: "custom",
-        eventType,
-        notes: customEvent.notes,
-        raw: customEvent,
-        actionLabel: isAdmin ? "Edit event" : "",
-        sortRank: 7,
-      });
-    }
-
-    return events.sort(eventSort);
-  }, [customEvents, isAdmin, payOrders, tenders, todayStr, todos]);
+  const allEvents = useMemo(() => deriveCalendarEvents({ tenders, payOrders, todos, customEvents, today: todayStr }),
+    [tenders, payOrders, todos, customEvents, todayStr]);
+  const visibleEvents = useMemo(() => allEvents.filter((event) =>
+    (typeFilter === "all" || event.kind === typeFilter || (typeFilter === "overdue" && event.type === "overdue"))
+    && (sourceFilter === "all" || event.sourceType === sourceFilter)), [allEvents, typeFilter, sourceFilter]);
 
   const eventsByDate = useMemo(() => {
-    return allEvents.reduce((map, event) => {
+    return visibleEvents.reduce((map, event) => {
       if (!map[event.date]) map[event.date] = [];
       map[event.date].push(event);
       return map;
     }, {});
-  }, [allEvents]);
+  }, [visibleEvents]);
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -337,17 +183,17 @@ export default function Calendar() {
 
   const currentMonthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
   const selectedEvents = eventsByDate[selectedDay] || [];
-  const weekEnd = addDays(todayStr, 6);
-  const thisWeekEvents = allEvents.filter((event) => event.date >= todayStr && event.date <= weekEnd);
-  const overdueEvents = allEvents.filter((event) => event.date < todayStr && event.type === "overdue");
-  const openingEvents = allEvents.filter((event) => event.type === "opening" && event.date >= todayStr);
-  const monthEvents = allEvents.filter((event) => event.date.startsWith(currentMonthPrefix));
-  const listEvents = view === "week" ? thisWeekEvents : allEvents.filter((event) => event.date >= todayStr).slice(0, 30);
+  const weekEnd = shiftDate(todayStr, 6);
+  const thisWeekEvents = visibleEvents.filter((event) => event.date >= todayStr && event.date <= weekEnd);
+  const overdueEvents = visibleEvents.filter((event) => event.date < todayStr && event.type === "overdue");
+  const openingEvents = visibleEvents.filter((event) => event.type === "opening" && event.date >= todayStr);
+  const monthEvents = visibleEvents.filter((event) => event.date.startsWith(currentMonthPrefix));
+  const listEvents = view === "week" ? thisWeekEvents : monthEvents;
 
   const summaryCards = [
     {
       label: "Due Today",
-      value: allEvents.filter((event) => event.date === todayStr).length,
+      value: visibleEvents.filter((event) => event.date === todayStr).length,
       helper: "Actions scheduled today",
       icon: Clock3,
       tone: "amber",
@@ -379,13 +225,14 @@ export default function Calendar() {
     const next = new Date(year, month + delta, 1);
     setYear(next.getFullYear());
     setMonth(next.getMonth());
+    setSelectedDay(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`);
   };
 
   const goToday = () => {
-    const date = new Date();
-    setYear(date.getFullYear());
-    setMonth(date.getMonth());
-    setSelectedDay(toLocalDateString(date));
+    const date = todayInKarachi();
+    setYear(Number(date.slice(0, 4)));
+    setMonth(Number(date.slice(5, 7)) - 1);
+    setSelectedDay(date);
   };
 
   const dateStr = (day) => `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -393,71 +240,66 @@ export default function Calendar() {
   const openNewEvent = (dateOverride) => {
     if (!isAdmin) return;
     setEditEvent(null);
-    setForm({ title: "", date: dateOverride || selectedDay || todayStr, notes: "", eventType: "General" });
+    const nextForm = { title: "", date: dateOverride || selectedDay || todayStr, notes: "", eventType: "General" };
+    setForm(nextForm);
+    setInitialForm(nextForm);
+    setFormError("");
     setDialogOpen(true);
   };
 
   const openEditEvent = (event) => {
     if (!isAdmin || event.sourceType !== "custom") return;
     setEditEvent(event.raw);
-    setForm({
+    const nextForm = {
       title: event.raw.title || "",
-      date: normalizeDate(event.raw.date),
+      date: calendarDate(event.raw.date),
       notes: event.raw.notes || "",
       eventType: event.raw.eventType || "General",
-    });
+    };
+    setForm(nextForm);
+    setInitialForm(nextForm);
+    setFormError("");
     setDialogOpen(true);
   };
 
   const openEvent = (event) => {
-    if (event.sourceType === "custom") {
-      openEditEvent(event);
-      return;
-    }
-    if (event.sourceType === "payOrder") {
-      navigate("/pay-orders");
-      return;
-    }
-    if (event.sourceType === "task") {
-      navigate("/todo");
-      return;
-    }
-    if (event.entityId) navigate(`/tenders/${event.entityId}`);
+    setFocusedEvent(event);
   };
 
   const handleSave = async () => {
-    if (!form.title || !form.date) {
-      toast.error("Title and date are required");
+    if (saving) return;
+    if (!form.title.trim() || !validDateOnly(form.date)) {
+      setFormError("Enter a title and a valid date.");
       return;
     }
+    setFormError("");
     setSaving(true);
     try {
+      const payload = { ...form, title: form.title.trim() };
       if (editEvent) {
-        await update(editEvent.id, form);
+        const changes = Object.fromEntries(Object.entries(payload).filter(([key, value]) => value !== initialForm[key]));
+        if (!Object.keys(changes).length) { setDialogOpen(false); return; }
+        await update(editEvent.id, changes);
         toast.success("Event updated");
       } else {
-        await add(form);
+        await add(payload);
         toast.success("Event added");
       }
       setDialogOpen(false);
     } catch (err) {
       console.error("Failed to save event:", err);
+      setFormError("Event could not be saved. Your entries are still here; please try again.");
       toast.error("Failed to save event");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!editEvent) return;
-    try {
-      await remove(editEvent.id);
-      toast.success("Event deleted");
-      setDialogOpen(false);
-    } catch (err) {
-      console.error("Failed to delete event:", err);
-      toast.error("Failed to delete event");
-    }
+  const requestClose = (open) => {
+    if (open) return;
+    if (saving) return;
+    if (initialForm && JSON.stringify(form) !== JSON.stringify(initialForm)) setDiscardOpen(true);
+    else setDialogOpen(false);
   };
 
   const loading = tendersLoading || payOrdersLoading || todosLoading || customLoading;
@@ -477,7 +319,7 @@ export default function Calendar() {
     <div className="space-y-6">
       <PageHeader
         title="Calendar"
-        description="Track submissions, openings, pay orders, and tasks"
+        description="Recorded deadlines, follow-ups and manual events"
         actions={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
             <div className="inline-flex w-full rounded-xl border bg-background p-1 sm:w-auto">
@@ -507,40 +349,31 @@ export default function Calendar() {
         }
       />
 
-      <Card className="overflow-hidden border-emerald-100 bg-emerald-50/50 dark:border-emerald-900/40 dark:bg-emerald-950/15">
-        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between md:p-5">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Deadline control center</p>
-            <h2 className="mt-2 text-xl font-semibold tracking-tight text-foreground md:text-2xl">
-              {allEvents.length} tracked date{allEvents.length === 1 ? "" : "s"} across tenders and projects
-            </h2>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              Monitor submission dates, bid openings, pay order follow-ups, task due dates, site visits, and payment activity from one calendar.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-sm sm:w-[260px]">
-            <MiniStat label="Today" value={allEvents.filter((event) => event.date === todayStr).length} />
-            <MiniStat label="Month" value={monthEvents.length} />
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {summaryCards.map((card) => (
           <KpiCard key={card.label} {...card} />
         ))}
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin sm:flex-wrap sm:overflow-visible sm:pb-0">
-        {["submission", "opening", "payOrder", "task", "siteVisit", "overdue"].map((type) => {
-          const meta = EVENT_TYPES[type];
-          return (
-            <span key={type} className="inline-flex flex-shrink-0 items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground">
-              <span className={cn("h-2.5 w-2.5 rounded-full", meta.dot)} />
-              {meta.shortLabel}
-            </span>
-          );
-        })}
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 sm:p-4">
+        <label className="min-w-[150px] flex-1 space-y-1 text-xs font-medium text-muted-foreground">
+          Event type
+          <select aria-label="Event type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground">
+            <option value="all">All types</option>
+            {Object.entries(EVENT_TYPES).map(([key, meta]) => <option key={key} value={key}>{meta.label}</option>)}
+          </select>
+        </label>
+        <label className="min-w-[150px] flex-1 space-y-1 text-xs font-medium text-muted-foreground">
+          Source
+          <select aria-label="Event source" value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)} className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground">
+            <option value="all">All sources</option>
+            <option value="tender">Tenders and projects</option>
+            <option value="payOrder">Pay orders</option>
+            <option value="task">To-Do</option>
+            <option value="custom">Manual events</option>
+          </select>
+        </label>
+        {(typeFilter !== "all" || sourceFilter !== "all") && <Button variant="outline" onClick={() => { setTypeFilter("all"); setSourceFilter("all"); }}>Clear filters</Button>}
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -548,9 +381,9 @@ export default function Calendar() {
           <CardHeader className="border-b bg-muted/20 p-4 md:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="text-lg md:text-xl">{view === "month" ? `${MONTHS[month]} ${year}` : view === "week" ? "This Week" : "Upcoming Deadlines"}</CardTitle>
+                <CardTitle className="text-lg md:text-xl">{view === "week" ? `Next 7 days · ${formatDate(todayStr)}–${formatDate(weekEnd)}` : `${MONTHS[month]} ${year}`}</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {view === "month" ? `${monthEvents.length} event${monthEvents.length === 1 ? "" : "s"} this month` : "Tender and project dates in order"}
+                  {view === "week" ? `${thisWeekEvents.length} recorded event${thisWeekEvents.length === 1 ? "" : "s"}` : `${monthEvents.length} recorded event${monthEvents.length === 1 ? "" : "s"} this month`}
                 </p>
               </div>
               <div className="flex items-center gap-1">
@@ -607,8 +440,8 @@ export default function Calendar() {
                           {dayEvents.slice(0, 2).map((event) => {
                             const meta = EVENT_TYPES[event.type] || EVENT_TYPES.custom;
                             return (
-                              <div key={event.id} className={cn("hidden rounded-full px-2 py-0.5 text-xs font-medium sm:block", meta.pill)}>
-                                <span className="block truncate">{event.title}</span>
+                              <div key={event.id} title={`${meta.label}: ${event.title}`} className={cn("hidden rounded-full px-2 py-0.5 text-xs font-medium sm:block", meta.pill)}>
+                                <span className="block truncate">{meta.shortLabel}: {event.title}</span>
                               </div>
                             );
                           })}
@@ -619,7 +452,7 @@ export default function Calendar() {
                             })}
                           </div>
                           {dayEvents.length > 2 && (
-                            <p className="hidden text-xs font-medium text-muted-foreground sm:block">+{dayEvents.length - 2} more</p>
+                            <p className="hidden text-xs font-medium text-muted-foreground sm:block">+{dayEvents.length - 2} more · open day</p>
                           )}
                         </div>
                       </button>
@@ -628,7 +461,7 @@ export default function Calendar() {
                 </div>
               </>
             ) : (
-              <EventList events={listEvents} emptyText="No upcoming deadlines or activities." onOpen={openEvent} grouped />
+              <EventList events={listEvents} emptyText="No recorded events in this range. Change the month or clear filters." onOpen={openEvent} grouped />
             )}
           </CardContent>
         </Card>
@@ -641,36 +474,38 @@ export default function Calendar() {
         />
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[92dvh] overflow-x-hidden">
+      <Dialog open={dialogOpen} onOpenChange={requestClose}>
+        <DialogContent className="max-h-[100dvh] w-full max-w-lg overflow-x-hidden rounded-none sm:max-h-[92dvh] sm:rounded-2xl">
           <DialogHeader>
             <DialogTitle>{editEvent ? "Edit Event" : "New Event"}</DialogTitle>
+            <DialogDescription>Only manual events can be changed here. Linked dates remain in their source records.</DialogDescription>
           </DialogHeader>
           <div className="min-w-0 space-y-4 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="calendar-event-title">Title *</Label>
-              <Input id="calendar-event-title" value={form.title} onChange={(event) => setForm((previous) => ({ ...previous, title: event.target.value }))} placeholder="Event title" required aria-invalid={!form.title} />
+              <Input id="calendar-event-title" value={form.title} onChange={(event) => setForm((previous) => ({ ...previous, title: event.target.value }))} placeholder="Event title" required maxLength={500} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="calendar-event-date">Date *</Label>
-              <Input id="calendar-event-date" type="date" value={form.date} onChange={(event) => setForm((previous) => ({ ...previous, date: event.target.value }))} className="mobile-date-input" required aria-invalid={!form.date} />
+              <Input id="calendar-event-date" type="date" value={form.date} onChange={(event) => setForm((previous) => ({ ...previous, date: event.target.value }))} className="mobile-date-input" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="calendar-event-type">Type</Label>
-              <Input id="calendar-event-type" value={form.eventType} onChange={(event) => setForm((previous) => ({ ...previous, eventType: event.target.value }))} placeholder="e.g. Meeting, Site Visit" />
+              <Input id="calendar-event-type" value={form.eventType} onChange={(event) => setForm((previous) => ({ ...previous, eventType: event.target.value }))} placeholder="e.g. Meeting, Site Visit" maxLength={100} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="calendar-event-notes">Notes</Label>
-              <Textarea id="calendar-event-notes" value={form.notes} onChange={(event) => setForm((previous) => ({ ...previous, notes: event.target.value }))} rows={3} />
+              <Textarea id="calendar-event-notes" value={form.notes} onChange={(event) => setForm((previous) => ({ ...previous, notes: event.target.value }))} rows={3} maxLength={5000} />
             </div>
+            {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="sticky bottom-0 gap-2 border-t bg-popover pt-3">
             {editEvent && (
-              <Button variant="destructive" onClick={handleDelete} className="w-full sm:mr-auto sm:w-auto">
+              <Button variant="destructive" onClick={() => setDeleteEventId(editEvent.id)} disabled={saving} className="w-full sm:mr-auto sm:w-auto">
                 Delete
               </Button>
             )}
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" onClick={() => requestClose(false)} disabled={saving}>
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={saving}>
@@ -680,15 +515,21 @@ export default function Calendar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function MiniStat({ label, value }) {
-  return (
-    <div className="rounded-xl border border-emerald-100 bg-white/75 p-3 dark:border-emerald-900/40 dark:bg-background/50">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold leading-none text-emerald-700 dark:text-emerald-300">{value}</p>
+      <Dialog open={!!focusedEvent} onOpenChange={(open) => !open && setFocusedEvent(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="pr-8">{focusedEvent?.title}</DialogTitle><DialogDescription>Recorded event details and source link.</DialogDescription></DialogHeader>
+          {focusedEvent && <div className="space-y-3 text-sm">
+            <p><span className="text-muted-foreground">Type:</span> {EVENT_TYPES[focusedEvent.type]?.label || "Event"}</p>
+            <p><span className="text-muted-foreground">Date:</span> {formatDate(focusedEvent.date)} · date only</p>
+            <p><span className="text-muted-foreground">Source:</span> {focusedEvent.source}</p>
+            <p className="break-words text-muted-foreground">{focusedEvent.description}</p>
+            {focusedEvent.sourceType === "custom" ? isAdmin && <Button onClick={() => { const event = focusedEvent; setFocusedEvent(null); openEditEvent(event); }}>Edit event</Button>
+              : <Button onClick={() => { navigate(focusedEvent.link); setFocusedEvent(null); }}>Open record <ExternalLink className="h-4 w-4" /></Button>}
+          </div>}
+        </DialogContent>
+      </Dialog>
+      <ConfirmDelete open={discardOpen} onOpenChange={setDiscardOpen} title="Discard event changes?" description="Unsaved changes will be lost." confirmLabel="Discard" onConfirm={() => { setDialogOpen(false); setDiscardOpen(false); }} />
+      <ConfirmDelete open={!!deleteEventId} onOpenChange={() => setDeleteEventId(null)} title="Delete manual event?" description="This manual event will be permanently deleted." onConfirm={async () => { await remove(deleteEventId); toast.success("Event deleted"); setDialogOpen(false); setDeleteEventId(null); }} />
     </div>
   );
 }
@@ -757,7 +598,7 @@ function EventList({ events, emptyText, onOpen, grouped = false }) {
       {events.map((event) => {
         const meta = EVENT_TYPES[event.type] || EVENT_TYPES.custom;
         const Icon = meta.icon || Briefcase;
-        const isPast = event.date < toLocalDateString(new Date());
+        const isPast = event.date < todayInKarachi();
         return (
           <button
             key={event.id}
@@ -775,14 +616,14 @@ function EventList({ events, emptyText, onOpen, grouped = false }) {
                 </Badge>
                 <span className="text-xs text-muted-foreground">{formatDate(event.date)}</span>
               </div>
-              <p className="mt-1.5 line-clamp-2 text-sm font-semibold leading-snug text-foreground">{event.title}</p>
+              <p title={event.title} className="mt-1.5 line-clamp-2 text-sm font-semibold leading-snug text-foreground">{event.title}</p>
               {event.description && (
                 <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{event.description}</p>
               )}
             </div>
-            {event.actionLabel && (
+            {event.sourceType !== "custom" && (
               <span className="mt-1 inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
-                <span className="hidden sm:inline">{event.actionLabel}</span>
+                <span className="hidden sm:inline">Details</span>
                 <ExternalLink className="h-4 w-4" />
               </span>
             )}
