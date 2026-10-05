@@ -231,7 +231,7 @@ export default function PayOrders() {
   const [appliedFilters, setAppliedFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState("10");
-  const [reviewOnly, setReviewOnly] = useState(false);
+  const [reviewOnly, setReviewOnly] = useState(searchParams.get("review") === "1");
   const [optionalColumns, setOptionalColumns] = useState({ agency: false, submitted: false, bidResult: false });
   const [formErrors, setFormErrors] = useState({});
   const [saveError, setSaveError] = useState("");
