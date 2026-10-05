@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "test": "npm run test:unit && npm run test:ui",
     "test:unit": "node --test test/domain.test.js test/integrations.test.js test/firestore.rules.test.js",
-    "test:ui": "vitest run",
+    "test:ui": "vitest run --maxWorkers=1",
     "test:rules": "npx --yes firebase-tools@15.30.2 emulators:exec --only firestore \"npm test\"",
     "check:csp": "node scripts/check-csp.mjs",
     "check": "npm run lint && npm test && npm run check:csp && npm run build",

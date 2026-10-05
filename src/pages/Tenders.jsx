@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCollection } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
@@ -6,6 +6,7 @@ import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore
 import { db } from "@/lib/firebase";
 import { queueTenderIntegrationSync } from "@/lib/tenderIntegrations";
 import { tenderContractValue } from "@/lib/financials";
+import { tenderListAmount, validTenderSubmissionDate } from "@/lib/tenderListPresentation";
 import {
   formatDate,
   formatCurrencyPrecise,
@@ -23,6 +24,7 @@ import ConfirmDelete from "@/components/shared/ConfirmDelete";
 import TenderQuickView from "@/components/shared/TenderQuickView";
 import DeadlineBadge from "@/components/shared/DeadlineBadge";
 import KpiCard from "@/components/shared/KpiCard";
+import TenderEditor from "@/components/tenders/TenderEditor";
 import { PageTableSkeleton } from "@/components/shared/LoadingSkeletons";
 import LoadState from "@/components/shared/LoadState";
 import { Button } from "@/components/ui/button";
@@ -53,9 +55,11 @@ import {
   SheetDescription,
   SheetFooter,
 } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -80,11 +84,13 @@ import {
   CheckCircle,
   Calendar,
   MoreHorizontal,
+  Columns3,
+  ChevronDown,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getTenderDeadline, matchesDeadlineFilter } from "@/lib/tenderDeadlines";
 
-const TERMINAL_STATUSES = ["Completed", "Lost", "Cancelled"];
 const PIPELINE_STAGES = [
   "Draft",
   "Bidding",
@@ -202,6 +208,17 @@ function isSameStatus(status, target) {
   return String(status || "").trim().toLowerCase() === target.toLowerCase();
 }
 
+function TenderRowMenu({ tender, isAdmin, openDialog, setDeleteId, setQuickView }) {
+  return <DropdownMenu>
+    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={`Actions for ${tender.name || 'tender'}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+    <DropdownMenuContent align="end">
+      <DropdownMenuItem onClick={() => setQuickView(tender)}>Quick view</DropdownMenuItem>
+      <DropdownMenuItem asChild><Link to={`/tenders/${tender.id}`}><ExternalLink className="mr-2 h-4 w-4" /> View detail</Link></DropdownMenuItem>
+      {isAdmin && <><DropdownMenuItem onClick={() => openDialog(tender)}><Pencil className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(tender.id)}><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></>}
+    </DropdownMenuContent>
+  </DropdownMenu>;
+}
+
 export default function Tenders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: tenders, loading, error } = useCollection(
@@ -224,6 +241,13 @@ export default function Tenders() {
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState(EMPTY_TENDER);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const initialDraft = useRef(JSON.stringify(EMPTY_TENDER));
+  const [formErrors, setFormErrors] = useState({});
+  const [saveError, setSaveError] = useState("");
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [extraOpen, setExtraOpen] = useState(false);
+  const [optionalColumns, setOptionalColumns] = useState({ openingDate: false, estimatedCost: false, quotedAmount: false, quotedPercent: false });
   const [deleteId, setDeleteId] = useState(null);
   const [quickView, setQuickView] = useState(null);
 
@@ -419,23 +443,6 @@ export default function Tenders() {
           tenderContractValue(item.tender),
         0,
       );
-    const activeValue = summaries
-      .filter(
-        (item) =>
-          !TERMINAL_STATUSES.some((status) =>
-            isSameStatus(item.tender.displayStatus, status),
-          ),
-      )
-      .reduce(
-        (sum, item) =>
-          sum +
-          toNumber(
-            item.tender.value ||
-              item.financials.quotedAmount ||
-              item.financials.estimatedCost,
-          ),
-        0,
-      );
     const percentages = summaries
       .map((item) => item.financials.percentage)
       .filter((value) => Number.isFinite(value));
@@ -471,12 +478,6 @@ export default function Tenders() {
         helper: "Average variance",
         icon: BarChart3,
       },
-      {
-        label: "Active Tender Value",
-        value: formatCurrencyPrecise(activeValue, 0),
-        helper: "Open pipeline value",
-        icon: TrendingUp,
-      },
     ];
   }, [tendersResolved]);
 
@@ -492,30 +493,41 @@ export default function Tenders() {
   };
 
   const openDialog = (item = null) => {
+    const nextForm = item ? { ...EMPTY_TENDER, ...item } : { ...EMPTY_TENDER };
     setEditItem(item);
-    setForm(item ? { ...EMPTY_TENDER, ...item } : { ...EMPTY_TENDER });
+    setForm(nextForm);
+    initialDraft.current = JSON.stringify(nextForm);
+    setFormErrors({});
+    setSaveError("");
+    setExtraOpen(Boolean(nextForm.notes || nextForm.contact));
     setDialogOpen(true);
   };
 
+  const requestClose = () => {
+    if (savingRef.current) return;
+    if (JSON.stringify(form) !== initialDraft.current) setDiscardOpen(true);
+    else setDialogOpen(false);
+  };
+
   const handleSave = async () => {
-    if (!form.name) {
-      toast.error("Tender name is required");
-      return;
-    }
-    const invalidMoneyField = [
-      ["Tender value", form.value, false],
-      ["Estimated cost", form.estimatedCost, true],
-      ["Quoted amount", form.quotedAmount, true],
-      ["Tender fee", form.tenderFee, true],
-    ].find(([, raw, optional]) => !(optional && raw === "") && (!Number.isFinite(Number(raw)) || Number(raw) < 0));
-    if (invalidMoneyField) {
-      toast.error(`${invalidMoneyField[0]} must be a non-negative number.`);
-      return;
+    if (savingRef.current) return;
+    setSaveError("");
+    const errors = {};
+    if (!form.name?.trim()) errors.name = "Tender name is required";
+    for (const [key, label, optional] of [
+      ["value", "Tender value", false],
+      ["estimatedCost", "Estimated cost", true],
+      ["quotedAmount", "Quoted amount", true],
+      ["tenderFee", "Tender fee", true],
+    ]) {
+      const raw = form[key];
+      if (!(optional && (raw === "" || raw == null)) && (raw === "" || raw == null || !Number.isFinite(Number(raw)) || Number(raw) < 0)) errors[key] = `${label} must be a non-negative number.`;
     }
     if (editItem && form.status === "Completed" && editItem.status !== "Completed") {
-      toast.error("Complete this tender from its detail page so the completion snapshot is recorded.");
-      return;
+      errors.status = "Complete this tender from its detail page so the completion snapshot is recorded.";
     }
+    setFormErrors(errors);
+    if (Object.keys(errors).length) return;
 
     // Duplicate NIT detection
     if (form.nit && !editItem) {
@@ -545,6 +557,7 @@ export default function Tenders() {
       }
     }
 
+    savingRef.current = true;
     setSaving(true);
     try {
       const tenderFeeNum = Number(form.tenderFee) || 0;
@@ -649,12 +662,13 @@ export default function Tenders() {
       setDialogOpen(false);
     } catch (error) {
       console.error("Failed to save tender:", error);
-      toast.error(
-        error?.code === "permission-denied"
+      const message = error?.code === "permission-denied"
           ? "Your account does not have permission to save tenders. The Firestore rules or administrator role may need updating."
-          : "Tender could not be saved. Please check your connection and try again.",
-      );
+          : "Tender could not be saved. Please check your connection and try again.";
+      setSaveError(message);
+      toast.error(message);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -679,53 +693,9 @@ export default function Tenders() {
     setDeleteId(null);
   };
 
-  const setF = (k) => (e) =>
+  const setF = (k) => (e) => {
     setForm((p) => ({ ...p, [k]: e.target?.value ?? e }));
-
-  const tenderFinancials = calculateTenderFinancials(form);
-  const financialDirectionText =
-    tenderFinancials.direction === "below"
-      ? "Below"
-      : tenderFinancials.direction === "above"
-        ? "Above"
-        : tenderFinancials.direction === "at"
-          ? "At Estimate"
-          : "";
-  const financialTone =
-    tenderFinancials.direction === "above"
-      ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
-      : tenderFinancials.direction === "at"
-        ? "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200"
-        : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200";
-
-  const getTenderFinancialSummary = (tender) => {
-    const financials = calculateTenderFinancials(tender);
-    if (financials.estimatedCost === null && financials.quotedAmount === null) {
-      return null;
-    }
-    const directionText =
-      financials.direction === "below"
-        ? "Below"
-        : financials.direction === "above"
-          ? "Above"
-          : financials.direction === "at"
-            ? "At Estimate"
-            : "";
-    const percentText =
-      financials.percentage === null
-        ? "—"
-        : `${financials.percentage.toFixed(2)}% ${directionText}`;
-    return {
-      estimate: formatCurrencyPrecise(financials.estimatedCost, 0),
-      quoted: formatCurrencyPrecise(financials.quotedAmount, 0),
-      percentText,
-      direction: financials.direction,
-    };
-  };
-
-  const formatMobileNitRef = (value) => {
-    if (value === null || value === undefined || value === "") return "—";
-    return String(value).replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim() || "—";
+    setFormErrors((current) => ({ ...current, [k]: undefined }));
   };
 
   if (loading) return <PageTableSkeleton rows={6} cols={6} metrics={5} />;
@@ -738,13 +708,6 @@ export default function Tenders() {
         description="Manage tender pipeline, submissions, pay orders, deadlines, and project status."
         actions={
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => exportTendersCSV(filtered)}
-            >
-              <Download className="h-4 w-4" /> Export CSV
-            </Button>
             {isAdmin && (
               <Button onClick={() => openDialog()}>
                 <Plus className="h-4 w-4" /> Add Tender
@@ -836,94 +799,28 @@ export default function Tenders() {
               })}
             </div>
 
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(220px,1.4fr)_repeat(5,minmax(150px,1fr))]">
-              <div className="relative min-w-0">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  aria-label="Search tenders"
-                  placeholder="Search tenders..."
-                  className="h-10 min-w-0 pl-9"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-[220px] flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Search tenders" placeholder="Search tender, agency or NIT..." className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+              <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm"><Columns3 className="h-4 w-4" /> Columns</Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48">
+                {[['openingDate','Opening date'],['estimatedCost','Estimate'],['quotedAmount','Quoted bid'],['quotedPercent','Quoted %']].map(([key,label]) => <DropdownMenuCheckboxItem key={key} checked={optionalColumns[key]} onCheckedChange={(checked) => setOptionalColumns((current) => ({ ...current, [key]: Boolean(checked) }))}>{label}</DropdownMenuCheckboxItem>)}
+              </DropdownMenuContent></DropdownMenu>
+              <Button variant="outline" size="sm" onClick={() => exportTendersCSV(filtered)}><Download className="h-4 w-4" /> Export CSV</Button>
+              <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print</Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {['All','Bidding','Submitted'].map((status) => <button key={status} type="button" aria-pressed={filterStatus === status} onClick={() => setFilterStatus(status)} className={'rounded-full border px-3 py-1.5 text-xs font-medium ' + (filterStatus === status ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:bg-accent')}>{status} <span className="ml-1 font-mono tabular-nums">{stageCounts[status] || 0}</span></button>)}
+              <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm">More statuses <ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start">{FILTER_STATUSES.filter((status) => !['All','Bidding','Submitted'].includes(status)).map((status) => <DropdownMenuItem key={status} onClick={() => setFilterStatus(status)}>{status} ({stageCounts[status] || 0})</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>
+              {filterStatus !== 'All' && !['Bidding','Submitted'].includes(filterStatus) && <span className="text-xs text-muted-foreground">Selected: {filterStatus}</span>}
+            </div>
+            <details className="rounded-lg border bg-background px-3 py-2"><summary className="cursor-pointer text-sm font-medium">More filters <ChevronDown className="ml-1 inline h-4 w-4" /></summary>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Select value={filterAgency} onValueChange={setFilterAgency}><SelectTrigger aria-label="Filter by agency"><SelectValue placeholder="Agency" /></SelectTrigger><SelectContent><SelectItem value="All">All agencies</SelectItem>{agencies.map((agency) => <SelectItem key={agency} value={agency}>{agency}</SelectItem>)}</SelectContent></Select>
+                <Input type="date" className="mobile-date-input" value={submissionFrom} onChange={(e) => setSubmissionFrom(e.target.value)} aria-label="Submission date from" />
+                <Input type="date" className="mobile-date-input" value={submissionTo} onChange={(e) => setSubmissionTo(e.target.value)} aria-label="Submission date to" />
+                <Select value={sortBy} onValueChange={setSortBy}><SelectTrigger aria-label="Sort tenders"><SelectValue placeholder="Sort by" /></SelectTrigger><SelectContent>{SORT_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select>
               </div>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="h-10 min-w-0" aria-label="Filter by status">
-                  <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {FILTER_STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={filterAgency} onValueChange={setFilterAgency}>
-                <SelectTrigger className="h-10 min-w-0" aria-label="Filter by agency">
-                  <SelectValue placeholder="Agency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="All">All agencies</SelectItem>
-                  {agencies.map((agency) => (
-                    <SelectItem key={agency} value={agency}>
-                      {agency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="date"
-                className="mobile-date-input"
-                value={submissionFrom}
-                onChange={(e) => setSubmissionFrom(e.target.value)}
-                aria-label="Submission date from"
-              />
-              <Input
-                type="date"
-                className="mobile-date-input"
-                value={submissionTo}
-                onChange={(e) => setSubmissionTo(e.target.value)}
-                aria-label="Submission date to"
-              />
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="h-10 min-w-0" aria-label="Sort tenders">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-thin -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
-              {FILTER_STATUSES.map((s) => {
-                const tone = STATUS_TONES[s];
-                const active = filterStatus === s;
-                return (
-                  <button
-                    key={s}
-                    onClick={() => setFilterStatus(s)}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
-                      active
-                        ? tone?.active || "bg-primary text-primary-foreground border-primary"
-                        : tone
-                        ? `${tone.border} ${tone.text} ${tone.bg} hover:bg-accent`
-                        : "border-transparent bg-muted text-muted-foreground hover:bg-accent"
-                    }`}
-                  >
-                    {s}
-                    <span className="ml-1.5 rounded-full bg-background/70 px-1.5 py-0.5 font-mono text-xs tabular-nums">
-                      {stageCounts[s] ?? 0}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            </details>
           </CardHeader>
           {filtered.length === 0 ? (
             <EmptyState
@@ -933,254 +830,57 @@ export default function Tenders() {
             />
           ) : (
             <>
-              {/* Mobile: card-per-row */}
-              <div className="space-y-3 bg-muted/30 p-3 pb-4 md:hidden">
+
+              {/* Mobile: labelled cards */}
+              <div className="space-y-3 bg-muted/30 p-3 md:hidden">
                 {paginatedTenders.map((t) => {
-                  const financialSummary = getTenderFinancialSummary(t);
-                  const summaryTone =
-                    financialSummary?.direction === "above"
-                      ? "border-amber-200 bg-amber-50/70 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
-                      : financialSummary?.direction === "at"
-                        ? "border-blue-200 bg-blue-50/70 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100"
-                        : "border-emerald-200 bg-emerald-50/70 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100";
-
-                  return (
-                  <Card key={t.id} className="overflow-hidden rounded-xl border-border">
-                    <CardContent className="space-y-3.5 p-4">
-                      <div className="flex items-start justify-between gap-2.5">
-                        <div className="min-w-0 flex-1">
-                          <button
-                            type="button"
-                            onClick={() => setQuickView(t)}
-                            className="block text-left w-full"
-                          >
-                            <p className="text-sm font-semibold leading-snug text-foreground hover:underline">
-                              {t.name || "Untitled"}
-                            </p>
-                          </button>
-                          <div className="mt-2 flex">
-                            <StatusBadge status={t.displayStatus} />
-                          </div>
-                          {t.agency && (
-                            <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                              {t.agency}
-                            </p>
-                          )}
-                          {financialSummary && (
-                            <div
-                              className={`mt-3 rounded-xl border px-3 py-2.5 text-xs ${summaryTone}`}
-                            >
-                              <div className="grid grid-cols-2 gap-2.5">
-                                <div className="min-w-0 rounded-lg bg-white/60 px-2.5 py-2 dark:bg-background/30">
-                                  <p className="text-xs font-medium tracking-normal opacity-75 sm:uppercase sm:tracking-wide">
-                                    Estimate
-                                  </p>
-                                  <p className="mt-1 truncate font-mono text-[13px] font-semibold tabular-nums text-foreground">
-                                    {financialSummary.estimate}
-                                  </p>
-                                </div>
-                                <div className="min-w-0 rounded-lg bg-white/60 px-2.5 py-2 dark:bg-background/30">
-                                  <p className="text-xs font-medium tracking-normal opacity-75 sm:uppercase sm:tracking-wide">
-                                    Quoted
-                                  </p>
-                                  <p className="mt-1 truncate font-mono text-[13px] font-semibold tabular-nums text-foreground">
-                                    {financialSummary.quoted}
-                                  </p>
-                                </div>
-                              </div>
-                              {financialSummary.percentText !== "—" && (
-                                <span className="mt-2.5 inline-flex rounded-full border border-current/20 bg-white/75 px-2.5 py-1 text-xs font-semibold leading-none dark:bg-background/40">
-                                  {financialSummary.percentText}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                className="h-8 w-8"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link
-                                  to={`/tenders/${t.id}`}
-                                  className="cursor-pointer"
-                                >
-                                  <ExternalLink className="mr-2 h-4 w-4" /> View
-                                  detail
-                                </Link>
-                              </DropdownMenuItem>
-                              {isAdmin && (
-                                <>
-                                  <DropdownMenuItem
-                                    onClick={() => openDialog(t)}
-                                  >
-                                    <Pencil className="mr-2 h-4 w-4" /> Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => setDeleteId(t.id)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg bg-muted/40 px-3 py-2">
-                        <p className="text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
-                          Contract value
-                        </p>
-                        <p className="mt-1 font-mono text-base font-semibold leading-none tabular-nums text-foreground">
-                          {formatCurrencyPrecise(t.value, 0)}
-                        </p>
-                      </div>
-
-                      <div className="space-y-3 border-t border-border pt-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 text-foreground">
-                            <Calendar className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                            <span className="text-sm truncate">
-                              {formatDate(t.submissionDate) || "—"}
-                            </span>
-                            <DeadlineBadge tender={t} className="ml-auto" />
-                          </div>
-                          <p className="ml-[22px] mt-1 text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
-                            Submission
-                          </p>
-                        </div>
-                        <div className="min-w-0 rounded-lg bg-muted/35 px-3 py-2">
-                          <p className="text-xs font-medium tracking-normal text-muted-foreground sm:uppercase sm:tracking-wide">
-                            NIT / Ref
-                          </p>
-                          <p
-                            className="mt-1 line-clamp-2 break-words font-mono text-[13px] leading-5 text-foreground [overflow-wrap:anywhere]"
-                            title={formatMobileNitRef(t.nit)}
-                          >
-                            {formatMobileNitRef(t.nit)}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  );
+                  const relevant = tenderListAmount(t);
+                  const recordedDate = validTenderSubmissionDate(t.submissionDate);
+                  const deadline = recordedDate ? getTenderDeadline(t) : null;
+                  return <Card key={t.id} className="min-w-0"><CardContent className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1"><Link to={'/tenders/' + t.id} title={t.name || 'Untitled'} className="block break-words text-sm font-semibold leading-snug hover:underline">{t.name || 'Untitled'}</Link><p className="mt-1 break-all text-xs text-muted-foreground">NIT: {t.nit || 'Not recorded'}</p></div>
+                      <StatusBadge status={t.displayStatus} />
+                    </div>
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                      <div className="min-w-0"><dt className="text-xs text-muted-foreground">Agency</dt><dd className="break-words">{t.agency || 'Not recorded'}</dd></div>
+                      <div className="min-w-0"><dt className="text-xs text-muted-foreground">Relevant amount</dt><dd className="font-mono tabular-nums [overflow-wrap:anywhere]">{relevant.amount === null ? 'Not recorded' : formatCurrencyPrecise(relevant.amount, 0)}</dd><dd className="text-xs text-muted-foreground">{relevant.label}</dd></div>
+                      <div className="col-span-2"><dt className="text-xs text-muted-foreground">Submission date</dt><dd>{recordedDate ? formatDate(t.submissionDate) : 'Not recorded'} {deadline && <DeadlineBadge tender={t} />}</dd></div>
+                    </dl>
+                    <div className="flex items-center justify-between border-t pt-2"><Button asChild variant="outline" size="sm"><Link to={'/tenders/' + t.id}>View tender</Link></Button><TenderRowMenu tender={t} isAdmin={isAdmin} openDialog={openDialog} setDeleteId={setDeleteId} setQuickView={setQuickView} /></div>
+                  </CardContent></Card>;
                 })}
               </div>
 
-              {/* Desktop: table */}
+              {/* Desktop: compact primary columns, optional secondary columns. */}
               <div className="hidden overflow-x-auto md:block">
-              <Table className="min-w-[1180px]">
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-sm">Tender Name</TableHead>
-                    <TableHead className="text-sm">Agency</TableHead>
-                    <TableHead className="text-sm">Status</TableHead>
-                    <TableHead className="text-sm">Submission</TableHead>
-                    <TableHead className="text-sm">Opening</TableHead>
-                    <TableHead className="text-right text-sm">Estimated</TableHead>
-                    <TableHead className="text-right text-sm">Quoted</TableHead>
-                    <TableHead className="text-sm">Quoted %</TableHead>
-                    <TableHead className="text-sm">NIT/Ref</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                <Table className="min-w-[840px]"><TableHeader><TableRow>
+                  <TableHead className="w-[27%]">Tender / NIT</TableHead><TableHead>Agency</TableHead><TableHead>Relevant Amount</TableHead><TableHead>Deadline</TableHead><TableHead>Status</TableHead>
+                  {optionalColumns.openingDate && <TableHead>Opening</TableHead>}
+                  {optionalColumns.estimatedCost && <TableHead>Estimate</TableHead>}
+                  {optionalColumns.quotedAmount && <TableHead>Quoted Bid</TableHead>}
+                  {optionalColumns.quotedPercent && <TableHead>Quoted %</TableHead>}
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow></TableHeader><TableBody>
                   {paginatedTenders.map((t) => {
-                    const financialSummary = getTenderFinancialSummary(t);
-                    return (
-                      <TableRow key={t.id}>
-                        <TableCell className="min-w-[200px] max-w-[320px]">
-                          <button
-                            type="button"
-                            onClick={() => setQuickView(t)}
-                            className="font-medium text-sm hover:underline text-foreground text-left whitespace-normal break-words"
-                          >
-                            {t.name || "Untitled"}
-                          </button>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground min-w-[160px] max-w-[220px] whitespace-normal break-words">
-                          {t.agency || "—"}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <StatusBadge status={t.displayStatus} />
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          <span>{formatDate(t.submissionDate) || "—"}</span>
-                          <DeadlineBadge tender={t} className="ml-2 align-middle" />
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {formatDate(t.openingDate) || "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm tabular-nums whitespace-nowrap">
-                          {financialSummary?.estimate || "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm tabular-nums whitespace-nowrap">
-                          {financialSummary?.quoted || "—"}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {financialSummary?.percentText || "—"}
-                        </TableCell>
-                        <TableCell className="max-w-[220px] font-mono text-sm text-muted-foreground whitespace-normal break-words">
-                          {t.nit || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                className="h-8 w-8"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link
-                                  to={`/tenders/${t.id}`}
-                                  className="cursor-pointer"
-                                >
-                                  <ExternalLink className="mr-2 h-4 w-4" /> View
-                                  detail
-                                </Link>
-                              </DropdownMenuItem>
-                              {isAdmin && (
-                                <>
-                                  <DropdownMenuItem
-                                    onClick={() => openDialog(t)}
-                                  >
-                                    <Pencil className="mr-2 h-4 w-4" /> Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => setDeleteId(t.id)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
+                    const relevant = tenderListAmount(t);
+                    const recordedDate = validTenderSubmissionDate(t.submissionDate);
+                    const deadline = recordedDate ? getTenderDeadline(t) : null;
+                    const financials = calculateTenderFinancials(t);
+                    return <TableRow key={t.id}>
+                      <TableCell className="min-w-[210px] max-w-[330px]"><Link to={'/tenders/' + t.id} title={t.name || 'Untitled'} className="line-clamp-3 break-words text-sm font-medium hover:underline">{t.name || 'Untitled'}</Link><span className="mt-1 block break-all text-xs text-muted-foreground">{t.nit || 'NIT not recorded'}</span></TableCell>
+                      <TableCell className="max-w-[190px] break-words text-sm">{t.agency || 'Not recorded'}</TableCell>
+                      <TableCell className="whitespace-nowrap text-sm"><span className="block font-mono tabular-nums">{relevant.amount === null ? 'Not recorded' : formatCurrencyPrecise(relevant.amount, 0)}</span><span className="text-xs text-muted-foreground">{relevant.label}</span></TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">{recordedDate ? formatDate(t.submissionDate) : 'Not recorded'}{deadline && <span className="ml-2"><DeadlineBadge tender={t} /></span>}</TableCell>
+                      <TableCell className="whitespace-nowrap"><StatusBadge status={t.displayStatus} /></TableCell>
+                      {optionalColumns.openingDate && <TableCell className="whitespace-nowrap text-sm">{t.openingDate ? formatDate(t.openingDate) : 'Not recorded'}</TableCell>}
+                      {optionalColumns.estimatedCost && <TableCell className="whitespace-nowrap font-mono text-sm tabular-nums">{financials.estimatedCost === null ? 'Not recorded' : formatCurrencyPrecise(financials.estimatedCost, 0)}</TableCell>}
+                      {optionalColumns.quotedAmount && <TableCell className="whitespace-nowrap font-mono text-sm tabular-nums">{financials.quotedAmount === null ? 'Not recorded' : formatCurrencyPrecise(financials.quotedAmount, 0)}</TableCell>}
+                      {optionalColumns.quotedPercent && <TableCell className="whitespace-nowrap text-sm">{financials.percentage === null ? '—' : financials.percentage.toFixed(2) + '%'}</TableCell>}
+                      <TableCell><div className="flex items-center justify-end gap-1"><Button asChild variant="outline" size="sm"><Link to={'/tenders/' + t.id}>View</Link></Button><TenderRowMenu tender={t} isAdmin={isAdmin} openDialog={openDialog} setDeleteId={setDeleteId} setQuickView={setQuickView} /></div></TableCell>
+                    </TableRow>;
                   })}
-                </TableBody>
-              </Table>
+                </TableBody></Table>
               </div>
               <div className="flex flex-col gap-3 border-t border-border bg-card px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-muted-foreground sm:px-4 md:flex-row md:items-center md:justify-between">
                 <span className="shrink-0">{paginationText}</span>
@@ -1245,211 +945,34 @@ export default function Tenders() {
       )}
 
       {/* Tender Sheet */}
-      <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
-        <SheetContent
-          side="right"
-          className="w-full sm:max-w-lg p-0 flex flex-col gap-0"
-        >
-          <SheetHeader className="px-6 py-4 border-b border-border">
+      <Sheet open={dialogOpen} onOpenChange={(open) => { if (!open) requestClose(); else setDialogOpen(true); }}>
+        <SheetContent side="right" className="flex h-dvh w-full min-w-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-[720px]">
+          <SheetHeader className="shrink-0 border-b border-border px-4 py-4 pr-14 text-left sm:px-6 sm:pr-14">
             <SheetTitle>{editItem ? "Edit Tender" : "New Tender"}</SheetTitle>
-            <SheetDescription>
-              {editItem
-                ? "Update tender details and status."
-                : "Add a new tender to the pipeline."}
-            </SheetDescription>
+            <SheetDescription>{editItem ? "Update the recorded tender details and stage." : "Add a tender to the pipeline."}</SheetDescription>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="t-name">
-                Tender Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="t-name"
-                value={form.name}
-                onChange={setF("name")}
-                placeholder="e.g. Supply of Office Equipment"
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="t-nit">NIT / Reference</Label>
-                <Input
-                  id="t-nit"
-                  value={form.nit}
-                  onChange={setF("nit")}
-                  placeholder="NIT-2024-001"
-                  className="font-mono"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="t-value">Value (PKR)</Label>
-                <Input
-                  id="t-value"
-                  type="number"
-                  value={form.value}
-                  onChange={setF("value")}
-                  placeholder="0"
-                  className="font-mono tabular-nums"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="t-agency">Procuring Agency</Label>
-              <Input
-                id="t-agency"
-                value={form.agency}
-                onChange={setF("agency")}
-                placeholder="e.g. PPRA, NHA"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="t-fee">Tender Fee (PKR)</Label>
-              <Input
-                id="t-fee"
-                type="number"
-                value={form.tenderFee}
-                onChange={setF("tenderFee")}
-                placeholder="0"
-                className="font-mono tabular-nums"
-              />
-              <p className="text-xs text-muted-foreground">
-                Automatically tracked as an expense under "Tender Fees".
-              </p>
-            </div>
-            <div className="rounded-xl border border-border bg-muted/20 p-4">
-              <div className="mb-3">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Financial Details
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Compare the official estimate with the submitted quote.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="t-estimated-cost">Estimated Cost</Label>
-                  <Input
-                    id="t-estimated-cost"
-                    type="number"
-                    value={form.estimatedCost ?? ""}
-                    onChange={setF("estimatedCost")}
-                    placeholder="2500000"
-                    className="font-mono tabular-nums"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Official department / NIT estimate
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="t-quoted-amount">Quoted Amount</Label>
-                  <Input
-                    id="t-quoted-amount"
-                    type="number"
-                    value={form.quotedAmount ?? ""}
-                    onChange={setF("quotedAmount")}
-                    placeholder="2400000"
-                    className="font-mono tabular-nums"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Submitted financial bid amount
-                  </p>
-                </div>
-              </div>
-              <div className={`mt-4 grid gap-2 rounded-lg border p-3 text-xs sm:grid-cols-3 ${financialTone}`}>
-                <div>
-                  <p className="font-medium opacity-75">Difference</p>
-                  <p className="mt-1 font-semibold">
-                    {tenderFinancials.difference === null
-                      ? "—"
-                      : `${formatCurrencyPrecise(tenderFinancials.difference, 2)} ${financialDirectionText}`}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-medium opacity-75">Quoted %</p>
-                  <p className="mt-1 font-semibold">
-                    {tenderFinancials.percentage === null
-                      ? "—"
-                      : `${tenderFinancials.percentage.toFixed(2)}% ${financialDirectionText}`}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-medium opacity-75">Status</p>
-                  <p className="mt-1 font-semibold">{tenderFinancials.positionLabel}</p>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="t-status">Status</Label>
-                <Select value={form.status} onValueChange={setF("status")}>
-                  <SelectTrigger id="t-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TENDER_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="t-po">Linked Pay Order</Label>
-                <Input
-                  id="t-po"
-                  value={form.linkedPO}
-                  onChange={setF("linkedPO")}
-                  placeholder="PO-2024-001"
-                  className="font-mono"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="t-sub">Tender Due Date / Bid Submission Deadline</Label>
-                <Input
-                  id="t-sub"
-                  type="date"
-                  value={form.submissionDate}
-                  onChange={setF("submissionDate")}
-                  className="mobile-date-input"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="t-open">Opening Date</Label>
-                <Input
-                  id="t-open"
-                  type="date"
-                  value={form.openingDate}
-                  onChange={setF("openingDate")}
-                  className="mobile-date-input"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="t-notes">Notes</Label>
-              <Textarea
-                id="t-notes"
-                value={form.notes}
-                onChange={setF("notes")}
-                rows={4}
-                placeholder="Optional notes…"
-              />
-            </div>
+          {saveError && <p role="alert" className="border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive sm:px-6">{saveError}</p>}
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6">
+            <TenderEditor form={form} setF={setF} errors={formErrors} extraOpen={extraOpen} setExtraOpen={setExtraOpen} editItem={editItem} />
           </div>
-          <SheetFooter className="px-6 py-4 border-t border-border bg-background sm:justify-end gap-2">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
+          <SheetFooter className="shrink-0 gap-2 border-t border-border bg-background px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:justify-end sm:px-6">
+            <Button variant="outline" type="button" onClick={requestClose} disabled={saving}>Cancel</Button>
+            <Button type="button" onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editItem ? "Save Changes" : "Create Tender"}
             </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
-
+      <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Discard unsaved changes?</DialogTitle><DialogDescription>Your tender edits have not been saved.</DialogDescription></DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDiscardOpen(false)}>Keep editing</Button>
+            <Button variant="destructive" onClick={() => { setDiscardOpen(false); setDialogOpen(false); }}>Discard changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <TenderQuickView
         tender={quickView}
         open={!!quickView}
