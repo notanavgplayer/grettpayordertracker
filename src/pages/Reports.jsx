@@ -53,7 +53,7 @@ function Value({ row, field }) {
 }
 
 function ReportTable({ rows, columns, sort, setSort }) {
-  return <Table className="min-w-[1080px] print:min-w-0"><TableHeader><TableRow>{columns.map(([field, label]) => <TableHead key={field} className="whitespace-nowrap"><button type="button" className="inline-flex items-center gap-1" onClick={() => setSort((current) => ({ field, direction: current.field === field ? -current.direction : 1 }))}>{label}<ArrowUpDown className="h-3 w-3 print:hidden" /></button></TableHead>)}</TableRow></TableHeader><TableBody>{rows.map((row, index) => <TableRow key={row.id || index}>{columns.map(([field]) => <TableCell key={field} className="max-w-[220px] break-words align-top text-sm"><Value row={row} field={field} /></TableCell>)}</TableRow>)}</TableBody></Table>
+  return <Table className="reports-data-table print:min-w-0"><TableHeader><TableRow>{columns.map(([field, label]) => <TableHead key={field} className="whitespace-nowrap"><button type="button" className="inline-flex items-center gap-1" onClick={() => setSort((current) => ({ field, direction: current.field === field ? -current.direction : 1 }))}>{label}<ArrowUpDown className="h-3 w-3 print:hidden" /></button></TableHead>)}</TableRow></TableHeader><TableBody>{rows.map((row, index) => <TableRow key={row.id || index}>{columns.map(([field]) => <TableCell key={field} className="break-words align-top text-sm"><Value row={row} field={field} /></TableCell>)}</TableRow>)}</TableBody></Table>
 }
 
 export default function Reports() {
