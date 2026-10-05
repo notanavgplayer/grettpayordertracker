@@ -636,10 +636,9 @@ export default function Documents() {
   const validateForm = () => {
     const errors = {}
     if (!documentForm.tenderId || !tenders.some((tender) => tender.id === documentForm.tenderId)) errors.tenderId = 'Select an existing project.'
-    if (!documentForm.title.trim()) errors.title = 'Enter a document title.'
     if (fileMode === 'link') {
       if (!documentForm.url.trim() || !safeHttpUrl(documentForm.url)) errors.url = 'Enter a valid http or https URL.'
-    } else if (!pendingFile && !documentForm.storagePath) errors.file = 'Select a file before saving.'
+    }
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -847,7 +846,7 @@ export default function Documents() {
             <div className="space-y-3 rounded-xl border p-4">
               <h3 className="font-semibold">Document Details</h3>
               <div className="space-y-1.5">
-                <Label htmlFor="document-title">Title *</Label>
+                <Label htmlFor="document-title">Title</Label>
                 <Input id="document-title" value={documentForm.title} onChange={setFormValue('title')} aria-invalid={!!formErrors.title} placeholder="Document title" />
                 {formErrors.title ? <p role="alert" className="text-xs text-destructive">{formErrors.title}</p> : null}
               </div>
@@ -883,7 +882,7 @@ export default function Documents() {
                 <Button type="button" size="sm" variant={fileMode === 'link' ? 'default' : 'outline'} onClick={() => { setFileMode('link'); setFormErrors((previous) => ({ ...previous, file: '' })) }}>External link</Button>
               </div>
               {fileMode === 'file' ? <div className="min-w-0 rounded-xl border border-dashed border-border bg-muted/20 p-3">
-              <Label htmlFor="document-upload" className="text-sm font-medium">{documentForm.storagePath ? 'Replace stored file' : 'Choose file *'}</Label>
+              <Label htmlFor="document-upload" className="text-sm font-medium">{documentForm.storagePath ? 'Replace stored file' : 'Choose file'}</Label>
               <Input
                 id="document-upload"
                 type="file"

@@ -135,6 +135,24 @@ describe('Documents workflows on disposable records', () => {
     expect(update).not.toHaveBeenCalled()
   })
 
+  it('keeps a legacy metadata-only document editable without inventing a file or date', async () => {
+    fixtureTenders[0].documents = [{ id: 'doc-3', type: 'Other', notes: 'Legacy note' }]
+    const user = userEvent.setup()
+    renderDocuments()
+    expect(screen.getByText('File or link unavailable')).toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: 'Edit document' })[0])
+    const dialog = screen.getByRole('dialog', { name: 'Edit Document' })
+    await user.type(within(dialog).getByRole('textbox', { name: 'Notes' }), ' revised')
+    await user.click(within(dialog).getByRole('button', { name: 'Save Document' }))
+    await waitFor(() => expect(update).toHaveBeenCalledOnce())
+    const saved = update.mock.calls[0][1].documents[0]
+    expect(saved.notes).toBe('Legacy note revised')
+    expect(saved.storagePath).toBe('')
+    expect(saved.url).toBe('')
+    expect(saved.uploadedAt).toBe('')
+    expect(saved.addedAt).toBe('')
+  })
+
   it('hides edit and delete permissions for non-admins', () => {
     isAdmin = false
     renderDocuments()
