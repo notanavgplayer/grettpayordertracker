@@ -138,6 +138,7 @@ export default function Home() {
   const activeProjectCount = tenders.filter((tender) => PROJECT_STATES.has(tender.status)).length
   const heldCount = payOrders.filter((po) => po.status === 'Held').length
   const receiptSeries = useMemo(() => datedReceipts(tenders, receiptMonths), [tenders, receiptMonths])
+  const hasDatedReceipts = receiptSeries.some((row) => row.receipts > 0)
   const pipeline = useMemo(() => tenders.filter((item) => isActionableTenderStatus(item.status) && asDate(item.submissionDate))
     .sort((a, b) => asDate(a.submissionDate) - asDate(b.submissionDate)).slice(0, 4), [tenders])
 
@@ -203,16 +204,16 @@ export default function Home() {
         </div>
       </header>
 
-      <section aria-label="Financial overview" className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
-        <DashboardStatCard icon={ClipboardList} label="Total tenders" value={tenders.length} detail="All tender records" href="/tenders" />
-        <DashboardStatCard icon={BriefcaseBusiness} label="Active projects" value={activeProjectCount} detail="Awarded, in progress or on hold" href="/tenders" tone="green" />
-        <DashboardStatCard icon={FileText} label="Approved receivables" value={formatCurrency(summary.receivables)} detail="Approved less receipts and deductions" href="/reports" tone="green" />
-        <DashboardStatCard icon={Landmark} label="Held instruments" value={heldCount} detail="Pay orders with Held status" href="/pay-orders" />
-        <DashboardStatCard icon={ShieldCheck} label="Known securities held" value={formatCurrency(summary.securities)} detail="Known funded cash less refunds" href="/pay-orders" tone="amber" />
+      <section aria-label="Financial overview" className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 2xl:grid-cols-5">
+        <DashboardStatCard className="lg:col-span-2 2xl:col-span-1" icon={ClipboardList} label="Total tenders" value={tenders.length} detail="All tender records" href="/tenders" />
+        <DashboardStatCard className="lg:col-span-2 2xl:col-span-1" icon={BriefcaseBusiness} label="Active projects" value={activeProjectCount} detail="Awarded, in progress or on hold" href="/tenders" tone="green" />
+        <DashboardStatCard className="lg:col-span-2 2xl:col-span-1" icon={FileText} label="Approved receivables" value={formatCurrency(summary.receivables)} detail="Approved less receipts and deductions" href="/reports" tone="green" />
+        <DashboardStatCard className="lg:col-span-3 2xl:col-span-1" icon={Landmark} label="Held instruments" value={heldCount} detail="Pay orders with Held status" href="/pay-orders" />
+        <DashboardStatCard className="sm:col-span-2 lg:col-span-3 2xl:col-span-1" icon={ShieldCheck} label="Known securities held" value={formatCurrency(summary.securities)} detail="Known funded cash less refunds" href="/pay-orders" tone="amber" />
       </section>
 
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,1fr)]">
-        <DashboardSection title="Receipt history" description="Dated V2 bill receipt entries on awarded projects" className="self-stretch">
+        <DashboardSection title="Receipt history" description="Dated V2 bill receipt entries on awarded projects" className={hasDatedReceipts ? 'self-stretch' : 'self-start'}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">Legacy receipts without transaction dates are excluded from this chart.</p>
             <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">Period
@@ -221,7 +222,7 @@ export default function Home() {
               </select>
             </label>
           </div>
-          {receiptSeries.some((row) => row.receipts > 0) ? <div className="min-w-0">
+          {hasDatedReceipts ? <div className="min-w-0">
             <div className="h-52 min-w-0" role="img" aria-label="Monthly recorded receipts chart">
             <ResponsiveContainer width="100%" height="100%"><BarChart data={receiptSeries} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.12} />
@@ -232,7 +233,7 @@ export default function Home() {
             </BarChart></ResponsiveContainer>
             </div>
             <ul className="sr-only">{receiptSeries.map((row) => <li key={row.key}>{row.month}: {formatCurrency(row.receipts)}</li>)}</ul>
-          </div> : <DashboardEmpty>No dated receipt entries in this period.</DashboardEmpty>}
+          </div> : <p className="rounded-lg border border-dashed bg-muted/30 px-3 py-3 text-sm text-muted-foreground">No dated receipt entries in this period.</p>}
         </DashboardSection>
         <DashboardSection title="Financial position" description="Current V2 project totals" href="/reports" className="self-stretch">
           <dl className="divide-y">
