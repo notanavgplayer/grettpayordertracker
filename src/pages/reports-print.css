@@ -1,3 +1,9 @@
+.reports-data-table { min-width: 1580px; }
+.reports-data-table th:first-child,
+.reports-data-table td:first-child { min-width: 300px; width: 300px; }
+.reports-data-table th:not(:first-child),
+.reports-data-table td:not(:first-child) { min-width: 135px; }
+
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
   body:has(.reports-print-root) .h-screen,
@@ -8,7 +14,11 @@
   body:has(.reports-print-root) .page-shell { max-width: none; padding: 0; }
   .reports-print-root { color: #111827; background: white; }
   .reports-print-root .overflow-hidden { overflow: visible; }
-  .reports-print-root table { width: 100%; table-layout: fixed; }
+  .reports-print-root table { width: 100%; min-width: 0; table-layout: fixed; }
+  .reports-data-table th,
+  .reports-data-table td { min-width: 0 !important; }
+  .reports-data-table th:first-child,
+  .reports-data-table td:first-child { width: 22%; }
   .reports-print-root th,
   .reports-print-root td { padding: 5px; overflow-wrap: anywhere; white-space: normal; font-size: 9px; }
   .reports-print-root tr { break-inside: avoid; }
