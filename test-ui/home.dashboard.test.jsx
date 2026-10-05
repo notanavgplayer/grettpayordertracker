@@ -48,6 +48,8 @@ describe('dashboard with disposable records', () => {
     expect(financialPosition.textContent).toContain(formatCurrency(800))
     expect(financialPosition.textContent).toContain(formatCurrency(120))
     expect(screen.getByText('No dated receipt entries in this period.')).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Monthly recorded receipts chart' })).not.toBeInTheDocument()
+    expect(overview).toHaveClass('lg:grid-cols-6', '2xl:grid-cols-5')
 
     expect(screen.getByRole('link', { name: 'New Tender' })).toHaveAttribute('href', '/tenders?create=1')
     expect(screen.getByRole('link', { name: 'Pay Order' })).toHaveAttribute('href', '/pay-orders?create=1')

@@ -11,9 +11,9 @@ const tones = {
   slate: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
 }
 
-export function DashboardStatCard({ label, value, detail, icon: Icon, href, tone = 'blue' }) {
+export function DashboardStatCard({ label, value, detail, icon: Icon, href, tone = 'blue', className }) {
   return (
-    <Link to={href} className="group min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+    <Link to={href} className={cn('group min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-blue-500', className)}>
       <Card className="h-full min-w-0 transition-colors group-hover:border-blue-300 dark:group-hover:border-blue-700">
         <CardContent className="flex h-full min-w-0 flex-col justify-between gap-3 p-4">
           <div className="flex items-start justify-between gap-2">

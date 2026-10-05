@@ -234,11 +234,13 @@ export default function PayOrders() {
   const [reviewOnly, setReviewOnly] = useState(false);
   const [optionalColumns, setOptionalColumns] = useState({ agency: false, submitted: false, bidResult: false });
   const [formErrors, setFormErrors] = useState({});
+  const [saveError, setSaveError] = useState("");
   const [discardOpen, setDiscardOpen] = useState(false);
   const [extraOpen, setExtraOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const initialDraft = useRef(JSON.stringify({ form, tenderMode, newTenderFields }));
   const savingRef = useRef(false);
+  const autoFilledProjectFields = useRef({ nit: null, agency: null });
 
   // Activity log state
   const [logDialogOpen, setLogDialogOpen] = useState(false);
@@ -362,6 +364,8 @@ export default function PayOrders() {
     setNewTenderFields(nextTenderFields);
     initialDraft.current = JSON.stringify({ form: nextForm, tenderMode: nextMode, newTenderFields: nextTenderFields });
     setFormErrors({});
+    setSaveError("");
+    autoFilledProjectFields.current = { nit: null, agency: null };
     setExtraOpen(Boolean(nextForm.notes || nextForm.v2?.expiryDate || nextForm.v2?.eligibilityDate || nextForm.v2?.applicationDate || nextForm.v2?.followUpDate));
     setRefundOpen(Boolean(nextForm.v2?.refunds?.length));
     setTenderSearch("");
@@ -375,13 +379,21 @@ export default function PayOrders() {
     else setDialogOpen(false);
   };
   const selectTender = (tender) => {
-    const previous = tenders.find((item) => item.id === form.tenderRef);
+    const projectValue = (key) => {
+      const source = autoFilledProjectFields.current[key];
+      if (source?.manual || (form[key] && (!source || form[key] !== source.value))) return form[key];
+      const value = tender[key] || "";
+      autoFilledProjectFields.current[key] = { projectId: tender.id, value };
+      return value;
+    };
+    const nit = projectValue("nit");
+    const agency = projectValue("agency");
     setForm((current) => ({
       ...current,
       tenderRef: tender.id,
       tender: tender.name || current.tender,
-      nit: !current.nit || current.nit === previous?.nit ? tender.nit || "" : current.nit,
-      agency: !current.agency || current.agency === previous?.agency ? tender.agency || "" : current.agency,
+      nit,
+      agency,
     }));
     setTenderSearch("");
     setFormErrors((current) => ({ ...current, project: undefined }));
@@ -389,6 +401,7 @@ export default function PayOrders() {
 
   const handleSave = async () => {
     if (savingRef.current) return;
+    setSaveError("");
     const errors = {};
     if (!form.po.trim()) errors.po = "PO number is required";
     if (form.amount === "" || !Number.isFinite(Number(form.amount)) || Number(form.amount) < 0) errors.amount = "Enter a non-negative instrument amount";
@@ -490,6 +503,7 @@ export default function PayOrders() {
       }
       setDialogOpen(false);
     } catch {
+      setSaveError("The pay order could not be saved. Check your connection and permissions, then try again.");
       toast.error("Failed to save");
     } finally {
       savingRef.current = false;
@@ -575,6 +589,7 @@ export default function PayOrders() {
   };
 
   const setF = (k) => (e) => {
+    if (k === 'nit' || k === 'agency') autoFilledProjectFields.current[k] = { manual: true };
     setForm((p) => ({ ...p, [k]: e.target?.value ?? e }));
     setFormErrors((current) => ({ ...current, [k]: undefined }));
   };
@@ -1338,6 +1353,7 @@ export default function PayOrders() {
             <SheetTitle>{editItem ? "Edit Pay Order" : "New Pay Order"}</SheetTitle>
             <SheetDescription>{editItem ? "Update this instrument and its project link." : "Record an instrument and its project link."}</SheetDescription>
           </SheetHeader>
+          {saveError && <p role="alert" className="border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive sm:px-6">{saveError}</p>}
           <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6">
             <PayOrderEditor
               form={form} setForm={setForm} setF={setF}
