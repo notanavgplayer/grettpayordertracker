@@ -855,7 +855,7 @@ export default function Tenders() {
               {/* Desktop: compact primary columns, optional secondary columns. */}
               <div className="hidden overflow-x-auto md:block">
                 <Table className="min-w-[840px]"><TableHeader><TableRow>
-                  <TableHead className="w-[27%]">Tender / NIT</TableHead><TableHead>Agency</TableHead><TableHead>Relevant Amount</TableHead><TableHead>Deadline</TableHead><TableHead>Status</TableHead>
+                  <TableHead className="w-[27%]">Tender / NIT</TableHead><TableHead>Agency</TableHead><TableHead>Relevant Amount</TableHead><TableHead>Submission date</TableHead><TableHead>Status</TableHead>
                   {optionalColumns.openingDate && <TableHead>Opening</TableHead>}
                   {optionalColumns.estimatedCost && <TableHead>Estimate</TableHead>}
                   {optionalColumns.quotedAmount && <TableHead>Quoted Bid</TableHead>}
