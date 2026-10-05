@@ -447,7 +447,7 @@ function DocumentsTable({ documents, isAdmin, onPreview, onEdit, onDelete }) {
                       <div className="min-w-0">
                         <p className="max-w-[320px] line-clamp-2 break-words font-semibold text-foreground" title={document.title}>{document.title}</p>
                         <p className="max-w-[320px] line-clamp-2 break-all text-xs text-muted-foreground" title={document.fileName}>{safeText(document.fileName)}</p>
-                        <p className="text-xs text-muted-foreground">{isStoredDocument(document) ? 'Stored file' : document.url ? 'External link' : 'File unavailable'}{document.fileSize ? ` · ${formatFileSize(document.fileSize)}` : ''}</p>
+                        <p className={`text-xs ${document.url ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-300'}`}>{isStoredDocument(document) ? (document.url ? 'Stored file' : 'Stored file unavailable') : document.url ? 'External link' : 'File or link unavailable'}{document.fileSize ? ` · ${formatFileSize(document.fileSize)}` : ''}</p>
                       </div>
                     </div>
                   </td>
@@ -676,6 +676,12 @@ export default function Documents() {
         nextForm = { ...documentForm, fileName: '', fileSize: '', mimeType: '', storageProvider: '', storageBucket: '', storagePath: '' }
       }
       const payload = makeDocumentPayload(nextForm)
+      // Metadata-only edits must not rewrite an existing historical link, even
+      // when it is no longer safe to offer as an Open action.
+      if (editingDocument && !pendingFile && documentForm.url === initialForm?.url) {
+        delete payload.url
+        delete payload.fileUrl
+      }
       if (editingDocument) {
         const targetTender = tenders.find((item) => item.id === editingDocument.tenderId)
         if (!targetTender) {

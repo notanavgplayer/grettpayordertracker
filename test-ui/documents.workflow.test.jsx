@@ -62,8 +62,8 @@ describe('Documents workflows on disposable records', () => {
     const saved = update.mock.calls[0][1].documents[0]
     expect(saved.storagePath).toBe('test/boq.pdf')
     expect(saved.notes).toBe('Keep existing notes updated')
-    expect(saved.url).toBe('')
-    expect(saved.fileUrl).toBe('')
+    expect(saved.url ?? '').toBe('')
+    expect(saved.fileUrl ?? '').toBe('')
   })
 
   it('keeps the original reference when replacement upload fails and does not upload on selection or cancel', async () => {
@@ -139,7 +139,7 @@ describe('Documents workflows on disposable records', () => {
     fixtureTenders[0].documents = [{ id: 'doc-3', type: 'Other', notes: 'Legacy note' }]
     const user = userEvent.setup()
     renderDocuments()
-    expect(screen.getByText('File or link unavailable')).toBeInTheDocument()
+    expect(screen.getAllByText('File or link unavailable').length).toBeGreaterThan(0)
     await user.click(screen.getAllByRole('button', { name: 'Edit document' })[0])
     const dialog = screen.getByRole('dialog', { name: 'Edit Document' })
     await user.type(within(dialog).getByRole('textbox', { name: 'Notes' }), ' revised')
@@ -148,9 +148,22 @@ describe('Documents workflows on disposable records', () => {
     const saved = update.mock.calls[0][1].documents[0]
     expect(saved.notes).toBe('Legacy note revised')
     expect(saved.storagePath).toBe('')
-    expect(saved.url).toBe('')
+    expect(saved.url ?? '').toBe('')
     expect(saved.uploadedAt).toBe('')
     expect(saved.addedAt).toBe('')
+  })
+
+  it('preserves an unsafe historical link on metadata-only save without offering Open', async () => {
+    fixtureTenders[0].documents = [{ id: 'legacy-link', title: 'Legacy reference', url: 'javascript:legacy()', notes: 'Old' }]
+    const user = userEvent.setup()
+    renderDocuments()
+    expect(screen.getAllByRole('button', { name: 'Open document' })[0]).toBeDisabled()
+    await user.click(screen.getAllByRole('button', { name: 'Edit document' })[0])
+    const dialog = screen.getByRole('dialog', { name: 'Edit Document' })
+    await user.type(within(dialog).getByRole('textbox', { name: 'Notes' }), ' note')
+    await user.click(within(dialog).getByRole('button', { name: 'Save Document' }))
+    await waitFor(() => expect(update).toHaveBeenCalledOnce())
+    expect(update.mock.calls[0][1].documents[0].url).toBe('javascript:legacy()')
   })
 
   it('hides edit and delete permissions for non-admins', () => {
