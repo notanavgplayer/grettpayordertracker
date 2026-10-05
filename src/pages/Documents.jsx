@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Calendar, Download, ExternalLink, Eye, FileArchive, FileSpreadsheet, FileText,
@@ -42,6 +42,8 @@ const DOCUMENT_CATEGORIES = [
   'Tender',
   'Material',
   'Invoice',
+  'Bill',
+  'Certificate',
   'Other',
 ]
 
@@ -180,6 +182,14 @@ function getDocumentUrl(document = {}) {
   return safeHttpUrl(document.fileUrl || document.url || document.publicUrl || document.downloadUrl || '')
 }
 
+function isStoredDocument(document = {}) {
+  return Boolean(document.storagePath)
+}
+
+function canOpenDocument(document = {}) {
+  return Boolean(document.url)
+}
+
 function getDocumentCategory(document = {}) {
   return document.category || document.type || 'Other'
 }
@@ -241,7 +251,7 @@ function exportDocumentsCSV(documents) {
     document.tenderNit,
     formatSafeDate(document.uploadedAt),
     formatFileSize(document.fileSize),
-    document.url,
+    isStoredDocument(document) ? '' : document.url,
     document.notes,
   ])
   const csv = rowsToCSV(headers, rows)
@@ -294,8 +304,8 @@ function makeDocumentPayload(form) {
     storageProvider: form.storageProvider || '',
     storageBucket: form.storageBucket || '',
     storagePath: form.storagePath || '',
-    uploadedAt: form.uploadedAt || new Date().toISOString().slice(0, 10),
-    addedAt: form.addedAt || new Date().toISOString().slice(0, 10),
+    uploadedAt: form.uploadedAt || '',
+    addedAt: form.addedAt || '',
   }
 }
 
@@ -370,9 +380,7 @@ function DocumentCard({ document, isAdmin, onPreview, onEdit, onDelete }) {
             </div>
           </div>
           <div className="min-w-0 rounded-lg bg-muted/30 px-2.5 py-1.5 text-xs leading-5 text-muted-foreground sm:px-3 sm:py-2">
-            <Link to={`/tenders/${document.tenderId}`} className="block truncate font-medium text-foreground hover:text-emerald-700 dark:hover:text-emerald-300" title={document.tenderName}>
-              {document.tenderName}
-            </Link>
+            {document.tenderId ? <Link to={`/tenders/${document.tenderId}`} className="block line-clamp-2 font-medium text-foreground hover:text-emerald-700 dark:hover:text-emerald-300" title={document.tenderName}>{document.tenderName}</Link> : <span className="text-amber-700 dark:text-amber-300">Unassigned project</span>}
             <p className="truncate text-xs text-muted-foreground" title={document.tenderNit || document.tenderAgency}>
               {document.tenderNit || document.tenderAgency || 'Linked tender'}
             </p>
@@ -380,10 +388,11 @@ function DocumentCard({ document, isAdmin, onPreview, onEdit, onDelete }) {
           <div className="flex items-center justify-between gap-2 border-t border-border/70 pt-1.5 text-xs text-muted-foreground sm:gap-3 sm:pt-2">
             <span className="inline-flex min-w-0 items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="truncate">{formatSafeDate(document.uploadedAt)}</span>
+              <span className="truncate">Recorded: {formatSafeDate(document.uploadedAt)}</span>
             </span>
-            <span className="flex-shrink-0 rounded-full bg-muted px-2 py-0.5 font-medium">{formatFileSize(document.fileSize)}</span>
+            {document.fileSize ? <span className="flex-shrink-0 rounded-full bg-muted px-2 py-0.5 font-medium">{formatFileSize(document.fileSize)}</span> : null}
           </div>
+          <p className={`text-xs ${!document.url ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'}`}>{isStoredDocument(document) ? (document.url ? 'Stored file' : 'Stored file unavailable') : document.url ? 'External link' : 'File or link unavailable'}</p>
         </div>
         <DocumentActions document={document} isAdmin={isAdmin} onPreview={onPreview} onEdit={onEdit} onDelete={onDelete} />
       </CardContent>
@@ -394,17 +403,15 @@ function DocumentCard({ document, isAdmin, onPreview, onEdit, onDelete }) {
 function DocumentActions({ document, isAdmin, onPreview, onEdit, onDelete }) {
   return (
     <div className="flex items-center gap-2 border-t border-border/70 pt-3">
-      <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => onPreview(document)}>
-        <Eye className="h-4 w-4" /> Preview
+      <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => onPreview(document)} disabled={!canOpenDocument(document)}>
+        <Eye className="h-4 w-4" /> {isImageDocument(document) && isStoredDocument(document) ? 'Preview' : 'Open'}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="ghost" size="icon-sm" aria-label="More document actions"><MoreHorizontal className="h-4 w-4" /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem asChild disabled={!document.url}>
-            <a href={document.url || undefined} download={document.fileName || document.title}><Download /> Download</a>
-          </DropdownMenuItem>
+          {isStoredDocument(document) && document.url ? <DropdownMenuItem asChild><a href={document.url} download={document.fileName || document.title}><Download /> Download</a></DropdownMenuItem> : null}
           <DropdownMenuItem onSelect={() => onEdit(document)} disabled={!isAdmin}><Pencil /> Edit details</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onDelete(document)} disabled={!isAdmin} className="text-destructive focus:text-destructive"><Trash2 /> Delete</DropdownMenuItem>
         </DropdownMenuContent>
@@ -417,16 +424,13 @@ function DocumentsTable({ documents, isAdmin, onPreview, onEdit, onDelete }) {
   return (
     <Card className="hidden overflow-hidden rounded-xl border bg-card lg:block">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-sm">
+        <table className="w-full min-w-[740px] text-sm">
           <thead className="bg-muted/35 text-xs uppercase text-muted-foreground">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold">File</th>
+              <th className="px-4 py-3 text-left font-semibold">Document / Filename</th>
+              <th className="px-4 py-3 text-left font-semibold">Project</th>
               <th className="px-4 py-3 text-left font-semibold">Type</th>
-              <th className="px-4 py-3 text-left font-semibold">Category</th>
-              <th className="px-4 py-3 text-left font-semibold">Linked Tender</th>
-              <th className="px-4 py-3 text-left font-semibold">NIT / Ref</th>
-              <th className="px-4 py-3 text-left font-semibold">Uploaded</th>
-              <th className="px-4 py-3 text-left font-semibold">Size</th>
+              <th className="px-4 py-3 text-left font-semibold">Recorded Date</th>
               <th className="px-4 py-3 text-right font-semibold">Actions</th>
             </tr>
           </thead>
@@ -441,31 +445,26 @@ function DocumentsTable({ documents, isAdmin, onPreview, onEdit, onDelete }) {
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="min-w-0">
-                        <p className="max-w-[240px] truncate font-semibold text-foreground" title={document.title}>{document.title}</p>
-                        <p className="max-w-[240px] truncate text-xs text-muted-foreground" title={document.fileName}>{safeText(document.fileName)}</p>
+                        <p className="max-w-[320px] line-clamp-2 break-words font-semibold text-foreground" title={document.title}>{document.title}</p>
+                        <p className="max-w-[320px] line-clamp-2 break-all text-xs text-muted-foreground" title={document.fileName}>{safeText(document.fileName)}</p>
+                        <p className="text-xs text-muted-foreground">{isStoredDocument(document) ? 'Stored file' : document.url ? 'External link' : 'File unavailable'}{document.fileSize ? ` · ${formatFileSize(document.fileSize)}` : ''}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3"><DocumentBadge className={getKindBadgeClass(document.kind)}>{document.kind}</DocumentBadge></td>
-                  <td className="px-4 py-3"><DocumentBadge className={getCategoryBadgeClass(document.category)}>{document.category}</DocumentBadge></td>
                   <td className="px-4 py-3">
-                    <Link to={`/tenders/${document.tenderId}`} className="block max-w-[220px] truncate font-medium text-foreground hover:text-emerald-700 dark:hover:text-emerald-300">
-                      {document.tenderName}
-                    </Link>
+                    {document.tenderId ? <Link to={`/tenders/${document.tenderId}`} className="block max-w-[260px] line-clamp-3 break-words font-medium text-foreground hover:text-emerald-700 dark:hover:text-emerald-300" title={document.tenderName}>{document.tenderName}</Link> : <span className="text-amber-700 dark:text-amber-300">Unassigned project</span>}
+                    <span className="text-xs text-muted-foreground">{safeText(document.tenderNit)}</span>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{safeText(document.tenderNit)}</td>
+                  <td className="px-4 py-3"><DocumentBadge className={getCategoryBadgeClass(document.category)}>{document.category}</DocumentBadge></td>
                   <td className="px-4 py-3 text-muted-foreground">{formatSafeDate(document.uploadedAt)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatFileSize(document.fileSize)}</td>
                   <td className="px-4 py-3">
                     <div className="ml-auto flex justify-end gap-2">
-                      <Button type="button" variant="outline" size="icon-sm" onClick={() => onPreview(document)} aria-label="Preview document"><Eye className="h-3.5 w-3.5" /></Button>
-                      {document.url ? (
+                      <Button type="button" variant="outline" size="icon-sm" onClick={() => onPreview(document)} disabled={!canOpenDocument(document)} aria-label="Open document"><Eye className="h-3.5 w-3.5" /></Button>
+                      {isStoredDocument(document) && document.url ? (
                         <Button type="button" variant="outline" size="icon-sm" asChild>
                           <a href={document.url} download={document.fileName || document.title} aria-label="Download document"><Download className="h-3.5 w-3.5" /></a>
                         </Button>
-                      ) : (
-                        <Button type="button" variant="outline" size="icon-sm" disabled aria-label="Download unavailable"><Download className="h-3.5 w-3.5" /></Button>
-                      )}
+                      ) : null}
                       <Button type="button" variant="outline" size="icon-sm" onClick={() => onEdit(document)} disabled={!isAdmin} aria-label="Edit document"><Pencil className="h-3.5 w-3.5" /></Button>
                       <Button type="button" variant="outline" size="icon-sm" className="text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300" onClick={() => onDelete(document)} disabled={!isAdmin} aria-label="Delete document"><Trash2 className="h-3.5 w-3.5" /></Button>
                     </div>
@@ -490,10 +489,20 @@ export default function Documents() {
   const [tenderFilter, setTenderFilter] = useState('All')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [viewMode, setViewMode] = useState('grid')
+  const [viewMode, setViewMode] = useState('list')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingDocument, setEditingDocument] = useState(null)
   const [documentForm, setDocumentForm] = useState(emptyDocumentForm)
+  const [initialForm, setInitialForm] = useState(null)
+  const [fileMode, setFileMode] = useState('file')
+  const [initialFileMode, setInitialFileMode] = useState('file')
+  const [pendingFile, setPendingFile] = useState(null)
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const [formErrors, setFormErrors] = useState({})
+  const [saveError, setSaveError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
+  const stagedUploadRef = useRef(null)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -514,7 +523,7 @@ export default function Documents() {
   }, [rawDocuments])
   const documents = useMemo(() => rawDocuments.map((document) => {
     const signedUrl = document.storagePath ? signedUrls[document.storagePath] : ''
-    return signedUrl ? { ...document, url: signedUrl, fileUrl: signedUrl } : document
+    return document.storagePath ? { ...document, url: signedUrl || '', fileUrl: signedUrl || '' } : document
   }), [rawDocuments, signedUrls])
   const tenderOptions = useMemo(() => tenders.map((tender) => ({ id: tender.id, name: getTenderName(tender), nit: getTenderNit(tender) })), [tenders])
   const categories = useMemo(() => {
@@ -566,20 +575,29 @@ export default function Documents() {
 
   const openAddDocument = () => {
     setEditingDocument(null)
-    setDocumentForm(emptyDocumentForm())
+    const next = emptyDocumentForm()
+    setDocumentForm(next)
+    setInitialForm(next)
+    setFileMode('file')
+    setInitialFileMode('file')
+    setPendingFile(null)
+    stagedUploadRef.current = null
+    setFormErrors({})
+    setSaveError('')
     setUploadProgress(0)
     setSheetOpen(true)
   }
 
   const openEditDocument = (document) => {
     setEditingDocument(document)
-    setDocumentForm({
+    const next = {
       id: document.originalId || document.id || uid(),
       tenderId: document.tenderId || '',
       title: document.title || '',
       category: document.category || 'Other',
       notes: document.notes || '',
-      url: document.url || '',
+      // Signed storage URLs expire; only retain an actual external URL in the form.
+      url: document.storagePath ? '' : getDocumentUrl(document),
       fileName: document.fileName || '',
       fileSize: document.fileSize || '',
       mimeType: document.mimeType || document.fileType || '',
@@ -587,8 +605,16 @@ export default function Documents() {
       storageBucket: document.storageBucket || '',
       storagePath: document.storagePath || '',
       uploadedAt: dateInputValue(document.uploadedAt),
-      addedAt: dateInputValue(document.addedAt) || new Date().toISOString().slice(0, 10),
-    })
+      addedAt: dateInputValue(document.addedAt),
+    }
+    setDocumentForm(next)
+    setInitialForm(next)
+    setFileMode(document.storagePath ? 'file' : document.url ? 'link' : 'file')
+    setInitialFileMode(document.storagePath ? 'file' : document.url ? 'link' : 'file')
+    setPendingFile(null)
+    stagedUploadRef.current = null
+    setFormErrors({})
+    setSaveError('')
     setUploadProgress(0)
     setSheetOpen(true)
   }
@@ -596,69 +622,65 @@ export default function Documents() {
   const setFormValue = (key) => (event) => {
     const value = event?.target?.value ?? event
     setDocumentForm((previous) => ({ ...previous, [key]: value }))
+    setFormErrors((previous) => ({ ...previous, [key]: '' }))
+    setSaveError('')
+  }
+
+  const dirty = Boolean(pendingFile || fileMode !== initialFileMode || (initialForm && JSON.stringify(documentForm) !== JSON.stringify(initialForm)))
+  const closeForm = () => {
+    if (saving || uploading) return
+    if (dirty) setDiscardOpen(true)
+    else setSheetOpen(false)
+  }
+
+  const validateForm = () => {
+    const errors = {}
+    if (!documentForm.tenderId || !tenders.some((tender) => tender.id === documentForm.tenderId)) errors.tenderId = 'Select an existing project.'
+    if (!documentForm.title.trim()) errors.title = 'Enter a document title.'
+    if (fileMode === 'link') {
+      if (!documentForm.url.trim() || !safeHttpUrl(documentForm.url)) errors.url = 'Enter a valid http or https URL.'
+    } else if (!pendingFile && !documentForm.storagePath) errors.file = 'Select a file before saving.'
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   const selectedTender = tenderOptions.find((tender) => tender.id === documentForm.tenderId)
 
-  const handleDocumentUpload = async (file) => {
-    if (!file) return
-    if (!documentForm.tenderId) {
-      toast.error('Select a tender before uploading a file.')
-      return
-    }
-    if (!hasSupabaseStorageConfig()) {
-      toast.error('Storage is not configured. Add Supabase storage settings before uploading files.')
-      return
-    }
-    setUploading(true)
-    setUploadProgress(0)
-    try {
-      const uploaded = await uploadTenderDocument({
-        tenderId: documentForm.tenderId,
-        documentId: documentForm.id,
-        file,
-        onProgress: setUploadProgress,
-      })
-      setDocumentForm((previous) => ({
-        ...previous,
-        title: previous.title || file.name,
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: file.type || '',
-        url: uploaded.url,
-        fileUrl: uploaded.url,
-        storageProvider: 'supabase',
-        storageBucket: uploaded.bucket,
-        storagePath: uploaded.path,
-        uploadedAt: new Date().toISOString().slice(0, 10),
-      }))
-      toast.success('File uploaded. Save the document to attach it.')
-    } catch (uploadError) {
-      console.error('Document upload failed', uploadError)
-      toast.error('The file could not be uploaded. Check your connection and storage permissions, then try again.')
-    } finally {
-      setUploading(false)
-    }
-  }
-
   const saveDocument = async () => {
-    if (!documentForm.tenderId) {
-      toast.error('Select a tender or project first.')
-      return
-    }
+    if (savingRef.current || !validateForm()) return
+    savingRef.current = true
+    setSaving(true)
+    setSaveError('')
     const tender = tenders.find((item) => item.id === documentForm.tenderId)
     if (!tender) {
-      toast.error('Selected tender could not be found.')
+      setSaveError('Selected project could not be found.')
+      savingRef.current = false
+      setSaving(false)
       return
     }
-
-    const payload = makeDocumentPayload(documentForm)
     try {
+      let nextForm = documentForm
+      if (fileMode === 'file' && pendingFile) {
+        if (!hasSupabaseStorageConfig()) throw new Error('Document storage is not configured.')
+        const staged = stagedUploadRef.current
+        let uploaded = staged?.file === pendingFile && staged?.tenderId === tender.id && staged?.documentId === documentForm.id ? staged.uploaded : null
+        if (!uploaded) {
+          setUploading(true)
+          setUploadProgress(0)
+          uploaded = await uploadTenderDocument({ tenderId: tender.id, documentId: documentForm.id, file: pendingFile, onProgress: setUploadProgress })
+          stagedUploadRef.current = { file: pendingFile, tenderId: tender.id, documentId: documentForm.id, uploaded }
+        }
+        nextForm = { ...documentForm, url: '', fileName: pendingFile.name, fileSize: pendingFile.size,
+          mimeType: pendingFile.type || '', storageProvider: 'supabase', storageBucket: uploaded.bucket,
+          storagePath: uploaded.path, uploadedAt: new Date().toISOString().slice(0, 10) }
+      } else if (fileMode === 'link' && documentForm.storagePath) {
+        nextForm = { ...documentForm, fileName: '', fileSize: '', mimeType: '', storageProvider: '', storageBucket: '', storagePath: '' }
+      }
+      const payload = makeDocumentPayload(nextForm)
       if (editingDocument) {
         const targetTender = tenders.find((item) => item.id === editingDocument.tenderId)
         if (!targetTender) {
-          toast.error('Linked tender could not be found.')
-          return
+          throw new Error('Linked project could not be found.')
         }
         const nextDocuments = replaceDocument(targetTender.documents, editingDocument, payload)
         await update(targetTender.id, { documents: nextDocuments })
@@ -669,8 +691,14 @@ export default function Documents() {
       }
       setSheetOpen(false)
       setEditingDocument(null)
-    } catch {
-      toast.error('Could not save the document. Please try again.')
+      stagedUploadRef.current = null
+    } catch (saveFailure) {
+      setSaveError(`${saveFailure?.message || 'Could not save the document. Please try again.'}${stagedUploadRef.current ? ' Uploaded file is not attached yet; retry Save. The original record remains unchanged.' : ''}`)
+      toast.error('Could not save the document. Your changes remain in the form.')
+    } finally {
+      setUploading(false)
+      setSaving(false)
+      savingRef.current = false
     }
   }
 
@@ -685,11 +713,11 @@ export default function Documents() {
     try {
       await update(tender.id, { documents: removeDocument(tender.documents, deleteTarget) })
       toast.success('Document deleted')
-    } catch {
+    } catch (deleteError) {
       toast.error('Could not delete the document. Please try again.')
-    } finally {
-      setDeleteTarget(null)
+      throw deleteError
     }
+    setDeleteTarget(null)
   }
 
   const preview = (document) => {
@@ -709,10 +737,10 @@ export default function Documents() {
       <Breadcrumbs items={[{ label: 'Home', href: '/home' }, { label: 'Documents' }]} />
       <PageHeader
         title="Documents"
-        description="Manage tender documents, images, BOQs, work orders, letters, drawings, and supporting records across all projects."
+        description="Find recorded project documents and open their stored files or external links."
         actions={(
           <Button onClick={openAddDocument} disabled={!isAdmin} className="h-11 w-full gap-2 rounded-lg bg-emerald-600 px-4 text-white hover:bg-emerald-700 sm:w-auto">
-            <Plus className="h-4 w-4" /> Upload Document
+            <Plus className="h-4 w-4" /> Add Document
           </Button>
         )}
       />
@@ -754,7 +782,7 @@ export default function Documents() {
             <DateField label="Date From" value={dateFrom} onChange={setDateFrom} />
             <DateField label="Date To" value={dateTo} onChange={setDateTo} />
             <Button type="button" variant="outline" className="h-10 w-full gap-2 whitespace-nowrap md:w-auto" onClick={resetFilters} disabled={!hasFilters}>
-              <X className="h-4 w-4" /> Clear
+              <X className="h-4 w-4" /> Clear Filters
             </Button>
             </div>
           </details>
@@ -807,19 +835,36 @@ export default function Documents() {
         </div>
       )}
 
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-xl">
+      <Sheet open={sheetOpen} onOpenChange={(next) => next ? setSheetOpen(true) : closeForm()}>
+        <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-[720px]" onEscapeKeyDown={(event) => { if (saving || uploading) event.preventDefault() }}>
           <SheetHeader className="border-b border-border px-4 py-4 sm:px-6">
-            <SheetTitle>{editingDocument ? 'Edit Document' : 'Upload Document'}</SheetTitle>
+            <SheetTitle>{editingDocument ? 'Edit Document' : 'Add Document'}</SheetTitle>
             <SheetDescription>
-              Select a tender, upload the file, and save its metadata in that tender's document list.
+              Save document details with a stored file or external link.
             </SheetDescription>
           </SheetHeader>
           <div className="min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
+            <div className="space-y-3 rounded-xl border p-4">
+              <h3 className="font-semibold">Document Details</h3>
+              <div className="space-y-1.5">
+                <Label htmlFor="document-title">Title *</Label>
+                <Input id="document-title" value={documentForm.title} onChange={setFormValue('title')} aria-invalid={!!formErrors.title} placeholder="Document title" />
+                {formErrors.title ? <p role="alert" className="text-xs text-destructive">{formErrors.title}</p> : null}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="document-category">Type</Label>
+                <Select value={documentForm.category || 'Other'} onValueChange={setFormValue('category')}>
+                  <SelectTrigger id="document-category"><SelectValue /></SelectTrigger>
+                  <SelectContent>{DOCUMENT_CATEGORIES.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-3 rounded-xl border p-4">
+              <h3 className="font-semibold">Project Link</h3>
             <div className="space-y-1.5">
-              <Label htmlFor="document-tender">Tender / Project</Label>
+              <Label htmlFor="document-tender">Tender / Project *</Label>
               <Select value={documentForm.tenderId || ''} onValueChange={setFormValue('tenderId')} disabled={!!editingDocument}>
-                <SelectTrigger id="document-tender"><SelectValue placeholder="Select tender / project" /></SelectTrigger>
+                <SelectTrigger id="document-tender" aria-invalid={!!formErrors.tenderId}><SelectValue placeholder="Select tender / project" /></SelectTrigger>
                 <SelectContent>
                   {tenderOptions.map((tender) => (
                     <SelectItem key={tender.id} value={tender.id}>{tender.name}</SelectItem>
@@ -827,70 +872,74 @@ export default function Documents() {
                 </SelectContent>
               </Select>
               {editingDocument ? <p className="text-xs text-muted-foreground">Linked tender is locked while editing to keep existing records safe.</p> : null}
-              {selectedTender?.nit ? <p className="truncate text-xs text-muted-foreground">NIT / Ref: {selectedTender.nit}</p> : null}
+              {selectedTender?.nit ? <p className="break-words text-xs text-muted-foreground">NIT / Ref: {selectedTender.nit}</p> : null}
+              {formErrors.tenderId ? <p role="alert" className="text-xs text-destructive">{formErrors.tenderId}</p> : null}
             </div>
-
-            <div className="min-w-0 rounded-xl border border-dashed border-border bg-muted/20 p-4">
-              <Label htmlFor="document-upload" className="text-sm font-medium">Upload file / image</Label>
+            </div>
+            <div className="space-y-3 rounded-xl border p-4">
+              <h3 className="font-semibold">File or External Link</h3>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Document source">
+                <Button type="button" size="sm" variant={fileMode === 'file' ? 'default' : 'outline'} onClick={() => { setFileMode('file'); setFormErrors((previous) => ({ ...previous, url: '' })) }}>Stored file</Button>
+                <Button type="button" size="sm" variant={fileMode === 'link' ? 'default' : 'outline'} onClick={() => { setFileMode('link'); setFormErrors((previous) => ({ ...previous, file: '' })) }}>External link</Button>
+              </div>
+              {fileMode === 'file' ? <div className="min-w-0 rounded-xl border border-dashed border-border bg-muted/20 p-3">
+              <Label htmlFor="document-upload" className="text-sm font-medium">{documentForm.storagePath ? 'Replace stored file' : 'Choose file *'}</Label>
               <Input
                 id="document-upload"
                 type="file"
                 accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
                 className="mt-2"
-                disabled={!isAdmin || uploading || !documentForm.tenderId}
-                onChange={async (event) => {
+                disabled={!isAdmin || saving}
+                onChange={(event) => {
                   const file = event.target.files?.[0]
-                  event.target.value = ''
-                  await handleDocumentUpload(file)
+                  if (file) { stagedUploadRef.current = null; setPendingFile(file); setFormErrors((previous) => ({ ...previous, file: '' })); setSaveError('') }
                 }}
               />
-              {uploading ? <p className="mt-2 text-xs text-muted-foreground">Uploading {uploadProgress}%...</p> : null}
-              {(documentForm.fileName || documentForm.url) ? (
+              <p className="mt-1 text-xs text-muted-foreground">PDF, images, Word, Excel or CSV; up to 25 MB. Upload starts when you save.</p>
+              {formErrors.file ? <p role="alert" className="mt-1 text-xs text-destructive">{formErrors.file}</p> : null}
+              {uploading ? <p role="status" className="mt-2 text-xs text-muted-foreground">Uploading {uploadProgress}%...</p> : null}
+              {(pendingFile || documentForm.fileName || documentForm.storagePath) ? (
                 <div className="mt-3 min-w-0 rounded-lg bg-background p-3 text-xs text-muted-foreground">
-                  <p className="truncate font-semibold text-foreground" title={documentForm.fileName || documentForm.title}>
-                    {documentForm.fileName || documentForm.title || 'Uploaded file'}
+                  <p className="break-all font-semibold text-foreground" title={pendingFile?.name || documentForm.fileName || documentForm.title}>
+                    {pendingFile?.name || documentForm.fileName || documentForm.title || 'Stored file'}
                   </p>
-                  {documentForm.fileSize ? <p className="mt-1">Size: {formatFileSize(documentForm.fileSize)}</p> : null}
-                  {documentForm.url ? <p className="mt-1 break-all">URL saved for this document.</p> : null}
+                  <p className="mt-1">{pendingFile ? 'New file selected; original stays linked until save succeeds.' : 'Current stored file'}</p>
+                  {(pendingFile?.size || documentForm.fileSize) ? <p>Size: {formatFileSize(pendingFile?.size || documentForm.fileSize)}</p> : null}
                 </div>
               ) : null}
+              </div> : <div className="space-y-1.5">
+                <Label htmlFor="document-url">External URL *</Label>
+                <Input id="document-url" type="url" value={documentForm.url} onChange={setFormValue('url')} aria-invalid={!!formErrors.url} placeholder="https://example.com/document" />
+                {formErrors.url ? <p role="alert" className="text-xs text-destructive">{formErrors.url}</p> : null}
+                <p className="text-xs text-muted-foreground">The link is saved as supplied. Private storage links are never copied here.</p>
+              </div>}
             </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="document-title">Title</Label>
-              <Input id="document-title" value={documentForm.title} onChange={setFormValue('title')} placeholder="e.g. Site Visit - Foundation Work" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="document-category">Category</Label>
-              <Select value={documentForm.category || 'Other'} onValueChange={setFormValue('category')}>
-                <SelectTrigger id="document-category"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {DOCUMENT_CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>{category}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <div className="space-y-2 rounded-xl border p-4">
+              <h3 className="font-semibold">Notes</h3>
             <div className="space-y-1.5">
               <Label htmlFor="document-notes">Notes</Label>
               <Textarea id="document-notes" value={documentForm.notes} onChange={setFormValue('notes')} rows={4} placeholder="Optional notes about this file" />
             </div>
+            </div>
           </div>
           <SheetFooter className="gap-2 border-t border-border px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:pb-4">
-            <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
-            <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={saveDocument} disabled={!isAdmin || uploading}>
-              {editingDocument ? 'Save Document' : 'Upload Document'}
+            {saveError ? <p role="alert" className="w-full text-sm text-destructive">{saveError}</p> : null}
+            <Button type="button" variant="outline" onClick={closeForm} disabled={saving}>Cancel</Button>
+            <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={saveDocument} disabled={!isAdmin || saving}>
+              {saving ? 'Saving…' : editingDocument ? 'Save Document' : 'Add Document'}
             </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <ConfirmDelete open={discardOpen} onOpenChange={setDiscardOpen} onConfirm={() => { stagedUploadRef.current = null; setDiscardOpen(false); setSheetOpen(false) }} title="Discard document changes?" description="Unsaved details and selected files will be discarded. A file uploaded during a failed save is not removed from private storage." confirmLabel="Discard" />
 
       <ConfirmDelete
         open={!!deleteTarget}
         onOpenChange={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
         title="Delete document"
-        description="This will remove the document from its linked tender. This action cannot be undone."
+        description={`Remove “${deleteTarget?.fileName || deleteTarget?.title || 'this document'}” from its linked project? This removes the document record; it does not delete a stored file.`}
       />
 
       <Dialog open={!!previewDocument} onOpenChange={() => setPreviewDocument(null)}>
