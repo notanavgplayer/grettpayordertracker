@@ -59,10 +59,13 @@ export function createDocumentDownloadHandler({ requireAdmin, adminDb, createSto
       return failure(409, 'invalid-record', 'Stored document bucket is unsupported.')
     }
 
+    let storageStage = 'client'
     try {
       const storage = createStorageClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY).storage.from(BUCKET)
+      storageStage = 'info'
       const info = await storage.info(asset.storagePath)
       if (info.error) return storageFailure(info.error, 'info')
+      storageStage = 'sign'
       const [preview, download] = await Promise.all([
         storage.createSignedUrl(asset.storagePath, EXPIRES_IN),
         storage.createSignedUrl(asset.storagePath, EXPIRES_IN, { download: true }),
@@ -70,6 +73,7 @@ export function createDocumentDownloadHandler({ requireAdmin, adminDb, createSto
       if (preview.error || download.error || !preview.data?.signedUrl || !download.data?.signedUrl) {
         return storageFailure(preview.error || download.error, 'sign')
       }
+      storageStage = 'validate'
       const base = new URL(env.SUPABASE_URL)
       const signedUrl = new URL(preview.data.signedUrl)
       const downloadUrl = new URL(download.data.signedUrl)
@@ -77,8 +81,9 @@ export function createDocumentDownloadHandler({ requireAdmin, adminDb, createSto
         return failure(502, 'invalid-signed-link', 'Document storage returned an invalid link.')
       }
       return json({ url: signedUrl.href, downloadUrl: downloadUrl.href, expiresIn: EXPIRES_IN })
-    } catch {
-      return failure(502, 'storage-unavailable', 'Document storage is temporarily unavailable.')
+    } catch (error) {
+      if (storageRejectsCredentials(error)) return failure(503, 'storage-credentials-rejected', 'Document storage credentials were rejected.')
+      return failure(502, `storage-${storageStage}-exception`, 'Document storage is temporarily unavailable.')
     }
   }
 }

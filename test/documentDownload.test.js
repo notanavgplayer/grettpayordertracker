@@ -15,7 +15,7 @@ const env = {
 }
 const asset = { id: 'doc-1', storageBucket: 'tender-documents', storagePath: 'tender-1/doc-1/work-order.webp' }
 
-function setup({ role = 'admin', exists = true, documents = [asset], objectError = null, config = env } = {}) {
+function setup({ role = 'admin', exists = true, documents = [asset], objectError = null, infoThrows = false, config = env } = {}) {
   const calls = { record: 0, info: 0, sign: 0, path: null, expiresIn: null, download: null }
   const handler = createDocumentDownloadHandler({
     env: config,
@@ -31,7 +31,7 @@ function setup({ role = 'admin', exists = true, documents = [asset], objectError
     createStorageClient: () => ({ storage: { from: (bucket) => {
       assert.equal(bucket, 'tender-documents')
       return {
-        info: async (path) => { calls.info += 1; calls.path = path; return { error: objectError } },
+        info: async (path) => { calls.info += 1; calls.path = path; if (infoThrows) throw new Error('private upstream detail'); return { error: objectError } },
         createSignedUrl: async (path, expiresIn, options) => {
           calls.sign += 1
           calls.path = path
@@ -98,6 +98,15 @@ test('rejected storage credentials and storage API failures have safe distinct c
   const failedResponse = await failed.handler(failed.request())
   assert.equal(failedResponse.status, 502)
   assert.equal((await failedResponse.json()).code, 'storage-info-failed')
+})
+
+test('unexpected storage exceptions identify the stage without exposing error details', async () => {
+  const thrown = setup({ infoThrows: true })
+  const response = await thrown.handler(thrown.request())
+  assert.equal(response.status, 502)
+  const body = await response.json()
+  assert.equal(body.code, 'storage-info-exception')
+  assert.equal(JSON.stringify(body).includes('private upstream detail'), false)
 })
 
 test('signs only the path from the authorized Firestore record', async () => {
