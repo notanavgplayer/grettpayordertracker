@@ -1,11 +1,20 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
+import { createClient } from '@supabase/supabase-js'
 import { createDocumentDownloadHandler } from '../netlify/functions/_shared/document-download.mjs'
 
 test('Firebase Admin auth loads in the Netlify Node runtime', () => {
   const require = createRequire(import.meta.url)
   assert.equal(typeof require('firebase-admin/auth').getAuth, 'function')
+})
+
+test('Supabase storage client initializes in the Netlify Node runtime', () => {
+  const storage = createClient('https://storage.example.test', 'test-key', {
+    auth: { persistSession: false, autoRefreshToken: false },
+  }).storage.from('tender-documents')
+  assert.equal(typeof storage.info, 'function')
+  assert.equal(typeof storage.createSignedUrl, 'function')
 })
 
 const env = {
