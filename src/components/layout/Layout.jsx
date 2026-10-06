@@ -52,7 +52,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const breadcrumbs = getPageBreadcrumbs(location.pathname)
-  const mobilePageTitle = breadcrumbs?.at(-1)?.label || (location.pathname.startsWith('/tenders/') ? 'Tender details' : 'Pay Order Tracker')
+  const mobilePageTitle = breadcrumbs?.at(-1)?.label || (location.pathname === '/documents' ? 'Documents' : location.pathname.startsWith('/tenders/') ? 'Tender details' : 'Pay Order Tracker')
 
   useEffect(() => {
     try { localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0') } catch {}

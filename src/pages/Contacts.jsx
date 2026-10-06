@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useCollection, useFirestoreCRUD } from '@/hooks/useFirestore'
 import { useAuth } from '@/context/AuthContext'
 import { getInitials, CONTACT_CATEGORIES } from '@/lib/utils'
@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   Plus,
@@ -101,6 +102,11 @@ export default function Contacts() {
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState(null)
   const [selected, setSelected] = useState(null)
+  const [initialForm, setInitialForm] = useState(EMPTY)
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const [formErrors, setFormErrors] = useState({})
+  const [saveError, setSaveError] = useState('')
+  const savingRef = useRef(false)
 
   const stats = useMemo(() => {
     const now = Date.now()
@@ -131,26 +137,47 @@ export default function Contacts() {
   const hasFilters = search || typeFilter !== 'All'
 
   const openDialog = (item = null) => {
+    const value = item ? contactPayload(item) : { ...EMPTY }
     setEditItem(item)
-    setForm(item ? contactPayload(item) : { ...EMPTY })
+    setForm(value)
+    setInitialForm(value)
+    setFormErrors({})
+    setSaveError('')
     setDialogOpen(true)
   }
 
+  const closeDialog = () => {
+    if (savingRef.current) return
+    if (JSON.stringify(form) !== JSON.stringify(initialForm)) setDiscardOpen(true)
+    else setDialogOpen(false)
+  }
+
   const handleSave = async () => {
-    if (!form.name) { toast.error('Name is required'); return }
+    if (savingRef.current) return
+    const errors = {}
+    if (!form.name.trim()) errors.name = 'Full name is required.'
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errors.email = 'Enter a valid email address.'
+    setFormErrors(errors)
+    if (Object.keys(errors).length) return
+    savingRef.current = true
     setSaving(true)
+    setSaveError('')
     try {
       const payload = contactPayload(form)
-      if (editItem) { await update(editItem.id, payload); toast.success('Contact updated'); setSelected({ ...payload, id: editItem.id }) }
+      if (editItem) { await update(editItem.id, payload); toast.success('Contact updated'); setSelected({ ...editItem, ...payload }) }
       else { await add(payload); toast.success('Contact added') }
       setDialogOpen(false)
     } catch (err) {
       console.error('Failed to save contact:', err)
-      toast.error('Failed to save contact')
-    } finally { setSaving(false) }
+      setSaveError('Could not save this contact. Your entries are still here; please try again.')
+    } finally { savingRef.current = false; setSaving(false) }
   }
 
-  const setF = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
+  const setF = (k) => (e) => {
+    setForm((p) => ({ ...p, [k]: e.target?.value ?? e }))
+    setFormErrors((p) => ({ ...p, [k]: '' }))
+    setSaveError('')
+  }
 
   if (loading) return <PageTableSkeleton rows={7} cols={5} metrics={4} />
   if (error) return <LoadState title="Could not load contacts" error={error} />
@@ -220,8 +247,8 @@ export default function Contacts() {
       {filtered.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No contacts added yet."
-          description="Add agencies, vendors, and officers to keep project communication organized."
+          title={hasFilters ? 'No contacts match these filters' : 'No contacts added yet.'}
+          description={hasFilters ? 'Change the search or category to see other contacts.' : 'Add agencies, vendors, and officers to keep project communication organized.'}
           action={isAdmin && <Button onClick={() => openDialog()}><Plus className="h-4 w-4" /> Add first contact</Button>}
         />
       ) : (
@@ -255,8 +282,8 @@ export default function Contacts() {
                         <AvatarFallback className="bg-emerald-100 dark:bg-emerald-950/60 text-sm font-semibold text-emerald-700 dark:text-emerald-300">{getInitials(selected.name)}</AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-foreground">{selected.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">{selected.role || selected.organization || 'Contact'}</p>
+                        <p className="break-words font-semibold text-foreground">{selected.name}</p>
+                        <p className="break-words text-xs text-muted-foreground">{selected.role || selected.organization || 'Contact'}</p>
                       </div>
                     </div>
                     {isAdmin && (
@@ -306,16 +333,18 @@ export default function Contacts() {
         </div>
       )}
 
-      <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Sheet open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog() }}>
         <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
           <SheetHeader className="border-b px-4 py-4 text-left sm:px-6">
             <SheetTitle>{editItem ? 'Edit Contact' : 'New Contact'}</SheetTitle>
             <SheetDescription>Keep contact details and communication information together.</SheetDescription>
           </SheetHeader>
-          <div className="grid flex-1 grid-cols-1 gap-4 overflow-y-auto px-4 py-5 sm:grid-cols-2 sm:px-6">
+          <div className="grid flex-1 grid-cols-1 content-start gap-4 overflow-y-auto px-4 py-5 sm:grid-cols-2 sm:px-6">
+            <h3 className="sm:col-span-2 text-sm font-semibold">Contact details</h3>
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="contact-name">Full Name *</Label>
-              <Input id="contact-name" value={form.name} onChange={setF('name')} placeholder="e.g. Ahmed Khan" required aria-invalid={!form.name} />
+              <Input id="contact-name" value={form.name} onChange={setF('name')} required aria-invalid={!!formErrors.name} />
+              {formErrors.name && <p role="alert" className="text-xs text-destructive">{formErrors.name}</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="contact-role">Role / Title</Label>
@@ -332,6 +361,7 @@ export default function Contacts() {
               <Label htmlFor="contact-organization">Organization</Label>
               <Input id="contact-organization" value={form.organization} onChange={setF('organization')} />
             </div>
+            <h3 className="sm:col-span-2 border-t pt-3 text-sm font-semibold">Communication</h3>
             <div className="space-y-1.5">
               <Label htmlFor="contact-phone">Phone</Label>
               <Input id="contact-phone" value={form.phone} onChange={setF('phone')} type="tel" placeholder="+92 300 0000000" />
@@ -343,7 +373,9 @@ export default function Contacts() {
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="contact-email">Email</Label>
               <Input id="contact-email" value={form.email} onChange={setF('email')} type="email" />
+              {formErrors.email && <p role="alert" className="text-xs text-destructive">{formErrors.email}</p>}
             </div>
+            <h3 className="sm:col-span-2 border-t pt-3 text-sm font-semibold">Additional details</h3>
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="contact-address">Address</Label>
               <Input id="contact-address" value={form.address} onChange={setF('address')} />
@@ -354,7 +386,8 @@ export default function Contacts() {
             </div>
           </div>
           <SheetFooter className="border-t bg-background px-4 py-4 sm:px-6">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            {saveError && <p role="alert" className="w-full text-sm text-destructive">{saveError}</p>}
+            <Button variant="outline" onClick={closeDialog} disabled={saving}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editItem ? 'Save Changes' : 'Add Contact'}
@@ -362,6 +395,13 @@ export default function Contacts() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Discard contact changes?</AlertDialogTitle><AlertDialogDescription>Your unsaved changes will be lost.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Keep editing</AlertDialogCancel><AlertDialogAction onClick={() => { setDiscardOpen(false); setDialogOpen(false) }}>Discard changes</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={async () => { await remove(deleteId); toast.success('Contact deleted'); setSelected(null); setDeleteId(null) }} title="Delete contact" description="This will permanently delete this contact." />
     </div>
@@ -410,12 +450,9 @@ function ContactTable({ contacts, selected, isAdmin, onSelect, onEdit, onDelete 
         <TableHeader className="bg-muted/40">
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Organization</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Linked Tender/Project</TableHead>
-            <TableHead>Notes</TableHead>
+            <TableHead>Company / Role</TableHead>
+            <TableHead>Contact</TableHead>
+            <TableHead>Project</TableHead>
             <TableHead className="w-[96px] text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -434,22 +471,25 @@ function ContactTable({ contacts, selected, isAdmin, onSelect, onEdit, onDelete 
               className={`cursor-pointer hover:bg-muted/35 ${selected?.id === contact.id ? 'bg-emerald-50/70 dark:bg-emerald-950/30' : ''}`}
             >
               <TableCell>
-                <div className="flex min-w-[180px] items-center gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <Avatar className="h-9 w-9 flex-shrink-0">
                     <AvatarFallback className="bg-emerald-100 dark:bg-emerald-950/60 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{getInitials(contact.name)}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{contact.name || 'Untitled Contact'}</p>
-                    <p className="truncate text-xs text-muted-foreground">{contact.role || 'Contact person'}</p>
+                    <p className="break-words text-sm font-semibold text-foreground">{contact.name || 'Untitled Contact'}</p>
+                    <TypeBadge contact={contact} />
                   </div>
                 </div>
               </TableCell>
-              <TableCell><TypeBadge contact={contact} /></TableCell>
-              <TableCell className="max-w-[190px] truncate text-sm text-muted-foreground">{contact.organization || '-'}</TableCell>
-              <TableCell className="whitespace-nowrap text-sm">{contact.phone || '-'}</TableCell>
-              <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{contact.email || '-'}</TableCell>
-              <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{getLinkedProject(contact) || '-'}</TableCell>
-              <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{contact.notes || '-'}</TableCell>
+              <TableCell className="max-w-[150px] break-words text-sm text-muted-foreground">{[contact.organization, contact.role].filter(Boolean).join(' · ') || '—'}</TableCell>
+              <TableCell className="max-w-[170px] text-sm">
+                <div className="flex flex-col gap-1 break-all">
+                  {contact.phone && <a href={`tel:${contact.phone}`} onClick={(event) => event.stopPropagation()} className="text-primary hover:underline">{contact.phone}</a>}
+                  {contact.email && <a href={`mailto:${contact.email}`} onClick={(event) => event.stopPropagation()} className="text-primary hover:underline">{contact.email}</a>}
+                  {!contact.phone && !contact.email && <span className="text-muted-foreground">—</span>}
+                </div>
+              </TableCell>
+              <TableCell className="max-w-[160px] break-words text-sm text-muted-foreground">{getLinkedProject(contact) || '—'}</TableCell>
               <TableCell>
                 {isAdmin && (
                   <div className="flex justify-end gap-1" onClick={(event) => event.stopPropagation()}>

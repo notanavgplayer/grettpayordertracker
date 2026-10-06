@@ -161,7 +161,7 @@ export default function Settings() {
       // a non-admin session cannot call it from the JS console.
       const { exportAllDataJSON } = await import('@/lib/export')
       await exportAllDataJSON(user.email)
-      toast.success('Backup downloaded')
+      toast.success('Backup download started. Check your browser downloads and verify the saved file.')
     }
     catch { toast.error('Export failed') }
     finally { setExportingBackup(false) }
@@ -169,12 +169,12 @@ export default function Settings() {
 
   return (
     <div className="page-shell-compact grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2">
-      <PageHeader className="lg:col-span-2" title="Settings" description="Manage account, preferences, users, and app configuration" />
+      <PageHeader className="lg:col-span-2" title="Settings" description="Manage your profile, appearance, reminders, and supported administration settings" />
 
       <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
-          <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4 text-emerald-600" /> Account</CardTitle>
-          <CardDescription>Update your profile details and account identity.</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4 text-emerald-600" /> Profile & Access</CardTitle>
+          <CardDescription>Update your display name. Your account role controls available actions.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 sm:space-y-5">
           <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/20 p-3.5 sm:gap-4 sm:p-4">
@@ -185,6 +185,7 @@ export default function Settings() {
               <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
               <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
               <Badge variant={isAdmin ? 'default' : 'secondary'} className="mt-1 text-xs capitalize">{role}</Badge>
+              <p className="mt-1 text-xs text-muted-foreground">{isAdmin ? 'Administrator: can manage records and users.' : 'Viewer: read-only access to business records.'}</p>
             </div>
           </div>
 
@@ -273,6 +274,13 @@ export default function Settings() {
         </CardContent>
       </Card>
       </>}
+
+      {!tenderIntegrationsEnabled && <Card className="rounded-xl border-border/80 bg-card">
+        <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
+          <CardTitle className="flex items-center gap-2 text-base"><CalendarDays className="h-4 w-4 text-primary" /> Integrations <Badge variant="secondary">Inactive</Badge></CardTitle>
+          <CardDescription>Calendar and email synchronization are not active in this deployment.</CardDescription>
+        </CardHeader>
+      </Card>}
 
       <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
