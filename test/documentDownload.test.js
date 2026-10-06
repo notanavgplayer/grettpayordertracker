@@ -87,6 +87,19 @@ test('missing record and missing object are distinct', async () => {
   assert.equal(missingObject.calls.sign, 0)
 })
 
+test('rejected storage credentials and storage API failures have safe distinct codes', async () => {
+  const denied = setup({ objectError: { status: 403 } })
+  const deniedResponse = await denied.handler(denied.request())
+  assert.equal(deniedResponse.status, 503)
+  assert.equal((await deniedResponse.json()).code, 'storage-credentials-rejected')
+  assert.equal(denied.calls.sign, 0)
+
+  const failed = setup({ objectError: { status: 500 } })
+  const failedResponse = await failed.handler(failed.request())
+  assert.equal(failedResponse.status, 502)
+  assert.equal((await failedResponse.json()).code, 'storage-info-failed')
+})
+
 test('signs only the path from the authorized Firestore record', async () => {
   const { handler, request, calls } = setup()
   const response = await handler(request())

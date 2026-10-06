@@ -17,6 +17,12 @@ function storageIsMissing(error) {
   return Number(error?.status) === 404 || String(error?.statusCode || error?.code || '') === '404'
     || error?.code === 'NoSuchKey' || error?.code === 'ObjectNotFound'
 }
+const storageRejectsCredentials = (error) => [401, 403].includes(Number(error?.status || error?.statusCode))
+const storageFailure = (error, stage) => {
+  if (storageIsMissing(error)) return failure(404, 'object-not-found', 'Stored file was not found.')
+  if (storageRejectsCredentials(error)) return failure(503, 'storage-credentials-rejected', 'Document storage credentials were rejected.')
+  return failure(502, `storage-${stage}-failed`, 'Document storage is temporarily unavailable.')
+}
 
 export function createDocumentDownloadHandler({ requireAdmin, adminDb, createStorageClient, env }) {
   return async (request) => {
@@ -56,23 +62,19 @@ export function createDocumentDownloadHandler({ requireAdmin, adminDb, createSto
     try {
       const storage = createStorageClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY).storage.from(BUCKET)
       const info = await storage.info(asset.storagePath)
-      if (info.error) {
-        if (storageIsMissing(info.error)) return failure(404, 'object-not-found', 'Stored file was not found.')
-        return failure(502, 'storage-unavailable', 'Document storage is temporarily unavailable.')
-      }
+      if (info.error) return storageFailure(info.error, 'info')
       const [preview, download] = await Promise.all([
         storage.createSignedUrl(asset.storagePath, EXPIRES_IN),
         storage.createSignedUrl(asset.storagePath, EXPIRES_IN, { download: true }),
       ])
       if (preview.error || download.error || !preview.data?.signedUrl || !download.data?.signedUrl) {
-        if (storageIsMissing(preview.error) || storageIsMissing(download.error)) return failure(404, 'object-not-found', 'Stored file was not found.')
-        return failure(502, 'storage-unavailable', 'Document storage is temporarily unavailable.')
+        return storageFailure(preview.error || download.error, 'sign')
       }
       const base = new URL(env.SUPABASE_URL)
       const signedUrl = new URL(preview.data.signedUrl)
       const downloadUrl = new URL(download.data.signedUrl)
       if ([signedUrl, downloadUrl].some((url) => url.origin !== base.origin || !url.pathname.startsWith(`/storage/v1/object/sign/${BUCKET}/`))) {
-        return failure(502, 'storage-unavailable', 'Document storage returned an invalid link.')
+        return failure(502, 'invalid-signed-link', 'Document storage returned an invalid link.')
       }
       return json({ url: signedUrl.href, downloadUrl: downloadUrl.href, expiresIn: EXPIRES_IN })
     } catch {

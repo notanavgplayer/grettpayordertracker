@@ -194,6 +194,10 @@ function documentAvailability(document = {}) {
   if (document.linkError === 'unauthenticated') return 'Sign in to request a secure link'
   if (document.linkError === 'permission-denied') return 'Administrator access required'
   if (document.linkError === 'not-configured') return 'Secure download is not configured'
+  if (document.linkError === 'storage-credentials-rejected') return 'Document storage credentials were rejected'
+  if (document.linkError === 'storage-info-failed') return 'Document storage lookup failed'
+  if (document.linkError === 'storage-sign-failed') return 'Document secure link signing failed'
+  if (document.linkError === 'invalid-signed-link') return 'Document storage returned an invalid link'
   if (document.linkError === 'storage-unavailable') return 'Document storage is temporarily unavailable'
   if (document.linkError) return `Secure link request failed (${document.linkError})`
   return 'Secure link unavailable'
@@ -540,7 +544,7 @@ export default function Documents() {
         setLinkErrors(Object.fromEntries(results.flatMap((result, index) => {
           if (result.status !== 'rejected') return []
           const code = String(result.reason?.code || 'unavailable').replace(/^functions\//, '')
-          return [[stored[index].key, /^(unauthenticated|permission-denied|not-found|object-not-found|not-configured|storage-unavailable|invalid-record|invalid-argument|internal|unavailable)$/.test(code) ? code : 'unavailable']]
+          return [[stored[index].key, /^(unauthenticated|permission-denied|not-found|object-not-found|not-configured|storage-credentials-rejected|storage-info-failed|storage-sign-failed|invalid-signed-link|storage-unavailable|invalid-record|invalid-argument|internal|unavailable)$/.test(code) ? code : 'unavailable']]
         })))
       })
     return () => { active = false }
