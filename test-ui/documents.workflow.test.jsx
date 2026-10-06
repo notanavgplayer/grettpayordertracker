@@ -6,7 +6,7 @@ import Documents from '@/pages/Documents'
 
 const update = vi.fn()
 const uploadTenderDocument = vi.fn()
-const getTenderDocumentUrl = vi.fn()
+const getTenderDocumentLinks = vi.fn()
 let fixtureTenders = []
 let isAdmin = true
 
@@ -18,7 +18,7 @@ vi.mock('@/hooks/useFirestore', () => ({
 vi.mock('@/lib/supabaseStorage', () => ({
   hasSupabaseStorageConfig: () => true,
   uploadTenderDocument: (...args) => uploadTenderDocument(...args),
-  getTenderDocumentUrl: (...args) => getTenderDocumentUrl(...args),
+  getTenderDocumentLinks: (...args) => getTenderDocumentLinks(...args),
 }))
 
 const renderDocuments = () => render(<MemoryRouter><Documents /></MemoryRouter>)
@@ -31,7 +31,7 @@ describe('Documents workflows on disposable records', () => {
     isAdmin = true
     update.mockReset().mockResolvedValue(undefined)
     uploadTenderDocument.mockReset().mockResolvedValue({ path: 'test/new.pdf', bucket: 'tender-documents', url: 'https://temporary.test/signed' })
-    getTenderDocumentUrl.mockReset().mockResolvedValue('https://temporary.test/signed')
+    getTenderDocumentLinks.mockReset().mockResolvedValue({ url: 'https://temporary.test/signed', downloadUrl: 'https://temporary.test/download' })
   })
 
   it('filters records and distinguishes stored downloads from external links', async () => {
@@ -39,7 +39,8 @@ describe('Documents workflows on disposable records', () => {
     renderDocuments()
     const table = screen.getByRole('table')
     expect(within(table).getAllByRole('link', { name: /Test roadworks project/ })).toHaveLength(2)
-    await waitFor(() => expect(within(table).getByRole('link', { name: 'Download document' })).toHaveAttribute('href', 'https://temporary.test/signed'))
+    await waitFor(() => expect(within(table).getByRole('link', { name: 'Download document' })).toHaveAttribute('href', 'https://temporary.test/download'))
+    expect(getTenderDocumentLinks).toHaveBeenCalledWith({ tenderId: 'project-1', documentId: 'doc-1' })
     expect(within(table).getAllByRole('button', { name: 'Open document' })).toHaveLength(2)
     await user.type(screen.getByRole('searchbox', { name: 'Search documents' }), 'Certificate')
     expect(within(table).getAllByText('Certificate link')).toHaveLength(2)
@@ -50,7 +51,7 @@ describe('Documents workflows on disposable records', () => {
 
   it('reports a secure-link service failure without claiming the stored file was deleted and allows retry', async () => {
     const user = userEvent.setup()
-    getTenderDocumentUrl.mockRejectedValueOnce({ code: 'functions/internal' }).mockResolvedValueOnce('https://temporary.test/signed')
+    getTenderDocumentLinks.mockRejectedValueOnce({ code: 'functions/internal' }).mockResolvedValueOnce({ url: 'https://temporary.test/signed', downloadUrl: 'https://temporary.test/download' })
     renderDocuments()
     expect((await screen.findAllByText(/Secure link request failed \(internal\)/)).length).toBeGreaterThan(0)
     expect(screen.getByText(/does not confirm that the files were deleted/)).toBeInTheDocument()

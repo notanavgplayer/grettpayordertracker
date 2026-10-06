@@ -1,6 +1,6 @@
 import { httpsCallable } from 'firebase/functions'
 import { createClient } from '@supabase/supabase-js'
-import { functions } from './firebase'
+import { auth, functions } from './firebase'
 
 const SUPABASE_BUCKET = 'tender-documents'
 const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
@@ -21,11 +21,18 @@ export function getSupabaseStorageBucket() {
   return SUPABASE_BUCKET
 }
 
-export async function getTenderDocumentUrl(path) {
-  if (!path) return ''
-  const createDownload = httpsCallable(functions, 'createTenderDocumentDownload')
-  const response = await createDownload({ objectPath: path })
-  return response.data.url
+export async function getTenderDocumentLinks({ tenderId, documentId, assetType, siteVisitId }) {
+  const token = await auth.currentUser?.getIdToken()
+  if (!token) throw Object.assign(new Error('Sign in is required.'), { code: 'unauthenticated' })
+  const response = await fetch('/.netlify/functions/tender-document-download', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ tenderId, documentId, ...(assetType ? { assetType } : {}), ...(siteVisitId ? { siteVisitId } : {}) }),
+  })
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok) throw Object.assign(new Error(result.error || 'Secure link request failed.'), { code: result.code || 'unavailable' })
+  if (!result.url || !result.downloadUrl) throw Object.assign(new Error('Secure link was not returned.'), { code: 'unavailable' })
+  return { url: result.url, downloadUrl: result.downloadUrl }
 }
 
 export async function uploadTenderDocument({ tenderId, documentId, file, onProgress }) {
@@ -51,6 +58,6 @@ export async function uploadTenderDocument({ tenderId, documentId, file, onProgr
   })
   if (error) throw new Error(`Document upload failed: ${error.message}`)
   onProgress?.(100)
-  const url = await getTenderDocumentUrl(path)
-  return { path, objectPath: path, url, bucket: SUPABASE_BUCKET, urlExpiresAt: Date.now() + 14 * 60 * 1000 }
+  // The record is not saved yet, so the record-bound download route cannot sign it here.
+  return { path, objectPath: path, url: '', bucket: SUPABASE_BUCKET, urlExpiresAt: null }
 }

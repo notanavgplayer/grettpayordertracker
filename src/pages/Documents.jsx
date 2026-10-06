@@ -11,7 +11,7 @@ import { useCollection, useFirestoreCRUD } from '@/hooks/useFirestore'
 import { uid } from '@/lib/utils'
 import { rowsToCSV } from '@/lib/csv'
 import { safeHttpUrl } from '@/lib/data'
-import { getTenderDocumentUrl, hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
+import { getTenderDocumentLinks, hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
 import Breadcrumbs from '@/components/shared/Breadcrumbs'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import KpiCard from '@/components/shared/KpiCard'
@@ -189,6 +189,12 @@ function isStoredDocument(document = {}) {
 function documentAvailability(document = {}) {
   if (!isStoredDocument(document)) return document.url ? 'External link' : 'File or link unavailable'
   if (document.url) return 'Stored file'
+  if (document.linkError === 'object-not-found') return 'Stored file not found'
+  if (document.linkError === 'not-found') return 'Document record not found'
+  if (document.linkError === 'unauthenticated') return 'Sign in to request a secure link'
+  if (document.linkError === 'permission-denied') return 'Administrator access required'
+  if (document.linkError === 'not-configured') return 'Secure download is not configured'
+  if (document.linkError === 'storage-unavailable') return 'Document storage is temporarily unavailable'
   if (document.linkError) return `Secure link request failed (${document.linkError})`
   return 'Secure link unavailable'
 }
@@ -418,7 +424,7 @@ function DocumentActions({ document, isAdmin, onPreview, onEdit, onDelete }) {
           <Button type="button" variant="ghost" size="icon-sm" aria-label="More document actions"><MoreHorizontal className="h-4 w-4" /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          {isStoredDocument(document) && document.url ? <DropdownMenuItem asChild><a href={document.url} download={document.fileName || document.title}><Download /> Download</a></DropdownMenuItem> : null}
+          {isStoredDocument(document) && document.downloadUrl ? <DropdownMenuItem asChild><a href={document.downloadUrl}><Download /> Download</a></DropdownMenuItem> : null}
           <DropdownMenuItem onSelect={() => onEdit(document)} disabled={!isAdmin}><Pencil /> Edit details</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onDelete(document)} disabled={!isAdmin} className="text-destructive focus:text-destructive"><Trash2 /> Delete</DropdownMenuItem>
         </DropdownMenuContent>
@@ -467,9 +473,9 @@ function DocumentsTable({ documents, isAdmin, onPreview, onEdit, onDelete }) {
                   <td className="px-4 py-3">
                     <div className="ml-auto flex justify-end gap-2">
                       <Button type="button" variant="outline" size="icon-sm" onClick={() => onPreview(document)} disabled={!canOpenDocument(document)} aria-label="Open document"><Eye className="h-3.5 w-3.5" /></Button>
-                      {isStoredDocument(document) && document.url ? (
+                      {isStoredDocument(document) && document.downloadUrl ? (
                         <Button type="button" variant="outline" size="icon-sm" asChild>
-                          <a href={document.url} download={document.fileName || document.title} aria-label="Download document"><Download className="h-3.5 w-3.5" /></a>
+                          <a href={document.downloadUrl} aria-label="Download document"><Download className="h-3.5 w-3.5" /></a>
                         </Button>
                       ) : null}
                       <Button type="button" variant="outline" size="icon-sm" onClick={() => onEdit(document)} disabled={!isAdmin} aria-label="Edit document"><Pencil className="h-3.5 w-3.5" /></Button>
@@ -521,12 +527,12 @@ export default function Documents() {
   const [linkRetry, setLinkRetry] = useState(0)
   useEffect(() => {
     let active = true
-    const paths = [...new Set(rawDocuments.map((document) => document.storagePath).filter(Boolean))]
-    if (!paths.length) { setSignedUrls({}); setLinkErrors({}); return undefined }
-    Promise.allSettled(paths.map(async (path) => {
-      const url = await getTenderDocumentUrl(path)
-      if (!safeHttpUrl(url)) throw new Error('Secure link was not returned')
-      return [path, url]
+    const stored = rawDocuments.filter((document) => document.storagePath)
+    if (!stored.length) { setSignedUrls({}); setLinkErrors({}); return undefined }
+    Promise.allSettled(stored.map(async (document) => {
+      const links = await getTenderDocumentLinks({ tenderId: document.tenderId, documentId: document.id })
+      if (!safeHttpUrl(links.url) || !safeHttpUrl(links.downloadUrl)) throw new Error('Secure link was not returned')
+      return [document.key, links]
     }))
       .then((results) => {
         if (!active) return
@@ -534,14 +540,14 @@ export default function Documents() {
         setLinkErrors(Object.fromEntries(results.flatMap((result, index) => {
           if (result.status !== 'rejected') return []
           const code = String(result.reason?.code || 'unavailable').replace(/^functions\//, '')
-          return [[paths[index], /^(unauthenticated|permission-denied|not-found|invalid-argument|internal|unavailable)$/.test(code) ? code : 'unavailable']]
+          return [[stored[index].key, /^(unauthenticated|permission-denied|not-found|object-not-found|not-configured|storage-unavailable|invalid-record|invalid-argument|internal|unavailable)$/.test(code) ? code : 'unavailable']]
         })))
       })
     return () => { active = false }
   }, [rawDocuments, linkRetry])
   const documents = useMemo(() => rawDocuments.map((document) => {
-    const signedUrl = document.storagePath ? signedUrls[document.storagePath] : ''
-    return document.storagePath ? { ...document, url: signedUrl || '', fileUrl: signedUrl || '', linkError: linkErrors[document.storagePath] || '' } : document
+    const links = document.storagePath ? signedUrls[document.key] : null
+    return document.storagePath ? { ...document, url: links?.url || '', fileUrl: links?.url || '', downloadUrl: links?.downloadUrl || '', linkError: linkErrors[document.key] || '' } : document
   }), [rawDocuments, signedUrls, linkErrors])
   const tenderOptions = useMemo(() => tenders.map((tender) => ({ id: tender.id, name: getTenderName(tender), nit: getTenderNit(tender) })), [tenders])
   const categories = useMemo(() => {
