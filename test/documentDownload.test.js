@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { createClient } from '@supabase/supabase-js'
 import { createDocumentDownloadHandler } from '../netlify/functions/_shared/document-download.mjs'
+import { createPrivateStorageClient } from '../netlify/functions/_shared/private-storage.mjs'
 
 test('Firebase Admin auth loads in the Netlify Node runtime', () => {
   const require = createRequire(import.meta.url)
@@ -15,6 +16,43 @@ test('Supabase storage client initializes in the Netlify Node runtime', () => {
   }).storage.from('tender-documents')
   assert.equal(typeof storage.info, 'function')
   assert.equal(typeof storage.createSignedUrl, 'function')
+})
+
+test('server Storage adapter checks the object and signs preview/download for 15 minutes', async () => {
+  const calls = []
+  const adapter = createPrivateStorageClient('https://storage.example.test', ' server-key ', async (url, options) => {
+    calls.push({ url, method: options.method, headers: options.headers, body: options.body })
+    if (options.method === 'GET') return new Response('{}', { status: 200 })
+    return new Response(JSON.stringify({ signedURL: '/object/sign/tender-documents/tender-1/work%20order.webp?token=test-only' }), { status: 200 })
+  }).storage.from('tender-documents')
+  assert.equal((await adapter.info('tender-1/work order.webp')).error, null)
+  const preview = await adapter.createSignedUrl('tender-1/work order.webp', 900)
+  const download = await adapter.createSignedUrl('tender-1/work order.webp', 900, { download: true })
+  assert.equal(preview.error, null)
+  assert.equal(download.error, null)
+  assert.equal(new URL(preview.data.signedUrl).searchParams.has('download'), false)
+  assert.equal(new URL(download.data.signedUrl).searchParams.has('download'), true)
+  assert.equal(calls.length, 3)
+  assert.equal(calls[0].url.endsWith('/object/info/tender-documents/tender-1/work%20order.webp'), true)
+  assert.equal(calls[1].url.endsWith('/object/sign/tender-documents/tender-1/work%20order.webp'), true)
+  assert.deepEqual(JSON.parse(calls[1].body), { expiresIn: 900 })
+  assert.equal(calls.every((call) => call.headers.apikey === 'server-key' && call.headers.authorization === 'Bearer server-key'), true)
+})
+
+test('server Storage adapter returns only safe status for absent objects and rejected keys', async () => {
+  for (const status of [404, 403]) {
+    const adapter = createPrivateStorageClient('https://storage.example.test', 'server-key', async () => new Response('private upstream detail', { status })).storage.from('tender-documents')
+    const result = await adapter.info('tender-1/doc-1/work-order.webp')
+    assert.deepEqual(result.error, { status })
+    assert.equal(JSON.stringify(result).includes('private upstream detail'), false)
+  }
+})
+
+test('server Storage adapter rejects malformed signed-link responses', async () => {
+  const adapter = createPrivateStorageClient('https://storage.example.test', 'server-key', async () =>
+    new Response(JSON.stringify({ signedURL: 'https://other.example.test/object/sign/tender-documents/file?token=bad' }), { status: 200 })).storage.from('tender-documents')
+  const result = await adapter.createSignedUrl('file', 900)
+  assert.deepEqual(result.error, { status: 502 })
 })
 
 const env = {

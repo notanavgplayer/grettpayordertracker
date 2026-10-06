@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
 import { json } from './_shared/http.mjs'
 import { createDocumentDownloadHandler } from './_shared/document-download.mjs'
+import { createPrivateStorageClient } from './_shared/private-storage.mjs'
 
 export default async (request) => {
   const env = { ...process.env, SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL }
@@ -14,7 +14,7 @@ export default async (request) => {
   return createDocumentDownloadHandler({
     adminDb: admin.adminDb,
     requireAdmin: admin.requireAdmin,
-    createStorageClient: (url, key) => createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }),
+    createStorageClient: createPrivateStorageClient,
     env,
   })(request)
 }
