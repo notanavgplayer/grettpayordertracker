@@ -20,7 +20,7 @@ vi.mock('firebase/firestore', () => ({
 }))
 vi.mock('@/lib/firebase', () => ({ db: {} }))
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ isAdmin: true, displayName: 'Tester' }) }))
-vi.mock('@/lib/supabaseStorage', () => ({ getTenderDocumentUrl: vi.fn(), hasSupabaseStorageConfig: () => false, uploadTenderDocument: vi.fn() }))
+vi.mock('@/lib/supabaseStorage', () => ({ getTenderDocumentLinks: vi.fn(), hasSupabaseStorageConfig: () => false, uploadTenderDocument: vi.fn() }))
 vi.mock('@/lib/tenderIntegrations', () => ({ queueTenderIntegrationSync: vi.fn() }))
 vi.mock('@/lib/activity', () => ({ logActivity: vi.fn() }))
 

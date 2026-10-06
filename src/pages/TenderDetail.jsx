@@ -5,7 +5,7 @@ import { db } from '@/lib/firebase'
 import { queueTenderIntegrationSync } from '@/lib/tenderIntegrations'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
-import { getTenderDocumentUrl, hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
+import { getTenderDocumentLinks, hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
 import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinancials, getTenderDisplayStatus, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
 import { nonNegativeNumber, nullableNumber, safeHttpUrl, stripUndefined } from '@/lib/data'
 import { billAmounts, billDate, tenderContractValue, projectFinancials, executionState, securityAmounts, validateEvents, validateBillLedger, expenseAmounts } from '@/lib/financials'
@@ -198,7 +198,7 @@ function cleanTenderPayload(form, fallbackValue, fallbackTenderFee) {
 
 function sanitizeStoredAssets(items = []) {
   return items.map((item) => {
-    if (item?.storagePath) return { ...item, url: '', fileUrl: '', urlExpiresAt: null }
+    if (item?.storagePath) return { ...item, url: '', fileUrl: '', downloadUrl: '', urlExpiresAt: null }
     const url = safeHttpUrl(item?.url || item?.fileUrl || '')
     return { ...item, url, fileUrl: url }
   })
@@ -206,18 +206,25 @@ function sanitizeStoredAssets(items = []) {
 
 async function hydrateStoredAssets(tender) {
   const urlCache = new Map()
-  const resolveAsset = async (asset) => {
+  const resolveAsset = async (asset, identity) => {
     if (!asset?.storagePath) return asset
-    if (!urlCache.has(asset.storagePath)) {
-      urlCache.set(asset.storagePath, getTenderDocumentUrl(asset.storagePath).catch(() => ''))
+    const key = JSON.stringify(identity)
+    if (!urlCache.has(key)) {
+      urlCache.set(key, getTenderDocumentLinks(identity).catch(() => null))
     }
-    const url = await urlCache.get(asset.storagePath)
-    return url ? { ...asset, url, fileUrl: url, urlExpiresAt: Date.now() + 14 * 60 * 1000 } : asset
+    const links = await urlCache.get(key)
+    return links ? { ...asset, url: links.url, fileUrl: links.url, downloadUrl: links.downloadUrl, urlExpiresAt: Date.now() + 14 * 60 * 1000 }
+      : { ...asset, url: '', fileUrl: '', downloadUrl: '', urlExpiresAt: null }
   }
-  const documents = await Promise.all((tender.documents || []).map(resolveAsset))
-  const siteVisits = await Promise.all((tender.siteVisits || []).map(async (visit) => ({
+  const documents = await Promise.all((tender.documents || []).map((asset, index) => resolveAsset(asset, {
+    tenderId: tender.id, documentId: asset.id || `${tender.id}-${index}`,
+  })))
+  const siteVisits = await Promise.all((tender.siteVisits || []).map(async (visit, visitIndex) => ({
     ...visit,
-    photos: await Promise.all((visit.photos || []).map(resolveAsset)),
+    photos: await Promise.all((visit.photos || []).map((asset, photoIndex) => resolveAsset(asset, {
+      tenderId: tender.id, documentId: asset.id || `${visit.id || `${tender.id}-visit-${visitIndex}`}-photo-${photoIndex}`,
+      assetType: 'site-visit-photo', siteVisitId: visit.id || `${tender.id}-visit-${visitIndex}`,
+    }))),
   })))
   return { ...tender, documents, siteVisits }
 }
@@ -5763,7 +5770,7 @@ function DocumentCard({ item, isAdmin, onDelete, tenderName, onEdit }) {
                 </a>
               </Button>
               <Button variant="outline" size="sm" className="h-10 sm:h-9" asChild>
-                <a href={item.url} download={item.fileName || title}>
+                <a href={item.storagePath ? item.downloadUrl : item.url} download={item.storagePath ? undefined : item.fileName || title}>
                   <Download className="h-3.5 w-3.5" /> Download
                 </a>
               </Button>
