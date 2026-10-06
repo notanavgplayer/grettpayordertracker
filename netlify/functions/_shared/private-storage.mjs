@@ -22,6 +22,25 @@ export function createPrivateStorageClient(url, key, fetchImpl = fetch) {
     storage: {
       from(bucket) {
         return {
+          async createSignedUploadUrl(path) {
+            const result = await request(`/object/upload/sign/${objectKey(bucket, path)}`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: '{}',
+            })
+            if (result.error) return result
+            const payload = await result.data.json()
+            const relative = payload?.url
+            const expectedPath = `/object/upload/sign/${objectKey(bucket, path)}`
+            if (typeof relative !== 'string' || !relative.startsWith(`${expectedPath}?`)) {
+              return { data: null, error: { status: 502 } }
+            }
+            const signed = new URL(`${storageRoot}${relative}`)
+            if (signed.origin !== base.origin || !signed.searchParams.has('token')) {
+              return { data: null, error: { status: 502 } }
+            }
+            return { data: { token: signed.searchParams.get('token') }, error: null }
+          },
           async info(path) {
             const result = await request(`/object/info/${objectKey(bucket, path)}`, { method: 'GET' })
             return result.error ? result : { data: true, error: null }
