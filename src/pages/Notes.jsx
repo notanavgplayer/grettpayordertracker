@@ -1,238 +1,159 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useCollection, useFirestoreCRUD } from '@/hooks/useFirestore'
 import { useAuth } from '@/context/AuthContext'
-import { formatDate, truncate } from '@/lib/utils'
-import PageHeader from '@/components/shared/PageHeader'
+import { formatDate } from '@/lib/utils'
 import EmptyState from '@/components/shared/EmptyState'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import LoadState from '@/components/shared/LoadState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Search, Trash2, StickyNote } from 'lucide-react'
-import { toast } from 'sonner'
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Plus, Search, Trash2, StickyNote, Loader2 } from 'lucide-react'
 
 const PRIORITY_COLORS = { high: 'destructive', medium: 'pending', low: 'returned', none: 'secondary' }
 
-// Strip HTML tags, comments, and MS Word/Docs fragment markers so pasted
-// content renders as clean plain text in the textarea editor.
-function stripHtml(str = '') {
-  return String(str)
-    .replace(/<!--[\s\S]*?-->/g, '')        // HTML comments incl. <!--StartFragment-->
-    .replace(/<\/?[a-z][^>]*>/gi, '')       // tags
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\r\n?/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
+// Existing rich-text records are displayed as text and kept byte-for-byte if
+// the body is not edited. No arbitrary HTML reaches the rendered page.
+function plainText(value = '') {
+  return String(value).replace(/<!--[^]*?-->/g, '').replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n').replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#39;/gi, "'")
+    .replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+function noteDraft(note) {
+  return { title: note?.title || '', body: plainText(note?.body || ''), priority: note?.priority || 'none' }
+}
+
+function recordedDate(note) {
+  const value = note?.updatedAt || note?.createdAt
+  const date = value?.toDate?.() || (value ? new Date(value) : null)
+  return date && !Number.isNaN(date.getTime()) ? formatDate(date.toISOString()) : 'Not recorded'
+}
+
+function noteDateLabel(note) {
+  return note?.updatedAt ? 'Updated' : note?.createdAt ? 'Created' : 'Date'
 }
 
 export default function Notes() {
   const { data: notes, loading, error } = useCollection('notes', 'updatedAt', 'desc')
-  const { add, remove } = useFirestoreCRUD('notes')
+  const { add, update, remove } = useFirestoreCRUD('notes')
   const { isAdmin } = useAuth()
-
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)
-  const [body, setBody] = useState('')
-  const [title, setTitle] = useState('')
-  const [priority, setPriority] = useState('none')
-  const [saveStatus, setSaveStatus] = useState('')
+  const [draft, setDraft] = useState(null)
+  const [baseline, setBaseline] = useState(null)
+  const [pendingSelection, setPendingSelection] = useState(undefined)
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
+  const [saveError, setSaveError] = useState('')
   const [deleteId, setDeleteId] = useState(null)
-  const debounceRef = useRef(null)
 
-  const filtered = notes.filter((n) => {
-    if (!search) return true
-    const q = search.toLowerCase()
-    return (n.title || '').toLowerCase().includes(q) || (n.body || '').toLowerCase().includes(q)
-  })
+  const filtered = useMemo(() => notes.filter((note) => {
+    const query = search.trim().toLowerCase()
+    return !query || [note.title, plainText(note.body), note.projectName, note.tenderName]
+      .some((value) => String(value || '').toLowerCase().includes(query))
+  }), [notes, search])
+  const dirty = !!draft && !!baseline && JSON.stringify(draft) !== JSON.stringify(baseline)
 
-  const selectNote = (note) => {
+  const showNote = (note) => {
     setSelected(note)
-    setTitle(note.title || '')
-    setBody(stripHtml(note.body || ''))
-    setPriority(note.priority || 'none')
-    setSaveStatus('')
+    const next = note ? noteDraft(note) : null
+    setDraft(next)
+    setBaseline(next)
+    setSaveError('')
   }
 
-  const newNote = async () => {
-    try {
-      const newDoc = { title: 'Untitled Note', body: '', priority: 'none' }
-      const id = await add(newDoc)
-      selectNote({ id, ...newDoc })
-    } catch {
-      toast.error('Failed to create note')
-    }
+  const navigateToNote = (note) => {
+    if (savingRef.current) return
+    if (dirty) { setPendingSelection(note); return }
+    showNote(note)
   }
 
-  const saveNote = useCallback(async (noteId, data) => {
-    if (!noteId) return
-    setSaveStatus('Saving…')
+  const startNote = () => {
+    if (savingRef.current) return
+    if (dirty) { setPendingSelection('new'); return }
+    showNote({ id: null, title: 'Untitled Note', body: '', priority: 'none' })
+  }
+
+  const saveNote = async () => {
+    if (!isAdmin || !selected || !draft || savingRef.current || (selected.id && !dirty)) return
+    savingRef.current = true
+    setSaving(true)
+    setSaveError('')
     try {
-      await updateDoc(doc(db, 'notes', noteId), { ...data, updatedAt: serverTimestamp() })
-      setSaveStatus('Saved')
-      setTimeout(() => setSaveStatus(''), 2000)
-    } catch {
-      setSaveStatus('Error saving')
-    }
-  }, [])
-
-  // Debounce auto-save. Track the latest pending payload in a ref so we can
-  // flush it when the user switches notes or unmounts.
-  const pendingRef = useRef(null)
-  useEffect(() => {
-    if (!selected) return
-    const noteId = selected.id
-    const snapshot = { title, body, priority }
-    pendingRef.current = { noteId, snapshot }
-    setSaveStatus('Auto-saving…')
-    clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      saveNote(noteId, snapshot)
-      pendingRef.current = null
-    }, 800)
-    return () => clearTimeout(debounceRef.current)
-  }, [title, body, priority, selected, selected?.id, saveNote])
-
-  // Flush pending edits when the active note changes or on unmount.
-  useEffect(() => {
-    return () => {
-      const pending = pendingRef.current
-      if (pending) {
-        saveNote(pending.noteId, pending.snapshot)
-        pendingRef.current = null
+      const payload = {
+        title: draft.title.trim() || 'Untitled Note',
+        body: draft.body === plainText(selected.body || '') ? selected.body || '' : draft.body,
+        priority: draft.priority,
       }
+      if (selected.id) await update(selected.id, payload)
+      else {
+        const id = await add(payload)
+        setSelected({ ...selected, ...payload, id })
+      }
+      setDraft({ ...draft, title: payload.title })
+      setBaseline({ ...draft, title: payload.title })
+    } catch (failure) {
+      console.error('Failed to save note:', failure)
+      setSaveError('Could not save this note. Your edits are still here; please try again.')
+    } finally {
+      savingRef.current = false
+      setSaving(false)
     }
-  }, [selected?.id, saveNote])
+  }
 
-  if (loading) return (
-    <div className="grid h-full grid-cols-1 overflow-hidden rounded-xl border bg-card sm:grid-cols-[288px_minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)]">
-      <div className="space-y-3 border-r p-4"><Skeleton className="h-7 w-24" /><Skeleton className="h-10 w-full" />{Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-16 w-full" />)}</div>
-      <div className="hidden space-y-4 p-6 sm:block"><Skeleton className="h-8 w-1/2" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-5/6" /><Skeleton className="h-4 w-3/4" /></div>
-    </div>
-  )
+  if (loading) return <div className="grid min-h-[70vh] grid-cols-1 gap-4 rounded-xl border bg-card p-4 sm:grid-cols-2"><Skeleton className="h-full" /><Skeleton className="h-full" /></div>
   if (error) return <LoadState title="Notes could not be loaded" error={error} />
 
   return (
-    <div className="flex h-full overflow-hidden rounded-xl border bg-card">
-      {/* Notes list */}
-      <div className={`flex flex-col border-r border-border bg-card ${selected ? 'hidden sm:flex' : 'flex'} w-full sm:w-72 lg:w-80 flex-shrink-0`}>
+    <div className="flex min-h-[70vh] min-w-0 overflow-hidden rounded-xl border bg-card">
+      <div className={`w-full flex-shrink-0 border-r border-border sm:w-72 lg:w-80 ${selected ? 'hidden sm:flex' : 'flex'} flex-col`}>
         <div className="space-y-3 border-b border-border p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h1 className="font-display text-xl font-semibold tracking-tight">Notes</h1>
-            {isAdmin && <Button size="icon-sm" onClick={newNote} aria-label="Create note"><Plus className="h-4 w-4" /></Button>}
+            {isAdmin && <Button size="sm" onClick={startNote}><Plus className="h-4 w-4" /> Add Note</Button>}
           </div>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input aria-label="Search notes" type="search" placeholder="Search notes…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
+          <div className="relative"><Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Search notes" type="search" placeholder="Search notes…" className="h-10 pl-9" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
         </div>
-
-        <div className="flex-1 overflow-y-auto scrollbar-thin divide-y divide-border">
-          {filtered.length === 0 ? (
-            <EmptyState icon={StickyNote} title="No notes" description="Create your first note." action={isAdmin && <Button size="sm" onClick={newNote}><Plus className="h-4 w-4" /> New Note</Button>} />
-          ) : (
-            filtered.map((note) => (
-              <button
-                key={note.id}
-                onClick={() => selectNote(note)}
-                className={`w-full text-left px-4 py-3 hover:bg-accent transition-colors ${selected?.id === note.id ? 'bg-accent' : ''}`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium text-foreground break-words line-clamp-2 flex-1 min-w-0">{note.title || 'Untitled'}</p>
-                  {note.priority && note.priority !== 'none' && (
-                    <Badge variant={PRIORITY_COLORS[note.priority]} className="flex-shrink-0 text-xs">{note.priority}</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 break-words">{truncate(stripHtml(note.body || ''), 80)}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{formatDate(note.updatedAt?.toDate?.()?.toISOString?.() || '')}</p>
-              </button>
-            ))
-          )}
+        <div className="flex-1 divide-y divide-border overflow-y-auto scrollbar-thin">
+          {filtered.length === 0 ? <EmptyState icon={StickyNote} title={search ? 'No matching notes' : 'No notes yet'} description={search ? 'Try another search.' : 'Add a note to keep project information together.'} /> : filtered.map((note) => (
+            <button key={note.id} type="button" onClick={() => navigateToNote(note)} className={`w-full px-4 py-3 text-left transition-colors hover:bg-accent ${selected?.id === note.id ? 'bg-accent' : ''}`}>
+              <div className="flex min-w-0 items-start justify-between gap-2"><p className="min-w-0 flex-1 break-words text-sm font-medium line-clamp-2">{note.title || 'Untitled Note'}</p>{note.priority && note.priority !== 'none' && <Badge variant={PRIORITY_COLORS[note.priority] || 'secondary'} className="flex-shrink-0 capitalize">{note.priority}</Badge>}</div>
+              <p className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground">{plainText(note.body || '')}</p>
+              {(note.projectName || note.tenderName) && <p className="mt-1 truncate text-xs text-muted-foreground">{note.projectName || note.tenderName}</p>}
+              <p className="mt-1 text-xs text-muted-foreground">{noteDateLabel(note)}: {recordedDate(note)}</p>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Editor */}
-      {selected ? (
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Editor toolbar */}
-          <div className="flex items-center justify-between border-b border-border px-4 py-2 flex-shrink-0 gap-3">
-            <button className="sm:hidden text-muted-foreground hover:text-foreground text-sm" onClick={() => setSelected(null)}>← Back</button>
-            <div className="flex items-center gap-2 ml-auto">
-              <span className="text-xs text-muted-foreground">{saveStatus}</span>
-              <Select value={priority} onValueChange={(v) => { setPriority(v); setSaveStatus('') }} disabled={!isAdmin}>
-                <SelectTrigger className="h-10 w-[120px] text-sm"><SelectValue placeholder="Priority" /></SelectTrigger>
-                <SelectContent>
-                  {['none', 'high', 'medium', 'low'].map((p) => <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {isAdmin && (
-                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeleteId(selected.id)} aria-label="Delete note">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+      {selected && draft ? (
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+            <Button variant="ghost" size="sm" className="sm:hidden" onClick={() => navigateToNote(null)}>← Back</Button>
+            <div className="min-w-0 text-xs text-muted-foreground">{selected.id ? `${noteDateLabel(selected)}: ${recordedDate(selected)}` : 'New note'}</div>
+            <div className="flex items-center gap-2">{isAdmin && <Button variant="outline" size="sm" onClick={() => navigateToNote(null)} disabled={saving}>Close</Button>}{isAdmin && <Button size="sm" onClick={saveNote} disabled={saving || (selected.id && !dirty)}>{saving && <Loader2 className="h-4 w-4 animate-spin" />}{saving ? 'Saving…' : 'Save Note'}</Button>}{isAdmin && selected.id && <Button variant="ghost" size="icon-sm" aria-label="Delete note" className="text-destructive" onClick={() => setDeleteId(selected.id)}><Trash2 className="h-4 w-4" /></Button>}</div>
           </div>
-
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <input
-              className="w-full border-0 bg-transparent px-5 pb-2 pt-5 font-display text-2xl font-semibold tracking-tight text-foreground outline-none placeholder:text-muted-foreground sm:px-6"
-              value={title}
-              onChange={(e) => { setTitle(e.target.value); setSaveStatus('') }}
-              placeholder="Note title…"
-              disabled={!isAdmin}
-            />
-            <textarea
-              className="scrollbar-thin flex-1 resize-none border-0 bg-transparent px-5 py-3 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground sm:px-6"
-              value={body}
-              onChange={(e) => { setBody(e.target.value); setSaveStatus('') }}
-              onPaste={(e) => {
-                const html = e.clipboardData.getData('text/html')
-                const plain = e.clipboardData.getData('text/plain')
-                const clean = html ? stripHtml(html) : stripHtml(plain)
-                if (clean !== (html || plain)) {
-                  e.preventDefault()
-                  const el = e.target
-                  const start = el.selectionStart
-                  const end = el.selectionEnd
-                  const next = body.slice(0, start) + clean + body.slice(end)
-                  setBody(next)
-                  setSaveStatus('')
-                  // restore cursor after paste
-                  requestAnimationFrame(() => {
-                    el.selectionStart = el.selectionEnd = start + clean.length
-                  })
-                }
-              }}
-              placeholder="Start writing…"
-              disabled={!isAdmin}
-            />
+          {saveError && <p role="alert" className="mx-4 mt-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{saveError}</p>}
+          <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-6">
+            <div className="space-y-1.5"><Label htmlFor="note-title">Title</Label><Input id="note-title" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} disabled={!isAdmin} className="font-display text-lg font-semibold" /></div>
+            <div className="space-y-1.5"><Label htmlFor="note-priority">Priority</Label><Select value={draft.priority} onValueChange={(priority) => setDraft((current) => ({ ...current, priority }))} disabled={!isAdmin}><SelectTrigger id="note-priority" className="w-40"><SelectValue /></SelectTrigger><SelectContent>{['none', 'high', 'medium', 'low'].map((value) => <SelectItem key={value} value={value} className="capitalize">{value}</SelectItem>)}</SelectContent></Select></div>
+            {(selected.projectName || selected.tenderName || selected.tenderId) && <p className="text-sm text-muted-foreground">Linked project: {selected.tenderId ? <Link className="break-words text-primary underline-offset-2 hover:underline" to={`/tenders/${encodeURIComponent(selected.tenderId)}`}>{selected.projectName || selected.tenderName || selected.tenderId}</Link> : selected.projectName || selected.tenderName}</p>}
+            <div className="flex min-h-[280px] flex-1 flex-col space-y-1.5"><Label htmlFor="note-body">Content</Label><Textarea id="note-body" className="min-h-[280px] flex-1 resize-y whitespace-pre-wrap break-words leading-6" value={draft.body} onChange={(event) => setDraft((current) => ({ ...current, body: event.target.value }))} disabled={!isAdmin} /></div>
           </div>
         </div>
-      ) : (
-        <div className="hidden sm:flex flex-1 items-center justify-center">
-          <div className="text-center">
-            <StickyNote className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">Select a note to view it</p>
-          </div>
-        </div>
-      )}
+      ) : <div className="hidden flex-1 items-center justify-center sm:flex"><div className="text-center text-sm text-muted-foreground"><StickyNote className="mx-auto mb-3 h-10 w-10 opacity-40" />Select a note to read it</div></div>}
 
-      <ConfirmDelete
-        open={!!deleteId}
-        onOpenChange={() => setDeleteId(null)}
-        onConfirm={async () => { await remove(deleteId); setSelected(null); toast.success('Note deleted'); setDeleteId(null) }}
-        title="Delete note"
-        description="This note will be permanently deleted."
-      />
+      <AlertDialog open={pendingSelection !== undefined} onOpenChange={(open) => { if (!open) setPendingSelection(undefined) }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Discard note changes?</AlertDialogTitle><AlertDialogDescription>Your unsaved edits will be lost.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep editing</AlertDialogCancel><AlertDialogAction onClick={() => { const next = pendingSelection; setPendingSelection(undefined); if (next === 'new') showNote({ id: null, title: 'Untitled Note', body: '', priority: 'none' }); else showNote(next) }}>Discard changes</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <ConfirmDelete open={!!deleteId} onOpenChange={() => setDeleteId(null)} onConfirm={async () => { await remove(deleteId); showNote(null); setDeleteId(null) }} title="Delete note" description="This note will be permanently deleted." />
     </div>
   )
 }
