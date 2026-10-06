@@ -1200,8 +1200,7 @@ export default function TenderDetail() {
         uploadedAt: new Date().toISOString().slice(0, 10),
       }
     } catch (err) {
-      console.error('Failed to upload document:', err)
-      toast.error('The file could not be uploaded. Check your connection and storage permissions, then try again.')
+      toast.error(err?.message || 'The file could not be uploaded. Please retry.')
       return null
     } finally {
       setUploadingDocumentId(null)
@@ -1334,8 +1333,7 @@ export default function TenderDetail() {
       }))
       toast.success(`${uploadedPhotos.length} photo${uploadedPhotos.length === 1 ? '' : 's'} uploaded`)
     } catch (error) {
-      console.error('Site visit photo upload failed', error)
-      const message = 'The photos could not be uploaded. Check your connection and storage permissions, then try again.'
+      const message = error?.message || 'The photos could not be uploaded. Please retry.'
       setSiteVisitPhotoError(message)
       toast.error(message)
     } finally {

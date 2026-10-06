@@ -931,7 +931,7 @@ export default function Documents() {
               <Input
                 id="document-upload"
                 type="file"
-                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+                accept="image/jpeg,image/png,image/webp,.pdf,.doc,.docx,.xls,.xlsx"
                 className="mt-2"
                 disabled={!isAdmin || saving}
                 onChange={(event) => {
@@ -939,7 +939,7 @@ export default function Documents() {
                   if (file) { stagedUploadRef.current = null; setPendingFile(file); setFormErrors((previous) => ({ ...previous, file: '' })); setSaveError('') }
                 }}
               />
-              <p className="mt-1 text-xs text-muted-foreground">PDF, images, Word, Excel or CSV; up to 25 MB. Upload starts when you save.</p>
+              <p className="mt-1 text-xs text-muted-foreground">PDF, JPEG, PNG, WEBP, Word or Excel; up to 25 MB. Upload starts when you save.</p>
               {formErrors.file ? <p role="alert" className="mt-1 text-xs text-destructive">{formErrors.file}</p> : null}
               {uploading ? <p role="status" className="mt-2 text-xs text-muted-foreground">Uploading {uploadProgress}%...</p> : null}
               {(pendingFile || documentForm.fileName || documentForm.storagePath) ? (

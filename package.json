@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "test": "npm run test:unit && npm run test:ui",
-    "test:unit": "node --test test/domain.test.js test/integrations.test.js test/firestore.rules.test.js test/calendarTodo.test.js test/documentDownload.test.js",
+    "test:unit": "node --test test/domain.test.js test/integrations.test.js test/firestore.rules.test.js test/calendarTodo.test.js test/documentDownload.test.js test/documentUpload.test.js",
     "test:ui": "vitest run --maxWorkers=1",
     "test:rules": "npx --yes firebase-tools@15.30.2 emulators:exec --only firestore \"npm test\"",
     "check:csp": "node scripts/check-csp.mjs",
