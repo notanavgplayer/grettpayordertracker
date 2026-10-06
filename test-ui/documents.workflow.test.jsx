@@ -48,6 +48,17 @@ describe('Documents workflows on disposable records', () => {
     expect(within(table).getByText('External link')).toBeInTheDocument()
   })
 
+  it('reports a secure-link service failure without claiming the stored file was deleted and allows retry', async () => {
+    const user = userEvent.setup()
+    getTenderDocumentUrl.mockRejectedValueOnce({ code: 'functions/internal' }).mockResolvedValueOnce('https://temporary.test/signed')
+    renderDocuments()
+    expect((await screen.findAllByText(/Secure link request failed \(internal\)/)).length).toBeGreaterThan(0)
+    expect(screen.getByText(/does not confirm that the files were deleted/)).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Open document' })[0]).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Retry links' }))
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Download document' })).toBeInTheDocument())
+  })
+
   it('saves metadata without reuploading or persisting a signed URL', async () => {
     const user = userEvent.setup()
     renderDocuments()

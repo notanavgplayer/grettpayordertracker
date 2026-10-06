@@ -186,6 +186,13 @@ function isStoredDocument(document = {}) {
   return Boolean(document.storagePath)
 }
 
+function documentAvailability(document = {}) {
+  if (!isStoredDocument(document)) return document.url ? 'External link' : 'File or link unavailable'
+  if (document.url) return 'Stored file'
+  if (document.linkError) return `Secure link request failed (${document.linkError})`
+  return 'Secure link unavailable'
+}
+
 function canOpenDocument(document = {}) {
   return Boolean(document.url)
 }
@@ -392,7 +399,7 @@ function DocumentCard({ document, isAdmin, onPreview, onEdit, onDelete }) {
             </span>
             {document.fileSize ? <span className="flex-shrink-0 rounded-full bg-muted px-2 py-0.5 font-medium">{formatFileSize(document.fileSize)}</span> : null}
           </div>
-          <p className={`text-xs ${!document.url ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'}`}>{isStoredDocument(document) ? (document.url ? 'Stored file' : 'Stored file unavailable') : document.url ? 'External link' : 'File or link unavailable'}</p>
+          <p className={`text-xs ${!document.url ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'}`}>{documentAvailability(document)}</p>
         </div>
         <DocumentActions document={document} isAdmin={isAdmin} onPreview={onPreview} onEdit={onEdit} onDelete={onDelete} />
       </CardContent>
@@ -447,7 +454,7 @@ function DocumentsTable({ documents, isAdmin, onPreview, onEdit, onDelete }) {
                       <div className="min-w-0">
                         <p className="max-w-[320px] line-clamp-2 break-words font-semibold text-foreground" title={document.title}>{document.title}</p>
                         <p className="max-w-[320px] line-clamp-2 break-all text-xs text-muted-foreground" title={document.fileName}>{safeText(document.fileName)}</p>
-                        <p className={`text-xs ${document.url ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-300'}`}>{isStoredDocument(document) ? (document.url ? 'Stored file' : 'Stored file unavailable') : document.url ? 'External link' : 'File or link unavailable'}{document.fileSize ? ` · ${formatFileSize(document.fileSize)}` : ''}</p>
+                        <p className={`text-xs ${document.url ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-300'}`}>{documentAvailability(document)}{document.fileSize ? ` · ${formatFileSize(document.fileSize)}` : ''}</p>
                       </div>
                     </div>
                   </td>
@@ -510,21 +517,32 @@ export default function Documents() {
 
   const rawDocuments = useMemo(() => buildDocuments(tenders), [tenders])
   const [signedUrls, setSignedUrls] = useState({})
+  const [linkErrors, setLinkErrors] = useState({})
+  const [linkRetry, setLinkRetry] = useState(0)
   useEffect(() => {
     let active = true
     const paths = [...new Set(rawDocuments.map((document) => document.storagePath).filter(Boolean))]
-    if (!paths.length) { setSignedUrls({}); return undefined }
-    Promise.allSettled(paths.map(async (path) => [path, await getTenderDocumentUrl(path)]))
+    if (!paths.length) { setSignedUrls({}); setLinkErrors({}); return undefined }
+    Promise.allSettled(paths.map(async (path) => {
+      const url = await getTenderDocumentUrl(path)
+      if (!safeHttpUrl(url)) throw new Error('Secure link was not returned')
+      return [path, url]
+    }))
       .then((results) => {
         if (!active) return
         setSignedUrls(Object.fromEntries(results.filter((result) => result.status === 'fulfilled').map((result) => result.value)))
+        setLinkErrors(Object.fromEntries(results.flatMap((result, index) => {
+          if (result.status !== 'rejected') return []
+          const code = String(result.reason?.code || 'unavailable').replace(/^functions\//, '')
+          return [[paths[index], /^(unauthenticated|permission-denied|not-found|invalid-argument|internal|unavailable)$/.test(code) ? code : 'unavailable']]
+        })))
       })
     return () => { active = false }
-  }, [rawDocuments])
+  }, [rawDocuments, linkRetry])
   const documents = useMemo(() => rawDocuments.map((document) => {
     const signedUrl = document.storagePath ? signedUrls[document.storagePath] : ''
-    return document.storagePath ? { ...document, url: signedUrl || '', fileUrl: signedUrl || '' } : document
-  }), [rawDocuments, signedUrls])
+    return document.storagePath ? { ...document, url: signedUrl || '', fileUrl: signedUrl || '', linkError: linkErrors[document.storagePath] || '' } : document
+  }), [rawDocuments, signedUrls, linkErrors])
   const tenderOptions = useMemo(() => tenders.map((tender) => ({ id: tender.id, name: getTenderName(tender), nit: getTenderNit(tender) })), [tenders])
   const categories = useMemo(() => {
     const values = new Set(DOCUMENT_CATEGORIES)
@@ -804,6 +822,13 @@ export default function Documents() {
           </div>
         </CardContent>
       </Card>
+
+      {Object.keys(linkErrors).length > 0 && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300/60 bg-amber-50/60 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          <span>Could not request secure links for {Object.keys(linkErrors).length} stored file{Object.keys(linkErrors).length === 1 ? '' : 's'}. This does not confirm that the files were deleted.</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => setLinkRetry((count) => count + 1)}>Retry links</Button>
+        </div>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-4">
