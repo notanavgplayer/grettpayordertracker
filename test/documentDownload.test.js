@@ -1,6 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
 import { createDocumentDownloadHandler } from '../netlify/functions/_shared/document-download.mjs'
+
+test('Firebase Admin auth loads in the Netlify Node runtime', () => {
+  const require = createRequire(import.meta.url)
+  assert.equal(typeof require('firebase-admin/auth').getAuth, 'function')
+})
 
 const env = {
   FIREBASE_SERVICE_ACCOUNT_JSON: 'configured',
