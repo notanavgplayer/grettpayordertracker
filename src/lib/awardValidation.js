@@ -6,6 +6,8 @@ const NUMBER_FIELDS = [
   ['extensionDays', 'Extension days', 'award-extension-days'],
   ['performanceSecurityAmount', 'Performance security amount', 'award-performance-security-amount'],
   ['retentionPercentage', 'Retention percentage', 'award-retention-percentage'],
+  ['srbPercentage', 'SRB percentage', 'award-srb-percentage'],
+  ['incomeTaxPercentage', 'Income tax percentage', 'award-tax-percentage'],
   ['retentionAmount', 'Retention amount', 'award-retention-amount'],
   ['mobilizationAdvance', 'Mobilization advance', 'award-mobilization-advance'],
 ]
@@ -19,8 +21,8 @@ export function getInvalidAwardField(form = {}) {
     if (['completionPeriod', 'extensionDays'].includes(key) && !Number.isInteger(number)) {
       return { key, id, message: `${label} must be a whole number of days.` }
     }
-    if (key === 'retentionPercentage' && number > 100) {
-      return { key, id, message: 'Retention percentage cannot exceed 100.' }
+    if (['retentionPercentage', 'srbPercentage', 'incomeTaxPercentage'].includes(key) && number > 100) {
+      return { key, id, message: `${label} cannot exceed 100.` }
     }
   }
   return null

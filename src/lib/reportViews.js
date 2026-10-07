@@ -25,17 +25,21 @@ export function buildProjectView(tenders, expenses, filters) {
       const metrics = projectFinancials(tender, expenses)
       const awarded = metrics.contract !== null || ['Awarded', 'Won', 'In Progress', 'Completed'].includes(tender.status)
       const bills = [...(tender.bills || []), ...(tender.raBills || [])]
-      const receiptEvents = bills.flatMap((bill) => bill.v2?.receipts || [])
+      const receiptEvents = bills.flatMap((bill) => bill.v2?.receipts || []).filter((event) => !event.status || event.status === 'Cleared')
       const undatedReceipts = receiptEvents.filter((receipt) => !reportDate(receipt.date)).length
       const legacyReceipts = bills.filter((bill) => !Array.isArray(bill.v2?.receipts) && billAmounts(bill).received > 0).length
       return {
         id: tender.id, name: nameOf(tender), status: tender.status || 'Unknown',
         contract: awarded ? metrics.contract : null,
         incurred: metrics.incurred, received: metrics.received,
+        approvedGross: metrics.approvedGross, taxesOther: metrics.taxesOther,
+        retentionHeld: metrics.retentionHeld, netPayable: metrics.netPayable, pendingReceipts: metrics.pendingReceipts,
         receivables: metrics.outstanding, unbilled: awarded ? metrics.unbilled : null,
         forecast: awarded ? metrics.finalCost : null,
         missingContract: awarded && metrics.contract === null,
         unknownBillBasis: awarded && metrics.unknownBillBasis,
+        unknownReceiptCount: metrics.unknownReceiptCount,
+        unknownRetentionCount: metrics.unknownRetentionCount,
         incompletePayments: metrics.unknownPaymentCount,
         periodReceipts: sum(receiptEvents.filter((event) => inPeriod(event.date, filters.from, filters.to)), 'amount'),
         undatedReceipts, legacyReceipts,
@@ -45,6 +49,7 @@ export function buildProjectView(tenders, expenses, filters) {
     rows,
     totals: {
       contract: sum(rows, 'contract'), incurred: sum(rows, 'incurred'), received: sum(rows, 'received'),
+      approvedGross: sum(rows, 'approvedGross'), taxesOther: sum(rows, 'taxesOther'), retentionHeld: sum(rows, 'retentionHeld'), netPayable: sum(rows, 'netPayable'), pendingReceipts: sum(rows, 'pendingReceipts'),
       receivables: sum(rows, 'receivables'), unbilled: sum(rows, 'unbilled'),
       periodReceipts: sum(rows, 'periodReceipts'),
     },
@@ -52,6 +57,8 @@ export function buildProjectView(tenders, expenses, filters) {
       unawarded: rows.filter((row) => row.contract === null && !row.missingContract).length,
       missingContract: rows.filter((row) => row.missingContract).length,
       unknownBillBasis: rows.filter((row) => row.unknownBillBasis && !row.missingContract).length,
+      unknownReceipts: sum(rows, 'unknownReceiptCount'),
+      unknownRetention: sum(rows, 'unknownRetentionCount'),
       forecastIncomplete: rows.filter((row) => row.contract !== null && row.forecast === null).length,
       incompletePayments: sum(rows, 'incompletePayments'),
       undated: sum(rows, 'undatedReceipts'), legacy: sum(rows, 'legacyReceipts'),

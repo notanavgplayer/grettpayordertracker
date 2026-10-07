@@ -65,6 +65,7 @@ function datedReceipts(tenders, months) {
     if (!WON_STATES.has(tender.status)) continue
     for (const bill of [...(tender.bills || []), ...(tender.raBills || [])]) {
       for (const receipt of bill.v2?.receipts || []) {
+        if (receipt.status && receipt.status !== 'Cleared') continue
         const key = typeof receipt.date === 'string' ? receipt.date.slice(0, 7) : ''
         const amount = Number(receipt.amount)
         if (byMonth.has(key) && Number.isFinite(amount) && amount > 0) byMonth.get(key).receipts += amount
@@ -121,7 +122,12 @@ export default function Home() {
     const financials = won.map((tender) => projectFinancials(tender, expenses))
     const wonIds = new Set(won.map((tender) => tender.id))
     return {
-      receivables: financials.reduce((sum, row) => sum + row.outstanding, 0),
+      receivables: financials.reduce((sum, row) => sum + (row.outstanding ?? 0), 0),
+      unknownReceiptCount: financials.reduce((sum, row) => sum + row.unknownReceiptCount, 0),
+      retentionHeld: financials.reduce((sum, row) => sum + row.retentionHeld, 0),
+      unknownRetentionCount: financials.reduce((sum, row) => sum + row.unknownRetentionCount, 0),
+      approvedGross: financials.reduce((sum, row) => sum + row.approvedGross, 0),
+      netPayable: financials.reduce((sum, row) => sum + row.netPayable, 0),
       received: financials.reduce((sum, row) => sum + row.received, 0),
       unbilled: financials.reduce((sum, row) => sum + row.unbilled, 0),
       missingContractCount: financials.filter((row) => row.contract === null).length,
@@ -242,8 +248,13 @@ export default function Home() {
             <div className="flex items-center justify-between gap-3 py-3 first:pt-0"><dt className="text-sm text-muted-foreground">Known unbilled work</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.unbilled)}</dd></div>
             {summary.missingContractCount > 0 && <p className="py-2 text-xs text-muted-foreground">{summary.missingContractCount} awarded project{summary.missingContractCount === 1 ? ' lacks' : 's lack'} a recorded contract amount and {summary.missingContractCount === 1 ? 'is' : 'are'} excluded from unbilled work.</p>}
             {summary.unknownBillBasisCount > 0 && <p className="py-2 text-xs text-muted-foreground">{summary.unknownBillBasisCount} project{summary.unknownBillBasisCount === 1 ? ' has' : 's have'} legacy bills with unverified gross/net basis and {summary.unknownBillBasisCount === 1 ? 'is' : 'are'} excluded from unbilled work.</p>}
+            {summary.unknownReceiptCount > 0 && <p className="py-2 text-xs text-muted-foreground">{summary.unknownReceiptCount} approved bill{summary.unknownReceiptCount === 1 ? ' has' : 's have'} no recorded receipt history; outstanding remains unknown.</p>}
+            {summary.unknownRetentionCount > 0 && <p className="py-2 text-xs text-muted-foreground">{summary.unknownRetentionCount} legacy RM deduction{summary.unknownRetentionCount === 1 ? ' has' : 's have'} no release history; held balance is excluded.</p>}
             <div className="flex items-center justify-between gap-3 py-3"><dt className="text-sm text-muted-foreground">Recorded costs</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.costs)}</dd></div>
             <div className="flex items-center justify-between gap-3 py-3"><dt className="text-sm text-muted-foreground">Received on bills</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.received)}</dd></div>
+            <div className="flex items-center justify-between gap-3 py-3"><dt className="text-sm text-muted-foreground">Approved gross bills</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.approvedGross)}</dd></div>
+            <div className="flex items-center justify-between gap-3 py-3"><dt className="text-sm text-muted-foreground">Net payable</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.netPayable)}</dd></div>
+            <div className="flex items-center justify-between gap-3 py-3"><dt className="text-sm text-muted-foreground">RM held (separate from pay orders)</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.retentionHeld)}</dd></div>
           </dl>
           <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">Totals use the existing V2 calculations. Open reports for project-level detail.</p>
         </DashboardSection>

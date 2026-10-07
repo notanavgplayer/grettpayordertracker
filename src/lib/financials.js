@@ -1,13 +1,16 @@
 import { nullableNumber } from './data.js'
+import { billLedger, validateBillingLedger } from './billingLedger.js'
 
 export function billAmounts(bill = {}) {
+  if (bill.v2?.billing) return billLedger(bill, nullableNumber(bill.v2.billing.contractBasis))
   const submitted = nullableNumber(bill.amount ?? bill.submittedAmount) ?? 0
   const approvedValue = nullableNumber(bill.approvedAmount ?? bill.approved)
   const approved = approvedValue ?? (['Approved', 'Paid'].includes(bill.status) ? submitted : 0)
   const receivedValue = nullableNumber(bill.receivedAmount ?? bill.received ?? bill.paidAmount)
+  const receiptHistoryKnown = Array.isArray(bill.v2?.receipts) || receivedValue !== null
   const received = Array.isArray(bill.v2?.receipts)
-    ? bill.v2.receipts.reduce((sum, event) => sum + (nullableNumber(event.amount) ?? 0), 0)
-    : receivedValue ?? 0
+    ? bill.v2.receipts.reduce((sum, event) => sum + (!event.status || event.status === 'Cleared' ? nullableNumber(event.amount) ?? 0 : 0), 0)
+    : receivedValue
   const deductions = bill.v2?.deductions
     ? Object.values(bill.v2.deductions).reduce((sum, value) => sum + (nullableNumber(value) ?? 0), 0)
     : nullableNumber(bill.deductions) ?? 0
@@ -17,7 +20,11 @@ export function billAmounts(bill = {}) {
     approved,
     received,
     deductions,
-    balance: Math.max(approved - received - deductions, 0),
+    balance: receiptHistoryKnown ? Math.max(approved - received - deductions, 0) : approved === 0 ? 0 : null,
+    net: Math.max(approved - deductions, 0), pending: 0,
+    retention: nullableNumber(bill.v2?.deductions?.retention) ?? 0,
+    retentionReleased: 0, retentionHeld: bill.v2?.deductions?.retention ? null : 0,
+    grossBasisKnown: Boolean(bill.v2?.deductions), receiptHistoryKnown,
   }
 }
 
@@ -30,7 +37,7 @@ export function billNumber(bill = {}) {
 }
 
 export function sumReceived(items = []) {
-  return items.reduce((total, item) => total + billAmounts(item).received, 0)
+  return items.reduce((total, item) => total + (billAmounts(item).received ?? 0), 0)
 }
 
 export function tenderBillTotals(tender = {}, { combineBillTypes = true } = {}) {
@@ -80,20 +87,28 @@ export function projectFinancials(tender = {}, expenses = []) {
   const sourceBills = [...(tender.bills || []), ...(tender.raBills || [])]
   const bills = sourceBills.map(billAmounts)
   const submitted = bills.reduce((sum, item) => sum + item.submitted, 0)
-  const received = bills.reduce((sum, item) => sum + item.received, 0)
-  const outstanding = bills.reduce((sum, item) => sum + item.balance, 0)
-  const retention = [...(tender.bills || []), ...(tender.raBills || [])].reduce((sum, bill) => sum + (nullableNumber(bill.v2?.deductions?.retention) ?? 0), 0)
+  const received = bills.reduce((sum, item) => sum + (item.received ?? 0), 0)
+  const outstanding = bills.some((item) => item.approved > 0 && !item.receiptHistoryKnown)
+    ? null : bills.reduce((sum, item) => sum + (item.balance ?? 0), 0)
+  const retention = bills.reduce((sum, bill) => sum + (bill.retention ?? 0), 0)
+  const retentionHeld = bills.reduce((sum, bill) => sum + (bill.retentionHeld ?? 0), 0)
+  const unknownRetentionCount = bills.filter((bill) => bill.retentionHeld === null).length
+  const taxesOther = bills.reduce((sum, bill) => sum + Math.max((bill.deductions ?? 0) - (bill.retention ?? 0), 0), 0)
+  const approvedGross = bills.reduce((sum, bill) => sum + bill.approved, 0)
+  const netPayable = bills.reduce((sum, bill) => sum + (bill.net ?? 0), 0)
+  const pendingReceipts = bills.reduce((sum, bill) => sum + (bill.pending ?? 0), 0)
+  const unknownReceiptCount = bills.filter((bill) => bill.approved > 0 && !bill.receiptHistoryKnown).length
   const contract = tenderContractValue(tender)
   const remaining = nullableNumber(tender.v2?.forecastRemaining)
   const finalCost = remaining === null ? null : incurred + remaining
   const profit = finalCost === null || contract === null ? null : contract - finalCost
   // Legacy submitted amounts may already be net of deductions. Only an itemized
   // V2 bill establishes a gross basis for contract-minus-submitted reporting.
-  const unknownBillBasis = sourceBills.some((bill) => !bill.v2?.deductions)
-  return { contract, incurred, paid, paidCostsKnown, payable, knownPayable, unknownPaymentCount, submitted, received, outstanding, retention,
+  const unknownBillBasis = bills.some((bill) => !bill.grossBasisKnown)
+  return { contract, incurred, paid, paidCostsKnown, payable, knownPayable, unknownPaymentCount, submitted, received, outstanding, retention, retentionHeld, unknownRetentionCount, taxesOther, approvedGross, netPayable, pendingReceipts, unknownReceiptCount,
     unbilled: contract === null || unknownBillBasis ? null : Math.max(contract - submitted, 0), unknownBillBasis, remaining, finalCost, profit,
     margin: profit === null || contract <= 0 ? null : profit / contract * 100,
-    cash: paid === null ? null : received - paid,
+    cash: paid === null || unknownReceiptCount > 0 ? null : received - paid,
     unallocated: rows.filter((row) => !row.v2?.boqItemId).reduce((sum, row) => sum + expenseAmounts(row).incurred, 0) }
 }
 
@@ -101,7 +116,7 @@ export function securityAmounts(po = {}) {
   const guarantee = po.v2?.instrument === 'guarantee'
   const funded = guarantee ? nullableNumber(po.v2?.fundedCash) : nullableNumber(po.v2?.fundedCash) ?? nullableNumber(po.amount) ?? 0
   const refunded = (po.v2?.refunds || []).reduce((sum, event) => sum + (nullableNumber(event.amount) ?? 0), 0)
-  return { funded, refunded, remaining: ['Encashed', 'Forfeited'].includes(po.status) ? 0 : funded === null ? null : Math.max(funded - refunded, 0),
+  return { funded, refunded, remaining: ['Encashed', 'Forfeited'].includes(po.status) || funded === null ? null : Math.max(funded - refunded, 0),
     exposure: guarantee && !['Released', 'Forfeited', 'Encashed'].includes(po.status) ? nullableNumber(po.amount) ?? 0 : 0 }
 }
 
@@ -127,6 +142,7 @@ export function validateEvents(events, limit) {
 }
 
 export function validateBillLedger(bill = {}) {
+  if (bill.v2?.billing) return validateBillingLedger(bill, nullableNumber(bill.v2.billing.contractBasis))
   const approved = nullableNumber(bill.approvedAmount) ?? (['Approved', 'Paid'].includes(bill.status) ? nullableNumber(bill.amount) ?? 0 : 0)
   const deductions = bill.v2?.deductions
     ? Object.values(bill.v2.deductions).reduce((sum, value) => sum + (nullableNumber(value) ?? 0), 0)

@@ -39,12 +39,10 @@ test('nonNegativeNumber rejects blank, invalid, and negative financial input', (
 })
 
 test('bill amounts use approved and received values consistently', () => {
-  assert.deepEqual(
-    billAmounts({ amount: 100, approvedAmount: 80, receivedAmount: 30, status: 'Partially Paid' }),
-    { submitted: 100, approved: 80, received: 30, deductions: 0, balance: 50 }
-  )
-  assert.equal(billAmounts({ amount: 100, approvedAmount: 80, status: 'Paid' }).received, 0)
-  assert.equal(billAmounts({ amount: 100, approvedAmount: 80, status: 'Paid' }).balance, 80)
+  const recorded = billAmounts({ amount: 100, approvedAmount: 80, receivedAmount: 30, status: 'Partially Paid' })
+  assert.deepEqual([recorded.submitted, recorded.approved, recorded.received, recorded.deductions, recorded.balance], [100, 80, 30, 0, 50])
+  assert.equal(billAmounts({ amount: 100, approvedAmount: 80, status: 'Paid' }).received, null)
+  assert.equal(billAmounts({ amount: 100, approvedAmount: 80, status: 'Paid' }).balance, null)
   assert.equal(billAmounts({ amount: 100, approvedAmount: 0, receivedAmount: 0 }).approved, 0)
 })
 
@@ -93,7 +91,8 @@ test('legacy project value and Paid status do not invent a contract or receipt',
   assert.equal(totals.unbilled, null)
   assert.equal(totals.profit, null)
   assert.equal(totals.received, 0)
-  assert.equal(totals.outstanding, 1895000)
+  assert.equal(totals.outstanding, null)
+  assert.equal(totals.unknownReceiptCount, 1)
 })
 
 test('legacy net bill is not subtracted from a known gross contract as unbilled work', () => {
@@ -124,7 +123,8 @@ test('unpaid and partial supplier costs change payable and cash once; BOQ alloca
 test('bill receipts and deductions remain traceable without changing the aggregate twice', () => {
   const bill = { amount: 500, approvedAmount: 450, receivedAmount: 400, deductions: 5,
     v2: { receipts: [{ id: 'a', date: '2026-09-26', amount: 100, account: 'Bank', reference: 'R1' }, { id: 'b', date: '2026-09-27', amount: 150, account: 'Bank', reference: 'R2' }], deductions: { retention: 20, tax: 10 } } }
-  assert.deepEqual(billAmounts(bill), { submitted: 500, approved: 450, received: 250, deductions: 30, balance: 170 })
+  const amounts = billAmounts(bill)
+  assert.deepEqual([amounts.submitted, amounts.approved, amounts.received, amounts.deductions, amounts.balance], [500, 450, 250, 30, 170])
   assert.equal(validateBillLedger(bill), null)
   assert.match(validateBillLedger({ ...bill, v2: { receipts: [{ id: 'a', date: '2026-09-27', amount: 500, account: 'Bank', reference: 'R' }] } }), /exceed/)
 })
@@ -132,7 +132,7 @@ test('bill receipts and deductions remain traceable without changing the aggrega
 test('partial security refunds reduce blocked cash while guarantees retain face exposure', () => {
   const po = { amount: 1000, status: 'Held', v2: { instrument: 'guarantee', fundedCash: 100, refunds: [{ amount: 40 }] } }
   assert.deepEqual(securityAmounts(po), { funded: 100, refunded: 40, remaining: 60, exposure: 1000 })
-  assert.equal(securityAmounts({ ...po, status: 'Encashed' }).remaining, 0)
+  assert.equal(securityAmounts({ ...po, status: 'Encashed' }).remaining, null)
   assert.equal(validateEvents([{ id: 'r1', date: '2026-09-27', amount: 60, account: 'Bank', reference: 'TX' }], 60), null)
   assert.match(validateEvents([{ id: 'r1', date: '2026-09-27', amount: 61, account: 'Bank', reference: 'TX' }], 60), /exceed/)
 })

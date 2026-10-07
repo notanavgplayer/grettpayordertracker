@@ -22,7 +22,7 @@ export default function AwardWorkOrderSheet({ open, onOpenChange, form, setField
               <FormField label="Award date" type="date" value={form.awardDate} onChange={setField('awardDate')} disabled={!isAdmin} />
               <FormField label="Work order number" value={form.workOrderNumber} onChange={setField('workOrderNumber')} disabled={!isAdmin} />
               <FormField label="Work order date" type="date" value={form.workOrderDate} onChange={setField('workOrderDate')} disabled={!isAdmin} />
-              <FormField id="award-contract-value" label="Contract value" type="number" min="0" step="0.01" value={form.contractValue} onChange={setField('contractValue')} disabled={!isAdmin} />
+              <FormField id="award-contract-value" label="Approved contract amount" type="number" min="0" step="0.01" value={form.contractValue} onChange={setField('contractValue')} disabled={!isAdmin} />
               <FormField label="Department / agency reference" value={form.departmentReference} onChange={setField('departmentReference')} disabled={!isAdmin} />
             </FormGroup>
 
@@ -41,6 +41,9 @@ export default function AwardWorkOrderSheet({ open, onOpenChange, form, setField
               <FormField label="Performance security type" value={form.performanceSecurityType} onChange={setField('performanceSecurityType')} disabled={!isAdmin} />
               <FormField label="Performance security expiry date" type="date" value={form.performanceSecurityExpiryDate} onChange={setField('performanceSecurityExpiryDate')} disabled={!isAdmin} />
               <FormField id="award-retention-percentage" label="Retention percentage" type="number" min="0" max="100" step="0.01" value={form.retentionPercentage} onChange={setField('retentionPercentage')} disabled={!isAdmin} />
+              <FormField id="award-srb-percentage" label="Default SRB deduction %" type="number" min="0" max="100" step="0.01" value={form.srbPercentage ?? ''} onChange={setField('srbPercentage')} disabled={!isAdmin} />
+              <FormField id="award-tax-percentage" label="Default income tax deduction %" type="number" min="0" max="100" step="0.01" value={form.incomeTaxPercentage ?? ''} onChange={setField('incomeTaxPercentage')} disabled={!isAdmin} />
+              <p className="text-xs text-muted-foreground sm:col-span-2">These project defaults prefill new bill rows. Each approved bill keeps its own rate, base and calculated amount.</p>
               <FormField id="award-retention-amount" label="Retention amount" type="number" min="0" step="0.01" value={form.retentionAmount} onChange={setField('retentionAmount')} disabled={!isAdmin} />
               <FormField id="award-mobilization-advance" label="Mobilization advance" type="number" min="0" step="0.01" value={form.mobilizationAdvance} onChange={setField('mobilizationAdvance')} disabled={!isAdmin} />
             </FormGroup>
