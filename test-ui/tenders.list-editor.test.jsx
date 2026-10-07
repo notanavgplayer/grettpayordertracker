@@ -39,6 +39,7 @@ describe('tender list and editor with disposable fixtures', () => {
     expect(within(table).getByText('Quoted bid')).toBeInTheDocument()
     expect(within(table).getAllByText('Not recorded').length).toBeGreaterThan(0)
     expect(within(table).queryByText(/days overdue/)).not.toBeInTheDocument()
+    expect(screen.getByText(/1 awarded contract amount not recorded/)).toBeInTheDocument()
   })
 
   it('exposes optional columns and search without changing record links', async () => {

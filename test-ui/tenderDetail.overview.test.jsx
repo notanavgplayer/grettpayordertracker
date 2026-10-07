@@ -27,7 +27,7 @@ vi.mock('@/lib/activity', () => ({ logActivity: vi.fn() }))
 const baseTender = {
   id: 'fixture', name: 'Long active engineering project name with a second phase and reference', nit: 'NIT-FIXTURE-2026', agency: 'Fixture Agency',
   status: 'In Progress', value: 2400000, estimatedCost: 3000000, quotedAmount: 2400000,
-  awardWorkOrder: { workOrderNumber: 'WO-FIXTURE', workOrderDate: '2026-04-27', expectedCompletionDate: '2026-07-27' },
+  awardWorkOrder: { workOrderNumber: 'WO-FIXTURE', workOrderDate: '2026-04-27', expectedCompletionDate: '2026-07-27', contractValue: 2400000 },
   bills: [{ id: 'bill', no: 'B-1', amount: 500000, approvedAmount: 400000, receivedAmount: 100000, status: 'Approved' }],
   raBills: [], documents: [{ id: 'doc', title: 'Work order document', type: 'Work Order' }],
   siteVisits: [{ id: 'visit', visitDate: '2026-05-09', location: 'Site A' }],

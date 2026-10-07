@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { stripUndefined, nullableNumber, nonNegativeNumber, safeHttpUrl, serializeBackupValue } from '../src/lib/data.js'
-import { billAmounts, billDate, billNumber, tenderBillTotals, projectFinancials, expenseAmounts, securityAmounts, executionState, validateEvents, validateBillLedger } from '../src/lib/financials.js'
+import { billAmounts, billDate, billNumber, tenderBillTotals, tenderContractValue, projectFinancials, expenseAmounts, securityAmounts, executionState, validateEvents, validateBillLedger } from '../src/lib/financials.js'
 import { reviewV2Backup, applyV2Patches } from '../src/lib/migrationReview.js'
 import { getSecurityFollowUps } from '../src/lib/payOrderMetrics.js'
 import { csvCell, safeSpreadsheetText } from '../src/lib/csv.js'
@@ -43,18 +43,19 @@ test('bill amounts use approved and received values consistently', () => {
     billAmounts({ amount: 100, approvedAmount: 80, receivedAmount: 30, status: 'Partially Paid' }),
     { submitted: 100, approved: 80, received: 30, deductions: 0, balance: 50 }
   )
-  assert.equal(billAmounts({ amount: 100, approvedAmount: 80, status: 'Paid' }).received, 80)
+  assert.equal(billAmounts({ amount: 100, approvedAmount: 80, status: 'Paid' }).received, 0)
+  assert.equal(billAmounts({ amount: 100, approvedAmount: 80, status: 'Paid' }).balance, 80)
   assert.equal(billAmounts({ amount: 100, approvedAmount: 0, receivedAmount: 0 }).approved, 0)
 })
 
 test('bill normalization supports current and legacy fields', () => {
   assert.equal(billNumber({ billNo: 'B-1' }), 'B-1')
   assert.equal(billDate({ submittedDate: '2026-01-02' }), '2026-01-02')
-  assert.equal(tenderBillTotals({ bills: [{ amount: 10, status: 'Paid' }], raBills: [{ receivedAmount: 5 }] }).totalReceived, 15)
+  assert.equal(tenderBillTotals({ bills: [{ amount: 10, status: 'Paid' }], raBills: [{ receivedAmount: 5 }] }).totalReceived, 5)
 })
 
 test('an unbilled project is not an approved receivable or a completed profit forecast', () => {
-  const tender = { id: 'p1', status: 'In Progress', value: 7302671, bills: [] }
+  const tender = { id: 'p1', status: 'In Progress', awardWorkOrder: { contractValue: 7302671 }, bills: [] }
   const costs = [{ tenderRef: 'p1', amount: 578260 }]
   const totals = projectFinancials(tender, costs)
   assert.equal(totals.unbilled, 7302671)
@@ -64,8 +65,50 @@ test('an unbilled project is not an approved receivable or a completed profit fo
   assert.equal(totals.incurred, 578260)
 })
 
+test('Mustafabad-style estimate, quote, contract, deductions and separate bid security keep their bases', () => {
+  const tender = {
+    id: 'fixture', status: 'Completed', estimatedCost: 3000000, quotedAmount: 2400000,
+    value: 1895000, awardWorkOrder: { contractValue: 2400000 },
+    bills: [{ amount: 2400000, approvedAmount: 2400000, status: 'Paid',
+      v2: { deductions: { retention: 192000, tax: 192000, other: 120000 }, receipts: [] } }],
+  }
+  const totals = projectFinancials(tender)
+  assert.equal(tenderContractValue(tender), 2400000)
+  assert.equal(totals.contract, 2400000)
+  assert.equal(totals.submitted, 2400000)
+  assert.equal(totals.retention, 192000)
+  assert.equal(totals.outstanding, 1896000)
+  assert.equal(totals.received, 0)
+  assert.equal(totals.unbilled, 0)
+  assert.equal(securityAmounts({ amount: 60000, status: 'Held' }).remaining, 60000)
+  assert.equal(validateBillLedger(tender.bills[0]), null)
+})
+
+test('legacy project value and Paid status do not invent a contract or receipt', () => {
+  const tender = { id: 'fixture', status: 'Completed', value: 1895000, quotedAmount: 2400000,
+    bills: [{ amount: 1895000, status: 'Paid' }], v2: { forecastRemaining: 0 } }
+  const totals = projectFinancials(tender)
+  assert.equal(tenderContractValue(tender), null)
+  assert.equal(totals.contract, null)
+  assert.equal(totals.unbilled, null)
+  assert.equal(totals.profit, null)
+  assert.equal(totals.received, 0)
+  assert.equal(totals.outstanding, 1895000)
+})
+
+test('legacy net bill is not subtracted from a known gross contract as unbilled work', () => {
+  const tender = { id: 'mustafabad-fixture', status: 'Completed', estimatedCost: 3000000,
+    quotedAmount: 2400000, awardWorkOrder: { contractValue: 2400000 },
+    bills: [{ amount: 1895882, approvedAmount: 1895882, receivedAmount: 1895882, status: 'Paid' }] }
+  const totals = projectFinancials(tender)
+  assert.equal(totals.contract, 2400000)
+  assert.equal(totals.unbilled, null)
+  assert.equal(totals.unknownBillBasis, true)
+  assert.equal(totals.outstanding, 0)
+})
+
 test('unpaid and partial supplier costs change payable and cash once; BOQ allocation does not add cost', () => {
-  const tender = { id: 'p1', value: 1000, v2: { forecastRemaining: 200 }, bills: [{ amount: 400, approvedAmount: 350, v2: { receipts: [{ amount: 100 }] } }] }
+  const tender = { id: 'p1', awardWorkOrder: { contractValue: 1000 }, v2: { forecastRemaining: 200 }, bills: [{ amount: 400, approvedAmount: 350, v2: { receipts: [{ amount: 100 }] } }] }
   const costs = [{ tenderRef: 'p1', amount: 300, v2: { kind: 'cost', boqItemId: 'b1', payments: [{ amount: 120 }] } }]
   const totals = projectFinancials(tender, costs)
   assert.equal(totals.incurred, 300)
