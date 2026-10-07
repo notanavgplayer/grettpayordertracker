@@ -124,6 +124,8 @@ export default function Home() {
       receivables: financials.reduce((sum, row) => sum + row.outstanding, 0),
       received: financials.reduce((sum, row) => sum + row.received, 0),
       unbilled: financials.reduce((sum, row) => sum + row.unbilled, 0),
+      missingContractCount: financials.filter((row) => row.contract === null).length,
+      unknownBillBasisCount: financials.filter((row) => row.contract !== null && row.unknownBillBasis).length,
       costs: expenses.filter((expense) => wonIds.has(expense.tenderRef || expense.tenderId))
         .reduce((sum, expense) => sum + expenseAmounts(expense).incurred, 0),
       securities: payOrders.filter((po) => !['Forfeited', 'Encashed'].includes(po.status))
@@ -237,7 +239,9 @@ export default function Home() {
         </DashboardSection>
         <DashboardSection title="Financial position" description="Current V2 project totals" href="/reports" className="self-stretch">
           <dl className="divide-y">
-            <div className="flex items-center justify-between gap-3 py-3 first:pt-0"><dt className="text-sm text-muted-foreground">Unbilled work</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.unbilled)}</dd></div>
+            <div className="flex items-center justify-between gap-3 py-3 first:pt-0"><dt className="text-sm text-muted-foreground">Known unbilled work</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.unbilled)}</dd></div>
+            {summary.missingContractCount > 0 && <p className="py-2 text-xs text-muted-foreground">{summary.missingContractCount} awarded project{summary.missingContractCount === 1 ? ' lacks' : 's lack'} a recorded contract amount and {summary.missingContractCount === 1 ? 'is' : 'are'} excluded from unbilled work.</p>}
+            {summary.unknownBillBasisCount > 0 && <p className="py-2 text-xs text-muted-foreground">{summary.unknownBillBasisCount} project{summary.unknownBillBasisCount === 1 ? ' has' : 's have'} legacy bills with unverified gross/net basis and {summary.unknownBillBasisCount === 1 ? 'is' : 'are'} excluded from unbilled work.</p>}
             <div className="flex items-center justify-between gap-3 py-3"><dt className="text-sm text-muted-foreground">Recorded costs</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.costs)}</dd></div>
             <div className="flex items-center justify-between gap-3 py-3"><dt className="text-sm text-muted-foreground">Received on bills</dt><dd className="overflow-x-auto whitespace-nowrap text-sm font-semibold tabular-nums">{formatCurrency(summary.received)}</dd></div>
           </dl>

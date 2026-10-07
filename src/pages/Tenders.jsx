@@ -440,9 +440,14 @@ export default function Tenders() {
       .reduce(
         (sum, item) =>
           sum +
-          tenderContractValue(item.tender),
+          (tenderContractValue(item.tender) ?? 0),
         0,
       );
+    const missingAwardContracts = summaries.filter((item) =>
+      ["Awarded", "Won", "In Progress", "Completed"].some((status) =>
+        isSameStatus(item.tender.displayStatus, status),
+      ) && tenderContractValue(item.tender) === null,
+    ).length;
     const percentages = summaries
       .map((item) => item.financials.percentage)
       .filter((value) => Number.isFinite(value));
@@ -466,7 +471,7 @@ export default function Tenders() {
       {
         label: "Awarded Contract Value",
         value: formatCurrencyPrecise(awardedValue, 0),
-        helper: "Awarded and active work",
+        helper: missingAwardContracts ? `${missingAwardContracts} awarded contract amount${missingAwardContracts === 1 ? '' : 's'} not recorded` : "Recorded awards and revisions",
         icon: BriefcaseBusiness,
       },
       {
@@ -737,6 +742,7 @@ export default function Tenders() {
             <div key={card.label} className="min-w-0 sm:min-w-[128px]">
               <p className="text-xs text-muted-foreground">{card.label}</p>
               <p className="mt-0.5 overflow-x-auto whitespace-nowrap font-mono text-sm font-semibold tabular-nums text-foreground">{card.value}</p>
+              {card.helper && <p className="mt-0.5 max-w-[240px] break-words text-xs text-muted-foreground">{card.helper}</p>}
             </div>
           ))}
         </div>

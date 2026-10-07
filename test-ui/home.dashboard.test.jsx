@@ -14,8 +14,8 @@ vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ isAdmin: true }) }))
 
 const fixtures = {
   tenders: [
-    { id: 'active', name: 'Test Roadworks', status: 'In Progress', value: 1000,
-      bills: [{ amount: 400, approvedAmount: 350, receivedAmount: 100, status: 'Approved' }] },
+    { id: 'active', name: 'Test Roadworks', status: 'In Progress', value: 1000, awardWorkOrder: { contractValue: 1000 },
+      bills: [{ amount: 400, approvedAmount: 350, receivedAmount: 100, status: 'Approved', v2: { deductions: {} } }] },
     { id: 'finished', name: 'Finished Project', status: 'Completed', value: 200 },
   ],
   expenses: [{ id: 'cost', tenderRef: 'active', description: 'Test materials', amount: 120, v2: { kind: 'cost', payments: [] } }],
@@ -45,7 +45,8 @@ describe('dashboard with disposable records', () => {
       expect(overview.textContent).toContain(formatCurrency(amount))
     }
     const financialPosition = screen.getByText('Financial position').closest('div.rounded-xl')
-    expect(financialPosition.textContent).toContain(formatCurrency(800))
+    expect(financialPosition.textContent).toContain(formatCurrency(600))
+    expect(financialPosition.textContent).toContain('1 awarded project lacks a recorded contract amount')
     expect(financialPosition.textContent).toContain(formatCurrency(120))
     expect(screen.getByText('No dated receipt entries in this period.')).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Monthly recorded receipts chart' })).not.toBeInTheDocument()

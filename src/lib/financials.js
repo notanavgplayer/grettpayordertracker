@@ -7,7 +7,7 @@ export function billAmounts(bill = {}) {
   const receivedValue = nullableNumber(bill.receivedAmount ?? bill.received ?? bill.paidAmount)
   const received = Array.isArray(bill.v2?.receipts)
     ? bill.v2.receipts.reduce((sum, event) => sum + (nullableNumber(event.amount) ?? 0), 0)
-    : receivedValue ?? (bill.status === 'Paid' ? approved : 0)
+    : receivedValue ?? 0
   const deductions = bill.v2?.deductions
     ? Object.values(bill.v2.deductions).reduce((sum, value) => sum + (nullableNumber(value) ?? 0), 0)
     : nullableNumber(bill.deductions) ?? 0
@@ -48,8 +48,9 @@ export function tenderBillTotals(tender = {}, { combineBillTypes = true } = {}) 
 export function tenderContractValue(tender = {}) {
   return nullableNumber(tender.v2?.revisedContractValue)
     ?? nullableNumber(tender.awardWorkOrder?.contractValue)
-    ?? nullableNumber(tender.value)
-    ?? 0
+    ?? nullableNumber(tender.contractValue)
+    ?? nullableNumber(tender.awardedValue)
+    ?? null
 }
 
 export const projectId = (record = {}) => record.tenderRef || record.tenderId || ''
@@ -76,7 +77,8 @@ export function projectFinancials(tender = {}, expenses = []) {
   const payable = costs.some((item) => item.payable === null) ? null : costs.reduce((sum, item) => sum + (item.payable ?? 0), 0)
   const knownPayable = costs.reduce((sum, item) => sum + (item.payable ?? 0), 0)
   const unknownPaymentCount = costs.filter((item) => item.payable === null).length
-  const bills = [...(tender.bills || []), ...(tender.raBills || [])].map(billAmounts)
+  const sourceBills = [...(tender.bills || []), ...(tender.raBills || [])]
+  const bills = sourceBills.map(billAmounts)
   const submitted = bills.reduce((sum, item) => sum + item.submitted, 0)
   const received = bills.reduce((sum, item) => sum + item.received, 0)
   const outstanding = bills.reduce((sum, item) => sum + item.balance, 0)
@@ -84,9 +86,12 @@ export function projectFinancials(tender = {}, expenses = []) {
   const contract = tenderContractValue(tender)
   const remaining = nullableNumber(tender.v2?.forecastRemaining)
   const finalCost = remaining === null ? null : incurred + remaining
-  const profit = finalCost === null ? null : contract - finalCost
+  const profit = finalCost === null || contract === null ? null : contract - finalCost
+  // Legacy submitted amounts may already be net of deductions. Only an itemized
+  // V2 bill establishes a gross basis for contract-minus-submitted reporting.
+  const unknownBillBasis = sourceBills.some((bill) => !bill.v2?.deductions)
   return { contract, incurred, paid, paidCostsKnown, payable, knownPayable, unknownPaymentCount, submitted, received, outstanding, retention,
-    unbilled: Math.max(contract - submitted, 0), remaining, finalCost, profit,
+    unbilled: contract === null || unknownBillBasis ? null : Math.max(contract - submitted, 0), unknownBillBasis, remaining, finalCost, profit,
     margin: profit === null || contract <= 0 ? null : profit / contract * 100,
     cash: paid === null ? null : received - paid,
     unallocated: rows.filter((row) => !row.v2?.boqItemId).reduce((sum, row) => sum + expenseAmounts(row).incurred, 0) }

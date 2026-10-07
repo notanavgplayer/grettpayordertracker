@@ -26,7 +26,7 @@ const REPORTS = {
   projects: {
     title: 'Project Finances',
     columns: [['name', 'Project'], ['status', 'Status'], ['contract', 'Contract amount'], ['incurred', 'Recorded cost'], ['received', 'Received on bills'], ['receivables', 'Approved receivables'], ['unbilled', 'Unbilled work'], ['forecast', 'Forecast final cost'], ['periodReceipts', 'Receipts in period']],
-    cards: [['contract', 'Contract amount', 'Awarded contracts only'], ['incurred', 'Recorded cost', 'Incurred costs, separate from cash paid'], ['received', 'Received on bills', 'Lifetime bill and RA-bill receipts'], ['receivables', 'Approved receivables', 'Approved less receipts and deductions'], ['unbilled', 'Unbilled work', 'Contract less submitted bills'], ['periodReceipts', 'Receipts in selected period', 'Dated receipt events only']],
+    cards: [['contract', 'Contract amount', 'Awarded contracts only'], ['incurred', 'Recorded cost', 'Incurred costs, separate from cash paid'], ['received', 'Received on bills', 'Lifetime bill and RA-bill receipts'], ['receivables', 'Approved receivables', 'Approved less receipts and deductions'], ['unbilled', 'Known unbilled work', 'Contract less verified gross submitted bills'], ['periodReceipts', 'Receipts in selected period', 'Dated receipt events only']],
   },
   expenses: {
     title: 'Expense Payments',
@@ -42,10 +42,10 @@ const REPORTS = {
 
 function Value({ row, field }) {
   const value = row[field]
-  if (field === 'contract' && value === null) return <span>Not awarded</span>
+  if (field === 'contract' && value === null) return <span>{row.missingContract ? 'Contract not recorded' : 'Not awarded'}</span>
   if (field === 'forecast' && value === null) return <span>{row.contract === null ? 'Not applicable' : 'Incomplete'}</span>
   if (monetary.has(field)) return <span className="inline-block max-w-full overflow-x-auto whitespace-nowrap align-bottom tabular-nums">{money(value)}</span>
-  if (field === 'name') return <span><Link to={`/tenders/${row.id}`} className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">{value}</Link>{row.contractFallback && <span className="block text-xs text-amber-700 dark:text-amber-300">Contract uses V2 fallback</span>}</span>
+  if (field === 'name') return <span><Link to={`/tenders/${row.id}`} className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">{value}</Link>{row.missingContract && <span className="block text-xs text-amber-700 dark:text-amber-300">Contract amount not recorded</span>}</span>
   if (field === 'description') return <Link to={`/expenses?search=${encodeURIComponent(value)}`} className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">{value}</Link>
   if (field === 'po') return <Link to={`/pay-orders?search=${encodeURIComponent(value)}`} className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">{value}</Link>
   if (field === 'project' && row.projectId && value !== 'Project link missing') return <Link to={`/tenders/${row.projectId}`} className="text-emerald-700 hover:underline dark:text-emerald-300">{value}</Link>
@@ -88,7 +88,7 @@ export default function Reports() {
   const projectLabel = filters.project === 'all' ? 'All projects' : filters.project === 'unassigned' ? 'Unassigned' : names(tenders.find((item) => item.id === filters.project) || {})
   const scope = `${projectLabel} · ${filters.status === 'all' ? 'All statuses' : filters.status}${tab === 'expenses' && filters.scope !== 'all' ? ` · ${filters.scope}` : ''}`
   const notes = tab === 'projects'
-    ? [`${view.coverage.unawarded} projects without awarded contracts excluded from contract/unbilled totals.`, `${view.coverage.contractFallback} awarded contracts use V2 project-value fallback; check work orders.`, `${view.coverage.forecastIncomplete} awarded projects have incomplete cost forecasts; no profit inferred.`, `${view.coverage.incompletePayments} project expense histories are incomplete; cash paid is not inferred.`]
+    ? [`${view.coverage.unawarded} projects are not awarded.`, `${view.coverage.missingContract} awarded projects lack a recorded contract amount and are excluded from contract/unbilled totals; check work orders.`, `${view.coverage.unknownBillBasis} projects have legacy bills with unverified gross/net basis and are excluded from unbilled totals.`, `${view.coverage.forecastIncomplete} awarded projects have incomplete cost forecasts; no profit inferred.`, `${view.coverage.incompletePayments} project expense histories are incomplete; cash paid is not inferred.`]
     : tab === 'expenses'
       ? [`${view.coverage.unknown} cost/overhead entries have unknown payment history and are excluded from known paid/outstanding.`, 'Owner funding is shown separately and excluded from cost/payment totals.', `${view.coverage.missingLinks} expenses have missing project links.`]
       : [`${view.coverage.unknown} instruments have unknown funding or guarantee margin; excluded from known remaining.`, `${view.coverage.reconciliation} encashed/forfeited instruments need reconciliation; status is not a cash refund.`, `${view.coverage.missingLinks} instruments have missing project links.`]
@@ -100,7 +100,7 @@ export default function Reports() {
     if (!sorted.length) return toast.error('No rows to export')
     const columns = config.columns
     const headers = columns.map(([, label]) => label)
-    const data = sorted.map((row) => columns.map(([field]) => row[field] == null ? field === 'contract' ? 'Not awarded' : field === 'forecast' ? row.contract === null ? 'Not applicable' : 'Incomplete' : 'Unknown' : row[field]))
+    const data = sorted.map((row) => columns.map(([field]) => row[field] == null ? field === 'contract' ? row.missingContract ? 'Contract not recorded' : 'Not awarded' : field === 'forecast' ? row.contract === null ? 'Not applicable' : 'Incomplete' : 'Unknown' : row[field]))
     const meta = `${config.title} — ${scope}; ${period ? `Transactions ${filters.from || 'any'} to ${filters.to || 'any'}` : 'All dated transactions'}; balances lifetime; ${notes.join(' ')}`
     const numericColumns = new Set(columns.flatMap(([field], index) => monetary.has(field) ? [index] : []))
     const csv = [rowsToCSV([meta], []), rowsToCSV(headers, data, numericColumns)].join('\n')

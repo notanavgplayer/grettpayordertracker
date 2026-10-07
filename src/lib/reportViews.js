@@ -23,8 +23,7 @@ export function buildProjectView(tenders, expenses, filters) {
     .filter((tender) => filters.status === 'all' || (tender.status || 'Unknown') === filters.status)
     .map((tender) => {
       const metrics = projectFinancials(tender, expenses)
-      const awarded = Boolean(tender.awardWorkOrder?.contractValue || tender.v2?.revisedContractValue
-        || ['Awarded', 'Won', 'In Progress', 'Completed'].includes(tender.status))
+      const awarded = metrics.contract !== null || ['Awarded', 'Won', 'In Progress', 'Completed'].includes(tender.status)
       const bills = [...(tender.bills || []), ...(tender.raBills || [])]
       const receiptEvents = bills.flatMap((bill) => bill.v2?.receipts || [])
       const undatedReceipts = receiptEvents.filter((receipt) => !reportDate(receipt.date)).length
@@ -35,7 +34,8 @@ export function buildProjectView(tenders, expenses, filters) {
         incurred: metrics.incurred, received: metrics.received,
         receivables: metrics.outstanding, unbilled: awarded ? metrics.unbilled : null,
         forecast: awarded ? metrics.finalCost : null,
-        contractFallback: awarded && !tender.v2?.revisedContractValue && !tender.awardWorkOrder?.contractValue,
+        missingContract: awarded && metrics.contract === null,
+        unknownBillBasis: awarded && metrics.unknownBillBasis,
         incompletePayments: metrics.unknownPaymentCount,
         periodReceipts: sum(receiptEvents.filter((event) => inPeriod(event.date, filters.from, filters.to)), 'amount'),
         undatedReceipts, legacyReceipts,
@@ -49,8 +49,9 @@ export function buildProjectView(tenders, expenses, filters) {
       periodReceipts: sum(rows, 'periodReceipts'),
     },
     coverage: {
-      unawarded: rows.filter((row) => row.contract === null).length,
-      contractFallback: rows.filter((row) => row.contractFallback).length,
+      unawarded: rows.filter((row) => row.contract === null && !row.missingContract).length,
+      missingContract: rows.filter((row) => row.missingContract).length,
+      unknownBillBasis: rows.filter((row) => row.unknownBillBasis && !row.missingContract).length,
       forecastIncomplete: rows.filter((row) => row.contract !== null && row.forecast === null).length,
       incompletePayments: sum(rows, 'incompletePayments'),
       undated: sum(rows, 'undatedReceipts'), legacy: sum(rows, 'legacyReceipts'),

@@ -288,7 +288,7 @@ function addDaysToDate(dateValue, daysValue) {
 
 function getAwardWorkOrderDetails(form = {}) {
   const stored = form.awardWorkOrder || form.award || form.workOrder || {}
-  const contractValue = stored.contractValue ?? form.contractValue ?? form.value ?? form.awardedValue ?? ''
+  const contractValue = stored.contractValue ?? form.contractValue ?? form.awardedValue ?? ''
   const startDate = stored.startDate ?? form.startDate ?? ''
   const completionPeriod = stored.completionPeriod ?? form.completionPeriod ?? ''
   const calculatedCompletionDate = addDaysToDate(startDate, completionPeriod)
@@ -357,20 +357,14 @@ function compactFiniteAmount(value) {
 }
 
 function getTenderGrossNetValues(tender = {}) {
-  const grossValue = firstFiniteAmount(
-    tender.grossValue,
-    tender.contractValue,
-    tender.quotedAmount,
-    tender.estimatedCost,
-    tender.value,
-    tender.amount,
-    0
-  )
-  const netValue = optionalFiniteAmount(tender.netValue) ?? optionalFiniteAmount(tender.netAmount) ?? optionalFiniteAmount(tender.receivedAmount)
+  const grossValue = optionalFiniteAmount(tender.grossValue)
+    ?? tenderContractValue(tender)
+    ?? optionalFiniteAmount(tender.quotedAmount)
+  const netValue = optionalFiniteAmount(tender.netValue) ?? optionalFiniteAmount(tender.netAmount)
   return {
     grossValue,
     netValue,
-    difference: netValue === null ? null : grossValue - netValue,
+    difference: grossValue === null || netValue === null ? null : grossValue - netValue,
   }
 }
 
@@ -1713,6 +1707,7 @@ export default function TenderDetail() {
         <ProjectSecondary label="Received" value={formatCurrency(totalReceived)} />
         <ProjectSecondary label="Unbilled Contract" value={formatCurrency(financialView.unbilled)} />
         <ProjectSecondary label="Forecast" value={expectedProfit === null ? 'Incomplete' : formatCurrency(expectedProfit)} />
+        {financialView.unknownBillBasis && <p className="text-xs text-muted-foreground sm:col-span-3">Unbilled amount unavailable: legacy bill gross/net basis needs review.</p>}
       </div>
 
       <div className="min-w-0">
@@ -1943,9 +1938,9 @@ export default function TenderDetail() {
               <FinancialMetric label="Total Expenses" value={formatCurrency(totalExpenses)} tone="expense" />
               <FinancialMetric label="Known cost payments" value={formatCurrency(financialView.paidCostsKnown)} tone="expense" helper="Excludes payments missing from legacy records" />
               <FinancialMetric label="Known supplier dues" value={formatCurrency(financialView.knownPayable)} tone="expense" helper={financialView.unknownPaymentCount ? `${financialView.unknownPaymentCount} legacy payment histories unresolved` : 'All payment histories recorded'} />
-              <FinancialMetric label="Received" value={formatCurrency(totalReceived)} tone="profit" helper="Bills / RA bills marked paid" />
+              <FinancialMetric label="Received" value={formatCurrency(totalReceived)} tone="profit" helper="Recorded receipt amounts; status alone is not payment" />
               <FinancialMetric label="Approved bills outstanding" value={formatCurrency(receivable)} tone={receivable > 0 ? 'expense' : 'profit'} />
-              <FinancialMetric label="Unbilled contract value" value={formatCurrency(financialView.unbilled)} tone="accent" />
+              <FinancialMetric label="Unbilled contract value" value={formatCurrency(financialView.unbilled)} tone="accent" helper={financialView.unknownBillBasis ? 'Legacy bill gross/net basis needs review' : 'Contract less verified gross submitted bills'} />
               <FinancialMetric label="Retention withheld" value={formatCurrency(financialView.retention)} tone="accent" helper="From itemized bill deductions" />
               <FinancialMetric label="Cash movement" value={cashPosition === null ? 'Payment history incomplete' : formatCurrency(cashPosition)} tone={cashPosition === null ? 'accent' : cashPosition >= 0 ? 'profit' : 'loss'} />
               <p className="col-span-2 text-xs text-muted-foreground xl:col-span-4">
@@ -4122,9 +4117,9 @@ function ExpensesFinanceSection({
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <GrossNetSummaryCard icon={DollarSign} label="Gross Value" value={formatCurrency(tenderGrossNetValues.grossValue)} helper="Tender full value" tone="emerald" />
-          <GrossNetSummaryCard icon={Banknote} label="Net Value" value={tenderGrossNetValues.netValue === null ? 'Not set' : formatCurrency(tenderGrossNetValues.netValue)} helper="After deductions" tone="blue" />
-          <GrossNetSummaryCard icon={Receipt} label="Difference / Deduction" value={tenderGrossNetValues.difference === null ? '—' : formatCurrency(tenderGrossNetValues.difference)} helper="Gross minus net" tone="amber" />
+          <GrossNetSummaryCard icon={DollarSign} label="Gross Basis" value={formatCurrency(tenderGrossNetValues.grossValue)} helper="Recorded gross, contract or quote" tone="emerald" />
+          <GrossNetSummaryCard icon={Banknote} label="Recorded Net Value" value={tenderGrossNetValues.netValue === null ? 'Not set' : formatCurrency(tenderGrossNetValues.netValue)} helper="Separate from payment receipts" tone="blue" />
+          <GrossNetSummaryCard icon={Receipt} label="Gross Minus Net" value={tenderGrossNetValues.difference === null ? '—' : formatCurrency(tenderGrossNetValues.difference)} helper="Not an itemized deduction total" tone="amber" />
         </div>
       </section>
 
