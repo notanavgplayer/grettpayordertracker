@@ -4578,7 +4578,7 @@ function BillsInvoicesSection({
 
   const summaryCards = [
     { icon: FileText, label: 'Total Billed', value: summary.submitted, helper: 'Submitted amount', tone: 'emerald' },
-    { icon: CheckCircle, label: 'Approved Amount', value: summary.approved, helper: 'Approved or submitted fallback', tone: 'blue' },
+    { icon: CheckCircle, label: 'Approved Amount', value: summary.approved, helper: 'Legacy amounts may need review', tone: 'blue' },
     { icon: WalletCards, label: 'Received Amount', value: summary.received, helper: 'Payments received', tone: 'green' },
     { icon: BarChart3, label: 'Balance / Receivable', value: summary.balance, helper: 'Approved minus received', tone: 'amber' },
     { icon: Receipt, label: 'Deductions', value: summary.deductions, helper: 'Recorded deductions', tone: 'red' },
@@ -4776,7 +4776,7 @@ function BillSelect({ label, value, onValueChange, options }) {
         <SelectTrigger id={id} className="h-10 bg-background sm:h-11"><SelectValue /></SelectTrigger>
         <SelectContent>
           {options.map((option) => (
-            <SelectItem key={option} value={option}>{option === 'All' ? `All ${label}s` : option}</SelectItem>
+            <SelectItem key={option} value={option}>{option === 'All' ? `All ${label === 'Status' ? 'Statuses' : `${label}s`}` : option}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -5078,7 +5078,7 @@ function RABillsSection({
 
   const summaryCards = [
     { icon: FileText, label: 'Total RA Billed', value: summary.submitted, helper: 'Submitted amount', tone: 'emerald' },
-    { icon: CheckCircle, label: 'Approved Amount', value: summary.approved, helper: 'Approved or submitted fallback', tone: 'blue' },
+    { icon: CheckCircle, label: 'Approved Amount', value: summary.approved, helper: 'Legacy amounts may need review', tone: 'blue' },
     { icon: WalletCards, label: 'Received Amount', value: summary.received, helper: 'Payments received', tone: 'green' },
     { icon: BarChart3, label: 'Balance / Receivable', value: summary.balance, helper: 'Approved minus received', tone: 'amber' },
     { icon: Receipt, label: 'Deductions', value: summary.deductions, helper: 'Recorded deductions', tone: 'red' },
@@ -5319,7 +5319,7 @@ function LegacyBillFinanceSection({
 }) {
   const summaryCards = [
     { label: 'Total Billed', value: summary.submitted, tone: 'text-foreground', helper: 'Submitted amount' },
-    { label: 'Approved Amount', value: summary.approved, tone: 'text-blue-700 dark:text-blue-300', helper: 'Approved or submitted fallback' },
+    { label: 'Approved Amount', value: summary.approved, tone: 'text-blue-700 dark:text-blue-300', helper: 'Legacy amounts may need review' },
     { label: 'Received Amount', value: summary.received, tone: 'text-emerald-700 dark:text-emerald-300', helper: 'Payments received' },
     { label: 'Balance / Receivable', value: summary.balance, tone: 'text-amber-700 dark:text-amber-300', helper: 'Approved minus received' },
     { label: 'Deductions', value: summary.deductions, tone: 'text-rose-700 dark:text-rose-300', helper: 'Recorded deductions' },
