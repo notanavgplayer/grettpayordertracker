@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { billLedger, deductionRowAmount, transitionReceipt, validateBillingLedger, validateCumulativeBill, validateProjectReceiptReferences } from '../src/lib/billingLedger.js'
+import { billDisplayStatus, billLedger, deductionRowAmount, transitionReceipt, validateBillingLedger, validateCumulativeBill, validateProjectReceiptReferences } from '../src/lib/billingLedger.js'
 import { calculatedBidSecurity } from '../src/lib/bidSecurity.js'
 
 const row = (kind, rate) => ({ id: kind, kind, method: 'percentage', base: 'approved', rate, adjustment: 0 })
@@ -69,4 +69,29 @@ test('rounding is per deduction row and duplicate or excess allocations are reje
   assert.match(validateBillingLedger({ ...base, v2: { ...base.v2, receipts: [{ ...receipt, amount: 2000000 }] } }, 2400000), /exceed/)
   assert.match(validateBillingLedger({ ...base, approvedAmount: '' }, 2400000), /Approved gross/)
   assert.match(validateProjectReceiptReferences({ ...base, v2: { ...base.v2, receipts: [receipt] } }, [{ v2: { receipts: [{ ...receipt, id: 'other' }] } }]), /already allocated/)
+})
+
+test('zero deduction is valid; absent, invalid, negative and alternate bases have specific errors', () => {
+  const zero = { ...base, v2: { ...base.v2, billing: { ...base.v2.billing, deductionRows: [row('RM', 0)] } } }
+  assert.equal(validateBillingLedger(zero, 2400000), null)
+  assert.equal(billLedger(zero).deductions, 0)
+  const withRow = (patch) => ({ ...zero, v2: { ...zero.v2, billing: { ...zero.v2.billing, deductionRows: [{ ...row('RM', 0), ...patch }] } } })
+  assert.match(validateBillingLedger(withRow({ rate: '' }), 2400000), /Deduction 1: enter a rate/)
+  assert.match(validateBillingLedger(withRow({ rate: -1 }), 2400000), /Deduction 1: enter a rate/)
+  assert.match(validateBillingLedger(withRow({ base: 'contract' }), null), /Deduction 1: contract amount is missing/)
+  assert.match(validateBillingLedger(withRow({ base: 'fixed', baseAmount: '' }), 2400000), /Deduction 1: enter a non-negative documented base/)
+  assert.equal(validateBillingLedger(withRow({ base: 'fixed', baseAmount: 0 }), 2400000), null)
+  assert.match(validateBillingLedger(withRow({ adjustment: 'oops' }), 2400000), /Deduction 1: enter a valid adjustment/)
+  assert.match(validateBillingLedger(withRow({ adjustment: -1, reason: 'Correction' }), 2400000), /calculated deduction must be non-negative/)
+  assert.match(validateBillingLedger(withRow({ method: 'fixed', fixedAmount: 2400001 }), 2400000), /Deductions exceed/)
+})
+
+test('displayed payment stage follows cleared and pending events rather than saved Paid label', () => {
+  assert.equal(billDisplayStatus({ ...base, status: 'Paid' }), 'Approved')
+  const receipt = { id: 'x', amount: 100, date: '2026-10-09', account: 'Bank', reference: 'X', status: 'Pending Clearance' }
+  const withReceipt = (event) => ({ ...base, v2: { ...base.v2, receipts: [event] } })
+  assert.equal(billDisplayStatus(withReceipt(receipt)), 'Pending Clearance')
+  assert.equal(billDisplayStatus(withReceipt({ ...receipt, status: 'Cleared' })), 'Partially Paid')
+  assert.equal(billDisplayStatus(withReceipt({ ...receipt, status: 'Cleared', amount: 1896000 })), 'Paid')
+  assert.equal(billDisplayStatus({ status: 'Draft' }), 'Draft')
 })
