@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import BillEditorDialog from '@/components/tenders/BillEditorDialog'
 import BillActionDialog, { BillStageActions } from '@/components/tenders/BillActionDialog'
-import { billLedger } from '@/lib/billingLedger'
+import { billDisplayStatus, billLedger } from '@/lib/billingLedger'
 
 const form = {
   id: 'b1', no: 'B-1', type: 'Running Bill', date: '2026-10-09', amount: '2400',
@@ -98,5 +98,54 @@ describe('bill stage dialogs', () => {
     expect(billLedger(reread).retentionHeld).toBe(142)
     expect(billLedger(reread).pending).toBe(500)
     expect(billLedger(reread).received).toBe(0)
+  })
+
+  it('round-trips draft, submission, approval, clearance and RM release as separate UI actions', async () => {
+    const user = userEvent.setup()
+    let saved = JSON.parse(JSON.stringify({ ...form, status: 'Draft' }))
+    const persist = (next) => { saved = JSON.parse(JSON.stringify(next)) }
+    const entry = render(<BillEditorDialog open onOpenChange={vi.fn()} editing={false} form={saved} setField={() => vi.fn()} typeOptions={['Running Bill']} isAdmin onSave={(status) => persist({ ...saved, status })} />)
+    await user.click(screen.getByRole('button', { name: 'Save Draft' }))
+    expect(saved.status).toBe('Draft')
+    entry.unmount()
+
+    const submitted = render(<BillEditorDialog open onOpenChange={vi.fn()} editing form={saved} setField={() => vi.fn()} typeOptions={['Running Bill']} isAdmin onSave={(status) => persist({ ...saved, status })} />)
+    await user.click(screen.getByRole('button', { name: 'Submit Bill' }))
+    expect(saved.status).toBe('Submitted')
+    submitted.unmount()
+
+    const approval = render(<BillActionDialog mode="approve" bill={saved} onClose={vi.fn()} onCommit={persist} />)
+    await user.click(screen.getByRole('button', { name: 'Confirm Approval' }))
+    expect(saved.status).toBe('Approved')
+    expect(billLedger(saved).net).toBe(2208)
+    approval.unmount()
+
+    const payment = render(<BillActionDialog mode="payment" bill={saved} onClose={vi.fn()} onCommit={persist} />)
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Payment amount' }), { target: { value: '500' } })
+    fireEvent.change(screen.getByLabelText('Payment date'), { target: { value: '2026-10-10' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Bank / account' }), { target: { value: 'Bank A' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Payment reference' }), { target: { value: 'FLOW-1' } })
+    await user.click(screen.getByRole('button', { name: 'Add Payment' }))
+    expect(billDisplayStatus(saved)).toBe('Pending Clearance')
+    payment.unmount()
+
+    const clearance = render(<BillActionDialog mode="payment" bill={saved} onClose={vi.fn()} onCommit={persist} />)
+    await user.click(screen.getByRole('combobox', { name: 'Change clearance' }))
+    await user.click(screen.getByRole('option', { name: 'Cleared' }))
+    await user.click(screen.getByRole('button', { name: 'Save clearance' }))
+    expect(billLedger(saved).received).toBe(500)
+    expect(billDisplayStatus(saved)).toBe('Partially Paid')
+    expect(saved.v2.receipts[0].history).toHaveLength(2)
+    clearance.unmount()
+
+    render(<BillActionDialog mode="release" bill={saved} onClose={vi.fn()} onCommit={persist} />)
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Release amount' }), { target: { value: '50' } })
+    fireEvent.change(screen.getByLabelText('Release date'), { target: { value: '2026-10-11' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Release reference' }), { target: { value: 'RM-FLOW-1' } })
+    await user.click(screen.getByRole('button', { name: 'Record RM Release' }))
+    const refreshed = JSON.parse(JSON.stringify(saved))
+    expect(billLedger(refreshed).retentionHeld).toBe(142)
+    expect(billLedger(refreshed).received).toBe(500)
+    expect(billLedger(refreshed).balance).toBe(1708)
   })
 })
