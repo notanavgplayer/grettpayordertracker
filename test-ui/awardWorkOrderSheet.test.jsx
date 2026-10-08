@@ -37,7 +37,7 @@ describe('AwardWorkOrderSheet', () => {
 
     expect(screen.getByRole('dialog', { name: 'Award / Work Order' })).toBeInTheDocument()
     expect(screen.getByLabelText('Award status')).toBeInTheDocument()
-    expect(screen.getByRole('spinbutton', { name: 'Contract value' })).toHaveAttribute('min', '0')
+    expect(screen.getByRole('spinbutton', { name: 'Approved contract amount' })).toHaveAttribute('min', '0')
     expect(screen.getByRole('spinbutton', { name: 'Completion period (days)' })).toHaveAttribute('step', '1')
     expect(screen.getByRole('spinbutton', { name: 'Retention percentage' })).toHaveAttribute('step', '0.01')
 

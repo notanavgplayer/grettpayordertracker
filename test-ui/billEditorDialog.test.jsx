@@ -35,8 +35,8 @@ describe('BillEditorDialog', () => {
     expect(screen.getByRole('dialog', { name: 'Add Bill / RA Bill' })).toBeInTheDocument()
     expect(screen.getByLabelText('Type')).toBeInTheDocument()
     expect(screen.getByLabelText('Status')).toBeInTheDocument()
-    expect(screen.getByRole('spinbutton', { name: 'Submitted Amount' })).toHaveAttribute('min', '0')
-    expect(screen.getByRole('spinbutton', { name: 'Submitted Amount' })).toHaveAttribute('step', '0.01')
+    expect(screen.getByRole('spinbutton', { name: 'Submitted Gross Amount' })).toHaveAttribute('min', '0')
+    expect(screen.getByRole('spinbutton', { name: 'Submitted Gross Amount' })).toHaveAttribute('step', '0.01')
 
     await user.type(screen.getByRole('textbox', { name: 'Bill No.' }), 'B-7')
     expect(changes).toHaveBeenCalledWith('no', 'B')
@@ -67,7 +67,7 @@ describe('BillEditorDialog', () => {
     expect(screen.getByRole('textbox', { name: 'RA Bill No.' })).toBeInTheDocument()
     expect(screen.getByLabelText('RA Bill Date')).toBeInTheDocument()
     expect(screen.queryByLabelText('Type')).not.toBeInTheDocument()
-    expect(screen.getByRole('spinbutton', { name: 'Submitted Amount' })).toHaveAttribute('id', 'ra-bill-amount')
+    expect(screen.getByRole('spinbutton', { name: 'Submitted Gross Amount' })).toHaveAttribute('id', 'ra-bill-amount')
     expect(getInvalidBillAmount({ ...form, deductions: '-2' }, 'ra-bill')).toEqual({
       key: 'deductions', label: 'Deductions', id: 'ra-bill-deductions',
     })

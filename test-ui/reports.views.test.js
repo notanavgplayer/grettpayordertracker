@@ -33,12 +33,25 @@ describe('Reports use canonical V2 ledgers and label coverage', () => {
     expect(buildProjectView([tender], expenses, { ...period, from: '2026-08-01', to: '2026-08-31' }).totals.receivables).toBe(325)
   })
 
-  it('excludes an unverified legacy value from contract and unbilled totals while preserving bill receivables', () => {
+  it('excludes pending and bounced receipts from cleared cash and period reporting', () => {
+    const fixture = { ...tender, bills: [{ amount: 500, approvedAmount: 500, status: 'Approved', v2: {
+      billing: { basis: 'incremental', previousCertifiedGross: 0, contractBasis: 1000, deductionRows: [], retentionReleases: [] },
+      receipts: [
+        { id: 'pending', date: '2026-09-20', amount: 100, account: 'Bank', reference: 'P', status: 'Pending Clearance' },
+        { id: 'bounced', date: '2026-09-21', amount: 80, account: 'Bank', reference: 'B', status: 'Bounced' },
+        { id: 'cleared', date: '2026-09-22', amount: 50, account: 'Bank', reference: 'C', status: 'Cleared' },
+      ],
+    } }], raBills: [] }
+    const view = buildProjectView([fixture], [], { ...all, from: '2026-09-01', to: '2026-09-30' })
+    expect(view.rows[0]).toMatchObject({ received: 50, pendingReceipts: 100, receivables: 450, periodReceipts: 50 })
+  })
+
+  it('excludes an unverified legacy value and unknown receipt history from financial totals', () => {
     const legacy = { id: 'legacy', status: 'Completed', value: 1895000, quotedAmount: 2400000,
       bills: [{ amount: 1895000, status: 'Paid' }] }
     const view = buildProjectView([tender, legacy], expenses, all)
     expect(view.rows.find((row) => row.id === 'legacy')).toMatchObject({
-      contract: null, unbilled: null, received: 0, receivables: 1895000, missingContract: true,
+      contract: null, unbilled: null, received: 0, receivables: null, missingContract: true, unknownReceiptCount: 1,
     })
     expect(view.totals.contract).toBe(1000)
     expect(view.coverage.missingContract).toBe(1)

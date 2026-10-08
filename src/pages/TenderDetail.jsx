@@ -9,6 +9,7 @@ import { getTenderDocumentLinks, hasSupabaseStorageConfig, uploadTenderDocument 
 import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinancials, getTenderDisplayStatus, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
 import { nonNegativeNumber, nullableNumber, safeHttpUrl, stripUndefined } from '@/lib/data'
 import { billAmounts, billDate, tenderContractValue, projectFinancials, executionState, securityAmounts, validateEvents, validateBillLedger, expenseAmounts } from '@/lib/financials'
+import { validateCumulativeBill, validateProjectReceiptReferences } from '@/lib/billingLedger'
 import { rowsToCSV } from '@/lib/csv'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -109,6 +110,8 @@ const EMPTY_AWARD_WORK_ORDER = {
   performanceSecurityType: '',
   performanceSecurityExpiryDate: '',
   retentionPercentage: '',
+  srbPercentage: '',
+  incomeTaxPercentage: '',
   retentionAmount: '',
   mobilizationAdvance: '',
   siteHandoverDate: '',
@@ -270,11 +273,12 @@ function getBillSummary(bills = []) {
     return {
       submitted: summary.submitted + amounts.submitted,
       approved: summary.approved + amounts.approved,
-      received: summary.received + amounts.received,
+      received: summary.received + (amounts.received ?? 0),
       deductions: summary.deductions + amounts.deductions,
-      balance: summary.balance + amounts.balance,
+      balance: amounts.balance === null || summary.balance === null ? null : summary.balance + amounts.balance,
+      unknownReceiptCount: summary.unknownReceiptCount + (amounts.approved > 0 && !amounts.receiptHistoryKnown ? 1 : 0),
     }
-  }, { submitted: 0, approved: 0, received: 0, deductions: 0, balance: 0 })
+  }, { submitted: 0, approved: 0, received: 0, deductions: 0, balance: 0, unknownReceiptCount: 0 })
 }
 
 function addDaysToDate(dateValue, daysValue) {
@@ -816,6 +820,8 @@ export default function TenderDetail() {
     if (refundIssue) { toast.error(refundIssue); return }
     setPoSaving(true)
     try {
+      const matchingNumbers = await getDocs(query(collection(db, 'payOrders'), where('po', '==', poForm.po.trim())))
+      if (matchingNumbers.docs.some((item) => item.id !== editPo?.id)) { toast.error('This pay order number already exists. Open and link the existing instrument instead.'); return }
       const payload = {
         po: poForm.po.trim(),
         bank: poForm.bank || '',
@@ -1388,6 +1394,10 @@ export default function TenderDetail() {
       document.getElementById(invalidField.id)?.focus()
       return
     }
+    if (awardForm.awardStatus !== 'Not Awarded' && (!awardForm.workOrderNumber?.trim() || !awardForm.workOrderDate || nonNegativeNumber(awardForm.contractValue) === null || Number(awardForm.contractValue) <= 0)) {
+      toast.error('Award needs a work-order number, date and confirmed positive contract amount.')
+      return
+    }
     const next = {
       ...awardForm,
       awardStatus: form.status === 'Completed' ? 'Completed' : awardForm.awardStatus,
@@ -1412,9 +1422,9 @@ export default function TenderDetail() {
   const pct = checklist.length ? Math.round((doneCount / checklist.length) * 100) : 0
 
   const billTotal = (form.bills || []).reduce((s, b) => s + (Number(b.amount) || 0), 0)
-  const billPaid = (form.bills || []).reduce((s, b) => s + billAmounts(b).received, 0)
+  const billPaid = (form.bills || []).reduce((s, b) => s + (billAmounts(b).received ?? 0), 0)
   const raBillTotal = (form.raBills || []).reduce((s, b) => s + (Number(b.amount) || 0), 0)
-  const raBillPaid = (form.raBills || []).reduce((s, b) => s + billAmounts(b).received, 0)
+  const raBillPaid = (form.raBills || []).reduce((s, b) => s + (billAmounts(b).received ?? 0), 0)
   const paidBillCount = (form.bills || []).filter((b) => b.status === 'Paid').length + (form.raBills || []).filter((b) => b.status === 'Paid').length
   const financialView = projectFinancials({ ...form, id }, expenses)
   const contractValue = tenderContractValue(form)
@@ -1703,11 +1713,16 @@ export default function TenderDetail() {
         <ProjectMetric icon={Receipt} label="Approved Receivables" value={formatCurrency(receivable)} />
         <ProjectMetric icon={Landmark} label="Securities Held" value={formatCurrency(linkedPOs.reduce((sum, po) => sum + (securityAmounts(po).remaining || 0), 0))} />
       </div>
-      <div className="grid grid-cols-1 gap-3 rounded-xl border bg-card p-3 sm:grid-cols-3">
-        <ProjectSecondary label="Received" value={formatCurrency(totalReceived)} />
+      <div className="grid grid-cols-1 gap-3 rounded-xl border bg-card p-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ProjectSecondary label="Approved Gross Bills" value={formatCurrency(financialView.approvedGross)} />
+        <ProjectSecondary label="Net Payable" value={formatCurrency(financialView.netPayable)} />
+        <ProjectSecondary label="Cleared / Recorded Receipts" value={formatCurrency(totalReceived)} />
+        <ProjectSecondary label="Pending Clearance" value={formatCurrency(financialView.pendingReceipts)} />
+        <ProjectSecondary label="RM Held" value={formatCurrency(financialView.retentionHeld)} />
         <ProjectSecondary label="Unbilled Contract" value={formatCurrency(financialView.unbilled)} />
         <ProjectSecondary label="Forecast" value={expectedProfit === null ? 'Incomplete' : formatCurrency(expectedProfit)} />
-        {financialView.unknownBillBasis && <p className="text-xs text-muted-foreground sm:col-span-3">Unbilled amount unavailable: legacy bill gross/net basis needs review.</p>}
+        {financialView.unknownBillBasis && <p className="text-xs text-muted-foreground sm:col-span-2 xl:col-span-3">Unbilled amount unavailable: legacy bill gross/net basis needs review.</p>}
+        {financialView.unknownReceiptCount > 0 && <p className="text-xs text-muted-foreground sm:col-span-2 xl:col-span-3">{financialView.unknownReceiptCount} approved bill receipt histories are unverified; outstanding is unknown.</p>}
       </div>
 
       <div className="min-w-0">
@@ -2483,6 +2498,15 @@ export default function TenderDetail() {
             addLabel="Add Bill / RA Bill"
             emptyTitle="No bills or RA bills added yet."
             dateKey="date"
+            documents={form.documents || []}
+            onViewDocuments={() => setActiveTenderTab('documents')}
+            otherBills={raBills}
+            contract={contractValue}
+            deductionDefaults={[
+              { kind: 'RM', method: 'percentage', base: 'approved', rate: form.awardWorkOrder?.retentionPercentage, adjustment: 0, reason: '' },
+              { kind: 'SRB', method: 'percentage', base: 'approved', rate: form.awardWorkOrder?.srbPercentage, adjustment: 0, reason: '' },
+              { kind: 'Income Tax', method: 'percentage', base: 'approved', rate: form.awardWorkOrder?.incomeTaxPercentage, adjustment: 0, reason: '' },
+            ].filter((row) => row.rate !== '' && row.rate != null)}
           />
         </TabsContent>
 
@@ -2500,7 +2524,16 @@ export default function TenderDetail() {
             addLabel="Add RA Bill"
             emptyTitle="No RA bills added yet"
             dateKey="submitted"
+            documents={form.documents || []}
+            onViewDocuments={() => setActiveTenderTab('documents')}
+            otherBills={bills}
             paidDateKey="paid"
+            contract={contractValue}
+            deductionDefaults={[
+              { kind: 'RM', method: 'percentage', base: 'approved', rate: form.awardWorkOrder?.retentionPercentage, adjustment: 0, reason: '' },
+              { kind: 'SRB', method: 'percentage', base: 'approved', rate: form.awardWorkOrder?.srbPercentage, adjustment: 0, reason: '' },
+              { kind: 'Income Tax', method: 'percentage', base: 'approved', rate: form.awardWorkOrder?.incomeTaxPercentage, adjustment: 0, reason: '' },
+            ].filter((row) => row.rate !== '' && row.rate != null)}
           />
         </TabsContent>
 
@@ -2869,9 +2902,7 @@ export default function TenderDetail() {
               <FinancialMetric label="Cash movement" value={cashPosition === null ? 'Payment history incomplete' : formatCurrency(cashPosition)} tone={cashPosition === null ? 'accent' : cashPosition >= 0 ? 'profit' : 'loss'} helper={`${formatCurrency(totalReceived)} bill receipts`} />
               <FinancialMetric label="Approved bills outstanding" value={formatCurrency(receivable)} tone={receivable > 0 ? 'expense' : 'profit'} />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Received payments are calculated from Bills and RA Bills marked as Paid.
-            </p>
+            <p className="text-xs text-muted-foreground">Only recorded cleared receipts count as received payment; a Paid label alone is not evidence.</p>
             <div className="min-w-0 space-y-1.5">
               <Label htmlFor="completion-date">Completion Date</Label>
               <Input
@@ -2950,9 +2981,7 @@ export default function TenderDetail() {
                 </ul>
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              Cash Position uses payments from Bills and RA Bills marked as Paid, minus recorded expenses.
-            </p>
+            <p className="text-xs text-muted-foreground">Cash position uses recorded bill receipts minus recorded expense payments, where payment histories are complete.</p>
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setSummaryOpen(false)}>Close</Button>
@@ -3040,6 +3069,7 @@ export default function TenderDetail() {
         statuses={PO_STATUSES}
         onSave={savePo}
         saving={poSaving}
+        tender={form}
       />
 
       <ConfirmDelete
@@ -4386,12 +4416,18 @@ function BillsInvoicesSection({
   addLabel,
   emptyTitle,
   dateKey,
+  documents = [],
+  onViewDocuments,
+  otherBills = [],
+  contract,
+  deductionDefaults = [],
 }) {
   const emptyBillForm = () => ({
     id: '',
     no: '',
     type: 'Running Bill',
     date: '',
+    documentId: '',
     amount: '',
     approvedAmount: '',
     receivedAmount: '',
@@ -4399,12 +4435,13 @@ function BillsInvoicesSection({
     status: 'Draft',
     remarks: '',
     desc: '',
-    v2: {},
+    v2: { billing: { basis: 'incremental', previousCertifiedGross: [...bills, ...otherBills].reduce((sum, item) => sum + billAmounts(item).approved, 0), contractBasis: contract, deductionRows: deductionDefaults.map((row) => ({ ...row, id: uid() })), retentionReleases: [] }, receipts: [] },
   })
   const [billFormOpen, setBillFormOpen] = useState(false)
   const [editingBill, setEditingBill] = useState(null)
   const [viewingBill, setViewingBill] = useState(null)
   const [billForm, setBillForm] = useState(emptyBillForm)
+  const billSaveRef = useRef(false)
   const [deleteBillId, setDeleteBillId] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
@@ -4432,17 +4469,20 @@ function BillsInvoicesSection({
     setBillForm((previous) => ({ ...previous, [key]: value }))
   }
   const openAddBill = () => {
+    billSaveRef.current = false
     setEditingBill(null)
     setBillForm(emptyBillForm())
     setBillFormOpen(true)
   }
   const openEditBill = (bill) => {
+    billSaveRef.current = false
     setEditingBill(bill)
     setBillForm({
       id: bill.id || '',
       no: bill.no || bill.billNo || '',
       type: bill.type || 'Running Bill',
       date: bill[dateKey] || '',
+      documentId: bill.documentId || '',
       amount: bill.submittedAmount ?? bill.amount ?? '',
       approvedAmount: bill.approvedAmount ?? '',
       receivedAmount: bill.receivedAmount ?? '',
@@ -4455,6 +4495,23 @@ function BillsInvoicesSection({
     setBillFormOpen(true)
   }
   const saveBillForm = () => {
+    if (billSaveRef.current) return
+    if (billForm.v2?.billing && (!billForm.no.trim() || !billForm.date)) { toast.error('Bill number and date are required.'); return }
+    if (billForm.v2?.billing && ['Approved', 'Paid', 'Partially Paid'].includes(billForm.status) && nonNegativeNumber(billForm.approvedAmount) === null) { toast.error('Approved gross amount is required.'); return }
+    if (bills.some((bill) => bill.id !== editingBill?.id && String(bill.no || bill.billNo || '').trim().toLowerCase() === billForm.no.trim().toLowerCase() && billForm.no.trim())) { toast.error('Bill number already exists on this project.'); return }
+    const otherProjectBills = [...bills.filter((bill) => bill.id !== editingBill?.id), ...otherBills]
+    const cumulativeIssue = validateCumulativeBill(billForm, otherProjectBills)
+    const allocationIssue = validateProjectReceiptReferences(billForm, otherProjectBills)
+    if (cumulativeIssue || allocationIssue) { toast.error(cumulativeIssue || allocationIssue); return }
+    if (editingBill && (editingBill.v2?.receipts?.length || editingBill.v2?.billing?.retentionReleases?.length || Number(editingBill.receivedAmount) > 0)) {
+      const keys = ['no', 'type', 'date', 'documentId', 'amount', 'approvedAmount', 'deductions', 'status']
+      const billingKeys = ['basis', 'previousCertifiedGross', 'contractBasis']
+      if (keys.some((key) => String(editingBill[key === 'date' ? dateKey : key] ?? '') !== String(billForm[key] ?? ''))
+        || billingKeys.some((key) => String(editingBill.v2?.billing?.[key] ?? '') !== String(billForm.v2?.billing?.[key] ?? ''))
+        || JSON.stringify(editingBill.v2?.billing?.deductionRows || []) !== JSON.stringify(billForm.v2?.billing?.deductionRows || [])) {
+        toast.error('Bill financial fields are locked after receipts or RM releases. Record a documented correction instead.'); return
+      }
+    }
     const invalidField = getInvalidBillAmount(billForm)
     if (invalidField) {
       toast.error(`${invalidField.label} must be a valid non-negative number.`)
@@ -4467,6 +4524,7 @@ function BillsInvoicesSection({
       no: billForm.no || '',
       type: billForm.type || 'Running Bill',
       [dateKey]: billForm.date || '',
+      documentId: billForm.documentId || '',
       amount: billForm.amount === '' ? 0 : billForm.amount,
       submittedAmount: billForm.amount === '' ? 0 : billForm.amount,
       approvedAmount: billForm.approvedAmount === '' ? '' : billForm.approvedAmount,
@@ -4477,6 +4535,7 @@ function BillsInvoicesSection({
       desc: billForm.remarks || '',
       v2: billForm.v2 || {},
     }
+    billSaveRef.current = true
     if (editingBill?.id) {
       onUpdate(editingBill.id, payload)
       toast.success('Bill updated')
@@ -4663,14 +4722,19 @@ function BillsInvoicesSection({
         statusOptions={billStatusOptions}
         isAdmin={isAdmin}
         onSave={saveBillForm}
+        original={editingBill}
+        contract={billForm.v2?.billing?.contractBasis ?? contract}
+        documents={documents}
       />
 
-      <BillViewDialog bill={viewingBill} onOpenChange={(open) => !open && setViewingBill(null)} />
+      <BillViewDialog bill={viewingBill} documents={documents} onViewDocuments={onViewDocuments} onOpenChange={(open) => !open && setViewingBill(null)} />
       <ConfirmDelete
         open={!!deleteBillId}
         onOpenChange={() => setDeleteBillId(null)}
         onConfirm={() => {
           if (!deleteBillId) return
+          const target = bills.find((bill) => bill.id === deleteBillId)
+          if (target && (target.v2?.receipts?.length || target.v2?.billing?.retentionReleases?.length || Number(target.receivedAmount) > 0)) { toast.error('Bill with receipts or RM releases cannot be deleted; preserve its history.'); setDeleteBillId(null); return }
           onRemove(deleteBillId)
           setDeleteBillId(null)
           toast.success('Bill deleted')
@@ -4795,8 +4859,9 @@ function BillsMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
   )
 }
 
-function BillViewDialog({ bill, onOpenChange }) {
+function BillViewDialog({ bill, documents = [], onViewDocuments, onOpenChange }) {
   const amounts = getBillAmounts(bill || {})
+  const linkedDocument = documents.find((item) => item.id === bill?.documentId)
   return (
     <Dialog open={!!bill} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -4814,6 +4879,7 @@ function BillViewDialog({ bill, onOpenChange }) {
             <BillDetail label="Received" value={formatCurrency(amounts.received)} />
             <BillDetail label="Deductions" value={formatCurrency(amounts.deductions)} />
             <BillDetail label="Balance" value={formatCurrency(amounts.balance)} />
+            {bill.documentId && <div className="sm:col-span-2"><BillDetail label="Linked document" value={linkedDocument?.name || linkedDocument?.title || (linkedDocument ? linkedDocument.id : 'Document link missing')} />{linkedDocument && onViewDocuments && <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => { onOpenChange(false); onViewDocuments() }}>Open documents</Button>}</div>}
             <div className="sm:col-span-2">
               <BillDetail label="Remarks / Notes" value={bill.remarks || bill.desc || '-'} />
             </div>
@@ -4845,23 +4911,30 @@ function RABillsSection({
   addLabel,
   emptyTitle,
   dateKey,
+  documents = [],
+  onViewDocuments,
+  otherBills = [],
+  contract,
+  deductionDefaults = [],
 }) {
   const emptyRaBillForm = () => ({
     id: '',
     no: '',
     date: '',
+    documentId: '',
     amount: '',
     approvedAmount: '',
     receivedAmount: '',
     deductions: '',
     status: 'Submitted',
     remarks: '',
-    v2: {},
+    v2: { billing: { basis: 'incremental', previousCertifiedGross: [...bills, ...otherBills].reduce((sum, item) => sum + billAmounts(item).approved, 0), contractBasis: contract, deductionRows: deductionDefaults.map((row) => ({ ...row, id: uid() })), retentionReleases: [] }, receipts: [] },
   })
   const [raBillFormOpen, setRaBillFormOpen] = useState(false)
   const [editingRaBill, setEditingRaBill] = useState(null)
   const [viewingRaBill, setViewingRaBill] = useState(null)
   const [raBillForm, setRaBillForm] = useState(emptyRaBillForm)
+  const raBillSaveRef = useRef(false)
   const [deleteRaBillId, setDeleteRaBillId] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
@@ -4885,16 +4958,19 @@ function RABillsSection({
     setRaBillForm((previous) => ({ ...previous, [key]: value }))
   }
   const openAddRaBill = () => {
+    raBillSaveRef.current = false
     setEditingRaBill(null)
     setRaBillForm(emptyRaBillForm())
     setRaBillFormOpen(true)
   }
   const openEditRaBill = (bill) => {
+    raBillSaveRef.current = false
     setEditingRaBill(bill)
     setRaBillForm({
       id: bill.id || '',
       no: bill.no || bill.billNo || '',
       date: bill[dateKey] || bill.date || '',
+      documentId: bill.documentId || '',
       amount: bill.submittedAmount ?? bill.amount ?? '',
       approvedAmount: bill.approvedAmount ?? '',
       receivedAmount: bill.receivedAmount ?? '',
@@ -4906,6 +4982,21 @@ function RABillsSection({
     setRaBillFormOpen(true)
   }
   const saveRaBillForm = () => {
+    if (raBillSaveRef.current) return
+    if (raBillForm.v2?.billing && (!raBillForm.no.trim() || !raBillForm.date)) { toast.error('RA bill number and date are required.'); return }
+    if (bills.some((bill) => bill.id !== editingRaBill?.id && String(bill.no || bill.billNo || '').trim().toLowerCase() === raBillForm.no.trim().toLowerCase() && raBillForm.no.trim())) { toast.error('RA bill number already exists on this project.'); return }
+    const otherProjectBills = [...bills.filter((bill) => bill.id !== editingRaBill?.id), ...otherBills]
+    const cumulativeIssue = validateCumulativeBill(raBillForm, otherProjectBills)
+    const allocationIssue = validateProjectReceiptReferences(raBillForm, otherProjectBills)
+    if (cumulativeIssue || allocationIssue) { toast.error(cumulativeIssue || allocationIssue); return }
+    if (raBillForm.v2?.billing && ['Approved', 'Paid', 'Partially Paid'].includes(raBillForm.status) && nonNegativeNumber(raBillForm.approvedAmount) === null) { toast.error('Approved gross amount is required.'); return }
+    if (editingRaBill && (editingRaBill.v2?.receipts?.length || editingRaBill.v2?.billing?.retentionReleases?.length || Number(editingRaBill.receivedAmount) > 0)) {
+      const keys = ['no', 'date', 'documentId', 'amount', 'approvedAmount', 'deductions', 'status']
+      const billingKeys = ['basis', 'previousCertifiedGross', 'contractBasis']
+      if (keys.some((key) => String(editingRaBill[key === 'date' ? dateKey : key] ?? '') !== String(raBillForm[key] ?? ''))
+        || billingKeys.some((key) => String(editingRaBill.v2?.billing?.[key] ?? '') !== String(raBillForm.v2?.billing?.[key] ?? ''))
+        || JSON.stringify(editingRaBill.v2?.billing?.deductionRows || []) !== JSON.stringify(raBillForm.v2?.billing?.deductionRows || [])) { toast.error('RA bill financial fields are locked after receipts or RM releases.'); return }
+    }
     const invalidField = getInvalidBillAmount(raBillForm, 'ra-bill')
     if (invalidField) {
       toast.error(`${invalidField.label} must be a valid non-negative number.`)
@@ -4914,10 +5005,12 @@ function RABillsSection({
     }
     const ledgerIssue = validateBillLedger(raBillForm)
     if (ledgerIssue) { toast.error(ledgerIssue); return }
+    raBillSaveRef.current = true
     const payload = {
       no: raBillForm.no || '',
       type: 'Running Bill',
       [dateKey]: raBillForm.date || '',
+      documentId: raBillForm.documentId || '',
       amount: raBillForm.amount === '' ? 0 : raBillForm.amount,
       submittedAmount: raBillForm.amount === '' ? 0 : raBillForm.amount,
       approvedAmount: raBillForm.approvedAmount === '' ? '' : raBillForm.approvedAmount,
@@ -5109,14 +5202,19 @@ function RABillsSection({
         isAdmin={isAdmin}
         onSave={saveRaBillForm}
         variant="ra-bill"
+        original={editingRaBill}
+        contract={raBillForm.v2?.billing?.contractBasis ?? contract}
+        documents={documents}
       />
 
-      <RABillViewDialog bill={viewingRaBill} onOpenChange={(open) => !open && setViewingRaBill(null)} />
+      <RABillViewDialog bill={viewingRaBill} documents={documents} onViewDocuments={onViewDocuments} onOpenChange={(open) => !open && setViewingRaBill(null)} />
       <ConfirmDelete
         open={!!deleteRaBillId}
         onOpenChange={() => setDeleteRaBillId(null)}
         onConfirm={() => {
           if (!deleteRaBillId) return
+          const target = bills.find((bill) => bill.id === deleteRaBillId)
+          if (target && (target.v2?.receipts?.length || target.v2?.billing?.retentionReleases?.length || Number(target.receivedAmount) > 0)) { toast.error('RA bill with receipts or RM releases cannot be deleted.'); setDeleteRaBillId(null); return }
           onRemove(deleteRaBillId)
           setDeleteRaBillId(null)
           toast.success('RA bill deleted')
@@ -5155,8 +5253,9 @@ function RABillMobileCard({ bill, isAdmin, onView, onEdit, onDelete }) {
   )
 }
 
-function RABillViewDialog({ bill, onOpenChange }) {
+function RABillViewDialog({ bill, documents = [], onViewDocuments, onOpenChange }) {
   const amounts = getBillAmounts(bill || {})
+  const linkedDocument = documents.find((item) => item.id === bill?.documentId)
   return (
     <Dialog open={!!bill} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -5173,6 +5272,7 @@ function RABillViewDialog({ bill, onOpenChange }) {
             <BillDetail label="Received" value={formatCurrency(amounts.received)} />
             <BillDetail label="Deductions" value={formatCurrency(amounts.deductions)} />
             <BillDetail label="Balance" value={formatCurrency(amounts.balance)} />
+            {bill.documentId && <div className="sm:col-span-2"><BillDetail label="Linked document" value={linkedDocument?.name || linkedDocument?.title || (linkedDocument ? linkedDocument.id : 'Document link missing')} />{linkedDocument && onViewDocuments && <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => { onOpenChange(false); onViewDocuments() }}>Open documents</Button>}</div>}
             <div className="sm:col-span-2">
               <BillDetail label="Remarks / Notes" value={bill.remarks || bill.desc || '-'} />
             </div>

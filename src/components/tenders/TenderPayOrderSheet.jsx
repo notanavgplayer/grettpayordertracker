@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import SecurityFields from '@/components/shared/SecurityFields'
+import { calculatedBidSecurity } from '@/lib/bidSecurity'
+import { formatCurrency } from '@/lib/utils'
 
 export default function TenderPayOrderSheet({
   open,
@@ -18,7 +20,11 @@ export default function TenderPayOrderSheet({
   statuses,
   onSave,
   saving,
+  tender,
 }) {
+  const calculation = form.v2?.bidSecurityCalculation || { basis: 'estimated', rate: '', fixedAmount: '' }
+  const expected = calculatedBidSecurity(tender, calculation)
+  const setCalculation = (key, value) => setField('v2')({ ...form.v2, bidSecurityCalculation: { ...calculation, [key]: value } })
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 overflow-x-hidden p-0 sm:max-w-md">
@@ -42,6 +48,13 @@ export default function TenderPayOrderSheet({
               </Select>
             </div>
           </div>
+          {form.purpose === 'Bid Security' && <div className="space-y-3 rounded-lg border p-3">
+            <p className="text-sm font-semibold">Bid security calculation</p>
+            <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1"><Label>Calculation basis</Label><Select value={calculation.basis} onValueChange={(value) => setCalculation('basis', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="estimated">Estimated cost</SelectItem><SelectItem value="quoted">Quoted bid</SelectItem><SelectItem value="fixed">Fixed amount</SelectItem></SelectContent></Select></div>
+            {calculation.basis === 'fixed' ? <div className="space-y-1"><Label htmlFor="td-bid-fixed">Fixed security amount</Label><Input id="td-bid-fixed" type="number" min="0" step="0.01" value={calculation.fixedAmount} onChange={(event) => setCalculation('fixedAmount', event.target.value)} /></div> : <div className="space-y-1"><Label htmlFor="td-bid-rate">Rate %</Label><Input id="td-bid-rate" type="number" min="0" max="100" step="0.01" value={calculation.rate} onChange={(event) => setCalculation('rate', event.target.value)} /></div>}</div>
+            <p className="text-xs text-muted-foreground">Calculated security: {expected === null ? 'Basis not recorded' : formatCurrency(expected)}. The bank instrument amount stays separately editable and is not deducted from bill net payable.</p>
+            {expected !== null && <Button type="button" size="sm" variant="outline" onClick={() => setField('amount')(String(expected))}>Use calculated amount</Button>}
+          </div>}
           <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="min-w-0 space-y-1.5">
               <Label htmlFor="td-po-amt">Amount (PKR) <span className="text-destructive">*</span></Label>

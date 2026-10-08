@@ -98,10 +98,26 @@ test('synthetic payment, bill receipt and partial refund events persist in the e
   await assertSucceeds(setDoc(tender, { name: 'Synthetic project', value: 1000, bills: [{ id: 'bill-1', amount: 500, approvedAmount: 450, v2: { deductions: { retention: 30 }, receipts: [] } }] }))
   await assertSucceeds(updateDoc(tender, { bills: [{ id: 'bill-1', amount: 500, approvedAmount: 450, v2: { deductions: { retention: 30 }, receipts: [{ id: 'rec-1', date: '2026-09-27', amount: 100, account: 'Test bank', reference: 'REC-1' }] } }] }))
   const savedTender = (await assertSucceeds(getDoc(tender))).data()
-  assert.deepEqual(billAmounts(savedTender.bills[0]), { submitted: 500, approved: 450, received: 100, deductions: 30, balance: 320 })
+  const savedAmounts = billAmounts(savedTender.bills[0])
+  assert.deepEqual([savedAmounts.submitted, savedAmounts.approved, savedAmounts.received, savedAmounts.deductions, savedAmounts.balance], [500, 450, 100, 30, 320])
 
   await assertSucceeds(setDoc(payOrder, { po: 'TEST-PO-1', amount: 61000, status: 'Held', tenderRef: 'workflow-tender', v2: { instrument: 'pay-order', refunds: [] } }))
   await assertSucceeds(updateDoc(payOrder, { 'v2.refunds': [{ id: 'ref-1', date: '2026-09-27', amount: 10000, account: 'Test bank', reference: 'REF-1' }] }))
   const savedPayOrder = (await assertSucceeds(getDoc(payOrder))).data()
   assert.deepEqual(securityAmounts(savedPayOrder), { funded: 61000, refunded: 10000, remaining: 51000, exposure: 0 })
+})
+
+test('admin can persist additive bill clearance and RM release history while viewer cannot write', { skip: !emulatorHost }, async () => {
+  const adminDb = environment.authenticatedContext('admin').firestore()
+  const viewerDb = environment.authenticatedContext('viewer', { admin: true }).firestore()
+  const bill = { id: 'bill-v2', no: 'RA-2', amount: 1000, approvedAmount: 1000, status: 'Approved',
+    v2: { billing: { basis: 'incremental', previousCertifiedGross: 0, contractBasis: 2000,
+      deductionRows: [{ id: 'rm', kind: 'RM', method: 'percentage', base: 'approved', rate: 8, adjustment: 0 }],
+      retentionReleases: [{ id: 'release-1', date: '2026-10-08', amount: 30, account: 'Bank', reference: 'RM-1' }] },
+    receipts: [{ id: 'receipt-1', date: '2026-10-08', amount: 400, account: 'Bank', reference: 'CHQ-1', method: 'Cheque', status: 'Pending Clearance', history: [{ status: 'Pending Clearance', date: '2026-10-08' }] }] } }
+  const target = doc(adminDb, 'tenders/workflow-v2')
+  await assertSucceeds(setDoc(target, { name: 'Synthetic V2 project', value: 0, bills: [bill], raBills: [] }))
+  const saved = (await assertSucceeds(getDoc(target))).data()
+  assert.deepEqual([billAmounts(saved.bills[0]).pending, billAmounts(saved.bills[0]).retentionHeld], [400, 50])
+  await assertFails(updateDoc(doc(viewerDb, 'tenders/workflow-v2'), { bills: [] }))
 })
