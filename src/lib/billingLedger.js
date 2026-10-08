@@ -7,10 +7,17 @@ const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '')
   && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value
 
 export function deductionRowAmount(row, approvedGross, contract = null) {
-  if (row.method === 'fixed') return money(amount(row.fixedAmount) + amount(row.adjustment))
-  const base = row.base === 'contract' ? contract : row.base === 'fixed' ? amount(row.baseAmount) : approvedGross
-  if (base === null) return null
-  return money(money(base * amount(row.rate) / 100) + amount(row.adjustment))
+  const adjustment = nullableNumber(row.adjustment ?? 0)
+  if (adjustment === null) return null
+  if (row.method === 'fixed') {
+    const fixed = nullableNumber(row.fixedAmount)
+    return fixed === null ? null : money(fixed + adjustment)
+  }
+  const base = row.base === 'contract' ? nullableNumber(contract)
+    : row.base === 'fixed' ? nullableNumber(row.baseAmount) : nullableNumber(approvedGross)
+  const rate = nullableNumber(row.rate)
+  if (base === null || rate === null) return null
+  return money(money(base * rate / 100) + adjustment)
 }
 
 export function billLedger(bill = {}, contract = null) {
@@ -50,6 +57,17 @@ export function billLedger(bill = {}, contract = null) {
     receiptHistoryKnown: known, previousCertifiedGross: previous }
 }
 
+export function billDisplayStatus(bill = {}) {
+  if (!['Approved', 'Paid', 'Partially Paid'].includes(bill.status)) return bill.status || 'Draft'
+  if (!bill.v2?.billing) return bill.status || 'Approved'
+  const ledger = billLedger(bill, nullableNumber(bill.v2.billing.contractBasis))
+  if (ledger.net === null || ledger.received === null) return 'Approved'
+  if (ledger.net > 0 && ledger.received >= ledger.net) return 'Paid'
+  if (ledger.received > 0) return 'Partially Paid'
+  if (ledger.pending > 0) return 'Pending Clearance'
+  return 'Approved'
+}
+
 export function validateBillingLedger(bill, contract = null) {
   const billing = bill.v2?.billing
   if (!billing) return null
@@ -66,18 +84,21 @@ export function validateBillingLedger(bill, contract = null) {
   const rows = billing.deductionRows
   if (!Array.isArray(rows)) return 'Deduction rows are invalid.'
   const ids = new Set()
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
+    const label = `Deduction ${index + 1}`
     if (!row.id || ids.has(row.id)) return 'Deduction rows need unique IDs.'
     ids.add(row.id)
     if (!['RM', 'SRB', 'Income Tax', 'Other'].includes(row.kind)) return 'Choose a deduction type.'
     if (!['percentage', 'fixed'].includes(row.method)) return 'Choose a deduction method.'
     if (row.method === 'percentage' && !['approved', 'contract', 'fixed'].includes(row.base)) return 'Choose an explicit deduction base.'
-    if (row.method === 'percentage' && (nullableNumber(row.rate) === null || Number(row.rate) < 0 || Number(row.rate) > 100)) return 'Deduction rate must be between 0 and 100%.'
-    if (row.method === 'fixed' && (nullableNumber(row.fixedAmount) === null || Number(row.fixedAmount) < 0)) return 'Fixed deduction must be non-negative.'
-    if (row.base === 'fixed' && row.method === 'percentage' && (nullableNumber(row.baseAmount) === null || Number(row.baseAmount) < 0)) return 'Enter the documented deduction base.'
-    if (amount(row.adjustment) !== 0 && !row.reason?.trim()) return 'Document the deduction adjustment reason.'
+    if (row.method === 'percentage' && (nullableNumber(row.rate) === null || Number(row.rate) < 0 || Number(row.rate) > 100)) return `${label}: enter a rate from 0 to 100%.`
+    if (row.method === 'fixed' && (nullableNumber(row.fixedAmount) === null || Number(row.fixedAmount) < 0)) return `${label}: enter a non-negative fixed amount.`
+    if (row.method === 'percentage' && row.base === 'contract' && nullableNumber(contract) === null) return `${label}: contract amount is missing. Choose another calculation base or record the contract.`
+    if (row.base === 'fixed' && row.method === 'percentage' && (nullableNumber(row.baseAmount) === null || Number(row.baseAmount) < 0)) return `${label}: enter a non-negative documented base amount.`
+    if (nullableNumber(row.adjustment ?? 0) === null) return `${label}: enter a valid adjustment amount.`
+    if (Number(row.adjustment || 0) !== 0 && !row.reason?.trim()) return `${label}: explain the adjustment.`
     const calculated = deductionRowAmount(row, ledger.approved, contract)
-    if (calculated === null || calculated < 0) return 'Deduction calculation needs a valid base and non-negative result.'
+    if (calculated === null || calculated < 0) return `${label}: calculated deduction must be non-negative.`
   }
   if (ledger.deductions === null || ledger.deductions > ledger.approved) return 'Deductions exceed the approved bill.'
   const receipts = bill.v2?.receipts || []
@@ -104,8 +125,8 @@ export function validateBillingLedger(bill, contract = null) {
     if (!release.id || releaseIds.has(release.id)) return 'Retention release IDs must be unique.'
     releaseIds.add(release.id)
     if (!validDate(release.date)
-      || nullableNumber(release.amount) === null || Number(release.amount) <= 0 || !release.account?.trim() || !release.reference?.trim()) return 'Retention release needs date, positive amount, account and reference.'
-    const key = `${release.account.trim().toLowerCase()}|${release.reference.trim().toLowerCase()}`
+      || nullableNumber(release.amount) === null || Number(release.amount) <= 0 || !release.reference?.trim()) return 'Retention release needs date, positive amount and reference.'
+    const key = `${String(release.account || '').trim().toLowerCase()}|${release.reference.trim().toLowerCase()}`
     if (releaseReferences.has(key)) return 'Duplicate RM release account and reference.'
     releaseReferences.add(key)
   }
