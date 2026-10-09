@@ -120,7 +120,9 @@ test('admin tender edit survives a stale fee-expense link while viewer remains b
   const broken = writeBatch(adminDb)
   broken.update(doc(adminDb, 'expenses/missing-expense'), { amount: 2000 })
   broken.update(tenderRef, { notes: 'Disposable edit' })
-  await assert.rejects(broken.commit(), (error) => error.code === 'not-found')
+  // The missing expense is evaluated by the update rule and denied before
+  // Firestore can report a missing-document error for the batch.
+  await assertFails(broken.commit())
 
   const valid = writeBatch(adminDb)
   valid.update(tenderRef, { awardWorkOrder: { contractValue: 2400000 }, quotedAmount: 2400000, updatedAt: serverTimestamp() })
