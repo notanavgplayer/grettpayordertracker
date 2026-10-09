@@ -54,7 +54,7 @@ describe('tender list and editor with disposable fixtures', () => {
 
   it('preserves populated fields when status changes and retains draft on a failed save', async () => {
     const user = userEvent.setup()
-    commit.mockRejectedValueOnce(new Error('offline'))
+    commit.mockRejectedValueOnce(Object.assign(new Error('offline'), { code: 'unavailable' }))
     mount()
     await user.click(screen.getAllByRole('button', { name: `Actions for ${rows[0].name}` })[0])
     await user.click(screen.getByRole('menuitem', { name: 'Edit' }))
@@ -71,7 +71,7 @@ describe('tender list and editor with disposable fixtures', () => {
     expect(commit).not.toHaveBeenCalled()
     await user.type(screen.getByRole('textbox', { name: 'Tender Name' }), 'Updated fixture')
     await user.click(screen.getByRole('button', { name: 'Save Changes' }))
-    expect(await screen.findByText('Tender could not be saved. Please check your connection and try again.')).toBeInTheDocument()
+    expect(await screen.findByText(/connection to Firestore is unavailable/)).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Tender Name' })).toHaveValue('Updated fixture')
     expect(screen.getByRole('textbox', { name: 'Linked Pay Order' })).toHaveValue('PO-FIXTURE')
     expect(commit).toHaveBeenCalledTimes(1)

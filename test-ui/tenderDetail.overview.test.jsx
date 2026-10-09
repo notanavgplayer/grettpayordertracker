@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import TenderDetail from '@/pages/TenderDetail'
 
-const { getDoc, getDocs } = vi.hoisted(() => ({ getDoc: vi.fn(), getDocs: vi.fn() }))
+const { getDoc, getDocs, writeBatch } = vi.hoisted(() => ({ getDoc: vi.fn(), getDocs: vi.fn(), writeBatch: vi.fn() }))
 vi.mock('firebase/firestore', () => ({
   doc: (_db, _collection, id) => id,
   collection: (_db, name) => name,
@@ -14,7 +14,7 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: vi.fn(),
   addDoc: vi.fn(),
   deleteDoc: vi.fn(),
-  writeBatch: vi.fn(),
+  writeBatch,
   serverTimestamp: vi.fn(),
   deleteField: vi.fn(),
 }))
@@ -46,7 +46,7 @@ async function renderFixture(overrides = {}, expenseRows = [expense], poRows = [
 }
 
 describe('project detail overview with disposable records', () => {
-  beforeEach(() => { getDoc.mockReset(); getDocs.mockReset() })
+  beforeEach(() => { getDoc.mockReset(); getDocs.mockReset(); writeBatch.mockReset() })
 
   it('uses V2 financial values and opens detailed record tabs', async () => {
     await renderFixture({ v2: { forecastRemaining: 300000 } })
@@ -79,5 +79,26 @@ describe('project detail overview with disposable records', () => {
     expect(screen.queryByText('Completion date not recorded')).not.toBeInTheDocument()
     expect(screen.queryByText('Security still held')).not.toBeInTheDocument()
     expect(screen.getByText('Cost forecast incomplete')).toBeInTheDocument()
+  })
+
+  it('saves a contract/quote edit without updating a stale fee-expense link, retaining legacy value', async () => {
+    const updates = []
+    writeBatch.mockImplementation(() => ({
+      update: (reference, payload) => updates.push({ reference, payload }),
+      set: () => { throw new Error('No fee expense should be created') },
+      delete: () => { throw new Error('No fee expense should be deleted') },
+      commit: vi.fn().mockResolvedValue(undefined),
+    }))
+    await renderFixture({ value: 1895000, tenderFee: 2000, tenderFeeExpenseId: 'missing-expense',
+      awardWorkOrder: { contractValue: 2400000 }, quotedAmount: 2300000 }, [], [])
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Details' }))
+    expect(screen.getByLabelText('Legacy tender value')).toHaveValue(1895000)
+    expect(screen.getByText('Rs 1,895,000')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Quoted amount'), { target: { value: '2400000' } })
+    fireEvent.click(screen.getAllByRole('button', { name: /Save Changes/i })[0])
+    await waitFor(() => expect(updates).toHaveLength(1))
+    expect(updates[0].reference).toBe('fixture')
+    expect(updates[0].payload).toMatchObject({ value: 1895000, quotedAmount: 2400000, awardWorkOrder: { contractValue: 2400000 } })
+    expect(getDoc).toHaveBeenCalledTimes(1)
   })
 })

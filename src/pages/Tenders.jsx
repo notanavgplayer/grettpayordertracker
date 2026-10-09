@@ -2,11 +2,12 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCollection } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
-import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { queueTenderIntegrationSync } from "@/lib/tenderIntegrations";
 import { tenderContractValue } from "@/lib/financials";
 import { tenderListAmount, validTenderSubmissionDate } from "@/lib/tenderListPresentation";
+import { tenderFeeExpenseNeedsSync, tenderSaveErrorMessage } from "@/lib/tenderSave";
 import {
   formatDate,
   formatCurrencyPrecise,
@@ -611,12 +612,15 @@ export default function Tenders() {
 
         // Handle expense sync in the same commit as the tender.
         const existingExpId = editItem.tenderFeeExpenseId;
-        if (tenderFeeNum > 0 && existingExpId) {
+        const syncFeeExpense = tenderFeeExpenseNeedsSync(editItem, form);
+        const existingExpRef = existingExpId ? doc(db, "expenses", existingExpId) : null;
+        const linkedExpenseExists = syncFeeExpense && existingExpRef ? (await getDoc(existingExpRef)).exists() : false;
+        if (syncFeeExpense && tenderFeeNum > 0 && linkedExpenseExists) {
           batch.update(doc(db, "expenses", existingExpId), {
             ...buildExpense(editItem.id),
             updatedAt: serverTimestamp(),
           });
-        } else if (tenderFeeNum > 0 && !existingExpId) {
+        } else if (syncFeeExpense && tenderFeeNum > 0 && !linkedExpenseExists) {
           const expenseDoc = doc(collection(db, "expenses"));
           data.tenderFeeExpenseId = expenseDoc.id;
           batch.set(expenseDoc, {
@@ -624,8 +628,10 @@ export default function Tenders() {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
-        } else if (tenderFeeNum <= 0 && existingExpId) {
-          batch.delete(doc(db, "expenses", existingExpId));
+        } else if (syncFeeExpense && tenderFeeNum <= 0 && linkedExpenseExists) {
+          batch.delete(existingExpRef);
+          data.tenderFeeExpenseId = null;
+        } else if (syncFeeExpense && tenderFeeNum <= 0 && existingExpId) {
           data.tenderFeeExpenseId = null;
         }
         batch.update(tenderDoc, { ...data, updatedAt: serverTimestamp() });
@@ -666,10 +672,7 @@ export default function Tenders() {
       }
       setDialogOpen(false);
     } catch (error) {
-      console.error("Failed to save tender:", error);
-      const message = error?.code === "permission-denied"
-          ? "Your account does not have permission to save tenders. The Firestore rules or administrator role may need updating."
-          : "Tender could not be saved. Please check your connection and try again.";
+      const message = tenderSaveErrorMessage(error);
       setSaveError(message);
       toast.error(message);
     } finally {

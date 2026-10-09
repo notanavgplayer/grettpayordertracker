@@ -2,7 +2,7 @@ import test, { after, before } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing'
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
 import { billAmounts, expenseAmounts, securityAmounts } from '../src/lib/financials.js'
 
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST
@@ -105,6 +105,32 @@ test('synthetic payment, bill receipt and partial refund events persist in the e
   await assertSucceeds(updateDoc(payOrder, { 'v2.refunds': [{ id: 'ref-1', date: '2026-09-27', amount: 10000, account: 'Test bank', reference: 'REF-1' }] }))
   const savedPayOrder = (await assertSucceeds(getDoc(payOrder))).data()
   assert.deepEqual(securityAmounts(savedPayOrder), { funded: 61000, refunded: 10000, remaining: 51000, exposure: 0 })
+})
+
+test('admin tender edit survives a stale fee-expense link while viewer remains blocked', { skip: !emulatorHost }, async () => {
+  const adminDb = environment.authenticatedContext('admin').firestore()
+  const viewerDb = environment.authenticatedContext('viewer').firestore()
+  const tenderRef = doc(adminDb, 'tenders/stale-fee-link')
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'tenders/stale-fee-link'), {
+      name: 'Disposable work order', value: 1895000, estimatedCost: 3000000, quotedAmount: 2400000,
+      awardWorkOrder: { contractValue: 2400000 }, tenderFee: 2000, tenderFeeExpenseId: 'missing-expense', status: 'Completed',
+    })
+  })
+  const broken = writeBatch(adminDb)
+  broken.update(doc(adminDb, 'expenses/missing-expense'), { amount: 2000 })
+  broken.update(tenderRef, { notes: 'Disposable edit' })
+  // The missing expense is evaluated by the update rule and denied before
+  // Firestore can report a missing-document error for the batch.
+  await assertFails(broken.commit())
+
+  const valid = writeBatch(adminDb)
+  valid.update(tenderRef, { awardWorkOrder: { contractValue: 2400000 }, quotedAmount: 2400000, updatedAt: serverTimestamp() })
+  await assertSucceeds(valid.commit())
+  const saved = (await assertSucceeds(getDoc(tenderRef))).data()
+  assert.deepEqual([saved.value, saved.quotedAmount, saved.awardWorkOrder.contractValue, saved.tenderFeeExpenseId],
+    [1895000, 2400000, 2400000, 'missing-expense'])
+  await assertFails(updateDoc(doc(viewerDb, 'tenders/stale-fee-link'), { quotedAmount: 1 }))
 })
 
 test('admin can persist additive bill clearance and RM release history while viewer cannot write', { skip: !emulatorHost }, async () => {

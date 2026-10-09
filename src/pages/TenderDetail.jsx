@@ -10,6 +10,7 @@ import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinan
 import { nonNegativeNumber, nullableNumber, safeHttpUrl, stripUndefined } from '@/lib/data'
 import { billAmounts, billDate, tenderContractValue, projectFinancials, executionState, securityAmounts, validateEvents, validateBillLedger, expenseAmounts } from '@/lib/financials'
 import { billDisplayStatus, billLedger, deductionRowAmount, validateCumulativeBill, validateProjectReceiptReferences } from '@/lib/billingLedger'
+import { tenderFeeExpenseNeedsSync, tenderSaveErrorMessage } from '@/lib/tenderSave'
 import BillActionDialog, { BillStageActions } from '@/components/tenders/BillActionDialog'
 import { rowsToCSV } from '@/lib/csv'
 import { Button } from '@/components/ui/button'
@@ -960,14 +961,19 @@ export default function TenderDetail() {
         tenderRef: id,
         updatedAt: serverTimestamp(),
       }
-      if (tenderFeeNum > 0 && existingExpId) {
-        batch.update(doc(db, 'expenses', existingExpId), expPayload)
-      } else if (tenderFeeNum > 0 && !existingExpId) {
+      const syncFeeExpense = tenderFeeExpenseNeedsSync(tender, form)
+      const existingExpRef = existingExpId ? doc(db, 'expenses', existingExpId) : null
+      const linkedExpenseExists = syncFeeExpense && existingExpRef ? (await getDoc(existingExpRef)).exists() : false
+      if (syncFeeExpense && tenderFeeNum > 0 && linkedExpenseExists) {
+        batch.update(existingExpRef, expPayload)
+      } else if (syncFeeExpense && tenderFeeNum > 0 && !linkedExpenseExists) {
         const ref = doc(collection(db, 'expenses'))
         batch.set(ref, { ...expPayload, createdAt: serverTimestamp() })
         data.tenderFeeExpenseId = ref.id
-      } else if (tenderFeeNum <= 0 && existingExpId) {
-        batch.delete(doc(db, 'expenses', existingExpId))
+      } else if (syncFeeExpense && tenderFeeNum <= 0 && linkedExpenseExists) {
+        batch.delete(existingExpRef)
+        data.tenderFeeExpenseId = null
+      } else if (syncFeeExpense && tenderFeeNum <= 0 && existingExpId) {
         data.tenderFeeExpenseId = null
       }
 
@@ -999,8 +1005,7 @@ export default function TenderDetail() {
       setDirty(false)
       toast.success('Tender saved')
     } catch (err) {
-      console.error('Failed to save tender:', err)
-      toast.error('The tender could not be saved. Check your connection and permissions, then try again.')
+      toast.error(tenderSaveErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -1768,14 +1773,14 @@ export default function TenderDetail() {
                 <DetailRow icon={Hash} label="NIT / Reference">
                   {detailsEditing ? <Input aria-label="NIT or reference" value={form.nit || ''} onChange={(e) => updateForm('nit', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.nit || '-'}</DetailValue>}
                 </DetailRow>
-                <DetailRow icon={Banknote} label="Value (PKR)">
-                  {detailsEditing ? <Input aria-label="Tender value" type="number" min="0" value={form.value || ''} onChange={(e) => updateForm('value', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.value || '-'}</DetailValue>}
+                <DetailRow icon={Banknote} label="Legacy tender value (PKR)" note="Recorded legacy amount; the awarded contract is in Award / Work Order.">
+                  {detailsEditing ? <div><Input aria-label="Legacy tender value" type="number" min="0" value={form.value ?? ''} onChange={(e) => updateForm('value', e.target.value)} className={INLINE_INPUT_CLASS} /><p className="text-xs text-muted-foreground">{formatCurrencyPrecise(form.value, 0)}</p></div> : <DetailValue>{formatCurrencyPrecise(form.value, 0)}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={Banknote} label="Estimated Cost (PKR)" note="Official department / NIT estimate.">
-                  {detailsEditing ? <Input aria-label="Estimated cost" type="number" min="0" value={form.estimatedCost ?? ''} onChange={(e) => updateForm('estimatedCost', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.estimatedCost || '-'}</DetailValue>}
+                  {detailsEditing ? <div><Input aria-label="Estimated cost" type="number" min="0" value={form.estimatedCost ?? ''} onChange={(e) => updateForm('estimatedCost', e.target.value)} className={INLINE_INPUT_CLASS} /><p className="text-xs text-muted-foreground">{formatCurrencyPrecise(form.estimatedCost, 0)}</p></div> : <DetailValue>{formatCurrencyPrecise(form.estimatedCost, 0)}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={WalletCards} label="Quoted Amount (PKR)" note="Submitted financial bid amount.">
-                  {detailsEditing ? <Input aria-label="Quoted amount" type="number" min="0" value={form.quotedAmount ?? ''} onChange={(e) => updateForm('quotedAmount', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.quotedAmount || '-'}</DetailValue>}
+                  {detailsEditing ? <div><Input aria-label="Quoted amount" type="number" min="0" value={form.quotedAmount ?? ''} onChange={(e) => updateForm('quotedAmount', e.target.value)} className={INLINE_INPUT_CLASS} /><p className="text-xs text-muted-foreground">{formatCurrencyPrecise(form.quotedAmount, 0)}</p></div> : <DetailValue>{formatCurrencyPrecise(form.quotedAmount, 0)}</DetailValue>}
                 </DetailRow>
                 <DetailRow icon={Receipt} label="Tender Fee (PKR)" note="Automatically tracked as an expense.">
                   {detailsEditing ? <Input aria-label="Tender fee" type="number" min="0" value={form.tenderFee || ''} onChange={(e) => updateForm('tenderFee', e.target.value)} className={INLINE_INPUT_CLASS} /> : <DetailValue>{form.tenderFee || '-'}</DetailValue>}
