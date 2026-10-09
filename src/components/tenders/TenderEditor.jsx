@@ -43,7 +43,7 @@ export default function TenderEditor({ form, setF, errors, extraOpen, setExtraOp
 
     <Section number="3" title="Amounts & Bid Details" description="Tender value, department estimate and submitted quote remain separate entries.">
       <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-        <Field id="t-value" label="Tender Value (PKR)" required type="number" min="0" step="0.01" value={form.value ?? ''} onChange={setF('value')} error={errors.value} className="tabular-nums" hint="Recorded tender or contract value; not copied from the estimate or bid." />
+        <Field id="t-value" label={editItem ? 'Legacy Tender Value (PKR)' : 'Tender Value (PKR)'} required type="number" min="0" step="0.01" value={form.value ?? ''} onChange={setF('value')} error={errors.value} className="tabular-nums" hint={`${formatCurrencyPrecise(form.value, 0)} · The awarded contract is recorded separately in Award / Work Order.`} />
         <Field id="t-fee" label="Tender Fee (PKR)" type="number" min="0" step="0.01" value={form.tenderFee ?? ''} onChange={setF('tenderFee')} error={errors.tenderFee} className="tabular-nums" hint="Saved with the existing Tender Fees expense sync." />
         <Field id="t-estimated-cost" label="Estimated Cost (PKR)" type="number" min="0" step="0.01" value={form.estimatedCost ?? ''} onChange={setF('estimatedCost')} error={errors.estimatedCost} className="tabular-nums" hint="Official department / NIT estimate." />
         <Field id="t-quoted-amount" label="Quoted Amount (PKR)" type="number" min="0" step="0.01" value={form.quotedAmount ?? ''} onChange={setF('quotedAmount')} error={errors.quotedAmount} className="tabular-nums" hint="Submitted financial bid." />

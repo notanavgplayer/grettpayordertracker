@@ -40,7 +40,7 @@ describe('bill stage dialogs', () => {
     const user = userEvent.setup()
     const onCommit = vi.fn()
     const { unmount } = render(<BillActionDialog mode="approve" bill={form} onClose={vi.fn()} onCommit={onCommit} />)
-    expect(screen.getByRole('spinbutton', { name: 'Approved gross amount' })).toHaveValue(2400)
+    expect(screen.getByRole('spinbutton', { name: 'Approved amount before deductions (PKR)' })).toHaveValue(2400)
     expect(screen.getByText(/Net payable/)).toHaveTextContent('2,208')
     await user.click(screen.getByRole('button', { name: 'Confirm Approval' }))
     const approved = onCommit.mock.calls[0][0]
@@ -59,7 +59,38 @@ describe('bill stage dialogs', () => {
     render(<BillActionDialog mode="approve" bill={invalid} onClose={vi.fn()} onCommit={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: 'Confirm Approval' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Deduction 1: contract amount is missing')
-    expect(screen.getByRole('spinbutton', { name: 'Approved gross amount' })).toHaveValue(2400)
+    expect(screen.getByRole('spinbutton', { name: 'Approved amount before deductions (PKR)' })).toHaveValue(2400)
+  })
+
+  it('requires a fixed amount, accepts explicit zero, and keeps optional adjustments collapsed but preserved', async () => {
+    const user = userEvent.setup()
+    const onCommit = vi.fn()
+    const fixed = { ...form, v2: { ...form.v2, billing: { ...form.v2.billing, deductionRows: [{ id: 'fixed', kind: 'Other', method: 'fixed', base: 'approved', fixedAmount: '', adjustment: 12, reason: 'Certified correction' }] } } }
+    render(<BillActionDialog mode="approve" bill={fixed} onClose={vi.fn()} onCommit={onCommit} />)
+    expect(screen.getByText('Enter a fixed amount')).toBeInTheDocument()
+    expect(screen.queryByText('Enter a valid base and rate')).not.toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: 'Deduction 1 adjustment' })).toHaveValue(12)
+    await user.click(screen.getByRole('button', { name: 'Confirm Approval' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('non-negative fixed amount')
+    expect(onCommit).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Deduction 1 fixed amount' }), { target: { value: '0' } })
+    await user.click(screen.getByRole('button', { name: 'Confirm Approval' }))
+    expect(onCommit.mock.calls[0][0].v2.billing.deductionRows[0]).toMatchObject({ fixedAmount: '0', adjustment: 12, reason: 'Certified correction' })
+  })
+
+  it('shows percentage base and rejects invalid rate and deductions above gross', async () => {
+    const user = userEvent.setup()
+    const onCommit = vi.fn()
+    render(<BillActionDialog mode="approve" bill={form} onClose={vi.fn()} onCommit={onCommit} />)
+    expect(screen.getByText(/Calculation base: Current approved gross increment/)).toHaveTextContent('2,400')
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Deduction 1 rate %' }), { target: { value: '' } })
+    await user.click(screen.getByRole('button', { name: 'Confirm Approval' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('enter a rate')
+    expect(onCommit).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Deduction 1 rate %' }), { target: { value: '101' } })
+    await user.click(screen.getByRole('button', { name: 'Confirm Approval' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('enter a rate')
+    expect(onCommit).not.toHaveBeenCalled()
   })
 
   it('shows payment and retention forms only for their own actions', () => {
