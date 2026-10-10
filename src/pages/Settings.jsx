@@ -173,7 +173,7 @@ export default function Settings() {
 
       <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
-          <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4 text-emerald-600" /> Profile & Access</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-lg"><User className="h-4 w-4 text-emerald-600" /> Profile & Access</CardTitle>
           <CardDescription>Update your display name. Your account role controls available actions.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 sm:space-y-5">
@@ -221,7 +221,7 @@ export default function Settings() {
       <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="flex items-center gap-2 text-base"><CalendarDays className="h-4 w-4 text-primary" /> Google Calendar</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-lg"><CalendarDays className="h-4 w-4 text-primary" /> Google Calendar</CardTitle>
             <Badge variant={integration?.calendar.connected ? 'default' : 'secondary'}>{integration?.calendar.connected ? 'Connected' : 'Not connected'}</Badge>
           </div>
           <CardDescription>Keep active tender deadlines synchronized with your phone calendar.</CardDescription>
@@ -261,7 +261,7 @@ export default function Settings() {
 
       <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
-          <CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4 text-primary" /> Email Reminders</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-lg"><Mail className="h-4 w-4 text-primary" /> Email Reminders</CardTitle>
           <CardDescription>Send scheduled deadline emails at 9:00 AM Pakistan time, even when the website is closed.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -277,14 +277,14 @@ export default function Settings() {
 
       {!tenderIntegrationsEnabled && <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
-          <CardTitle className="flex items-center gap-2 text-base"><CalendarDays className="h-4 w-4 text-primary" /> Integrations <Badge variant="secondary">Inactive</Badge></CardTitle>
+          <CardTitle className="flex items-center gap-2 text-lg"><CalendarDays className="h-4 w-4 text-primary" /> Integrations <Badge variant="secondary">Inactive</Badge></CardTitle>
           <CardDescription>Calendar and email synchronization are not active in this deployment.</CardDescription>
         </CardHeader>
       </Card>}
 
       <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
-          <CardTitle className="flex items-center gap-2 text-base"><Bell className="h-4 w-4 text-primary" /> Tender Reminders</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-lg"><Bell className="h-4 w-4 text-primary" /> Tender Reminders</CardTitle>
           <CardDescription>Choose when submission-deadline reminders should appear.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -312,7 +312,7 @@ export default function Settings() {
 
       <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
-          <CardTitle className="text-base">Change Password</CardTitle>
+          <CardTitle className="text-lg">Change Password</CardTitle>
           <CardDescription>Keep your account secure with a strong password.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3.5 sm:space-y-4">
@@ -369,7 +369,7 @@ export default function Settings() {
 
       <Card className="rounded-xl border-border/80 bg-card">
         <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
-          <CardTitle className="text-base">Appearance</CardTitle>
+          <CardTitle className="text-lg">Appearance</CardTitle>
           <CardDescription>Choose the visual theme for your workspace.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -391,7 +391,7 @@ export default function Settings() {
       {isAdmin && (
         <Card className="rounded-xl border-border/80 bg-card">
           <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
-            <CardTitle className="flex items-center gap-2 text-base"><Download className="h-4 w-4 text-emerald-600" /> Data Backup</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-lg"><Download className="h-4 w-4 text-emerald-600" /> Data Backup</CardTitle>
             <CardDescription>Export Firestore business records and a storage-file manifest. File contents and user accounts are not included.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -406,7 +406,7 @@ export default function Settings() {
       {isAdmin && (
         <Card className="rounded-xl border-border/80 bg-card lg:col-span-2">
           <CardHeader className="space-y-1.5 pb-3 sm:pb-4">
-            <CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-emerald-600" /> User Management</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-lg"><Users className="h-4 w-4 text-emerald-600" /> User Management</CardTitle>
             <CardDescription>Manage roles for all users in the system</CardDescription>
           </CardHeader>
           <CardContent>

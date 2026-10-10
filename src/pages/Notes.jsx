@@ -118,7 +118,7 @@ export default function Notes() {
       <div className={`w-full flex-shrink-0 border-r border-border sm:w-72 lg:w-80 ${selected ? 'hidden sm:flex' : 'flex'} flex-col`}>
         <div className="space-y-3 border-b border-border p-4">
           <div className="flex items-center justify-between gap-2">
-            <h1 className="font-display text-xl font-semibold tracking-tight">Notes</h1>
+            <h1 className="page-title">Notes</h1>
             {isAdmin && <Button size="sm" onClick={startNote}><Plus className="h-4 w-4" /> Add Note</Button>}
           </div>
           <div className="relative"><Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Search notes" type="search" placeholder="Search notes…" className="h-10 pl-9" value={search} onChange={(event) => setSearch(event.target.value)} /></div>

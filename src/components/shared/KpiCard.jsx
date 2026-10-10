@@ -36,7 +36,7 @@ export default function KpiCard({
         )}
       >
         <div className="flex min-w-0 items-start justify-between gap-2">
-          <p className="min-w-0 break-words text-xs font-medium leading-4 text-muted-foreground">{label}</p>
+          <p className="min-w-0 break-words text-sm font-medium leading-5 text-muted-foreground">{label}</p>
           <div className="flex shrink-0 items-center gap-1.5">
             {badge ? <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{badge}</span> : null}
             {Icon ? (
@@ -46,7 +46,7 @@ export default function KpiCard({
             ) : null}
           </div>
         </div>
-        <p className={cn("min-w-0 max-w-full break-words font-mono text-lg font-semibold leading-6 tabular-nums text-foreground sm:text-xl sm:font-bold sm:leading-7", valueClassName)}>{value ?? "-"}</p>
+        <p className={cn("kpi-amount max-w-full", valueClassName)}>{value ?? "-"}</p>
         {helper ? <p className="min-w-0 break-words text-xs font-normal leading-4 text-muted-foreground">{helper}</p> : null}
       </CardContent>
     </Card>

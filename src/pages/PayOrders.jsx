@@ -781,7 +781,7 @@ export default function PayOrders() {
           <div className="grid grid-cols-1 gap-4 border-t border-border/70 p-4 xl:grid-cols-2">
           <Card className="rounded-xl border bg-card">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between gap-2 text-base">
+              <CardTitle className="flex items-center justify-between gap-2 text-lg">
                 <span>Status Distribution</span>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </CardTitle>
@@ -837,7 +837,7 @@ export default function PayOrders() {
           </Card>
           <Card className="rounded-xl border bg-card">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between gap-2 text-base">
+              <CardTitle className="flex items-center justify-between gap-2 text-lg">
                 <span>Bid Results</span>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </CardTitle>

@@ -360,7 +360,7 @@ export default function Expenses() {
         <TabsContent value="charts" className="mt-4 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">By Category</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-lg">By Category</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
@@ -386,7 +386,7 @@ export default function Expenses() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Monthly Trend (6 months)</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-lg">Monthly Trend (6 months)</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={monthlyData} margin={{ left: 8, right: 8, top: 8 }}>

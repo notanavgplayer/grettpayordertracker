@@ -76,17 +76,19 @@ export function exportPayOrdersPDF(payOrders) {
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
   <title>Pay Orders Export</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
   <style>
-    body{font-family:Arial,sans-serif;font-size:12px;margin:24px}
+    body{font-family:Inter,system-ui,sans-serif;font-size:12px;margin:24px}
     h1{font-size:18px;margin-bottom:4px}
     .meta{color:#666;margin-bottom:16px;font-size:11px}
     .summary{display:flex;gap:12px;margin-bottom:16px}
     .s-card{background:#f4f6f9;border-radius:8px;padding:10px 14px;min-width:100px}
     .s-card .label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.05em}
-    .s-card .val{font-size:16px;font-weight:700;margin-top:2px}
+    .s-card .val{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
     table{width:100%;border-collapse:collapse}
     th{background:#0f2a4a;color:#fff;padding:7px 8px;text-align:left;font-size:11px}
     td{padding:6px 8px;border-bottom:1px solid #e8ecf4;font-size:11px}
+    th:nth-child(6),td:nth-child(6){text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
     tr:nth-child(even) td{background:#f8fafc}
   </style></head><body>
   <h1>Grett Engineering — Pay Orders</h1>

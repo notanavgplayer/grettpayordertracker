@@ -29,7 +29,7 @@ const TableRow = React.forwardRef(({ className, ...props }, ref) => (
 TableRow.displayName = 'TableRow'
 
 const TableHead = React.forwardRef(({ className, ...props }, ref) => (
-  <th ref={ref} className={cn('h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]', className)} {...props} />
+  <th ref={ref} className={cn('h-11 px-4 text-left align-middle text-sm font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]', className)} {...props} />
 ))
 TableHead.displayName = 'TableHead'
 

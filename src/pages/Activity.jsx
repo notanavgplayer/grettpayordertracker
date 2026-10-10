@@ -255,7 +255,7 @@ export default function ActivityPage() {
         <CardHeader className="border-b p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className="text-base">Audit Trail</CardTitle>
+              <CardTitle className="text-lg">Audit Trail</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
                 {filtered.length} loaded {filtered.length === 1 ? "entry" : "entries"} shown
               </p>
