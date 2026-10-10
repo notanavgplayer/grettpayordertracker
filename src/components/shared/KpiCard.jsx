@@ -31,7 +31,7 @@ export default function KpiCard({
     <Card className={cn("h-full min-w-0", className)}>
       <CardContent
         className={cn(
-          "flex min-w-0 flex-col gap-2 p-4 pt-4 sm:p-5 sm:pt-5",
+          "flex min-w-0 flex-col gap-1.5 p-4",
           contentClassName,
         )}
       >

@@ -381,7 +381,7 @@ export default function Calendar() {
           <CardHeader className="border-b bg-muted/20 p-4 md:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="text-lg md:text-xl">{view === "week" ? `Next 7 days · ${formatDate(todayStr)}–${formatDate(weekEnd)}` : `${MONTHS[month]} ${year}`}</CardTitle>
+                <CardTitle className="text-base md:text-lg">{view === "week" ? `Next 7 days · ${formatDate(todayStr)}–${formatDate(weekEnd)}` : `${MONTHS[month]} ${year}`}</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {view === "week" ? `${thisWeekEvents.length} recorded event${thisWeekEvents.length === 1 ? "" : "s"}` : `${monthEvents.length} recorded event${monthEvents.length === 1 ? "" : "s"} this month`}
                 </p>

@@ -15,7 +15,7 @@ export function DashboardStatCard({ label, value, detail, icon: Icon, href, tone
   return (
     <Link to={href} className={cn('group min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-blue-500', className)}>
       <Card className="h-full min-w-0 transition-colors group-hover:border-blue-300 dark:group-hover:border-blue-700">
-        <CardContent className="flex min-w-0 flex-col gap-2 p-4 pt-4 sm:p-5 sm:pt-5">
+        <CardContent className="flex min-w-0 flex-col gap-1.5 p-4">
           <div className="flex items-start justify-between gap-2">
             <span className="min-w-0 break-words text-sm font-medium leading-5 text-muted-foreground">{label}</span>
             <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', tones[tone])}>
@@ -24,7 +24,7 @@ export function DashboardStatCard({ label, value, detail, icon: Icon, href, tone
           </div>
           <div className="min-w-0">
             <p className="kpi-amount">{value}</p>
-            <p className="mt-1 break-words text-xs leading-4 text-muted-foreground">{detail}</p>
+            <p className="mt-0.5 break-words text-xs leading-4 text-muted-foreground">{detail}</p>
           </div>
         </CardContent>
       </Card>
@@ -35,7 +35,7 @@ export function DashboardStatCard({ label, value, detail, icon: Icon, href, tone
 export function DashboardSection({ title, description, href, linkLabel = 'View all', children, className, contentClassName }) {
   return (
     <Card className={cn('min-w-0 overflow-hidden', className)}>
-      <CardHeader className="flex flex-row items-center justify-between gap-3 border-b px-4 py-3 sm:px-5">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 border-b px-4 py-3">
         <div className="min-w-0">
           <CardTitle>{title}</CardTitle>
           {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
@@ -44,7 +44,7 @@ export function DashboardSection({ title, description, href, linkLabel = 'View a
           {linkLabel}<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>}
       </CardHeader>
-      <CardContent className={cn('p-4 sm:p-5', contentClassName)}>{children}</CardContent>
+      <CardContent className={cn('p-4', contentClassName)}>{children}</CardContent>
     </Card>
   )
 }
