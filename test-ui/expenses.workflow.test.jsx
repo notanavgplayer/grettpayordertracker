@@ -56,12 +56,12 @@ describe('expense creation workflow', () => {
 
     await user.click(save)
     expect(screen.getByRole('alert')).toHaveTextContent('Description is required')
-    expect(description).toHaveFocus()
+    await waitFor(() => expect(description).toHaveFocus())
 
     await user.type(description, 'Permit fee')
     await user.click(save)
     expect(screen.getByRole('alert')).toHaveTextContent('Amount must be a non-negative number')
-    expect(amount).toHaveFocus()
+    await waitFor(() => expect(amount).toHaveFocus())
 
     await user.type(amount, '0')
     await user.click(save)
