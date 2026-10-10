@@ -244,7 +244,7 @@ export default function ActivityPage() {
         description="Track recent actions and load older history when needed"
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 min-[390px]:grid-cols-2 xl:grid-cols-4">
         <ActivitySummaryCard icon={Clock3} label="Today's Activity" value={stats.today} helper="Within loaded history" tone="emerald" />
         <ActivitySummaryCard icon={Activity} label="This Week" value={stats.week} helper="Within loaded history" tone="blue" />
         <ActivitySummaryCard icon={FileStack} label="Tender Updates" value={stats.tenders} helper="Within loaded history" tone="amber" />

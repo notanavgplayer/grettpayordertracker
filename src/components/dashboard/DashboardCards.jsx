@@ -15,16 +15,16 @@ export function DashboardStatCard({ label, value, detail, icon: Icon, href, tone
   return (
     <Link to={href} className={cn('group min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-blue-500', className)}>
       <Card className="h-full min-w-0 transition-colors group-hover:border-blue-300 dark:group-hover:border-blue-700">
-        <CardContent className="flex h-full min-w-0 flex-col justify-between gap-3 p-4">
+        <CardContent className="flex min-w-0 flex-col gap-2 p-4 pt-4 sm:p-5 sm:pt-5">
           <div className="flex items-start justify-between gap-2">
-            <span className="text-xs font-medium leading-4 text-muted-foreground">{label}</span>
+            <span className="min-w-0 break-words text-xs font-medium leading-4 text-muted-foreground">{label}</span>
             <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', tones[tone])}>
               <Icon className="h-4 w-4" aria-hidden="true" />
             </span>
           </div>
           <div className="min-w-0">
-            <p className="overflow-x-auto whitespace-nowrap text-xl font-semibold tracking-tight tabular-nums text-foreground 2xl:text-2xl">{value}</p>
-            <p className="mt-1 text-xs leading-4 text-muted-foreground">{detail}</p>
+            <p className="min-w-0 break-words text-xl font-semibold tracking-tight tabular-nums text-foreground 2xl:text-2xl">{value}</p>
+            <p className="mt-1 break-words text-xs leading-4 text-muted-foreground">{detail}</p>
           </div>
         </CardContent>
       </Card>

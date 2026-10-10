@@ -4159,7 +4159,7 @@ function ExpensesFinanceSection({
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="metric-grid-five">
         <ExpenseSummaryCard icon={WalletCards} label="Total Expenses" value={expenseTotal} helper="All recorded expenses" tone="emerald" />
         <ExpenseSummaryCard icon={CheckCircle} label="Paid Expenses" value={expenseOther} helper="Recorded project spend" tone="green" />
         <ExpenseSummaryCard icon={Landmark} label="Recoverable / Held" value={heldByAgency} helper="Recoverable / held by agency" tone="blue" />
@@ -4609,7 +4609,7 @@ function BillsInvoicesSection({
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="metric-grid-five">
           {summaryCards.map((card) => (
             <BillSummaryCard key={card.label} {...card} />
           ))}
@@ -5109,7 +5109,7 @@ function RABillsSection({
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="metric-grid-five">
           {summaryCards.map((card) => (
             <BillSummaryCard key={card.label} {...card} />
           ))}
@@ -5344,7 +5344,7 @@ function LegacyBillFinanceSection({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-5">
+      <div className="metric-grid-five">
         {summaryCards.map((card) => (
           <KpiCard
             key={card.label}
@@ -5650,7 +5650,7 @@ function DocumentsManager({
         </div>
       </CardHeader>
       <CardContent className="space-y-3.5 p-3.5 pt-0 md:space-y-5 md:p-6 md:pt-0">
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-5">
+        <div className="metric-grid-five">
           <DocumentStat icon={FolderOpen} label="Total Documents" value={documents.length} tone="emerald" />
           <DocumentStat icon={ImageIcon} label="Images" value={documentStats.Image || 0} tone="green" />
           <DocumentStat icon={FileText} label="PDFs" value={documentStats.PDF || 0} tone="red" />

@@ -3,6 +3,7 @@ import { useCollection, useFirestoreCRUD } from '@/hooks/useFirestore'
 import { useAuth } from '@/context/AuthContext'
 import { getInitials, CONTACT_CATEGORIES } from '@/lib/utils'
 import PageHeader from '@/components/shared/PageHeader'
+import KpiCard from '@/components/shared/KpiCard'
 import EmptyState from '@/components/shared/EmptyState'
 import ConfirmDelete from '@/components/shared/ConfirmDelete'
 import LoadState from '@/components/shared/LoadState'
@@ -194,7 +195,7 @@ export default function Contacts() {
         )}
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 min-[390px]:grid-cols-2 xl:grid-cols-4">
         <SummaryCard icon={Users} label="Total Contacts" value={stats.total} tone="emerald" />
         <SummaryCard icon={Building2} label="Agencies" value={stats.agencies} tone="green" />
         <SummaryCard icon={Briefcase} label="Vendors" value={stats.vendors} tone="blue" />
@@ -409,27 +410,7 @@ export default function Contacts() {
 }
 
 function SummaryCard({ icon: Icon, label, value, tone, className = '' }) {
-  const tones = {
-    emerald: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300',
-    green: 'bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300',
-    blue: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300',
-    amber: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300',
-    purple: 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300',
-  }
-
-  return (
-    <Card className={`border-border/80 ${className}`}>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${tones[tone] || tones.emerald}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  )
+  return <KpiCard className={`border-border/80 ${className}`} icon={Icon} label={label} value={value} tone={tone} />
 }
 
 function TypeBadge({ contact }) {
