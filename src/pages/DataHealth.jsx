@@ -348,7 +348,7 @@ export default function DataHealth() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="metric-grid-five">
         <SummaryCard icon={DatabaseZap} label="Total Records Checked" value={summary.totalRecords} />
         <SummaryCard icon={AlertTriangle} label="Issues Found" value={summary.issuesFound} tone="amber" />
         <SummaryCard icon={ShieldAlert} label="Critical Issues" value={summary.critical} tone="red" />

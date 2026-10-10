@@ -112,7 +112,7 @@ export default function Todo() {
   if (error) return <LoadState title="Tasks could not be loaded" error={error} />;
   return <div className="mx-auto w-full max-w-7xl space-y-5 sm:space-y-6">
     <PageHeader title="To-Do" description="Manual tasks and linked follow-ups" actions={isAdmin && <Button onClick={() => openForm()} className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto"><Plus className="h-4 w-4" /> Add Task</Button>} />
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{stats.map((stat) => <KpiCard key={stat.label} {...stat} />)}</div>
+    <div className="grid grid-cols-1 gap-3 min-[390px]:grid-cols-2 xl:grid-cols-4">{stats.map((stat) => <KpiCard key={stat.label} {...stat} />)}</div>
     <Card><CardContent className="space-y-3 p-4">
       <div className="flex flex-wrap gap-2">
         {linkedTaskId && <Button variant="outline" onClick={() => navigate("/todo")}>Show all tasks</Button>}

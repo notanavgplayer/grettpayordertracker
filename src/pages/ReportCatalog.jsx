@@ -616,7 +616,7 @@ export default function ReportCatalog() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+      <div className="metric-grid-five">
         {summaryCards.map((card) => (
           <KpiCard
             key={card.label}

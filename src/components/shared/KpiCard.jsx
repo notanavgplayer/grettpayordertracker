@@ -28,48 +28,26 @@ export default function KpiCard({
   valueClassName,
 }) {
   return (
-    <Card className={cn("h-full overflow-hidden", className)}>
+    <Card className={cn("h-full min-w-0", className)}>
       <CardContent
         className={cn(
-          "flex h-full min-w-0 items-start gap-3 p-4 sm:p-5",
+          "flex min-w-0 flex-col gap-2 p-4 pt-4 sm:p-5 sm:pt-5",
           contentClassName,
         )}
       >
-        {Icon && (
-          <div
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-              TONES[tone] || TONES.emerald,
-            )}
-          >
-            <Icon className="h-[18px] w-[18px] sm:h-5 sm:w-5" aria-hidden="true" />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-start justify-between gap-2">
-            <p className="min-w-0 break-words text-xs font-medium leading-4 text-muted-foreground">
-              {label}
-            </p>
-            {badge ? (
-              <span className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-                {badge}
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <p className="min-w-0 break-words text-xs font-medium leading-4 text-muted-foreground">{label}</p>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {badge ? <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{badge}</span> : null}
+            {Icon ? (
+              <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", TONES[tone] || TONES.emerald)}>
+                <Icon className="h-4 w-4" aria-hidden="true" />
               </span>
             ) : null}
           </div>
-          <p
-            className={cn(
-              "mt-1 max-w-full overflow-x-auto whitespace-nowrap font-mono text-lg font-semibold leading-6 tabular-nums text-foreground sm:text-xl sm:font-bold sm:leading-7",
-              valueClassName,
-            )}
-          >
-            {value ?? "-"}
-          </p>
-          {helper ? (
-            <p className="mt-1 max-w-full break-words text-xs font-normal leading-4 text-muted-foreground">
-              {helper}
-            </p>
-          ) : null}
         </div>
+        <p className={cn("min-w-0 max-w-full break-words font-mono text-lg font-semibold leading-6 tabular-nums text-foreground sm:text-xl sm:font-bold sm:leading-7", valueClassName)}>{value ?? "-"}</p>
+        {helper ? <p className="min-w-0 break-words text-xs font-normal leading-4 text-muted-foreground">{helper}</p> : null}
       </CardContent>
     </Card>
   );

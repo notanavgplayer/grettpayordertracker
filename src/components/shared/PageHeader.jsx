@@ -12,7 +12,7 @@ export default function PageHeader({ title, description, actions, className }) {
         )}
       </div>
       {actions && (
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-shrink-0 sm:flex-nowrap sm:justify-end">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           {actions}
         </div>
       )}

@@ -218,6 +218,21 @@
   .page-shell-compact {
     @apply mx-auto w-full max-w-5xl;
   }
+  .metric-grid-five {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+  @media (min-width: 420px) {
+    .metric-grid-five { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1200px) {
+    .metric-grid-five { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1800px) {
+    .metric-grid-five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  }
   .section-heading {
     @apply font-display text-lg font-semibold leading-tight tracking-tight text-foreground;
   }
