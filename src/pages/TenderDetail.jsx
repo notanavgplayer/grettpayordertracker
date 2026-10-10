@@ -2210,7 +2210,7 @@ export default function TenderDetail() {
 
         <TabsContent value="boq" className="order-3 mt-0 space-y-4 md:space-y-5">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight md:text-2xl">BOQ / Profit Tracking</h2>
+            <h2 className="text-base font-semibold tracking-tight md:text-lg">BOQ / Profit Tracking</h2>
             <div className="mt-2 h-1 w-10 rounded-full bg-emerald-600" />
           </div>
 
@@ -3183,7 +3183,7 @@ function AwardWorkOrderSection({ details, timeline, isAdmin, onEdit }) {
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-xs font-medium tracking-normal text-emerald-700 dark:text-emerald-300 sm:font-semibold sm:uppercase sm:tracking-[0.18em] md:text-xs md:tracking-[0.22em]">Post Award</p>
-              <CardTitle className="mt-0.5 text-lg md:mt-1 md:text-xl">Award / Work Order</CardTitle>
+              <CardTitle className="mt-0.5 text-base md:mt-1 md:text-lg">Award / Work Order</CardTitle>
               <p className="mt-1 text-xs leading-5 text-muted-foreground md:text-sm">
                 Track award details, work order information, contract period, securities, and project execution dates.
               </p>
@@ -4124,7 +4124,7 @@ function ExpensesFinanceSection({
             <Receipt className="h-6 w-6" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">Expenses</h2>
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">Expenses</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               Track project-related spending, documentation, and recoverable amounts.
             </p>
@@ -4598,7 +4598,7 @@ function BillsInvoicesSection({
               <Receipt className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
             </div>
           </div>
@@ -5098,7 +5098,7 @@ function RABillsSection({
               <FileText className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
             </div>
           </div>
@@ -5334,7 +5334,7 @@ function LegacyBillFinanceSection({
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
         </div>
         {isAdmin && (
@@ -5635,7 +5635,7 @@ function DocumentsManager({
       <CardHeader className="p-3.5 pb-3.5 md:p-6 md:pb-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2 text-xl">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <Paperclip className="h-5 w-5 text-emerald-600" /> Documents
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
