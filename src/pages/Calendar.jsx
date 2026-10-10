@@ -540,7 +540,7 @@ function SelectedDatePanel({ selectedDay, events, onOpen, onAdd }) {
       <CardHeader className="border-b p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Date Focus</CardTitle>
+            <CardTitle className="text-lg">Date Focus</CardTitle>
             <p className="mt-1 text-sm font-medium text-foreground">{formatDate(selectedDay)}</p>
             <p className="text-xs text-muted-foreground">
               {events.length ? `${events.length} event${events.length === 1 ? "" : "s"} scheduled` : "No deadlines or activities for this date."}

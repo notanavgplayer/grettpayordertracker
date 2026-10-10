@@ -864,11 +864,11 @@ export default function Tenders() {
               {/* Desktop: compact primary columns, optional secondary columns. */}
               <div className="hidden overflow-x-auto md:block">
                 <Table className="min-w-[840px]"><TableHeader><TableRow>
-                  <TableHead className="w-[27%]">Tender / NIT</TableHead><TableHead>Agency</TableHead><TableHead>Relevant Amount</TableHead><TableHead>Submission date</TableHead><TableHead>Status</TableHead>
+                  <TableHead className="w-[27%]">Tender / NIT</TableHead><TableHead>Agency</TableHead><TableHead className="text-right">Relevant Amount</TableHead><TableHead>Submission date</TableHead><TableHead>Status</TableHead>
                   {optionalColumns.openingDate && <TableHead>Opening</TableHead>}
-                  {optionalColumns.estimatedCost && <TableHead>Estimate</TableHead>}
-                  {optionalColumns.quotedAmount && <TableHead>Quoted Bid</TableHead>}
-                  {optionalColumns.quotedPercent && <TableHead>Quoted %</TableHead>}
+                  {optionalColumns.estimatedCost && <TableHead className="text-right">Estimate</TableHead>}
+                  {optionalColumns.quotedAmount && <TableHead className="text-right">Quoted Bid</TableHead>}
+                  {optionalColumns.quotedPercent && <TableHead className="text-right">Quoted %</TableHead>}
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow></TableHeader><TableBody>
                   {paginatedTenders.map((t) => {
@@ -879,13 +879,13 @@ export default function Tenders() {
                     return <TableRow key={t.id}>
                       <TableCell className="min-w-[210px] max-w-[330px]"><Link to={'/tenders/' + t.id} title={t.name || 'Untitled'} className="line-clamp-3 break-words text-sm font-medium hover:underline">{t.name || 'Untitled'}</Link><span className="mt-1 block break-all text-xs text-muted-foreground">{t.nit || 'NIT not recorded'}</span></TableCell>
                       <TableCell className="max-w-[190px] break-words text-sm">{t.agency || 'Not recorded'}</TableCell>
-                      <TableCell className="whitespace-nowrap text-sm"><span className="block font-mono tabular-nums">{relevant.amount === null ? 'Not recorded' : formatCurrencyPrecise(relevant.amount, 0)}</span><span className="text-xs text-muted-foreground">{relevant.label}</span></TableCell>
+                      <TableCell className="table-amount whitespace-nowrap"><span className="block">{relevant.amount === null ? 'Not recorded' : formatCurrencyPrecise(relevant.amount, 0)}</span><span className="text-xs font-normal text-muted-foreground">{relevant.label}</span></TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{recordedDate ? formatDate(t.submissionDate) : 'Not recorded'}{deadline && <span className="ml-2"><DeadlineBadge tender={t} /></span>}</TableCell>
                       <TableCell className="whitespace-nowrap"><StatusBadge status={t.displayStatus} /></TableCell>
                       {optionalColumns.openingDate && <TableCell className="whitespace-nowrap text-sm">{t.openingDate ? formatDate(t.openingDate) : 'Not recorded'}</TableCell>}
-                      {optionalColumns.estimatedCost && <TableCell className="whitespace-nowrap font-mono text-sm tabular-nums">{financials.estimatedCost === null ? 'Not recorded' : formatCurrencyPrecise(financials.estimatedCost, 0)}</TableCell>}
-                      {optionalColumns.quotedAmount && <TableCell className="whitespace-nowrap font-mono text-sm tabular-nums">{financials.quotedAmount === null ? 'Not recorded' : formatCurrencyPrecise(financials.quotedAmount, 0)}</TableCell>}
-                      {optionalColumns.quotedPercent && <TableCell className="whitespace-nowrap text-sm">{financials.percentage === null ? '—' : financials.percentage.toFixed(2) + '%'}</TableCell>}
+                      {optionalColumns.estimatedCost && <TableCell className="table-amount whitespace-nowrap">{financials.estimatedCost === null ? 'Not recorded' : formatCurrencyPrecise(financials.estimatedCost, 0)}</TableCell>}
+                      {optionalColumns.quotedAmount && <TableCell className="table-amount whitespace-nowrap">{financials.quotedAmount === null ? 'Not recorded' : formatCurrencyPrecise(financials.quotedAmount, 0)}</TableCell>}
+                      {optionalColumns.quotedPercent && <TableCell className="table-amount whitespace-nowrap">{financials.percentage === null ? '—' : financials.percentage.toFixed(2) + '%'}</TableCell>}
                       <TableCell><div className="flex items-center justify-end gap-1"><Button asChild variant="outline" size="sm"><Link to={'/tenders/' + t.id}>View</Link></Button><TenderRowMenu tender={t} isAdmin={isAdmin} openDialog={openDialog} setDeleteId={setDeleteId} setQuickView={setQuickView} /></div></TableCell>
                     </TableRow>;
                   })}

@@ -1674,7 +1674,7 @@ export default function TenderDetail() {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-2">
           <div className="space-y-2">
-            <h1 className="max-w-5xl break-words text-2xl font-semibold leading-tight tracking-tight lg:text-3xl">
+            <h1 className="page-title max-w-5xl break-words">
               {form.name || 'Untitled Tender'}
             </h1>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -1736,7 +1736,7 @@ export default function TenderDetail() {
           {(detailsEditing || !isAdmin) && <Card data-project-details-editor className="order-2 rounded-xl border-border/80 bg-background">
             <CardHeader className="p-4 pb-3 md:p-5 md:pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2 text-base">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
                     <FileText className="h-4 w-4" />
                   </span>
@@ -1927,7 +1927,7 @@ export default function TenderDetail() {
             <CardHeader className="p-4 pb-3 md:p-6 md:pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="flex items-center gap-2 text-base">
+                  <CardTitle className="flex items-center gap-2 text-lg">
                     <Banknote className="h-4 w-4 text-emerald-600" /> Financial Snapshot
                   </CardTitle>
                   <p className="mt-1 text-sm text-muted-foreground">Estimate, quote, award value, and security position.</p>
@@ -1983,7 +1983,7 @@ export default function TenderDetail() {
             <Card>
               <CardHeader className="p-4 pb-3 md:p-6 md:pb-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                  <CardTitle className="flex items-center gap-2 text-base">
+                  <CardTitle className="flex items-center gap-2 text-lg">
                     <CheckSquare className="h-4 w-4 text-emerald-600" /> Checklist Progress
                   </CardTitle>
                   <div className="flex items-center gap-2">
@@ -2048,7 +2048,7 @@ export default function TenderDetail() {
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <WalletCards className="h-4 w-4 text-emerald-600" /> Payment Summary
                 </CardTitle>
               </CardHeader>
@@ -2150,7 +2150,7 @@ export default function TenderDetail() {
             />
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <History className="h-4 w-4 text-emerald-600" /> Tender Timeline
                 </CardTitle>
               </CardHeader>
@@ -2172,7 +2172,7 @@ export default function TenderDetail() {
           </div>
 
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Notes</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-lg">Notes</CardTitle></CardHeader>
             <CardContent>
               <Textarea value={form.notes || ''} onChange={(e) => updateAutosavedForm('notes', e.target.value)} disabled={!isAdmin} rows={4} placeholder="Add notes about this tender…" />
             </CardContent>
@@ -2181,7 +2181,7 @@ export default function TenderDetail() {
           {(form.statusHistory || []).length > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm"><History className="h-4 w-4" /> Status History</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-lg"><History className="h-4 w-4" /> Status History</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 pt-0">
                 {(form.statusHistory || []).map((h, i) => (
@@ -2548,7 +2548,7 @@ export default function TenderDetail() {
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2 text-sm">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <FileText className="h-4 w-4" /> Pay Orders for this tender
                 </CardTitle>
                 {isAdmin && <Button size="sm" className="h-10 md:h-9" onClick={() => openPoDialog()}><Plus className="h-3.5 w-3.5" /> Add Pay Order</Button>}
@@ -2679,7 +2679,7 @@ export default function TenderDetail() {
           <Card>
             <CardHeader className="p-4 pb-3 md:p-6 md:pb-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <CardTitle className="flex items-center gap-2 text-sm">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <Receipt className="h-4 w-4" /> Expenses
                   <span className="text-muted-foreground font-normal">· total {formatCurrency(expenseTotal)}</span>
                 </CardTitle>
@@ -2760,7 +2760,7 @@ export default function TenderDetail() {
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="flex items-center gap-2 text-sm">
+                  <CardTitle className="flex items-center gap-2 text-lg">
                     <CalendarDays className="h-4 w-4" /> Site Visits
                     <span className="text-muted-foreground font-normal">· {(form.siteVisits || []).length} recorded</span>
                   </CardTitle>
@@ -2838,7 +2838,7 @@ export default function TenderDetail() {
         {/* Contact tab */}
         <TabsContent value="contact" className="order-3 mt-0">
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2 text-sm"><User className="h-4 w-4" /> Contact Person</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><User className="h-4 w-4" /> Contact Person</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {['name', 'phone', 'email', 'role'].map((field) => (
                 <div key={field} className="min-w-0 space-y-1.5">
@@ -3274,7 +3274,7 @@ function AwardDetailCard({ title, icon: Icon, rows }) {
   return (
     <Card className="rounded-xl border-border/80">
       <CardHeader className="p-3 pb-1.5 sm:p-4 sm:pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+        <CardTitle className="flex items-center gap-2 text-lg">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 sm:h-8 sm:w-8">
             <Icon className="h-4 w-4" />
           </span>
@@ -3948,7 +3948,7 @@ function OverviewListCard({ icon: Icon, title, empty, items, renderItem }) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-lg">
           <Icon className="h-4 w-4 text-emerald-600" /> {title}
         </CardTitle>
       </CardHeader>
@@ -4047,7 +4047,7 @@ function TenderOverviewDashboard({ form, linkedPOs, expectedProfit, cashPosition
   return <div className="space-y-4">
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(310px,1fr)]">
       <Card className="min-w-0 rounded-xl border-border/80">
-        <CardHeader className="p-4 pb-2"><CardTitle className="text-base">Project Details</CardTitle></CardHeader>
+        <CardHeader className="p-4 pb-2"><CardTitle className="text-lg">Project Details</CardTitle></CardHeader>
         <CardContent className="p-4 pt-0">
           <dl className="grid gap-x-6 md:grid-cols-2">
             <ProjectDetailValue label="Agency" value={form.agency} />
@@ -4067,7 +4067,7 @@ function TenderOverviewDashboard({ form, linkedPOs, expectedProfit, cashPosition
         </CardContent>
       </Card>
       <Card className="min-w-0 self-start rounded-xl border-border/80">
-        <CardHeader className="p-4 pb-2"><CardTitle className="text-base">Next Actions</CardTitle></CardHeader>
+        <CardHeader className="p-4 pb-2"><CardTitle className="text-lg">Next Actions</CardTitle></CardHeader>
         <CardContent className="space-y-2 p-4 pt-0">
           {actions.length ? actions.map((item) => <div key={item.title} className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-900/50 dark:bg-amber-950/20 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0"><p className="break-words text-sm font-semibold">{item.title}</p><p className="mt-0.5 break-words text-xs text-muted-foreground">{item.detail}</p></div>
@@ -4079,10 +4079,10 @@ function TenderOverviewDashboard({ form, linkedPOs, expectedProfit, cashPosition
     <div className="grid grid-cols-2 gap-1 rounded-xl border bg-card p-2 sm:grid-cols-3 xl:grid-cols-6">
       {shortcuts.map((item) => <button key={item.label} type="button" onClick={item.onClick} className="flex min-w-0 items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"><span className="break-words text-emerald-700 dark:text-emerald-300">{item.label}</span><span className="shrink-0 font-semibold tabular-nums">{item.count}</span></button>)}
     </div>
-    {checklistExpanded && <Card className="rounded-xl"><CardHeader className="flex flex-row items-center justify-between p-4 pb-2"><CardTitle className="text-base">Checklist · {doneCount}/{checklist.length} complete</CardTitle>{isAdmin && <Button type="button" size="sm" variant="outline" onClick={addChecklistItem}><Plus className="h-4 w-4" /> Add Item</Button>}</CardHeader><CardContent className="space-y-2 p-4 pt-0">{checklist.length ? checklist.map((item) => <div key={item.id} className="flex items-center gap-2 rounded-lg border p-2"><Checkbox checked={item.done} onCheckedChange={(value) => updateChecklistItem(item.id, { done: value })} disabled={!isAdmin} /><Input aria-label="Checklist item" value={item.label || ''} onChange={(event) => updateChecklistItem(item.id, { label: event.target.value })} disabled={!isAdmin} className="min-w-0 flex-1" />{isAdmin && <Button type="button" variant="ghost" size="icon-sm" aria-label="Delete checklist item" onClick={() => removeChecklistItem(item.id)}><Trash2 className="h-4 w-4" /></Button>}</div>) : <p className="text-sm text-muted-foreground">No checklist items yet.</p>}</CardContent></Card>}
+    {checklistExpanded && <Card className="rounded-xl"><CardHeader className="flex flex-row items-center justify-between p-4 pb-2"><CardTitle className="text-lg">Checklist · {doneCount}/{checklist.length} complete</CardTitle>{isAdmin && <Button type="button" size="sm" variant="outline" onClick={addChecklistItem}><Plus className="h-4 w-4" /> Add Item</Button>}</CardHeader><CardContent className="space-y-2 p-4 pt-0">{checklist.length ? checklist.map((item) => <div key={item.id} className="flex items-center gap-2 rounded-lg border p-2"><Checkbox checked={item.done} onCheckedChange={(value) => updateChecklistItem(item.id, { done: value })} disabled={!isAdmin} /><Input aria-label="Checklist item" value={item.label || ''} onChange={(event) => updateChecklistItem(item.id, { label: event.target.value })} disabled={!isAdmin} className="min-w-0 flex-1" />{isAdmin && <Button type="button" variant="ghost" size="icon-sm" aria-label="Delete checklist item" onClick={() => removeChecklistItem(item.id)}><Trash2 className="h-4 w-4" /></Button>}</div>) : <p className="text-sm text-muted-foreground">No checklist items yet.</p>}</CardContent></Card>}
     <div className="grid items-start gap-4 lg:grid-cols-2">
-      <Card className="min-w-0 rounded-xl"><CardHeader className="flex flex-row items-center justify-between p-4 pb-2"><CardTitle className="text-base">Recent Expenses</CardTitle><Button type="button" variant="ghost" size="sm" onClick={() => onViewTab('expenses')}>View all</Button></CardHeader><CardContent className="p-4 pt-0">{recentExpenses.length ? recentExpenses.slice(0, 4).map((item) => <ProjectRecordRow key={item.id} title={item.description || 'Expense'} meta={formatDate(item.date)} value={formatCurrency(Number(item.amount) || 0)} tab="expenses" onViewTab={onViewTab} />) : <p className="text-sm text-muted-foreground">No expenses recorded.</p>}</CardContent></Card>
-      <Card className="min-w-0 self-start rounded-xl"><CardHeader className="p-4 pb-2"><CardTitle className="text-base">Recent Records</CardTitle></CardHeader><CardContent className="p-4 pt-0">{records.length ? records.map((item) => <ProjectRecordRow key={item.key} title={item.title} meta={item.meta} tab={item.tab} onViewTab={onViewTab} />) : <p className="text-sm text-muted-foreground">No documents, bills, pay orders or site visits recorded.</p>}</CardContent></Card>
+      <Card className="min-w-0 rounded-xl"><CardHeader className="flex flex-row items-center justify-between p-4 pb-2"><CardTitle className="text-lg">Recent Expenses</CardTitle><Button type="button" variant="ghost" size="sm" onClick={() => onViewTab('expenses')}>View all</Button></CardHeader><CardContent className="p-4 pt-0">{recentExpenses.length ? recentExpenses.slice(0, 4).map((item) => <ProjectRecordRow key={item.id} title={item.description || 'Expense'} meta={formatDate(item.date)} value={formatCurrency(Number(item.amount) || 0)} tab="expenses" onViewTab={onViewTab} />) : <p className="text-sm text-muted-foreground">No expenses recorded.</p>}</CardContent></Card>
+      <Card className="min-w-0 self-start rounded-xl"><CardHeader className="p-4 pb-2"><CardTitle className="text-lg">Recent Records</CardTitle></CardHeader><CardContent className="p-4 pt-0">{records.length ? records.map((item) => <ProjectRecordRow key={item.key} title={item.title} meta={item.meta} tab={item.tab} onViewTab={onViewTab} />) : <p className="text-sm text-muted-foreground">No documents, bills, pay orders or site visits recorded.</p>}</CardContent></Card>
     </div>
     <details className="rounded-xl border bg-card p-4 text-sm"><summary className="cursor-pointer font-semibold">Notes &amp; Status History</summary><div className="mt-4 grid gap-4 md:grid-cols-2"><div><Label htmlFor="project-notes">Project notes</Label><Textarea id="project-notes" value={form.notes || ''} onChange={(event) => onNotesChange(event.target.value)} disabled={!isAdmin} rows={4} className="mt-2" /></div><div><p className="font-medium">Status history</p>{(form.statusHistory || []).length ? <ul className="mt-2 space-y-2">{form.statusHistory.map((item, index) => <li key={index} className="break-words text-muted-foreground">{formatDate(item.date)} · {item.from || 'Unknown'} → {item.to || 'Unknown'}</li>)}</ul> : <p className="mt-2 text-muted-foreground">No status changes recorded.</p>}</div></div></details>
     {cashPosition === null && <p className="text-xs text-muted-foreground">Payment history is incomplete; cash movement remains unverified.</p>}
@@ -5429,10 +5429,10 @@ function LegacyBillFinanceSection({
                             )}
                           </div>
                         </TableCell>
-                        <TableCell><BillAmountField value={bill.amount} onChange={(value) => onUpdate(bill.id, { amount: value })} disabled={!isAdmin} /></TableCell>
-                        <TableCell><BillAmountField value={bill.approvedAmount} onChange={(value) => onUpdate(bill.id, { approvedAmount: value })} disabled={!isAdmin} /></TableCell>
-                        <TableCell>{bill.v2?.receipts ? <span className="whitespace-nowrap font-mono tabular-nums">{formatCurrency(amounts.received)}</span> : <BillAmountField value={bill.receivedAmount} onChange={(value) => onUpdate(bill.id, { receivedAmount: value })} disabled={!isAdmin} />}</TableCell>
-                        <TableCell>{bill.v2?.deductions ? <span className="whitespace-nowrap font-mono tabular-nums">{formatCurrency(amounts.deductions)}</span> : <BillAmountField value={bill.deductions} onChange={(value) => onUpdate(bill.id, { deductions: value })} disabled={!isAdmin} />}</TableCell>
+                        <TableCell className="text-right"><BillAmountField value={bill.amount} onChange={(value) => onUpdate(bill.id, { amount: value })} disabled={!isAdmin} /></TableCell>
+                        <TableCell className="text-right"><BillAmountField value={bill.approvedAmount} onChange={(value) => onUpdate(bill.id, { approvedAmount: value })} disabled={!isAdmin} /></TableCell>
+                        <TableCell className="table-amount">{bill.v2?.receipts ? <span className="whitespace-nowrap">{formatCurrency(amounts.received)}</span> : <BillAmountField value={bill.receivedAmount} onChange={(value) => onUpdate(bill.id, { receivedAmount: value })} disabled={!isAdmin} />}</TableCell>
+                        <TableCell className="table-amount">{bill.v2?.deductions ? <span className="whitespace-nowrap">{formatCurrency(amounts.deductions)}</span> : <BillAmountField value={bill.deductions} onChange={(value) => onUpdate(bill.id, { deductions: value })} disabled={!isAdmin} />}</TableCell>
                         <TableCell className="text-right font-mono text-sm font-semibold tabular-nums">{formatCurrency(amounts.balance)}</TableCell>
                         <TableCell>
                           <div className="mb-2">

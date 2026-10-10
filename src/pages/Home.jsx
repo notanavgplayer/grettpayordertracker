@@ -199,7 +199,7 @@ export default function Home() {
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700 dark:text-blue-300">Workspace overview</p>
-          <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+          <h1 className="page-title mt-1">Dashboard</h1>
           <p className="mt-1 text-sm text-muted-foreground">Tenders, project finances and follow-ups in one place.</p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" aria-label="Quick actions">
@@ -264,9 +264,9 @@ export default function Home() {
         <DashboardSection title="Active Projects" href="/tenders" linkLabel="View all projects" contentClassName="p-0 sm:p-4">
             {projects.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No active projects recorded.</p> : <>
               <div className="hidden min-w-0 overflow-x-auto xl:block">
-                <table className="w-full table-fixed text-left text-xs 2xl:text-sm">
+                <table className="w-full table-fixed text-left text-sm">
                   <colgroup><col className="w-[31%]" /><col className="w-[16%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[17%]" /></colgroup>
-                  <thead className="bg-muted/60 text-xs text-muted-foreground"><tr>
+                  <thead className="bg-muted/60 text-sm text-muted-foreground"><tr>
                     <th className="px-2 py-2 font-semibold">Project</th><th className="px-2 py-2 font-semibold">Status</th>
                     <th className="px-2 py-2 text-right font-semibold">Contract</th><th className="px-2 py-2 text-right font-semibold">Recorded Costs</th>
                     <th className="px-2 py-2 text-right font-semibold">View Project</th>
@@ -275,8 +275,8 @@ export default function Home() {
                     {projects.map((project) => <tr key={project.id}>
                       <td className="break-words px-2 py-2 font-medium leading-snug"><Link className="hover:text-blue-700 hover:underline dark:hover:text-blue-300" to={'/tenders/' + project.id}>{project.name || 'Untitled project'}</Link></td>
                       <td className="px-2 py-2"><StatusBadge status={project.status} className="gap-1 px-1.5 text-[11px]" /></td>
-                      <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatCurrency(project.financials.contract)}</td>
-                      <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatCurrency(project.financials.incurred)}</td>
+                      <td className="table-amount whitespace-nowrap px-2 py-2">{formatCurrency(project.financials.contract)}</td>
+                      <td className="table-amount whitespace-nowrap px-2 py-2">{formatCurrency(project.financials.incurred)}</td>
                       <td className="px-2 py-2 text-right"><Button asChild size="sm" variant="outline" className="h-8 px-2 text-xs"><Link to={'/tenders/' + project.id}>View project</Link></Button></td>
                     </tr>)}
                   </tbody>

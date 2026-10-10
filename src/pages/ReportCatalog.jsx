@@ -629,7 +629,7 @@ export default function ReportCatalog() {
 
       <Card className="rounded-xl border bg-card print:hidden">
         <CardHeader className="px-4 pb-2 pt-4 sm:px-5">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
               <Filter className="h-4 w-4" />
             </span>
