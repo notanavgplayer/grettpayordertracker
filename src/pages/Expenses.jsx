@@ -252,15 +252,15 @@ export default function Expenses() {
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground break-words">{e.description}</p>
-                          {e.v2?.payee && <p className="text-xs text-muted-foreground break-words">{e.v2.payee}</p>}
+                          <p className="list-name text-foreground">{e.description}</p>
+                          {e.v2?.payee && <p className="list-secondary">{e.v2.payee}</p>}
                           <div className="mt-1.5 flex items-center gap-2 flex-wrap">
                             <Badge variant="secondary" className="text-xs font-normal">{e.category}</Badge>
                             <span className="text-xs text-muted-foreground">{formatDate(e.date)}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <span className="text-sm font-mono tabular-nums font-semibold text-foreground whitespace-nowrap">{formatCurrency(expenseAmounts(e).incurred)}</span>
+                          <span className="text-[13px] font-medium tabular-nums text-foreground whitespace-nowrap">{formatCurrency(expenseAmounts(e).incurred)}</span>
                           {isAdmin && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -286,7 +286,7 @@ export default function Expenses() {
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 border-t pt-2 text-xs">
-                        <div className="col-span-2 break-words"><span className="text-muted-foreground">Project / scope: </span>{projectId(e) ? tenders.some((tender) => tender.id === projectId(e)) ? <Link className="text-primary underline" to={`/tenders/${projectId(e)}`}>{tenders.find((tender) => tender.id === projectId(e)).name}</Link> : <span className="text-amber-700 dark:text-amber-300">Linked project missing · {projectId(e)}</span> : e.v2?.kind === 'overhead' ? 'Firm overhead' : 'Unassigned'}</div>
+                        <div className="col-span-2 break-words"><span className="text-muted-foreground">Project / scope: </span>{projectId(e) ? tenders.some((tender) => tender.id === projectId(e)) ? <Link className="list-name text-primary underline" to={`/tenders/${projectId(e)}`}>{tenders.find((tender) => tender.id === projectId(e)).name}</Link> : <span className="text-amber-700 dark:text-amber-300">Linked project missing · {projectId(e)}</span> : e.v2?.kind === 'overhead' ? 'Firm overhead' : 'Unassigned'}</div>
                         <div><span className="text-muted-foreground">Paid: </span>{expenseAmounts(e).paid === null ? 'Unknown' : formatCurrency(expenseAmounts(e).paid)}</div>
                         <div><span className="text-muted-foreground">Outstanding: </span>{expenseAmounts(e).payable === null ? 'Unknown' : formatCurrency(expenseAmounts(e).payable)}</div>
                         <div className="col-span-2"><span className="text-muted-foreground">Payment status: </span>{expenseAmounts(e).paid === null ? 'History unknown' : expenseAmounts(e).payable === null ? 'Not applicable' : expenseAmounts(e).payable === 0 ? 'Paid' : expenseAmounts(e).paid > 0 ? 'Partially paid' : 'Unpaid'}</div>
@@ -301,7 +301,7 @@ export default function Expenses() {
               <div className="hidden overflow-x-auto xl:block"><Table className="min-w-[1080px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Date</TableHead><TableHead>Expense / vendor</TableHead><TableHead>Project / scope</TableHead>
+                    <TableHead>Date</TableHead><TableHead className="min-w-[230px]">Expense / vendor</TableHead><TableHead className="min-w-[260px]">Project / scope</TableHead>
                     {showCategory && <TableHead>Category</TableHead>}
                     <TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Paid</TableHead><TableHead className="text-right">Outstanding</TableHead><TableHead>Payment status</TableHead><TableHead>Actions</TableHead>
                   </TableRow>
@@ -309,13 +309,13 @@ export default function Expenses() {
                 <TableBody>
                   {pageExpenses.map((e) => (
                     <TableRow key={e.id}>
-                      <TableCell className="whitespace-nowrap text-sm">{formatDate(e.date)}</TableCell>
-                      <TableCell className="max-w-[230px]"><span title={e.description} className="line-clamp-3 break-words text-sm font-medium">{e.description}</span>{e.v2?.payee && <span className="block break-words text-xs text-muted-foreground">{e.v2.payee}</span>}</TableCell>
-                      <TableCell className="max-w-[190px] text-sm">{projectId(e) ? tenders.some((tender) => tender.id === projectId(e)) ? <Link className="line-clamp-3 break-words text-primary hover:underline" to={`/tenders/${projectId(e)}`}>{tenders.find((tender) => tender.id === projectId(e)).name}</Link> : <span className="break-all text-amber-700 dark:text-amber-300">Linked project missing · {projectId(e)}</span> : e.v2?.kind === 'overhead' ? 'Firm overhead' : 'Unassigned'}</TableCell>
+                      <TableCell className="whitespace-nowrap">{formatDate(e.date)}</TableCell>
+                      <TableCell className="min-w-[230px]"><span title={e.description} className="list-name block">{e.description}</span>{e.v2?.payee && <span className="list-secondary block">{e.v2.payee}</span>}</TableCell>
+                      <TableCell className="min-w-[260px]">{projectId(e) ? tenders.some((tender) => tender.id === projectId(e)) ? <Link className="list-name block text-primary hover:underline" to={`/tenders/${projectId(e)}`}>{tenders.find((tender) => tender.id === projectId(e)).name}</Link> : <span className="break-all text-amber-700 dark:text-amber-300">Linked project missing · {projectId(e)}</span> : e.v2?.kind === 'overhead' ? 'Firm overhead' : 'Unassigned'}</TableCell>
                       {showCategory && <TableCell><Badge variant="secondary" className="max-w-[150px] break-words text-xs font-normal">{e.category}</Badge></TableCell>}
-                      <TableCell className="whitespace-nowrap text-right text-sm font-mono tabular-nums">{formatCurrency(expenseAmounts(e).incurred)}</TableCell>
-                      <TableCell className="whitespace-nowrap text-right text-sm font-mono tabular-nums">{expenseAmounts(e).paid === null ? 'Unknown' : formatCurrency(expenseAmounts(e).paid)}</TableCell>
-                      <TableCell className="whitespace-nowrap text-right text-sm font-mono tabular-nums">{expenseAmounts(e).payable === null ? 'Unknown' : formatCurrency(expenseAmounts(e).payable)}</TableCell>
+                      <TableCell className="table-amount">{formatCurrency(expenseAmounts(e).incurred)}</TableCell>
+                      <TableCell className="table-amount">{expenseAmounts(e).paid === null ? 'Unknown' : formatCurrency(expenseAmounts(e).paid)}</TableCell>
+                      <TableCell className="table-amount">{expenseAmounts(e).payable === null ? 'Unknown' : formatCurrency(expenseAmounts(e).payable)}</TableCell>
                       <TableCell><Badge variant="secondary" className="whitespace-nowrap">{expenseAmounts(e).paid === null ? 'History unknown' : expenseAmounts(e).payable === null ? 'Not applicable' : expenseAmounts(e).payable === 0 ? 'Paid' : expenseAmounts(e).paid > 0 ? 'Partial' : 'Unpaid'}</Badge></TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">

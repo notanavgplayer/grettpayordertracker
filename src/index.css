@@ -252,6 +252,12 @@
     @apply min-w-0 break-words text-[22px] font-semibold leading-tight tabular-nums text-foreground sm:text-2xl;
   }
   .table-amount {
-    @apply whitespace-nowrap text-right text-sm font-medium tabular-nums;
+    @apply whitespace-nowrap text-right text-[13px] font-medium leading-[18px] tabular-nums;
+  }
+  .list-name {
+    @apply break-words text-[13px] font-medium leading-[18px];
+  }
+  .list-secondary {
+    @apply break-words text-xs font-normal leading-4 text-muted-foreground;
   }
 }

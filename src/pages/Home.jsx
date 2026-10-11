@@ -264,16 +264,16 @@ export default function Home() {
         <DashboardSection title="Active Projects" href="/tenders" linkLabel="View all projects" contentClassName="p-0 sm:p-4">
             {projects.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No active projects recorded.</p> : <>
               <div className="hidden min-w-0 overflow-x-auto xl:block">
-                <table className="w-full table-fixed text-left text-sm">
-                  <colgroup><col className="w-[31%]" /><col className="w-[16%]" /><col className="w-[18%]" /><col className="w-[18%]" /><col className="w-[17%]" /></colgroup>
-                  <thead className="bg-muted/60 text-sm text-muted-foreground"><tr>
-                    <th className="px-2 py-2 font-semibold">Project</th><th className="px-2 py-2 font-semibold">Status</th>
-                    <th className="px-2 py-2 text-right font-semibold">Contract</th><th className="px-2 py-2 text-right font-semibold">Recorded Costs</th>
-                    <th className="px-2 py-2 text-right font-semibold">View Project</th>
+                <table className="w-full table-fixed text-left text-[13px] leading-[18px]">
+                  <colgroup><col className="w-[36%]" /><col className="w-[14%]" /><col className="w-[17%]" /><col className="w-[17%]" /><col className="w-[16%]" /></colgroup>
+                  <thead className="bg-muted/60 text-xs text-muted-foreground"><tr>
+                    <th className="px-2 py-2 font-medium">Project</th><th className="px-2 py-2 font-medium">Status</th>
+                    <th className="px-2 py-2 text-right font-medium">Contract</th><th className="px-2 py-2 text-right font-medium">Recorded Costs</th>
+                    <th className="px-2 py-2 text-right font-medium">View Project</th>
                   </tr></thead>
                   <tbody className="divide-y">
                     {projects.map((project) => <tr key={project.id}>
-                      <td className="break-words px-2 py-2 font-medium leading-snug"><Link className="hover:text-blue-700 hover:underline dark:hover:text-blue-300" to={'/tenders/' + project.id}>{project.name || 'Untitled project'}</Link></td>
+                      <td className="px-2 py-2"><Link className="list-name hover:text-blue-700 hover:underline dark:hover:text-blue-300" to={'/tenders/' + project.id}>{project.name || 'Untitled project'}</Link></td>
                       <td className="px-2 py-2"><StatusBadge status={project.status} className="gap-1 px-1.5 text-[11px]" /></td>
                       <td className="table-amount whitespace-nowrap px-2 py-2">{formatCurrency(project.financials.contract)}</td>
                       <td className="table-amount whitespace-nowrap px-2 py-2">{formatCurrency(project.financials.incurred)}</td>
@@ -284,7 +284,7 @@ export default function Home() {
               </div>
               <div className="divide-y xl:hidden">
                 {projects.map((project) => <Link key={project.id} to={'/tenders/' + project.id} className="block p-4 hover:bg-muted/40">
-                  <div className="flex items-start justify-between gap-3"><span className="min-w-0 font-semibold">{project.name || 'Untitled project'}</span><StatusBadge status={project.status} /></div>
+                  <div className="flex items-start justify-between gap-3"><span className="list-name min-w-0">{project.name || 'Untitled project'}</span><StatusBadge status={project.status} /></div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs"><div><span className="block text-muted-foreground">Contract</span><span className="block overflow-x-auto whitespace-nowrap font-medium tabular-nums">{formatCurrency(project.financials.contract)}</span></div><div><span className="block text-muted-foreground">Recorded costs</span><span className="block overflow-x-auto whitespace-nowrap font-medium tabular-nums">{formatCurrency(project.financials.incurred)}</span></div></div>
                   <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 dark:text-blue-300">View project <ArrowRight className="h-3 w-3" /></span>
                 </Link>)}
@@ -296,7 +296,7 @@ export default function Home() {
             {attention.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No urgent follow-ups from current records.</p> :
               attention.map((item) => <Link key={item.id} to={item.href} className="flex min-w-0 items-center gap-3 p-4 transition-colors hover:bg-muted/40">
                 <span className={'flex h-10 w-10 shrink-0 items-center justify-center rounded-full ' + (item.tone === 'violet' ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' : item.tone === 'blue' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300')}><item.icon className="h-5 w-5" aria-hidden="true" /></span>
-                <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{item.title}</span><span className="block text-xs text-muted-foreground">{item.detail}</span></span>
+                <span className="min-w-0 flex-1"><span className="list-name block">{item.title}</span><span className="list-secondary block">{item.detail}</span></span>
                 <span className="shrink-0 text-xs font-semibold text-blue-700 dark:text-blue-300">View</span>
               </Link>)}
         </DashboardSection>
@@ -308,7 +308,7 @@ export default function Home() {
             ? <div className="p-4"><DashboardEmpty>No open tender deadlines recorded.</DashboardEmpty></div>
             : <div className="divide-y">{pipeline.map((item) =>
                 <Link key={item.id} to={'/tenders/' + item.id} className="flex min-w-0 items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:px-5">
-                  <span className="min-w-0"><span className="block truncate text-sm font-medium" title={item.name}>{item.name || 'Untitled tender'}</span><span className="block text-xs text-muted-foreground">Due {dateLabel(item.submissionDate)}</span></span>
+                  <span className="min-w-0"><span className="list-name block" title={item.name}>{item.name || 'Untitled tender'}</span><span className="list-secondary block">Due {dateLabel(item.submissionDate)}</span></span>
                   <StatusBadge status={item.status} />
                 </Link>)}</div>}
         </DashboardSection>
@@ -333,12 +333,12 @@ export default function Home() {
               </Link>)}
             </div>
             <div className="hidden min-w-0 overflow-x-auto sm:block">
-              <table className="w-full min-w-[570px] text-left text-sm">
-                <thead className="bg-muted/60 text-xs text-muted-foreground"><tr><th className="px-3 py-3 font-semibold">Date</th><th className="px-3 py-3 font-semibold">Type</th><th className="px-3 py-3 font-semibold">Record</th><th className="px-3 py-3 font-semibold">Action</th><th className="px-3 py-3 text-right font-semibold">Link</th></tr></thead>
+                <table className="w-full min-w-[570px] text-left text-[13px] leading-[18px]">
+                  <thead className="bg-muted/60 text-xs text-muted-foreground"><tr><th className="px-3 py-3 font-medium">Date</th><th className="px-3 py-3 font-medium">Type</th><th className="px-3 py-3 font-medium">Record</th><th className="px-3 py-3 font-medium">Action</th><th className="px-3 py-3 text-right font-medium">Link</th></tr></thead>
                 <tbody className="divide-y">{activity.map((log) => <tr key={log.id}>
                   <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">{dateLabel(log.createdAt)}</td>
                   <td className="px-3 py-3"><span className="rounded-full bg-muted px-2 py-1 text-xs font-medium">{log.type || 'Activity'}</span></td>
-                  <td className="max-w-[300px] px-3 py-3"><span className="block truncate" title={activityTitle(log)}>{activityTitle(log)}</span></td>
+                  <td className="max-w-[300px] break-words px-3 py-3"><span className="block" title={activityTitle(log)}>{activityTitle(log)}</span></td>
                   <td className="px-3 py-3 capitalize text-muted-foreground">{log.action || 'Updated'}</td>
                   <td className="px-3 py-3 text-right"><Link to={activityLink(log, tenders, payOrders, expenses)} className="whitespace-nowrap font-medium text-blue-700 hover:underline dark:text-blue-300">View</Link></td>
                 </tr>)}</tbody>
