@@ -3995,8 +3995,8 @@ function ProjectMetric({ icon: Icon, label, value }) {
       <div className="flex min-w-0 items-start gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"><Icon className="h-5 w-5" /></span>
         <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="max-w-full overflow-x-auto whitespace-nowrap text-xl font-semibold tabular-nums tracking-tight text-foreground [scrollbar-width:thin] sm:text-2xl">{value}</p>
+          <p className="text-[13px] leading-[18px] text-muted-foreground">{label}</p>
+          <p className="kpi-amount max-w-full overflow-x-auto whitespace-nowrap tracking-tight [scrollbar-width:thin]">{value}</p>
         </div>
       </div>
     </div>

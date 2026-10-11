@@ -249,7 +249,7 @@
     @apply font-display text-2xl font-semibold leading-tight tracking-tight text-foreground;
   }
   .kpi-amount {
-    @apply min-w-0 break-words text-[22px] font-semibold leading-tight tabular-nums text-foreground sm:text-2xl;
+    @apply min-w-0 break-words text-xl font-semibold leading-tight tabular-nums text-foreground sm:text-[22px];
   }
   .table-amount {
     @apply whitespace-nowrap text-right text-[13px] font-medium leading-[18px] tabular-nums;

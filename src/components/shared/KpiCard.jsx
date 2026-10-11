@@ -36,7 +36,7 @@ export default function KpiCard({
         )}
       >
         <div className="flex min-w-0 items-start justify-between gap-2">
-          <p className="min-w-0 break-words text-sm font-medium leading-5 text-muted-foreground">{label}</p>
+          <p className="min-w-0 break-words text-[13px] font-medium leading-[18px] text-muted-foreground">{label}</p>
           <div className="flex shrink-0 items-center gap-1.5">
             {badge ? <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{badge}</span> : null}
             {Icon ? (
