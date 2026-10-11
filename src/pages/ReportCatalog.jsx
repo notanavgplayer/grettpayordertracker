@@ -622,7 +622,6 @@ export default function ReportCatalog() {
             key={card.label}
             {...card}
             contentClassName="gap-2.5 p-3.5 sm:gap-3 sm:p-5"
-            valueClassName="text-xl sm:text-2xl"
           />
         ))}
       </div>
