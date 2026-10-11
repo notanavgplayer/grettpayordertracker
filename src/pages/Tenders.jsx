@@ -848,12 +848,12 @@ export default function Tenders() {
                   const deadline = recordedDate ? getTenderDeadline(t) : null;
                   return <Card key={t.id} className="min-w-0"><CardContent className="space-y-3 p-4">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1"><Link to={'/tenders/' + t.id} title={t.name || 'Untitled'} className="block break-words text-sm font-semibold leading-snug hover:underline">{t.name || 'Untitled'}</Link><p className="mt-1 break-all text-xs text-muted-foreground">NIT: {t.nit || 'Not recorded'}</p></div>
+                      <div className="min-w-0 flex-1"><Link to={'/tenders/' + t.id} title={t.name || 'Untitled'} className="list-name block hover:underline">{t.name || 'Untitled'}</Link><p className="list-secondary mt-1 [overflow-wrap:anywhere]">NIT: {t.nit || 'Not recorded'}</p></div>
                       <StatusBadge status={t.displayStatus} />
                     </div>
                     <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                      <div className="min-w-0"><dt className="text-xs text-muted-foreground">Agency</dt><dd className="break-words">{t.agency || 'Not recorded'}</dd></div>
-                      <div className="min-w-0"><dt className="text-xs text-muted-foreground">Relevant amount</dt><dd className="font-mono tabular-nums [overflow-wrap:anywhere]">{relevant.amount === null ? 'Not recorded' : formatCurrencyPrecise(relevant.amount, 0)}</dd><dd className="text-xs text-muted-foreground">{relevant.label}</dd></div>
+                      <div className="min-w-0"><dt className="list-secondary">Agency</dt><dd className="break-words text-[13px] leading-[18px]">{t.agency || 'Not recorded'}</dd></div>
+                      <div className="min-w-0"><dt className="list-secondary">Relevant amount</dt><dd className="break-words text-[13px] font-medium leading-[18px] tabular-nums [overflow-wrap:anywhere]">{relevant.amount === null ? 'Not recorded' : formatCurrencyPrecise(relevant.amount, 0)}</dd><dd className="list-secondary">{relevant.label}</dd></div>
                       <div className="col-span-2"><dt className="text-xs text-muted-foreground">Submission date</dt><dd>{recordedDate ? formatDate(t.submissionDate) : 'Not recorded'} {deadline && <DeadlineBadge tender={t} />}</dd></div>
                     </dl>
                     <div className="flex items-center justify-between border-t pt-2"><Button asChild variant="outline" size="sm"><Link to={'/tenders/' + t.id}>View tender</Link></Button><TenderRowMenu tender={t} isAdmin={isAdmin} openDialog={openDialog} setDeleteId={setDeleteId} setQuickView={setQuickView} /></div>
@@ -863,8 +863,8 @@ export default function Tenders() {
 
               {/* Desktop: compact primary columns, optional secondary columns. */}
               <div className="hidden overflow-x-auto md:block">
-                <Table className="min-w-[840px]"><TableHeader><TableRow>
-                  <TableHead className="w-[27%]">Tender / NIT</TableHead><TableHead>Agency</TableHead><TableHead className="text-right">Relevant Amount</TableHead><TableHead>Submission date</TableHead><TableHead>Status</TableHead>
+                <Table className="min-w-[900px]"><TableHeader><TableRow>
+                  <TableHead className="w-[34%] min-w-[300px]">Tender / NIT</TableHead><TableHead>Agency</TableHead><TableHead className="text-right">Relevant Amount</TableHead><TableHead>Submission date</TableHead><TableHead>Status</TableHead>
                   {optionalColumns.openingDate && <TableHead>Opening</TableHead>}
                   {optionalColumns.estimatedCost && <TableHead className="text-right">Estimate</TableHead>}
                   {optionalColumns.quotedAmount && <TableHead className="text-right">Quoted Bid</TableHead>}
@@ -877,12 +877,12 @@ export default function Tenders() {
                     const deadline = recordedDate ? getTenderDeadline(t) : null;
                     const financials = calculateTenderFinancials(t);
                     return <TableRow key={t.id}>
-                      <TableCell className="min-w-[210px] max-w-[330px]"><Link to={'/tenders/' + t.id} title={t.name || 'Untitled'} className="line-clamp-3 break-words text-sm font-medium hover:underline">{t.name || 'Untitled'}</Link><span className="mt-1 block break-all text-xs text-muted-foreground">{t.nit || 'NIT not recorded'}</span></TableCell>
-                      <TableCell className="max-w-[190px] break-words text-sm">{t.agency || 'Not recorded'}</TableCell>
-                      <TableCell className="table-amount whitespace-nowrap"><span className="block">{relevant.amount === null ? 'Not recorded' : formatCurrencyPrecise(relevant.amount, 0)}</span><span className="text-xs font-normal text-muted-foreground">{relevant.label}</span></TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">{recordedDate ? formatDate(t.submissionDate) : 'Not recorded'}{deadline && <span className="ml-2"><DeadlineBadge tender={t} /></span>}</TableCell>
+                      <TableCell className="min-w-[300px]"><Link to={'/tenders/' + t.id} title={t.name || 'Untitled'} className="list-name block hover:underline">{t.name || 'Untitled'}</Link><span className="list-secondary mt-1 block [overflow-wrap:anywhere]">{t.nit || 'NIT not recorded'}</span></TableCell>
+                      <TableCell className="max-w-[190px] break-words">{t.agency || 'Not recorded'}</TableCell>
+                      <TableCell className="table-amount"><span className="block">{relevant.amount === null ? 'Not recorded' : formatCurrencyPrecise(relevant.amount, 0)}</span><span className="list-secondary">{relevant.label}</span></TableCell>
+                      <TableCell className="whitespace-nowrap">{recordedDate ? formatDate(t.submissionDate) : 'Not recorded'}{deadline && <span className="ml-2"><DeadlineBadge tender={t} /></span>}</TableCell>
                       <TableCell className="whitespace-nowrap"><StatusBadge status={t.displayStatus} /></TableCell>
-                      {optionalColumns.openingDate && <TableCell className="whitespace-nowrap text-sm">{t.openingDate ? formatDate(t.openingDate) : 'Not recorded'}</TableCell>}
+                      {optionalColumns.openingDate && <TableCell className="whitespace-nowrap">{t.openingDate ? formatDate(t.openingDate) : 'Not recorded'}</TableCell>}
                       {optionalColumns.estimatedCost && <TableCell className="table-amount whitespace-nowrap">{financials.estimatedCost === null ? 'Not recorded' : formatCurrencyPrecise(financials.estimatedCost, 0)}</TableCell>}
                       {optionalColumns.quotedAmount && <TableCell className="table-amount whitespace-nowrap">{financials.quotedAmount === null ? 'Not recorded' : formatCurrencyPrecise(financials.quotedAmount, 0)}</TableCell>}
                       {optionalColumns.quotedPercent && <TableCell className="table-amount whitespace-nowrap">{financials.percentage === null ? '—' : financials.percentage.toFixed(2) + '%'}</TableCell>}

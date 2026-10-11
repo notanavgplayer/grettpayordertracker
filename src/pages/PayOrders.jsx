@@ -1134,7 +1134,7 @@ export default function PayOrders() {
                         <button
                           type="button"
                           onClick={() => setQuickView(p)}
-                          className="block w-full rounded-lg bg-muted/30 px-3 py-2 text-left text-[15px] font-semibold leading-snug break-words text-foreground"
+                          className="list-name block w-full rounded-lg bg-muted/30 px-3 py-2 text-left text-foreground"
                         >
                           {p.tender}
                         </button>
@@ -1143,7 +1143,7 @@ export default function PayOrders() {
                       {p.tenderRef && tenders.some((tender) => tender.id === p.tenderRef) && <a href={`/tenders/${p.tenderRef}`} className="text-xs text-emerald-700 underline dark:text-emerald-300">Open project</a>}
 
                       <div className="grid gap-2 border-t border-border pt-3 text-sm text-muted-foreground">
-                        <p className="text-xs">Cash remaining: <span className="whitespace-nowrap font-mono tabular-nums text-foreground">{['Encashed', 'Forfeited'].includes(p.status) ? 'Needs reconciliation' : securityAmounts(p).remaining === null ? 'Unknown' : formatCurrency(securityAmounts(p).remaining)}</span></p>
+                        <p className="text-xs">Cash remaining: <span className="text-[13px] font-medium tabular-nums text-foreground">{['Encashed', 'Forfeited'].includes(p.status) ? 'Needs reconciliation' : securityAmounts(p).remaining === null ? 'Unknown' : formatCurrency(securityAmounts(p).remaining)}</span></p>
                         <p className="text-xs">Next follow-up: {p.v2?.followUpDate ? formatDate(p.v2.followUpDate) : 'Not scheduled'}</p>
                         <div className="flex items-center gap-2">
                           <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -1152,7 +1152,7 @@ export default function PayOrders() {
                           </span>
                           <span className="mx-1 h-4 w-px bg-border" />
                           <span className="shrink-0">NIT/Ref:</span>
-                          <span className="min-w-0 truncate font-mono text-foreground">
+                          <span className="min-w-0 break-all text-foreground">
                             {p.nit || "-"}
                           </span>
                         </div>
@@ -1161,7 +1161,7 @@ export default function PayOrders() {
                           <span>
                             Submitted: {formatDate(p.submitted) || "-"}
                           </span>
-                          <span className="ml-auto shrink-0 font-mono text-base font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                          <span className="ml-auto text-right text-[13px] font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
                             <span className="block text-right text-[10px] font-normal text-muted-foreground">Instrument amount</span>{formatCurrency(p.amount)}
                           </span>
                         </div>
@@ -1176,7 +1176,7 @@ export default function PayOrders() {
                   <Table>
                     <TableHeader><TableRow className="bg-muted/40 hover:bg-muted/40">
                       <TableHead className="min-w-[130px]">PO / Bank</TableHead>
-                      <TableHead className="min-w-[210px]">Project / NIT</TableHead>
+                      <TableHead className="min-w-[280px]">Project / NIT</TableHead>
                       <TableHead className="whitespace-nowrap text-right">Instrument amount</TableHead>
                       <TableHead className="whitespace-nowrap text-right">Cash remaining</TableHead>
                       <TableHead>Status</TableHead>
@@ -1191,14 +1191,14 @@ export default function PayOrders() {
                       const missingLink = p.tenderRef && !linked;
                       const amounts = securityAmounts(p);
                       return <TableRow key={p.id} className="align-top hover:bg-muted/30">
-                        <TableCell><button type="button" onClick={() => setQuickView(p)} className="break-all text-left font-mono text-sm font-semibold hover:underline">{p.po || '—'}</button><span className="block break-words text-xs text-muted-foreground">{p.bank || 'No bank'}</span></TableCell>
-                        <TableCell className="max-w-[320px]"><span title={p.tender || ''} className="line-clamp-3 break-words text-sm font-medium">{p.tender || (p.tenderRef ? 'Linked project missing' : 'Standalone')}</span><span className="block break-all font-mono text-xs text-muted-foreground">{p.nit || 'No NIT'}</span>{missingLink && <span role="status" className="block text-xs text-amber-700 dark:text-amber-300">Project link missing</span>}{linked && <a href={`/tenders/${p.tenderRef}`} className="text-xs text-emerald-700 underline dark:text-emerald-300">Open project</a>}</TableCell>
-                        <TableCell className="whitespace-nowrap text-right font-mono text-sm tabular-nums">{formatCurrency(p.amount)}</TableCell>
-                        <TableCell className="whitespace-nowrap text-right font-mono text-sm tabular-nums">{['Encashed', 'Forfeited'].includes(p.status) ? 'Needs reconciliation' : amounts.remaining === null ? 'Unknown' : formatCurrency(amounts.remaining)}</TableCell>
+                        <TableCell><button type="button" onClick={() => setQuickView(p)} className="break-all text-left text-[13px] font-medium hover:underline">{p.po || '—'}</button><span className="list-secondary block">{p.bank || 'No bank'}</span></TableCell>
+                        <TableCell className="min-w-[280px]"><span title={p.tender || ''} className="list-name block">{p.tender || (p.tenderRef ? 'Linked project missing' : 'Standalone')}</span><span className="list-secondary block [overflow-wrap:anywhere]">{p.nit || 'No NIT'}</span>{missingLink && <span role="status" className="block text-xs text-amber-700 dark:text-amber-300">Project link missing</span>}{linked && <a href={`/tenders/${p.tenderRef}`} className="text-xs text-emerald-700 underline dark:text-emerald-300">Open project</a>}</TableCell>
+                        <TableCell className="table-amount">{formatCurrency(p.amount)}</TableCell>
+                        <TableCell className="table-amount">{['Encashed', 'Forfeited'].includes(p.status) ? 'Needs reconciliation' : amounts.remaining === null ? 'Unknown' : formatCurrency(amounts.remaining)}</TableCell>
                         <TableCell><StatusBadge status={p.status} /></TableCell>
-                        <TableCell className="whitespace-nowrap text-sm">{p.v2?.followUpDate ? formatDate(p.v2.followUpDate) : 'Not scheduled'}</TableCell>
-                        {optionalColumns.agency && <TableCell className="max-w-[220px] break-words text-sm">{p.agency || '—'}</TableCell>}
-                        {optionalColumns.submitted && <TableCell className="whitespace-nowrap text-sm">{formatDate(p.submitted) || '—'}</TableCell>}
+                        <TableCell className="whitespace-nowrap">{p.v2?.followUpDate ? formatDate(p.v2.followUpDate) : 'Not scheduled'}</TableCell>
+                        {optionalColumns.agency && <TableCell className="max-w-[220px] break-words">{p.agency || '—'}</TableCell>}
+                        {optionalColumns.submitted && <TableCell className="whitespace-nowrap">{formatDate(p.submitted) || '—'}</TableCell>}
                         {optionalColumns.bidResult && <TableCell><StatusBadge status={p.bidResult} /></TableCell>}
                         <TableCell><div className="flex items-center gap-1"><Button type="button" variant="outline" size="sm" onClick={() => setQuickView(p)}>View</Button>{isAdmin && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={`Actions for ${p.po || 'pay order'}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => openDialog(p)}><Pencil className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteId(p.id)}><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}</div></TableCell>
                       </TableRow>;

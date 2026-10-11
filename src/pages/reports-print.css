@@ -1,8 +1,12 @@
 .reports-data-table { min-width: 1580px; }
-.reports-data-table th:first-child,
-.reports-data-table td:first-child { min-width: 300px; width: 300px; }
 .reports-data-table th:not(:first-child),
 .reports-data-table td:not(:first-child) { min-width: 135px; }
+.reports-data-table th.report-name-column,
+.reports-data-table td.report-name-column { min-width: 340px; width: 340px; }
+.reports-data-table th.report-description-column,
+.reports-data-table td.report-description-column { min-width: 230px; }
+.reports-data-table th.report-project-column,
+.reports-data-table td.report-project-column { min-width: 280px; }
 
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
