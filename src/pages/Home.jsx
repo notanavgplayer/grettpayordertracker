@@ -237,8 +237,8 @@ export default function Home() {
         <DashboardSection title="Active Projects" href="/tenders" linkLabel="View all projects" contentClassName="p-0 sm:p-4">
             {projects.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No active projects recorded.</p> : <>
               <div className="hidden min-w-0 overflow-x-auto sm:block" tabIndex={0} role="region" aria-label="Active projects table">
-                <table className="w-full min-w-[660px] table-fixed text-left text-[13px] leading-[18px]">
-                  <colgroup><col className="w-[31%]" /><col className="w-[16%]" /><col className="w-[17%]" /><col className="w-[18%]" /><col className="w-[18%]" /></colgroup>
+                <table className="w-full min-w-[580px] table-auto text-left text-[13px] leading-[18px]">
+                  <colgroup><col className="w-[30%]" /><col className="w-[18%]" /><col className="w-[14%]" /><col className="w-[20%]" /><col className="w-[18%]" /></colgroup>
                   <thead className="bg-muted/60 text-xs text-muted-foreground"><tr>
                     <th className="px-2 py-2 font-medium">Project</th><th className="px-2 py-2 font-medium">Status</th>
                     <th className="px-2 py-2 text-right font-medium">Contract</th><th className="px-2 py-2 text-right font-medium">Recorded Costs</th>

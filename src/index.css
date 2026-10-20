@@ -261,7 +261,12 @@
     @apply break-words text-xs font-normal leading-4 text-muted-foreground;
   }
   .dashboard-v3 .kpi-amount {
-    @apply text-2xl leading-tight;
+    @apply whitespace-nowrap text-2xl leading-tight tabular-nums;
+  }
+  @media (min-width: 1280px) {
+    .dashboard-v3 .kpi-amount {
+      font-size: clamp(18px, 1.55vw, 24px);
+    }
   }
   .dashboard-v3 .dashboard-featured .kpi-amount {
     color: #fff;
