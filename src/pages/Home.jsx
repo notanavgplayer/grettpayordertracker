@@ -217,18 +217,18 @@ export default function Home() {
         </div>
         <div className="flex min-w-0 flex-wrap gap-2" aria-label="Quick actions">
           {isAdmin && <>
-            <Button asChild className="h-9 bg-blue-700 text-white hover:bg-blue-800"><Link to="/tenders?create=1"><Plus className="h-4 w-4" />New Tender</Link></Button>
-            <Button asChild variant="outline" className="h-9"><Link to="/pay-orders?create=1"><Plus className="h-4 w-4" />Pay Order</Link></Button>
-            <Button asChild variant="outline" className="h-9"><Link to="/expenses?create=1"><Plus className="h-4 w-4" />Expense</Link></Button>
+            <Button asChild className="h-9 rounded-xl bg-blue-700 px-3 text-white shadow-sm hover:bg-blue-800"><Link to="/tenders?create=1"><Plus className="h-4 w-4" />New Tender</Link></Button>
+            <Button asChild variant="outline" className="h-9 rounded-xl bg-card px-3 shadow-sm"><Link to="/pay-orders?create=1"><Plus className="h-4 w-4" />Pay Order</Link></Button>
+            <Button asChild variant="outline" className="h-9 rounded-xl bg-card px-3 shadow-sm"><Link to="/expenses?create=1"><Plus className="h-4 w-4" />Expense</Link></Button>
           </>}
-          <Button asChild variant="outline" className="h-9"><Link to="/calendar"><CalendarDays className="h-4 w-4" />Calendar</Link></Button>
+          <Button asChild variant="outline" className="h-9 rounded-xl bg-card px-3 shadow-sm"><Link to="/calendar"><CalendarDays className="h-4 w-4" />Calendar</Link></Button>
         </div>
       </header>
 
       <section aria-label="Financial overview" className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <DashboardStatCard icon={ClipboardList} label="Total tenders" value={tenders.length} detail="All tender records" href="/tenders" />
         <DashboardStatCard icon={BriefcaseBusiness} label="Active projects" value={activeProjectCount} detail="Awarded, in progress or on hold" href="/tenders" tone="green" />
-        <DashboardStatCard icon={FileText} label="Approved receivables" value={formatCurrency(summary.receivables)} detail="Approved less receipts and deductions" href="/reports" tone="green" />
+        <DashboardStatCard icon={FileText} label="Approved receivables" value={formatCurrency(summary.receivables)} detail="Approved less receipts and deductions" href="/reports" featured />
         <DashboardStatCard icon={Landmark} label="Held instruments" value={heldCount} detail="Pay orders with Held status" href="/pay-orders" />
         <DashboardStatCard icon={ShieldCheck} label="Known securities held" value={formatCurrency(summary.securities)} detail="Known funded cash less refunds" href="/pay-orders" tone="amber" />
       </section>
@@ -250,7 +250,7 @@ export default function Home() {
                       <td className="px-2 py-2"><StatusBadge status={project.status} className="gap-1 px-1.5 text-[11px]" /></td>
                       <td className="table-amount whitespace-nowrap px-2 py-2">{formatCurrency(project.financials.contract)}</td>
                       <td className="table-amount whitespace-nowrap px-2 py-2">{formatCurrency(project.financials.incurred)}</td>
-                      <td className="px-2 py-2 text-right"><Button asChild size="sm" variant="outline" className="h-8 px-2 text-xs"><Link to={'/tenders/' + project.id}>View project</Link></Button></td>
+                      <td className="px-2 py-2 text-right"><Button asChild size="sm" variant="outline" className="h-8 rounded-lg bg-card px-2 text-xs shadow-sm"><Link to={'/tenders/' + project.id}>View project</Link></Button></td>
                     </tr>)}
                   </tbody>
                 </table>
@@ -286,11 +286,14 @@ export default function Home() {
             <div className="dashboard-financial-row"><dt className="text-muted-foreground">RM held (separate from pay orders)</dt><dd className="dashboard-financial-value">{formatCurrency(summary.retentionHeld)}</dd></div>
           </dl>
           {(summary.missingContractCount > 0 || summary.unknownBillBasisCount > 0 || summary.unknownReceiptCount > 0 || summary.unknownRetentionCount > 0) &&
-            <div className="mt-3 space-y-1 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs leading-4 text-amber-900 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200" aria-label="Financial data limitations">
+            <div className="mt-3 rounded-xl border border-amber-200/90 bg-amber-50/70 p-3 text-xs leading-4 text-amber-950 shadow-[0_2px_8px_rgba(120,53,15,0.04)] dark:border-amber-900/70 dark:bg-amber-950/25 dark:text-amber-200" aria-label="Financial data limitations">
+              <p className="mb-1.5 flex items-center gap-1.5 font-semibold"><AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />Data limitations</p>
+              <div className="space-y-1 border-l-2 border-amber-300/70 pl-2.5 dark:border-amber-800/70">
               {summary.missingContractCount > 0 && <p>{summary.missingContractCount} awarded project{summary.missingContractCount === 1 ? ' lacks' : 's lack'} a recorded contract amount and {summary.missingContractCount === 1 ? 'is' : 'are'} excluded from unbilled work.</p>}
               {summary.unknownBillBasisCount > 0 && <p>{summary.unknownBillBasisCount} project{summary.unknownBillBasisCount === 1 ? ' has' : 's have'} legacy bills with unverified gross/net basis and {summary.unknownBillBasisCount === 1 ? 'is' : 'are'} excluded from unbilled work.</p>}
               {summary.unknownReceiptCount > 0 && <p>{summary.unknownReceiptCount} approved bill{summary.unknownReceiptCount === 1 ? ' has' : 's have'} no recorded receipt history; outstanding remains unknown.</p>}
               {summary.unknownRetentionCount > 0 && <p>{summary.unknownRetentionCount} legacy RM deduction{summary.unknownRetentionCount === 1 ? ' has' : 's have'} no release history; held balance is excluded.</p>}
+              </div>
             </div>}
           <p className="mt-3 text-xs leading-4 text-muted-foreground">Totals use the existing V2 calculations. Open reports for project-level detail.</p>
         </DashboardSection>

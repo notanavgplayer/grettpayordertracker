@@ -263,6 +263,22 @@
   .dashboard-v3 .kpi-amount {
     @apply text-2xl leading-tight;
   }
+  .dashboard-v3 .dashboard-featured .kpi-amount {
+    color: #fff;
+  }
+  .dashboard-v3 thead {
+    @apply border-b border-border bg-slate-50/80 dark:bg-slate-900/30;
+  }
+  .dashboard-v3 thead th {
+    @apply text-[11px] font-semibold tracking-wide text-muted-foreground;
+  }
+  .dashboard-v3 tbody tr {
+    @apply transition-colors;
+  }
+  .dashboard-v3 tbody tr:hover,
+  .dashboard-v3 tbody tr:focus-within {
+    background-color: color-mix(in oklch, oklch(var(--muted)) 30%, transparent);
+  }
   .dashboard-project-name {
     display: -webkit-box;
     overflow: hidden;

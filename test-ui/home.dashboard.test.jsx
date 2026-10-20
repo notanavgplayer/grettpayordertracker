@@ -46,7 +46,7 @@ describe('dashboard with disposable records', () => {
     for (const amount of [250, 70]) {
       expect(overview.textContent).toContain(formatCurrency(amount))
     }
-    const financialPosition = screen.getByText('Financial Position').closest('div.rounded-xl')
+    const financialPosition = screen.getByRole('region', { name: 'Financial Position' })
     expect(financialPosition.textContent).toContain(formatCurrency(600))
     expect(financialPosition.textContent).toContain('1 awarded project lacks a recorded contract amount')
     expect(financialPosition.textContent).toContain(formatCurrency(120))
