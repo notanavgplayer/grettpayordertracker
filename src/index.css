@@ -260,4 +260,25 @@
   .list-secondary {
     @apply break-words text-xs font-normal leading-4 text-muted-foreground;
   }
+  .dashboard-v3 .kpi-amount {
+    @apply text-2xl leading-tight;
+  }
+  .dashboard-project-name {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .dashboard-project-name:focus-visible,
+  a:focus-visible .dashboard-project-name {
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+  }
+  .dashboard-financial-row {
+    @apply grid grid-cols-[minmax(0,1fr)_minmax(0,55%)] items-start gap-3 py-2.5 text-[13px];
+  }
+  .dashboard-financial-value {
+    @apply max-w-full overflow-x-auto whitespace-nowrap text-right font-semibold tabular-nums;
+  }
 }

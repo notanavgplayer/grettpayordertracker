@@ -27,6 +27,8 @@ const fixtures = {
       title: 'Test Roadworks', createdAt: '2026-09-30T12:00:00Z' },
     { id: 'legacy', type: 'tender', action: 'deleted',
       title: '1', createdAt: '2026-09-29T12:00:00Z' },
+    { id: 'pay-order-event', type: 'payOrder', entityId: 'security', action: 'updated',
+      title: '1', createdAt: '2026-09-28T12:00:00Z' },
   ],
 }
 
@@ -44,24 +46,29 @@ describe('dashboard with disposable records', () => {
     for (const amount of [250, 70]) {
       expect(overview.textContent).toContain(formatCurrency(amount))
     }
-    const financialPosition = screen.getByText('Financial position').closest('div.rounded-xl')
+    const financialPosition = screen.getByText('Financial Position').closest('div.rounded-xl')
     expect(financialPosition.textContent).toContain(formatCurrency(600))
     expect(financialPosition.textContent).toContain('1 awarded project lacks a recorded contract amount')
     expect(financialPosition.textContent).toContain(formatCurrency(120))
     expect(screen.getByText('No dated receipt entries in this period.')).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Monthly recorded receipts chart' })).not.toBeInTheDocument()
-    expect(overview).toHaveClass('lg:grid-cols-6', '2xl:grid-cols-5')
+    expect(overview).toHaveClass('lg:grid-cols-3', 'xl:grid-cols-5')
+    const sections = [...document.querySelectorAll('h2')].map((heading) => heading.textContent)
+    expect(sections).toEqual(['Active Projects', 'Action Required', 'Financial Position', 'Security Instruments', 'Tender Pipeline', 'Receipt History', 'Recent Activity'])
 
     expect(screen.getByRole('link', { name: 'New Tender' })).toHaveAttribute('href', '/tenders?create=1')
     expect(screen.getByRole('link', { name: 'Pay Order' })).toHaveAttribute('href', '/pay-orders?create=1')
     expect(screen.getByRole('link', { name: 'Expense' })).toHaveAttribute('href', '/expenses?create=1')
     expect(screen.getByRole('link', { name: 'Calendar' })).toHaveAttribute('href', '/calendar')
     expect(screen.getByRole('link', { name: 'Test Roadworks' })).toHaveAttribute('href', '/tenders/active')
+    expect(screen.getByRole('link', { name: 'Test Roadworks' })).toHaveAttribute('title', 'Test Roadworks')
     expect(screen.getByRole('link', { name: 'View project' })).toHaveAttribute('href', '/tenders/active')
     expect(screen.queryByText('Finished Project')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'View all activity' })).toHaveAttribute('href', '/activity')
     expect(screen.getAllByText('updated').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Tender deleted').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Pay Order TEST-PO-1 updated').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Pay Order').length).toBeGreaterThan(0)
     expect(getDocs).toHaveBeenCalledTimes(5)
   })
 
@@ -77,5 +84,18 @@ describe('dashboard with disposable records', () => {
     const period = screen.getByRole('combobox', { name: 'Receipt history period' })
     fireEvent.change(period, { target: { value: '12' } })
     expect(period).toHaveValue('12')
+  })
+
+  it('keeps longer recorded follow-up lists accessible', async () => {
+    const rows = {
+      ...fixtures,
+      todos: Array.from({ length: 5 }, (_, index) => ({ id: `task-${index}`, text: `Review item ${index + 1}`, dueDate: '2020-01-01' })),
+    }
+    getDocs.mockImplementation(async (name) => ({
+      docs: (rows[name] || []).map((row) => ({ id: row.id, data: () => row })),
+    }))
+    render(<MemoryRouter><Home /></MemoryRouter>)
+    expect((await screen.findByText('Review item 5')).closest('a')).toHaveAttribute('href', '/todo')
+    expect(screen.getAllByText(/Review item \d/)).toHaveLength(5)
   })
 })

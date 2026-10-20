@@ -14,11 +14,11 @@ const tones = {
 export function DashboardStatCard({ label, value, detail, icon: Icon, href, tone = 'blue', className }) {
   return (
     <Link to={href} className={cn('group min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-blue-500', className)}>
-      <Card className="h-full min-w-0 transition-colors group-hover:border-blue-300 dark:group-hover:border-blue-700">
-        <CardContent className="flex min-w-0 flex-col gap-1.5 p-4">
+      <Card className="h-full min-w-0 transition-colors lg:min-h-[130px] group-hover:border-blue-300 dark:group-hover:border-blue-700">
+        <CardContent className="flex min-w-0 flex-col gap-1 p-4">
           <div className="flex items-start justify-between gap-2">
             <span className="min-w-0 break-words text-[13px] font-medium leading-[18px] text-muted-foreground">{label}</span>
-            <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', tones[tone])}>
+            <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', tones[tone])}>
               <Icon className="h-4 w-4" aria-hidden="true" />
             </span>
           </div>
@@ -37,18 +37,18 @@ export function DashboardSection({ title, description, href, linkLabel = 'View a
     <Card className={cn('min-w-0 overflow-hidden', className)}>
       <CardHeader className="flex flex-row items-center justify-between gap-3 border-b px-4 py-3">
         <div className="min-w-0">
-          <CardTitle>{title}</CardTitle>
+          <CardTitle className="text-base sm:text-base">{title}</CardTitle>
           {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
         </div>
         {href && <Link to={href} className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-blue-300">
           {linkLabel}<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>}
       </CardHeader>
-      <CardContent className={cn('p-4', contentClassName)}>{children}</CardContent>
+      <div className={cn('p-4', contentClassName)}>{children}</div>
     </Card>
   )
 }
 
 export function DashboardEmpty({ children }) {
-  return <p className="rounded-lg border border-dashed bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">{children}</p>
+  return <p className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">{children}</p>
 }
