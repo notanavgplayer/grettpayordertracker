@@ -132,11 +132,56 @@ service cloud.firestore {
     }
     match /payOrders/{d} {
       allow read:   if isAdmin();
-      allow create: if isAdmin() && validPayOrder(request.resource.data);
+      // Setting or changing a number requires claiming it in poNumbers in the
+      // same write, which is what makes numbers unique.
+      allow create: if isAdmin() && validPayOrder(request.resource.data) && claimsPoNumber(d);
       allow update: if isAdmin() && (
         validPayOrder(request.resource.data) || validPayOrderUpdate()
-      );
+      ) && (request.resource.data.get('po', null) == resource.data.get('po', null) || claimsPoNumber(d));
       allow delete: if isAdmin();
+    }
+
+    // ---- poNumbers (pay order number uniqueness index) --------------------
+
+    // Doc ID = the trimmed, lower-cased number with "%" then "/" escaped.
+    // Must match poNumberKey() in src/lib/payOrderSave.js.
+    function poKey(po) {
+      return po.trim().lower().replace('%', '%25').replace('/', '%2F');
+    }
+
+    function claimsPoNumber(payOrderId) {
+      let index = /databases/$(database)/documents/poNumbers/$(poKey(request.resource.data.po));
+      return existsAfter(index) && getAfter(index).data.payOrderId == payOrderId;
+    }
+
+    function validPoClaim(key) {
+      let d = request.resource.data;
+      let owner = /databases/$(database)/documents/payOrders/$(d.payOrderId);
+      return d.keys().hasOnly(['payOrderId','po','createdAt'])
+        && d.payOrderId is string
+        && isStr(d.po, 100)
+        && poKey(d.po) == key
+        && existsAfter(owner)
+        && poKey(getAfter(owner).data.po) == key;
+    }
+
+    match /poNumbers/{key} {
+      allow read: if isAdmin();
+      // A number already claimed has a doc here, so a second claim fails even
+      // when two saves race.
+      allow create: if isAdmin()
+        && !exists(/databases/$(database)/documents/poNumbers/$(key))
+        && validPoClaim(key);
+      // A claim may only be retaken if its pay order no longer exists.
+      allow update: if isAdmin()
+        && !exists(/databases/$(database)/documents/payOrders/$(resource.data.payOrderId))
+        && validPoClaim(key);
+      // Released only when the owning pay order is deleted or renumbered in
+      // the same write.
+      allow delete: if isAdmin() && (
+        !existsAfter(/databases/$(database)/documents/payOrders/$(resource.data.payOrderId))
+        || poKey(getAfter(/databases/$(database)/documents/payOrders/$(resource.data.payOrderId)).data.po) != key
+      );
     }
 
     // ---- tenders ----------------------------------------------------------
@@ -362,7 +407,7 @@ service cloud.firestore {
     // ---- activityLog (append-only audit trail) ----------------------------
 
     function validActivity(d) {
-      return d.keys().hasOnly(['type','action','title','entityId','by','meta','createdAt'])
+      return d.keys().hasOnly(['type','action','title','entityId','by','byUid','meta','createdAt'])
         && optStr(d, 'type', 100)
         && optStr(d, 'action', 100)
         && optStr(d, 'title', 1000)
@@ -370,11 +415,16 @@ service cloud.firestore {
     }
     match /activityLog/{d} {
       allow read:   if isAdmin();
-      allow create: if isAdmin() && validActivity(request.resource.data);
-      // Activity log is append-only — no updates from clients. Admins may
-      // delete (e.g. for retention housekeeping) via the admin UI.
-      allow update: if false;
-      allow delete: if isAdmin();
+      // The actor must be the authenticated caller and the timestamp must be
+      // the server's, so entries cannot be attributed to someone else or
+      // back-dated.
+      allow create: if isAdmin()
+        && validActivity(request.resource.data)
+        && request.resource.data.byUid == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      // Append-only: no client may edit or delete entries. Any retention
+      // cleanup must run server-side with the Admin SDK, which bypasses rules.
+      allow update, delete: if false;
     }
 
     // ---- legacy / unused collections (kept admin-only without field schema) ----

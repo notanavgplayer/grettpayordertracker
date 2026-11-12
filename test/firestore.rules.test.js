@@ -101,7 +101,11 @@ test('synthetic payment, bill receipt and partial refund events persist in the e
   const savedAmounts = billAmounts(savedTender.bills[0])
   assert.deepEqual([savedAmounts.submitted, savedAmounts.approved, savedAmounts.received, savedAmounts.deductions, savedAmounts.balance], [500, 450, 100, 30, 320])
 
-  await assertSucceeds(setDoc(payOrder, { po: 'TEST-PO-1', amount: 61000, status: 'Held', tenderRef: 'workflow-tender', v2: { instrument: 'pay-order', refunds: [] } }))
+  // A pay order must claim its number in poNumbers in the same write.
+  const createPayOrder = writeBatch(db)
+  createPayOrder.set(payOrder, { po: 'TEST-PO-1', amount: 61000, status: 'Held', tenderRef: 'workflow-tender', v2: { instrument: 'pay-order', refunds: [] } })
+  createPayOrder.set(doc(db, 'poNumbers/test-po-1'), { payOrderId: 'workflow-po', po: 'TEST-PO-1' })
+  await assertSucceeds(createPayOrder.commit())
   await assertSucceeds(updateDoc(payOrder, { 'v2.refunds': [{ id: 'ref-1', date: '2026-09-27', amount: 10000, account: 'Test bank', reference: 'REF-1' }] }))
   const savedPayOrder = (await assertSucceeds(getDoc(payOrder))).data()
   assert.deepEqual(securityAmounts(savedPayOrder), { funded: 61000, refunded: 10000, remaining: 51000, exposure: 0 })

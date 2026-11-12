@@ -15,12 +15,20 @@ export function daysFromDateStrings(from, to) {
   return start === null || end === null ? null : Math.round((end - start) / 86_400_000)
 }
 
+// Tightest first. A threshold is due once `days <= maxDays`, so a missed daily
+// run catches up on the next one instead of skipping that reminder for good.
+// reminderDeliveries dedupes each (tender, due date, threshold, recipient), so
+// returning an already-sent threshold again on later days sends nothing.
+const EMAIL_THRESHOLDS = [
+  { key: 'due-today', preference: 'dueToday', maxDays: 0 },
+  { key: 'one-day', preference: 'oneDay', maxDays: 1 },
+  { key: 'three-days', preference: 'threeDays', maxDays: 3 },
+  { key: 'seven-days', preference: 'sevenDays', maxDays: 7 },
+]
+
 export function emailThreshold(days, preferences = {}) {
-  if (days === 7 && preferences.sevenDays !== false) return 'seven-days'
-  if (days === 3 && preferences.threeDays !== false) return 'three-days'
-  if (days === 1 && preferences.oneDay !== false) return 'one-day'
-  if (days === 0 && preferences.dueToday !== false) return 'due-today'
-  return null
+  if (!Number.isInteger(days) || days < 0) return null
+  return EMAIL_THRESHOLDS.find((threshold) => days <= threshold.maxDays && preferences[threshold.preference] !== false)?.key ?? null
 }
 
 export function deliveryIdentity({ tenderId, dueDate, threshold, recipient }) {

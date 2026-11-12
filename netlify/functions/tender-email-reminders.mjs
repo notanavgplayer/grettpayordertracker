@@ -13,4 +13,7 @@ export default async () => {
   }
 }
 
-// Keep the integration callable, but do not activate its production schedule in the V2 release.
+// Scheduled-only: Netlify does not serve scheduled functions over a public URL in
+// production. GRETT_CALENDAR_EMAIL_ENABLED still gates whether a run does any work.
+// Manual runs go through the admin-gated test-tender-email function.
+export const config = { schedule: '@daily' }

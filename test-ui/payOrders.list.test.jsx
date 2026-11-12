@@ -11,8 +11,11 @@ const projects = [
   { id: 'project-1', name: rows[0].tender, nit: 'NIT-1', agency: 'Agency A', status: 'Completed' },
   { id: 'project-2', name: 'Second fixture project', nit: 'NIT-2', agency: 'Agency B', status: 'In Progress' },
 ]
-const { writeBatch } = vi.hoisted(() => ({ writeBatch: vi.fn() }))
-vi.mock('firebase/firestore', () => ({ doc: vi.fn(() => ({ id: 'new-po' })), collection: vi.fn(() => ({})), serverTimestamp: vi.fn(), writeBatch }))
+const { runTransaction } = vi.hoisted(() => ({ runTransaction: vi.fn() }))
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn(() => ({ id: 'new-po' })), collection: vi.fn(() => ({})), serverTimestamp: vi.fn(), runTransaction,
+  query: vi.fn(), where: vi.fn(), getDocs: vi.fn(async () => ({ docs: [] })),
+}))
 vi.mock('@/hooks/useFirestore', () => ({
   useCollection: (name) => ({ data: name === 'payOrders' ? rows : name === 'tenders' ? projects : [], loading: false, error: null }),
   useFirestoreCRUD: () => ({ add: vi.fn(), remove: vi.fn() }),
@@ -52,7 +55,7 @@ describe('pay order list with disposable records', () => {
 
   it('closes a clean form and confirms a dirty cancellation without writing', async () => {
     const user = userEvent.setup()
-    writeBatch.mockClear()
+    runTransaction.mockClear()
     render(<PayOrders />)
     await user.click(screen.getByRole('button', { name: 'Add Pay Order' }))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -65,12 +68,12 @@ describe('pay order list with disposable records', () => {
     expect(screen.getByRole('textbox', { name: 'PO / Instrument Number' })).toHaveValue('TEST-NEW')
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     await user.click(screen.getByRole('button', { name: 'Discard changes' }))
-    expect(writeBatch).not.toHaveBeenCalled()
+    expect(runTransaction).not.toHaveBeenCalled()
   }, 15000)
 
   it('preserves manually cleared or edited project fields when the link changes', async () => {
     const user = userEvent.setup()
-    writeBatch.mockClear()
+    runTransaction.mockClear()
     render(<PayOrders />)
     await user.click(screen.getByRole('button', { name: 'Add Pay Order' }))
     await user.click(screen.getByRole('button', { name: 'Existing project' }))
@@ -86,13 +89,12 @@ describe('pay order list with disposable records', () => {
     await user.click(screen.getByRole('button', { name: /Second fixture project/ }))
     expect(screen.getByRole('textbox', { name: 'NIT / Reference' })).toHaveValue('')
     expect(screen.getByRole('textbox', { name: 'Agency' })).toHaveValue('Manual agency')
-    expect(writeBatch).not.toHaveBeenCalled()
+    expect(runTransaction).not.toHaveBeenCalled()
   }, 15000)
 
   it('keeps the form open with an inline error when saving fails', async () => {
     const user = userEvent.setup()
-    const commit = vi.fn().mockRejectedValue(new Error('offline'))
-    writeBatch.mockReturnValue({ set: vi.fn(), update: vi.fn(), commit })
+    runTransaction.mockRejectedValue(new Error('offline'))
     render(<PayOrders />)
     await user.click(screen.getByRole('button', { name: 'Add Pay Order' }))
     await user.type(screen.getByRole('textbox', { name: 'PO / Instrument Number' }), 'FIXTURE-NEW')
@@ -100,6 +102,6 @@ describe('pay order list with disposable records', () => {
     await user.click(screen.getByRole('button', { name: 'Add Pay Order' }))
     expect(await screen.findByRole('alert', { name: '' })).toHaveTextContent('The pay order could not be saved')
     expect(screen.getByRole('textbox', { name: 'PO / Instrument Number' })).toHaveValue('FIXTURE-NEW')
-    expect(commit).toHaveBeenCalledTimes(1)
+    expect(runTransaction).toHaveBeenCalledTimes(1)
   })
 })

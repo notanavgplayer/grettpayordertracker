@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
@@ -47,6 +47,13 @@ function RouteEffects() {
   return null
 }
 
+// Remount TenderDetail per tender so a pending autosave flushes (on unmount) to
+// the tender it was edited on, instead of carrying over to the next route's tender.
+function KeyedTenderDetail() {
+  const { id } = useParams()
+  return <TenderDetail key={id} />
+}
+
 function AppLayout({ children }) {
   const location = useLocation()
   return (
@@ -72,7 +79,7 @@ export default function App() {
             <Route path="/pay-orders" element={<AppLayout><PayOrders /></AppLayout>} />
             <Route path="/dashboard" element={<Navigate to="/pay-orders" replace />} />
             <Route path="/tenders" element={<AppLayout><Tenders /></AppLayout>} />
-            <Route path="/tenders/:id" element={<AppLayout><TenderDetail /></AppLayout>} />
+            <Route path="/tenders/:id" element={<AppLayout><KeyedTenderDetail /></AppLayout>} />
             <Route path="/tenders/:id/report" element={<AppLayout><TenderReport /></AppLayout>} />
             <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
             <Route path="/calendar" element={<AppLayout><Calendar /></AppLayout>} />
