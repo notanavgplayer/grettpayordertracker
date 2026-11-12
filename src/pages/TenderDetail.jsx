@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase'
 import { queueTenderIntegrationSync } from '@/lib/tenderIntegrations'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activity'
+import { DUPLICATE_PO_MESSAGE, DUPLICATE_PO_NUMBER, deletePayOrderAndReleaseNumber, savePayOrderWithUniqueNumber } from '@/lib/payOrderSave'
 import { getTenderDocumentLinks, hasSupabaseStorageConfig, uploadTenderDocument } from '@/lib/supabaseStorage'
 import { formatDate, formatCurrency, formatCurrencyPrecise, calculateTenderFinancials, getTenderDisplayStatus, TENDER_STATUSES, EXPENSE_CATEGORIES, PO_STATUSES, PO_PURPOSES, BANKS, uid } from '@/lib/utils'
 import { nonNegativeNumber, nullableNumber, safeHttpUrl, stripUndefined } from '@/lib/data'
@@ -538,7 +539,8 @@ export default function TenderDetail() {
   const [editingBoqItemId, setEditingBoqItemId] = useState(null)
   const [activeTenderTab, setActiveTenderTab] = useState('overview')
   const autoSaveTimerRef = useRef(null)
-  const autoSavePayloadRef = useRef({})
+  // Pending autosave changes, pinned to the tender they were made on.
+  const autoSavePayloadRef = useRef({ tenderId: id, changes: {} })
   const tenderIdRef = useRef(id)
   const loadGenerationRef = useRef(0)
 
@@ -569,19 +571,23 @@ export default function TenderDetail() {
 
   const flushAutoSave = useCallback(async () => {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
-    const payload = { ...autoSavePayloadRef.current }
+    const { tenderId, changes } = autoSavePayloadRef.current
+    const payload = { ...changes }
     if (Object.keys(payload).length === 0) {
       setAutoSaving(false)
       return true
     }
     setAutoSaving(true)
     try {
-      await updateDoc(doc(db, 'tenders', tenderIdRef.current), { ...payload, updatedAt: serverTimestamp() })
-      if (['name', 'nit', 'agency', 'submissionDate', 'status'].some((key) => key in payload)) queueTenderIntegrationSync(tenderIdRef.current)
-      for (const [key, value] of Object.entries(payload)) {
-        if (autoSavePayloadRef.current[key] === value) delete autoSavePayloadRef.current[key]
+      await updateDoc(doc(db, 'tenders', tenderId), { ...payload, updatedAt: serverTimestamp() })
+      if (['name', 'nit', 'agency', 'submissionDate', 'status'].some((key) => key in payload)) queueTenderIntegrationSync(tenderId)
+      const pending = autoSavePayloadRef.current
+      if (pending.tenderId === tenderId) {
+        for (const [key, value] of Object.entries(payload)) {
+          if (pending.changes[key] === value) delete pending.changes[key]
+        }
       }
-      setTender((prev) => prev ? { ...prev, ...payload } : prev)
+      if (tenderId === tenderIdRef.current) setTender((prev) => prev ? { ...prev, ...payload } : prev)
       setAutoSaveError(false)
       return true
     } catch (err) {
@@ -597,7 +603,7 @@ export default function TenderDetail() {
 
   useEffect(() => {
     const warnBeforeUnload = (event) => {
-      if (Object.keys(autoSavePayloadRef.current).length === 0) return
+      if (Object.keys(autoSavePayloadRef.current.changes).length === 0) return
       event.preventDefault()
       event.returnValue = ''
     }
@@ -605,7 +611,7 @@ export default function TenderDetail() {
     return () => {
       window.removeEventListener('beforeunload', warnBeforeUnload)
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
-      if (Object.keys(autoSavePayloadRef.current).length > 0) void flushAutoSave()
+      if (Object.keys(autoSavePayloadRef.current.changes).length > 0) void flushAutoSave()
     }
   }, [flushAutoSave])
 
@@ -822,8 +828,6 @@ export default function TenderDetail() {
     if (refundIssue) { toast.error(refundIssue); return }
     setPoSaving(true)
     try {
-      const matchingNumbers = await getDocs(query(collection(db, 'payOrders'), where('po', '==', poForm.po.trim())))
-      if (matchingNumbers.docs.some((item) => item.id !== editPo?.id)) { toast.error('This pay order number already exists. Open and link the existing instrument instead.'); return }
       const payload = {
         po: poForm.po.trim(),
         bank: poForm.bank || '',
@@ -838,24 +842,23 @@ export default function TenderDetail() {
         tenderRef: id,
         bidResult: editPo?.bidResult || 'N/A',
         v2: poForm.v2,
-        updatedAt: serverTimestamp(),
       }
-      const batch = writeBatch(db)
-      if (editPo) {
-        batch.update(doc(db, 'payOrders', editPo.id), payload)
-      } else {
-        batch.set(doc(collection(db, 'payOrders')), { ...payload, createdAt: serverTimestamp() })
-      }
-      // Mirror bid security amount to tender doc for display
-      if (poForm.purpose === 'Bid Security' && amountNum > 0) {
-        batch.update(doc(db, 'tenders', id), { bidSecurity: amountNum, updatedAt: serverTimestamp() })
-      }
-      await batch.commit()
+      await savePayOrderWithUniqueNumber({
+        payOrderId: editPo?.id || null,
+        previousPo: editPo?.po ?? null,
+        data: payload,
+        extraWrites: (transaction) => {
+          // Mirror bid security amount to tender doc for display
+          if (poForm.purpose === 'Bid Security' && amountNum > 0) {
+            transaction.update(doc(db, 'tenders', id), { bidSecurity: amountNum, updatedAt: serverTimestamp() })
+          }
+        },
+      })
       toast.success(editPo ? 'Pay order updated' : 'Pay order added')
       setPoDialogOpen(false)
       setPoRefresh((n) => n + 1)
-    } catch {
-      toast.error('Failed to save pay order')
+    } catch (error) {
+      toast.error(error?.code === DUPLICATE_PO_NUMBER ? DUPLICATE_PO_MESSAGE : 'Failed to save pay order')
     } finally {
       setPoSaving(false)
     }
@@ -863,7 +866,7 @@ export default function TenderDetail() {
   const removePo = async () => {
     if (!deletePoId) return
     try {
-      await deleteDoc(doc(db, 'payOrders', deletePoId))
+      await deletePayOrderAndReleaseNumber(deletePoId, linkedPOs.find((item) => item.id === deletePoId)?.po)
       toast.success('Pay order deleted')
       setDeletePoId(null)
       setPoRefresh((n) => n + 1)
@@ -885,9 +888,14 @@ export default function TenderDetail() {
       ...(patch.documents ? { documents: sanitizeStoredAssets(patch.documents) } : {}),
       ...(patch.siteVisits ? { siteVisits: patch.siteVisits.map((visit) => ({ ...visit, photos: sanitizeStoredAssets(visit.photos || []) })) } : {}),
     }
+    const tenderId = tenderIdRef.current
+    // Never merge edits for this tender into a batch pinned to another one;
+    // flush that batch first (flushAutoSave snapshots it synchronously).
+    if (autoSavePayloadRef.current.tenderId !== tenderId && Object.keys(autoSavePayloadRef.current.changes).length > 0) void flushAutoSave()
+    const pending = autoSavePayloadRef.current.tenderId === tenderId ? autoSavePayloadRef.current.changes : {}
     autoSavePayloadRef.current = {
-      ...autoSavePayloadRef.current,
-      ...stripUndefined(sanitizedPatch),
+      tenderId,
+      changes: { ...pending, ...stripUndefined(sanitizedPatch) },
     }
     setAutoSaving(true)
     setAutoSaveError(false)

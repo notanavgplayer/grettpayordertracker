@@ -13,13 +13,18 @@ import {
   doc as fsDoc,
   collection as fsCollection,
   serverTimestamp as fsServerTimestamp,
-  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getAtRiskPayOrders, getSecurityFollowUps } from "@/lib/payOrderMetrics";
 import { securityAmounts, validateEvents } from "@/lib/financials";
 import PayOrderEditor from "@/components/pay-orders/PayOrderEditor";
-import { logActivity } from "@/lib/activity";
+import { addActivityEntry, logActivity } from "@/lib/activity";
+import {
+  DUPLICATE_PO_MESSAGE,
+  DUPLICATE_PO_NUMBER,
+  deletePayOrderAndReleaseNumber,
+  savePayOrderWithUniqueNumber,
+} from "@/lib/payOrderSave";
 import StatusBadge from "@/components/shared/StatusBadge";
 import EmptyState from "@/components/shared/EmptyState";
 import ConfirmDelete from "@/components/shared/ConfirmDelete";
@@ -196,11 +201,6 @@ export default function PayOrders() {
   );
   const { data: tenders, loading: tendersLoading, error: tendersError } = useCollection("tenders", "createdAt", "desc");
   const { data: banks, loading: banksLoading, error: banksError } = useCollection("banks", "createdAt", "asc");
-  const { remove } = useFirestoreCRUD("payOrders");
-  const {
-    add: addLog,
-    remove: removeLog,
-  } = useFirestoreCRUD("activityLog", { addUpdatedAt: false });
   const { add: addBank } = useFirestoreCRUD("banks");
   const { isAdmin, displayName } = useAuth();
   const searchParams = new URLSearchParams(window.location.search);
@@ -250,10 +250,8 @@ export default function PayOrders() {
     ref: "",
     action: "",
     next: "",
-    by: "",
   });
   const [savingLog, setSavingLog] = useState(false);
-  const [deleteLogId, setDeleteLogId] = useState(null);
 
   const filtered = useMemo(() => {
     const reviewIds = reviewOnly ? new Set(getSecurityFollowUps(payOrders, tenders).map((item) => item.po?.id || item.id)) : null;
@@ -415,7 +413,8 @@ export default function PayOrders() {
     savingRef.current = true;
     setSaving(true);
     try {
-      const batch = writeBatch(db);
+      // Writes that must commit atomically with the pay order and its number claim.
+      const tenderWrites = [];
       let tenderRef = form.tenderRef || "";
       let tenderName = form.tender || "";
       let nit = form.nit || "";
@@ -438,7 +437,7 @@ export default function PayOrders() {
           updatedAt: fsServerTimestamp(),
         };
         const ref = fsDoc(fsCollection(db, "tenders"));
-        batch.set(ref, stub);
+        tenderWrites.push((transaction) => transaction.set(ref, stub));
         tenderRef = ref.id;
         tenderName = stub.name;
         nit = stub.nit;
@@ -451,10 +450,11 @@ export default function PayOrders() {
           agency = agency || t.agency || "";
           // Write bidSecurity on tender if this PO is Bid Security
           if (form.purpose === "Bid Security" && amountNum > 0) {
-            batch.update(fsDoc(db, "tenders", tenderRef), {
+            const tenderDoc = fsDoc(db, "tenders", tenderRef);
+            tenderWrites.push((transaction) => transaction.update(tenderDoc, {
               bidSecurity: amountNum,
               updatedAt: fsServerTimestamp(),
-            });
+            }));
           }
         }
       }
@@ -467,12 +467,13 @@ export default function PayOrders() {
         nit,
         agency,
       });
+      const savedId = await savePayOrderWithUniqueNumber({
+        payOrderId: editItem?.id || null,
+        previousPo: editItem?.po ?? null,
+        data,
+        extraWrites: (transaction) => tenderWrites.forEach((write) => write(transaction)),
+      });
       if (editItem) {
-        batch.update(fsDoc(db, "payOrders", editItem.id), {
-          ...data,
-          updatedAt: fsServerTimestamp(),
-        });
-        await batch.commit();
         logActivity({
           type: "payOrder",
           action: "updated",
@@ -483,26 +484,24 @@ export default function PayOrders() {
         });
         toast.success("Pay order updated");
       } else {
-        const payOrderDoc = fsDoc(fsCollection(db, "payOrders"));
-        const newId = payOrderDoc.id;
-        batch.set(payOrderDoc, {
-          ...data,
-          createdAt: fsServerTimestamp(),
-          updatedAt: fsServerTimestamp(),
-        });
-        await batch.commit();
         logActivity({
           type: "payOrder",
           action: "created",
           title: data.po || "(no PO#)",
-          entityId: newId,
+          entityId: savedId,
           by: displayName,
           meta: { tender: tenderName },
         });
         toast.success("Pay order added");
       }
       setDialogOpen(false);
-    } catch {
+    } catch (error) {
+      if (error?.code === DUPLICATE_PO_NUMBER) {
+        setFormErrors((current) => ({ ...current, po: DUPLICATE_PO_MESSAGE }));
+        setSaveError(DUPLICATE_PO_MESSAGE);
+        toast.error(DUPLICATE_PO_MESSAGE);
+        return;
+      }
       setSaveError("The pay order could not be saved. Check your connection and permissions, then try again.");
       toast.error("Failed to save");
     } finally {
@@ -513,7 +512,7 @@ export default function PayOrders() {
 
   const handleDelete = async () => {
     const p = payOrders.find((x) => x.id === deleteId);
-    await remove(deleteId);
+    await deletePayOrderAndReleaseNumber(deleteId, p?.po);
     logActivity({
       type: "payOrder",
       action: "deleted",
@@ -532,7 +531,6 @@ export default function PayOrders() {
       ref: "",
       action: "",
       next: "",
-      by: displayName || "",
     });
     setLogDialogOpen(true);
   };
@@ -544,12 +542,13 @@ export default function PayOrders() {
     }
     setSavingLog(true);
     try {
-      await addLog({
+      // The actor is always the signed-in user; addActivityEntry records their uid.
+      await addActivityEntry({
         type: "payOrder",
         action: logForm.action.trim(),
         title: logForm.po.trim() || logForm.ref.trim() || logForm.action.trim(),
         entityId: null,
-        by: logForm.by.trim() || displayName,
+        by: displayName,
         meta: {
           date: logForm.date,
           po: logForm.po.trim(),
@@ -559,6 +558,9 @@ export default function PayOrders() {
       });
       toast.success("Log entry added");
       setLogDialogOpen(false);
+    } catch (e) {
+      console.error("Add log entry failed:", e);
+      toast.error("The log entry could not be saved. Check your connection and permissions, then try again.");
     } finally {
       setSavingLog(false);
     }
@@ -1289,7 +1291,6 @@ export default function PayOrders() {
                       Next Step
                     </TableHead>
                     <TableHead className="hidden lg:table-cell">By</TableHead>
-                    {isAdmin && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1313,30 +1314,6 @@ export default function PayOrders() {
                       <TableCell className="hidden lg:table-cell text-sm">
                         {l.by || "—"}
                       </TableCell>
-                      {isAdmin && (
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                className="h-8 w-8"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => setDeleteLogId(l.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1433,12 +1410,6 @@ export default function PayOrders() {
               onChange={setLF("next")}
               placeholder="What needs to happen next?"
             />
-            <Field
-              label="By"
-              value={logForm.by}
-              onChange={setLF("by")}
-              placeholder="Who performed this?"
-            />
           </div>
           <SheetFooter className="gap-2 border-t border-border bg-background px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:justify-end sm:px-6 sm:pb-4">
             <Button variant="outline" onClick={() => setLogDialogOpen(false)}>
@@ -1510,17 +1481,6 @@ export default function PayOrders() {
         onConfirm={handleDelete}
         title="Delete pay order"
         description="This will permanently remove the pay order record."
-      />
-      <ConfirmDelete
-        open={!!deleteLogId}
-        onOpenChange={() => setDeleteLogId(null)}
-        onConfirm={async () => {
-          await removeLog(deleteLogId);
-          toast.success("Log deleted");
-          setDeleteLogId(null);
-        }}
-        title="Delete log entry"
-        description="This will remove this activity log entry."
       />
     </div>
   );

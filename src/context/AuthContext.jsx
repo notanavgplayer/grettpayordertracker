@@ -14,7 +14,16 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let unsubscribeProfile = null
     let generation = 0
+    // uid whose profile is loaded or loading. onIdTokenChanged also fires on the
+    // routine hourly token refresh; for the same uid we keep the mounted app and
+    // the live profile subscription (which already handles role demotion).
+    let activeUid = null
     const unsub = onIdTokenChanged(auth, async (firebaseUser) => {
+      if (firebaseUser && firebaseUser.uid === activeUid) {
+        setUser(firebaseUser)
+        return
+      }
+      activeUid = firebaseUser?.uid ?? null
       const currentGeneration = ++generation
       unsubscribeProfile?.()
       unsubscribeProfile = null
@@ -45,6 +54,8 @@ export function AuthProvider({ children }) {
         } catch (err) {
           console.error('Failed to load user document:', err)
           setUserDoc(null)
+          // Let the next token change retry the profile load.
+          if (generation === currentGeneration) activeUid = null
         }
       } else {
         setUser(null)

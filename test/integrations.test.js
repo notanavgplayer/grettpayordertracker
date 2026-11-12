@@ -3,13 +3,19 @@ import assert from 'node:assert/strict'
 import { calendarMappingId, eventFromTender, intendedCalendarOperation, isEligibleTender } from '../netlify/functions/_shared/calendar-logic.mjs'
 import { daysFromDateStrings, deliveryIdentity, emailThreshold, karachiDateString } from '../netlify/functions/_shared/reminder-logic.mjs'
 
-test('email thresholds run only on configured milestone days', () => {
+test('email thresholds pick the tightest enabled milestone at or after the days remaining', () => {
   assert.equal(emailThreshold(7), 'seven-days')
   assert.equal(emailThreshold(3), 'three-days')
   assert.equal(emailThreshold(1), 'one-day')
   assert.equal(emailThreshold(0), 'due-today')
-  assert.equal(emailThreshold(6), null)
-  assert.equal(emailThreshold(3, { threeDays: false }), null)
+  // A missed milestone day is caught up on the next run.
+  assert.equal(emailThreshold(6), 'seven-days')
+  assert.equal(emailThreshold(2), 'three-days')
+  assert.equal(emailThreshold(8), null)
+  assert.equal(emailThreshold(-1), null)
+  assert.equal(emailThreshold(null), null)
+  assert.equal(emailThreshold(3, { threeDays: false }), 'seven-days')
+  assert.equal(emailThreshold(3, { threeDays: false, sevenDays: false }), null)
 })
 
 test('delivery identity deduplicates a threshold and changes with a new deadline', () => {
